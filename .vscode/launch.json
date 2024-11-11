@@ -1,0 +1,48 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "will-it-scale runtest.py w/ specific testcase & impl",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "/home/mihi/Desktop/DAL/will-it-scale/runtest.py",
+            "console": "integratedTerminal",
+            "cwd": "/home/mihi/Desktop/DAL/will-it-scale/",
+            "args": [
+                "pthread_mutex1",
+                "/home/mihi/Desktop/DAL/litl/impl/libcbomcs_spinlock.so"
+            ]
+        },
+        {
+            "name": "Debug C Code - pthread_mutex",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/will-it-scale/pthread_mutex1_threads", // Replace with the actual path if necessary
+            "args": [
+                "-t",
+                "2",
+                "-s",
+                "3",
+                "-lpapi"
+            ], // Replace with desired arguments
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "LD_PRELOAD",
+                    "value": "/home/mihi/Desktop/DAL/litl/impl/libcbomcs_spinlock.so"
+                }
+            ],
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "externalConsole": false, // Set to true if you prefer an external console
+            "preLaunchTask": "build" // Optional: task for building the program before debugging
+        }
+    ]
+}
