@@ -144,7 +144,7 @@ int mcs_tp_mutex_trylock(mcs_tp_mutex_t *impl, mcs_tp_node_t *me) {
             goto success;
         } else if (me->status == FAILED) {
             if (GET_TIME() - impl->cs_start_time > MAX_CS_TIME)
-                pthread_yield();
+                sched_yield();
 
             me->last_lock = impl;
             return EBUSY;
@@ -164,7 +164,7 @@ int mcs_tp_mutex_trylock(mcs_tp_mutex_t *impl, mcs_tp_node_t *me) {
             }
 
             if (GET_TIME() - impl->cs_start_time > MAX_CS_TIME)
-                pthread_yield();
+                sched_yield();
 
             me->last_lock = impl;
             return EBUSY;

@@ -79,6 +79,7 @@ static inline void waiting_policy_sleep(volatile int *var) {
 
 static inline void waiting_policy_wake(volatile int *var) {
     *var = UNLOCKED;
+    // fprintf(stderr, "%d woken up private spin %p\n", syscall(SYS_gettid),var);
 }
 #elif defined(WAITING_SPINLOCK_ATOMIC)
 #define WAITING_POLICY "WAITING_SPINLOCK_ATOMIC"

@@ -54,10 +54,10 @@ obj/CLHT/external/lib/libsspfd.a: obj/CLHT
 	cp libsspfd.a ../external/lib/ && \
 	cp sspfd.h ../external/include
 
-# $(SHS): src/liblock.in
-# 	cat $< | sed -e "s/@abs_top_srcdir@/$$(echo $$(cd .; pwd) | sed -e 's/\([\/&]\)/\\\1/g')/g" > $@
-# 	sed -i "s/@lib@/$$(basename $@ .sh).so/g" $@
-# 	chmod a+x $@
+$(SHS): src/liblock.in
+	cat $< | sed -e "s/@abs_top_srcdir@/$$(echo $$(cd .; pwd) | sed -e 's/\([\/&]\)/\\\1/g')/g" > $@
+	sed -i "s/@lib@/$$(basename $@ .sh).so/g" $@
+	chmod a+x $@
 
 include/topology.h: include/topology.in
 	cat $< | sed -e "s/@nodes@/$$(numactl -H | head -1 | cut -f 2 -d' ')/g" > $@

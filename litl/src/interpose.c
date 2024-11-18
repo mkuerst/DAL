@@ -366,6 +366,7 @@ static void __attribute__((destructor)) REAL(interpose_exit)(void) {
 #if !NO_INDIRECTION
 static inline lock_context_t *get_node(lock_transparent_mutex_t *impl) {
 #if NEED_CONTEXT
+    // fprintf(stderr, "get_node %d\n", cur_thread_id);
     return &impl->lock_node[cur_thread_id];
 #else
     return NULL;
@@ -405,9 +406,10 @@ static void *lp_start_routine(void *_arg) {
     return res;
 }
 
-int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
+int __pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                    void *(*start_routine)(void *), void *arg) {
     DEBUG_PTHREAD("[p] pthread_create\n");
+    // fprintf(stderr, "CREATING THREAD IN INTERPOSE\n");
     struct routine *r = malloc(sizeof(struct routine));
 
     r->fct = start_routine;
@@ -415,6 +417,8 @@ int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
 
     return REAL(pthread_create)(thread, attr, lp_start_routine, r);
 }
+__asm__(".symver __pthread_create,pthread_create@@" GLIBC_2_2_5);
+__asm__(".symver __pthread_create,pthread_create@" GLIBC_2_34);
 
 int pthread_mutex_init(pthread_mutex_t *mutex,
                        const pthread_mutexattr_t *attr) {

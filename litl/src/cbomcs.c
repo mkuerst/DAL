@@ -67,6 +67,7 @@ static inline int current_numa_node() {
 static int __mcs_mutex_lock(mcs_mutex_t *impl, mcs_node_t *me) {
     mcs_node_t *tail;
 
+    // fprintf(stderr, "%d w/ node %p trying to acquire local lock\n", syscall(SYS_gettid), me);
     me->next = 0;
     me->spin = LOCKED;
 
@@ -83,7 +84,9 @@ static int __mcs_mutex_lock(mcs_mutex_t *impl, mcs_node_t *me) {
     tail->next = me;
     COMPILER_BARRIER();
 
+    // fprintf(stderr, "%d sleeping on private spin %p\n", syscall(SYS_gettid),&me->spin);
     waiting_policy_sleep(&me->spin);
+    // fprintf(stderr, "%d woken up to private spin %p\n", syscall(SYS_gettid),&me->spin);
 
     return 0;
 }
@@ -102,6 +105,7 @@ static void __mcs_mutex_unlock(mcs_mutex_t *impl, mcs_node_t *me) {
     }
 
     /* Unlock next one */
+    // fprintf(stderr, "%d waking up private spin %p\n", syscall(SYS_gettid),&me->next->spin);
     waiting_policy_wake(&me->next->spin);
 }
 
@@ -178,7 +182,9 @@ static int __cbomcs_mutex_lock(cbomcs_mutex_t *impl, cbomcs_node_t *me) {
     local_mcs_lock_t *local_lock = &impl->local_locks[current_numa_node()];
 
     // Acquire the local lock
+    // fprintf(stderr, "%d acquiring local lock %p\n", syscall(SYS_gettid),&local_lock->l);
     __mcs_mutex_lock(&local_lock->l, me);
+    // fprintf(stderr, "%d acquired local lock %p\n", syscall(SYS_gettid),&local_lock->l);
 
     // Do we already have the global lock?
     if (local_lock->top_grant) {
@@ -187,7 +193,9 @@ static int __cbomcs_mutex_lock(cbomcs_mutex_t *impl, cbomcs_node_t *me) {
     }
 
     // Acquire top lock
+    // fprintf(stderr, "%d acquiring top_lock %p\n", syscall(SYS_gettid),&(impl->top_lock.spin_lock));
     __backoff_mutex_lock(&impl->top_lock);
+    // fprintf(stderr, "%d acquired top lock %p\n",syscall(SYS_gettid), &(impl->top_lock.spin_lock));
     impl->top_home = local_lock;
 
     return 0;
@@ -259,7 +267,9 @@ static void __cbomcs_mutex_unlock(cbomcs_mutex_t *impl, cbomcs_node_t *me) {
 
     // Release the local lock AND the global lock
     __mcs_mutex_unlock(&local_lock->l, me);
+    // fprintf(stderr,"%d released local lock %p\n", syscall(SYS_gettid),&local_lock->l);
     __backoff_mutex_unlock(&impl->top_lock);
+    // fprintf(stderr,"%d released top lock %p\n", syscall(SYS_gettid),&impl->top_lock);
 }
 
 void cbomcs_mutex_unlock(cbomcs_mutex_t *impl, cbomcs_node_t *me) {

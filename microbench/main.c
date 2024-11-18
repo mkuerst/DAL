@@ -4,7 +4,7 @@
 // #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <pthread.h>
+// #include <pthread.h>
 #include <sched.h>
 #include <sys/resource.h>
 #include <sys/syscall.h>
@@ -46,8 +46,8 @@ void *worker(void *arg) {
     //     cpu_set_t cpuset;
     //     CPU_ZERO(&cpuset);
     //     for (int i = 0; i < task->ncpu; i++) {
-    //         if (i < 8 || i >= 24)
     //             CPU_SET(i, &cpuset);
+    //         if (i < 8 || i >= 24)
     //         else if (i < 16)
     //             CPU_SET(i+8, &cpuset);
     //         else
@@ -73,8 +73,8 @@ void *worker(void *arg) {
     ull lock_hold = 0;
     ull loop_in_cs = 0;
     const ull delta = CYCLE_PER_US * task->cs;
-    // while (!*task->stop) {
-    while (*task->global_its < 1000 || !*task->stop) {
+    while (!*task->stop) {
+    // while (*task->global_its < 1000) {
         // fprintf(stderr, "thread %d acquiring lock\n", task->id);
         lock_acquire(&lock);
         // fprintf(stderr, "thread %d acquired lock\n", task->id);
@@ -108,6 +108,9 @@ int main(int argc, char *argv[]) {
     int duration = atoi(argv[2]);
     task_t *tasks = malloc(sizeof(task_t) * nthreads);
 
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+
     volatile int stop __attribute__((aligned (CACHELINE_SIZE))) = 0;
     volatile ull global_its __attribute__((aligned (CACHELINE_SIZE))) = 0;
     // int stop_warmup __attribute__((aligned (CACHELINE_SIZE))) = 0;
@@ -137,14 +140,12 @@ int main(int argc, char *argv[]) {
     // pthread_t *w_threads = malloc(sizeof(pthread_t)*nthreads);
     fprintf(stderr, "WARMUP\n");
     for (int i = 0; i < nthreads; i++) {
-        pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
+        pthread_create(&tasks[i].thread, &attr, worker, &tasks[i]);
     }
-    sleep(1);
+    sleep(2);
     stop = 1;
     for (int i = 0; i < nthreads; i++) {
-        fprintf(stderr, "%d waiting", i);
         pthread_join(tasks[i].thread, NULL);
-        // fprintf(stderr, "awaited t %d\n", i);
     }
     for (int i = 0; i < nthreads; i++) {
         tasks[i].loop_in_cs = 0;
@@ -161,7 +162,6 @@ int main(int argc, char *argv[]) {
     sleep(duration);
     stop = 1;
     for (int i = 0; i < nthreads; i++) {
-        fprintf(stderr, "%d waiting", i);
         pthread_join(tasks[i].thread, NULL);
     }
 

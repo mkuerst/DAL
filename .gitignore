@@ -3,3 +3,4 @@ litl/impl/*
 .vscode
 *.o
 *.so
+microbench/main
