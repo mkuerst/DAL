@@ -14,7 +14,7 @@
             ]
         },
         {
-            "name": "Debug C Code - pthread_mutex",
+            "name": "C - will-it-scale - pthread_mutex",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/will-it-scale/pthread_mutex1_threads", // Replace with the actual path if necessary
@@ -43,6 +43,36 @@
             ],
             "externalConsole": false, // Set to true if you prefer an external console
             "preLaunchTask": "build" // Optional: task for building the program before debugging
+        },
+        {
+            "name": "Debug C Code - Microbench",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/microbench/main",
+            "args": [
+                "2", // n_thread
+                "2", // duration in s
+                "1000", // <<cs prio> ... >
+                "8", // n_cpu
+            ], 
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "LD_PRELOAD",
+                    "value": "/home/mihi/Desktop/DAL/litl/lib/libcbomcs_spinlock.so"
+                }
+            ],
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "externalConsole": false, // Set to true if you prefer an external console
+            "preLaunchTask": "make microbench" // Optional: task for building the program before debugging
         }
     ]
 }

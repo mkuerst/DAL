@@ -254,7 +254,6 @@ int main(int argc, char *argv[])
     printf("IN MAIN.C OF WILL-IT-SCALE\n");
     sleep(2);
     int retval;
-    unsigned long long end_time = 0;
 
     retval = PAPI_library_init(PAPI_VER_CURRENT);
     if (retval != PAPI_VER_CURRENT)
@@ -427,22 +426,6 @@ int main(int argc, char *argv[])
             exit(1);
         }
 
-        int eventset = PAPI_NULL;
-        retval = PAPI_create_eventset(&eventset);
-        if (retval != PAPI_OK)
-        {
-            fprintf(stderr, "Error creating eventset! %s\n",
-                    PAPI_strerror(retval));
-        }
-
-        int events[NUM_EVENTS] = {PAPI_TOT_INS, PAPI_TOT_CYC};
-        // long long counters[NUM_EVENTS];
-
-        if ((retval = PAPI_add_events(eventset, events, NUM_EVENTS)) != PAPI_OK)
-        {
-            fprintf(stderr, "PAPI_add_events error: %s\n", PAPI_strerror(retval));
-            exit(1);
-        }
         new_task_affinity(&args[i]);
 
         if (use_affinity && hwloc_set_cpubind(topology, old_cpuset, flags) < 0)
@@ -462,9 +445,9 @@ int main(int argc, char *argv[])
 
     hwloc_topology_destroy(topology);
 
-    printf("testcase:%s\n", testcase_description);
+    fprintf(stderr, "testcase:%s\n", testcase_description);
 
-    printf("warmup\n");
+    fprintf(stderr, "warmup\n");
 
     while (1)
     {
@@ -490,10 +473,10 @@ int main(int argc, char *argv[])
             prev[i] = val;
         }
 
-        printf("min:%llu max:%llu total:%llu\n", min, max, sum);
+        fprintf(stderr, "min:%llu max:%llu total:%llu\n", min, max, sum);
 
         if (iterations == WARMUP_ITERATIONS)
-            printf("measurement\n");
+            fprintf(stderr, "measurement\n");
 
         if (iterations++ > WARMUP_ITERATIONS)
             total += sum;
@@ -501,20 +484,17 @@ int main(int argc, char *argv[])
         if (opt_iterations &&
             (iterations > (opt_iterations + WARMUP_ITERATIONS)))
         {
-            printf("average:%llu\n", total / opt_iterations);
-            end_time = PAPI_get_real_usec();
+            fprintf(stderr, "average:%llu\n", total / opt_iterations);
             break;
         }
     }
 
     kill_tasks();
-    printf("RUNTIMES:\n");
 
     for (i = 0; i < opt_tasks; i++)
     {
         hwloc_bitmap_free(args[i].cpuset);
         hwloc_topology_destroy(args[i].topology);
-        printf("Thread %d: %f\n", i, (end_time - *(args[i].runtime)) / 1e6);
     }
     free(args);
 

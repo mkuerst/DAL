@@ -149,6 +149,7 @@ static int __backoff_mutex_lock(backoff_ttas_t *impl) {
 
 static void __backoff_mutex_unlock(backoff_ttas_t *impl) {
     COMPILER_BARRIER();
+    // fprintf(stderr, "cbomcs unlocked\n");
     impl->spin_lock = UNLOCKED;
 }
 
