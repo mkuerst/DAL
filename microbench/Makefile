@@ -19,7 +19,7 @@ GCCVERSIONGTEQ5 := $(shell expr `gcc -dumpversion | cut -f1 -d.` \>= 5)
 # endif
 OFLAG=-O2
 
-FLAGS=-I/../litl/include/ -I/../litl/src/ -g -Wall -DCYCLE_PER_US=${CYCLE_PER_US} -DCACHELINE_SIZE=${CACHELINE_SIZE}
+FLAGS=-I/../litl2/include/ -I/../litl2/src/ -g -Wall -DCYCLE_PER_US=${CYCLE_PER_US} -DCACHELINE_SIZE=${CACHELINE_SIZE}
 
 .PHONY: all target
 
@@ -41,3 +41,5 @@ target:
 
 clean:
 	rm main
+
+# -L/home/kumichae/my_libs/rdma-core/build/lib/ -lrdmacm

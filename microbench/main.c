@@ -37,6 +37,8 @@ typedef struct {
 } task_t __attribute__ ((aligned (CACHELINE_SIZE)));
 
 lock_t lock;
+// TODO: add barrier before threads start actual lock acquisitions 
+pthread_barrier_t barrier;
 
 void *worker(void *arg) {
     int ret;
@@ -178,3 +180,4 @@ int main(int argc, char *argv[]) {
 }
 
 // LD_PRELOAD=/home/mihi/Desktop/DAL/litl/impl/libcbomcs_spinlock.so ./main 2 3 1000 8 
+// LD_PRELOAD=/home/kumichae/DAL/litl2/lib/libcbomcs_spinlock.so ./main 2 3 1000 8 
