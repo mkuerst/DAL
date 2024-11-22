@@ -44,23 +44,16 @@ void *worker(void *arg) {
     int ret;
     task_t *task = (task_t *) arg;
 
-    // if (task->ncpu != 0) {
-    //     cpu_set_t cpuset;
-    //     CPU_ZERO(&cpuset);
-    //     for (int i = 0; i < task->ncpu; i++) {
-    //             CPU_SET(i, &cpuset);
-    //         if (i < 8 || i >= 24)
-    //         else if (i < 16)
-    //             CPU_SET(i+8, &cpuset);
-    //         else
-    //             CPU_SET(i-8, &cpuset);
-    //     }
-    //     ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
-    //     if (ret != 0) {
-    //         perror("pthread_set_affinity_np");
-    //         exit(-1);
-    //     }
-    // }
+    if (task->ncpu != 0) {
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(task->id/2, &cpuset);
+        ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+        if (ret != 0) {
+            perror("pthread_set_affinity_np");
+            exit(-1);
+        }
+    }
 
     // pid_t tid = gettid();
     // ret = setpriority(PRIO_PROCESS, tid, task->priority);
