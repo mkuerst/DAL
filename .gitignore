@@ -3,4 +3,6 @@ litl/impl/*
 .vscode
 *.o
 *.so
+litl/Makefile
+litl/src/Makefile
 microbench/main
