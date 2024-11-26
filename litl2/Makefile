@@ -9,14 +9,19 @@ CFLAGS=-Iinclude/
 TARGETS=$(addprefix lib, $(ALGORITHMS))
 DIR=$(addprefix obj/, $(ALGORITHMS))
 SOS=$(TARGETS:=.so)
+SOS+=$(TARGETS:=_server.so)
+SOS+=$(TARGETS:=_client.so)
 SHS=$(TARGETS:=.sh)
 export COND_VAR=1
+
 
 .PRECIOUS: %.o
 .SECONDARY: $(OBJS)
 .PHONY: all clean format
 
-all: $(DIR) include/topology.h $(SOS) #$(SHS)
+all: clean $(DIR) include/topology.h $(SOS) #$(SHS)
+	$(MAKE) -C ./src/ all
+	$(MAKE) -C ../microbench/ all
 
 no_cond_var: COND_VAR=0
 no_cond_var: all
@@ -69,7 +74,7 @@ include/topology.h: include/topology.in
 
 
 clean:
-	rm -rf lib/ obj/ $(SHS)
+	rm -rf lib/ obj/ $(SHS) *_server src/*.o ../microbench/main
 
 format:
 	for i in `find . | egrep "\.c$$|\.cc$$|\.cxx$$|\.cpp$$|\.h$$"`; do clang-format  -i "$$i"; done

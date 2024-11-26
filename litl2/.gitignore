@@ -5,3 +5,5 @@ obj/
 lib*.sh
 include/topology.h
 .DS_Store
+*.o
+*_server

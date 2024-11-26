@@ -107,6 +107,7 @@ static int client_prepare_connection(struct sockaddr_in *s_addr)
 	 * in the operating system. All resources are tied to a particular PD. 
 	 * And accessing recourses across PD will result in a protection fault.
 	 */
+
 	pd = ibv_alloc_pd(cm_client_id->verbs);
 	if (!pd) {
 		rdma_error("Failed to alloc pd, errno: %d \n", -errno);
@@ -551,32 +552,33 @@ int main(int argc, char **argv) {
 	return ret;
 }
 
-int establish_client_connection(char* input, char* addr)
+int establish_rdma_connection(unsigned int tid, char* addr)
 {
 	struct sockaddr_in server_sockaddr;
-	int ret, option;
+	int ret;
 	bzero(&server_sockaddr, sizeof server_sockaddr);
 	server_sockaddr.sin_family = AF_INET;
 	server_sockaddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	/* buffers are NULL */
 	src = dst = NULL; 
 
-	printf("Passed string is : %s , with count %u \n", 
-			input, 
-			(unsigned int) strlen(input));
-	src = calloc(strlen(input) , 1);
-	if (!src) {
-		rdma_error("Failed to allocate memory : -ENOMEM\n");
-		return -ENOMEM;
-	}
-	/* Copy the passes arguments */
-	strncpy(src, input, strlen(input));
-	dst = calloc(strlen(input), 1);
-	if (!dst) {
-		rdma_error("Failed to allocate destination memory, -ENOMEM\n");
-		free(src);
-		return -ENOMEM;
-	}
+	fprintf(stderr, "tid %d estasblishing RDMA connection\n", tid);
+	// printf("Passed string is : %s , with count %u \n", 
+	// 		input, 
+	// 		(unsigned int) strlen(input));
+	// src = calloc(strlen(input) , 1);
+	// if (!src) {
+	// 	rdma_error("Failed to allocate memory : -ENOMEM\n");
+	// 	return -ENOMEM;
+	// }
+	// /* Copy the passes arguments */
+	// strncpy(src, input, strlen(input));
+	// dst = calloc(strlen(input), 1);
+	// if (!dst) {
+	// 	rdma_error("Failed to allocate destination memory, -ENOMEM\n");
+	// 	free(src);
+	// 	return -ENOMEM;
+	// }
 	ret = get_addr(addr, (struct sockaddr*) &server_sockaddr);
 	if (ret) {
 		rdma_error("Invalid IP \n");
@@ -587,10 +589,10 @@ int establish_client_connection(char* input, char* addr)
 	  /* no port provided, use the default port */
 	  server_sockaddr.sin_port = htons(DEFAULT_RDMA_PORT);
 	  }
-	if (src == NULL) {
-		printf("Please provide a string to copy \n");
-		usage();
-       	}
+	// if (src == NULL) {
+	// 	printf("Please provide a string to copy \n");
+	// 	usage();
+    //    	}
 	ret = client_prepare_connection(&server_sockaddr);
 	if (ret) { 
 		rdma_error("Failed to setup client connection , ret = %d \n", ret);
@@ -606,25 +608,25 @@ int establish_client_connection(char* input, char* addr)
 		rdma_error("Failed to setup client connection , ret = %d \n", ret);
 		return ret;
 	}
-	ret = client_xchange_metadata_with_server();
-	if (ret) {
-		rdma_error("Failed to setup client connection , ret = %d \n", ret);
-		return ret;
-	}
-	ret = client_remote_memory_ops();
-	if (ret) {
-		rdma_error("Failed to finish remote memory ops, ret = %d \n", ret);
-		return ret;
-	}
-	if (check_src_dst()) {
-		rdma_error("src and dst buffers do not match \n");
-	} else {
-		printf("...\nSUCCESS, source and destination buffers match \n");
-	}
-	ret = client_disconnect_and_clean();
-	if (ret) {
-		rdma_error("Failed to cleanly disconnect and clean up resources \n");
-	}
+	// ret = client_xchange_metadata_with_server();
+	// if (ret) {
+	// 	rdma_error("Failed to setup client connection , ret = %d \n", ret);
+	// 	return ret;
+	// }
+	// ret = client_remote_memory_ops();
+	// if (ret) {
+	// 	rdma_error("Failed to finish remote memory ops, ret = %d \n", ret);
+	// 	return ret;
+	// }
+	// if (check_src_dst()) {
+	// 	rdma_error("src and dst buffers do not match \n");
+	// } else {
+	// 	printf("...\nSUCCESS, source and destination buffers match \n");
+	// }
+	// ret = client_disconnect_and_clean();
+	// if (ret) {
+	// 	rdma_error("Failed to cleanly disconnect and clean up resources \n");
+	// }
 	return ret;
 }
 // ./bin/rdma_client -a 10.233.0.21 -s textstring

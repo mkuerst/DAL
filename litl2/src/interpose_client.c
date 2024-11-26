@@ -1,12 +1,13 @@
+
 /*
  * The MIT License (MIT)
  *
  * Copyright (c) 2016 Hugo Guiroux <hugo.guiroux at gmail dot com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of his software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * of his software and associated documentation files (the "Software"), to deal
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
@@ -94,6 +95,8 @@
 #include "waiting_policy.h"
 #include "utils.h"
 #include "interpose.h"
+#include "rdma_client.c"
+#include "tcp_client.c"
 
 // The NO_INDIRECTION flag allows disabling the pthread-to-lock hash table
 // and directly calling the specific lock function
@@ -405,6 +408,18 @@ static void *lp_start_routine(void *_arg) {
                 MAX_THREADS);
         exit(-1);
     } 
+    while (current_turn != cur_thread_id) {
+        pthread_cond_wait(&cond, &lock);
+    }
+    // CLUSTER: 10.233.0.21
+    // LOCAL: 10.5.12.168 | 192.168.1.70
+    // establish_rdma_connection(cur_thread_id, "10.5.12.168");
+    sockfd = establish_tcp_connection(cur_thread_id, "10.5.12.168");
+    if(sockfd < 0) {
+        tcp_error("Thread %d establishing tcp connection", cur_thread_id);
+    }
+    current_turn = (current_turn + 1);
+    pthread_cond_broadcast(&cond);
 
 #if !NO_INDIRECTION
     clht_gc_thread_init(pthread_to_lock, cur_thread_id);
@@ -416,9 +431,11 @@ static void *lp_start_routine(void *_arg) {
     return res;
 }
 
+
 int __pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                    void *(*start_routine)(void *), void *arg) {
     DEBUG_PTHREAD("[p] pthread_create\n");
+    // fprintf(stderr, "CREATING THREAD IN INTERPOSE\n");
     struct routine *r = malloc(sizeof(struct routine));
 
     r->fct = start_routine;
@@ -459,11 +476,7 @@ int pthread_mutex_destroy(pthread_mutex_t *mutex) {
 int pthread_mutex_lock(pthread_mutex_t *mutex) {
     DEBUG_PTHREAD("[p] pthread_mutex_lock\n");
 #if !NO_INDIRECTION
-    lock_transparent_mutex_t *impl = ht_lock_get(mutex);
-    return lock_mutex_lock(impl->lock_lock, get_node(impl));
-
-#else
-    return lock_mutex_lock(mutex, NULL);
+    request_lock(sockfd, cur_thread_id);
 #endif
 }
 
@@ -484,14 +497,7 @@ int pthread_mutex_trylock(pthread_mutex_t *mutex) {
 
 int pthread_mutex_unlock(pthread_mutex_t *mutex) {
     DEBUG_PTHREAD("[p] pthread_mutex_unlock\n");
-#if !NO_INDIRECTION
-    lock_transparent_mutex_t *impl = ht_lock_get(mutex);
-    lock_mutex_unlock(impl->lock_lock, get_node(impl));
-    return 0;
-#else
-    lock_mutex_unlock(mutex, NULL);
-    return 0;
-#endif
+    release_lock(sockfd, cur_thread_id);
 }
 
 int __pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr) {

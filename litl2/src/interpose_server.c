@@ -4,9 +4,9 @@
  * Copyright (c) 2016 Hugo Guiroux <hugo.guiroux at gmail dot com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of his software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * of his software and associated documentation files (the "Software"), to deal
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
@@ -28,10 +28,10 @@
 #include <stdio.h>
 #include <signal.h>
 #include <pthread.h>
-#include <dlfcn.h>
 #include <assert.h>
 #include <atomic_ops.h>
 #include <clht.h>
+#include <dlfcn.h>
 
 #ifdef MCS
 #include <mcs.h>
@@ -94,6 +94,8 @@
 #include "waiting_policy.h"
 #include "utils.h"
 #include "interpose.h"
+#include "rdma_client.c"
+#include "tcp_client.c"
 
 // The NO_INDIRECTION flag allows disabling the pthread-to-lock hash table
 // and directly calling the specific lock function
@@ -399,6 +401,7 @@ static void *lp_start_routine(void *_arg) {
     free(r);
 
     cur_thread_id = __sync_fetch_and_add(&last_thread_id, 1);
+    fprintf(stderr, "server is running lp_start_routine with tid %d\n", cur_thread_id);
     if (cur_thread_id >= MAX_THREADS) {
         fprintf(stderr, "Maximum number of threads reached. Consider raising "
                         "MAX_THREADS in interpose.c (current = %u)\n",
@@ -419,6 +422,7 @@ static void *lp_start_routine(void *_arg) {
 int __pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                    void *(*start_routine)(void *), void *arg) {
     DEBUG_PTHREAD("[p] pthread_create\n");
+    // fprintf(stderr, "CREATING THREAD IN INTERPOSE\n");
     struct routine *r = malloc(sizeof(struct routine));
 
     r->fct = start_routine;
@@ -458,6 +462,7 @@ int pthread_mutex_destroy(pthread_mutex_t *mutex) {
 
 int pthread_mutex_lock(pthread_mutex_t *mutex) {
     DEBUG_PTHREAD("[p] pthread_mutex_lock\n");
+    fprintf(stderr, "server is running pthread_mutex_lock for thread %d\n", cur_thread_id);
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get(mutex);
     return lock_mutex_lock(impl->lock_lock, get_node(impl));

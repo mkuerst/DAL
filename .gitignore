@@ -6,3 +6,4 @@ litl/impl/*
 litl/Makefile
 litl/src/Makefile
 microbench/main
+rdma-example

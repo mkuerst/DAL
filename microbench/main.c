@@ -6,9 +6,9 @@
 #include <unistd.h>
 // #include <pthread.h>
 #include <sched.h>
-#include <sys/resource.h>
 #include <sys/syscall.h>
 #include <inttypes.h>
+#include <sys/resource.h>
 #define gettid() syscall(SYS_gettid)
 #include "rdtsc.h"
 #include "lock.h"
@@ -68,6 +68,7 @@ void *worker(void *arg) {
     ull lock_hold = 0;
     ull loop_in_cs = 0;
     const ull delta = CYCLE_PER_US * task->cs;
+    pthread_barrier_wait(&barrier);
     while (!*task->stop) {
     // while (*task->global_its < 1000) {
         // fprintf(stderr, "thread %d acquiring lock\n", task->id);
@@ -131,29 +132,31 @@ int main(int argc, char *argv[]) {
     }
 
     lock_init(&lock);
+    pthread_barrier_init(&barrier, NULL, nthreads+1);
 
     // pthread_t *w_threads = malloc(sizeof(pthread_t)*nthreads);
-    fprintf(stderr, "WARMUP\n");
-    for (int i = 0; i < nthreads; i++) {
-        pthread_create(&tasks[i].thread, &attr, worker, &tasks[i]);
-    }
-    sleep(2);
-    stop = 1;
-    for (int i = 0; i < nthreads; i++) {
-        pthread_join(tasks[i].thread, NULL);
-    }
-    for (int i = 0; i < nthreads; i++) {
-        tasks[i].loop_in_cs = 0;
-        tasks[i].lock_acquires = 0;
-        tasks[i].lock_hold = 0;
-        global_its = 0;
-    }
+    // fprintf(stderr, "WARMUP\n");
+    // for (int i = 0; i < nthreads; i++) {
+    //     pthread_create(&tasks[i].thread, &attr, worker, &tasks[i]);
+    // }
+    // sleep(2);
+    // stop = 1;
+    // for (int i = 0; i < nthreads; i++) {
+    //     pthread_join(tasks[i].thread, NULL);
+    // }
+    // for (int i = 0; i < nthreads; i++) {
+    //     tasks[i].loop_in_cs = 0;
+    //     tasks[i].lock_acquires = 0;
+    //     tasks[i].lock_hold = 0;
+    //     global_its = 0;
+    // }
 
     fprintf(stderr, "MEASUREMENTS\n");
     stop = 0;
     for (int i = 0; i < nthreads; i++) {
         pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
     }
+    pthread_barrier_wait(&barrier);
     sleep(duration);
     stop = 1;
     for (int i = 0; i < nthreads; i++) {
@@ -172,5 +175,5 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-// LD_PRELOAD=/home/mihi/Desktop/DAL/litl/impl/libcbomcs_spinlock.so ./main 2 3 1000 8 
+// LD_PRELOAD=/home/mihi/Desktop/DAL/litl2/lib/libcbomcs_spinlock.so ./main 2 3 1000 8 
 // LD_PRELOAD=/home/kumichae/DAL/litl2/lib/libcbomcs_spinlock.so ./main 2 3 1000 8 
