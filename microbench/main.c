@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <unistd.h>
 // #include <pthread.h>
+#include <numa.h>
 #include <sched.h>
 #include <sys/syscall.h>
 #include <inttypes.h>
@@ -19,6 +20,10 @@
 
 #ifndef CACHELINE_SIZE
 #define CACHELINE_SIZE 64
+#endif
+
+#ifndef NUMA_NODES
+#define NUMA_NODES 1
 #endif
 
 typedef unsigned long long ull;
@@ -43,6 +48,7 @@ pthread_barrier_t barrier;
 void *worker(void *arg) {
     int ret;
     task_t *task = (task_t *) arg;
+    int node = task->id % NUMA_NODES;
 
     if (task->ncpu != 0) {
         cpu_set_t cpuset;
@@ -51,6 +57,10 @@ void *worker(void *arg) {
         ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
         if (ret != 0) {
             perror("pthread_set_affinity_np");
+            exit(-1);
+        }
+        if (numa_run_on_node(node) != 0) {
+            perror("numa_run_on_node failed");
             exit(-1);
         }
     }

@@ -2,7 +2,7 @@
 # args: duration(s), cs(us), 
 
 
-BASE="$(dirname "$0")/../litl/impl"
+BASE="$(dirname "$0")/../litl/lib"
 suffix=".so"
 nthreads=$(nproc)
 nsockets=$(lscpu | grep "^Socket(s)" | awk '{print $2}')
