@@ -56,10 +56,12 @@
 #define UNUSED(x) x
 #endif
 
-// #define DEBUG(...)                        fprintf(stderr, ## __VA_ARGS__)
+#ifdef DEBUG
+#define DEBUG(...)                        fprintf(stderr, ## __VA_ARGS__)
+#else
 #define DEBUG(...)
-// #define DEBUG_PTHREAD(...)                        fprintf(stderr, ##
-//__VA_ARGS__)
+#endif
+// #define DEBUG_PTHREAD(...)                        fprintf(stderr, ## __VA_ARGS__)
 #define DEBUG_PTHREAD(...)
 
 void *alloc_cache_align(size_t n);

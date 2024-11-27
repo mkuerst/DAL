@@ -6,14 +6,15 @@ include Makefile.config
 LDFLAGS=-LCLHT/external/lib -LCLHT -lsspfd -lssmem -lclht -lrt -lm -m64 -pthread
 CFLAGS=-Iinclude/
 
-TARGETS=$(addprefix lib, $(ALGORITHMS))
+TARGETS=$(addprefix original/lib, $(ALGORITHMS))
+CLIENT_TARGETS=$(addprefix client/lib, $(ALGORITHMS))
+SERVER_TARGETS=$(addprefix server/lib, $(ALGORITHMS))
 DIR=$(addprefix obj/, $(ALGORITHMS))
 SOS=$(TARGETS:=.so)
-SOS+=$(TARGETS:=_server.so)
-SOS+=$(TARGETS:=_client.so)
+SOS+=$(SERVER_TARGETS:=_server.so)
+SOS+=$(CLIENT_TARGETS:=_client.so)
 SHS=$(TARGETS:=.sh)
 export COND_VAR=1
-
 
 .PRECIOUS: %.o
 .SECONDARY: $(OBJS)
@@ -27,7 +28,9 @@ no_cond_var: COND_VAR=0
 no_cond_var: all
 
 %.so: obj/CLHT/libclht.a obj/
-	mkdir -p lib/
+	mkdir -p lib/original/
+	mkdir -p lib/client/
+	mkdir -p lib/server/
 	$(MAKE) -C src/ ../lib/$@
 
 obj/:

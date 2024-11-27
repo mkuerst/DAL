@@ -3,7 +3,6 @@
 
 CYCLE_PER_US:=$(shell lscpu | grep "MHz" | awk 'NR==1 {printf "%dL\n", $$4}')
 CACHELINE_SIZE:=$(shell cat /sys/devices/system/cpu/cpu0/cache/index0/coherency_line_size)
-NUMA_NODES:=$(shell lscpu | grep -oP "NUMA node\(s\):\s+\K[0-9]+")
 # CYCLE_PER_US=2400L
 ifndef CYCLE_PER_US
 $(error CYCLE_PER_US not set. Set CYCLE_PER_US according to your machine CPU-SPEED)
@@ -29,7 +28,6 @@ all: target
 target: 
 	@echo "USING CYCLE_PER_US = $(CYCLE_PER_US) MHz"
 	@echo "USING CACHELINE_SIZE = $(CACHELINE_SIZE) Bytes"
-	@echo "NUMA_NODES = $(NUMA_NODES)"
 	gcc main.c -o main ${FLAGS} -DMUTEX
 # gcc main.c -o main_spin ${FLAGS} -DSPIN
 

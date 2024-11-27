@@ -94,7 +94,7 @@
 
 #include "waiting_policy.h"
 #include "utils.h"
-#include "interpose.h"
+#include "interpose_client.h"
 #include "rdma_client.c"
 #include "tcp_client.c"
 
@@ -408,25 +408,29 @@ static void *lp_start_routine(void *_arg) {
                 MAX_THREADS);
         exit(-1);
     } 
-    while (current_turn != cur_thread_id) {
-        pthread_cond_wait(&cond, &lock);
-    }
+    // pthread_mutex_lock(&lock);
+    // while (current_turn != cur_thread_id) {
+        // pthread_cond_wait(&cond, &lock);
+        // sleep(0.1);
+    // }
     // CLUSTER: 10.233.0.21
     // LOCAL: 10.5.12.168 | 192.168.1.70
     // establish_rdma_connection(cur_thread_id, "10.5.12.168");
     sockfd = establish_tcp_connection(cur_thread_id, "10.5.12.168");
+    // fprintf(stderr, "thread %d return from establish connec call\n", cur_thread_id);
     if(sockfd < 0) {
-        tcp_error("Thread %d establishing tcp connection", cur_thread_id);
+        tcp_error("Thread %d failed at establishing tcp connection", cur_thread_id);
     }
-    current_turn = (current_turn + 1);
-    pthread_cond_broadcast(&cond);
+    // current_turn++;
+    // pthread_cond_broadcast(&cond);
+    // pthread_mutex_unlock(&lock);
 
-#if !NO_INDIRECTION
-    clht_gc_thread_init(pthread_to_lock, cur_thread_id);
-#endif
-    lock_thread_start();
+// #if !NO_INDIRECTION
+//     clht_gc_thread_init(pthread_to_lock, cur_thread_id);
+// #endif
+//     lock_thread_start();
     res = fct(arg);
-    lock_thread_exit();
+    // lock_thread_exit();
 
     return res;
 }
@@ -435,7 +439,6 @@ static void *lp_start_routine(void *_arg) {
 int __pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                    void *(*start_routine)(void *), void *arg) {
     DEBUG_PTHREAD("[p] pthread_create\n");
-    // fprintf(stderr, "CREATING THREAD IN INTERPOSE\n");
     struct routine *r = malloc(sizeof(struct routine));
 
     r->fct = start_routine;
@@ -475,9 +478,8 @@ int pthread_mutex_destroy(pthread_mutex_t *mutex) {
 
 int pthread_mutex_lock(pthread_mutex_t *mutex) {
     DEBUG_PTHREAD("[p] pthread_mutex_lock\n");
-#if !NO_INDIRECTION
     request_lock(sockfd, cur_thread_id);
-#endif
+    return 0;
 }
 
 int pthread_mutex_timedlock(pthread_mutex_t *mutex,
@@ -498,56 +500,57 @@ int pthread_mutex_trylock(pthread_mutex_t *mutex) {
 int pthread_mutex_unlock(pthread_mutex_t *mutex) {
     DEBUG_PTHREAD("[p] pthread_mutex_unlock\n");
     release_lock(sockfd, cur_thread_id);
+    return 0;
 }
 
-int __pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr) {
-    DEBUG_PTHREAD("[p] pthread_cond_init\n");
-    return lock_cond_init(cond, attr);
-}
-__asm__(".symver __pthread_cond_init,pthread_cond_init@@" GLIBC_2_3_2);
+// int __pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr) {
+//     DEBUG_PTHREAD("[p] pthread_cond_init\n");
+//     return lock_cond_init(cond, attr);
+// }
+// __asm__(".symver __pthread_cond_init,pthread_cond_init@@" GLIBC_2_3_2);
 
-int __pthread_cond_destroy(pthread_cond_t *cond) {
-    DEBUG_PTHREAD("[p] pthread_cond_destroy\n");
-    return lock_cond_destroy(cond);
-}
-__asm__(".symver __pthread_cond_destroy,pthread_cond_destroy@@" GLIBC_2_3_2);
+// int __pthread_cond_destroy(pthread_cond_t *cond) {
+//     DEBUG_PTHREAD("[p] pthread_cond_destroy\n");
+//     return lock_cond_destroy(cond);
+// }
+// __asm__(".symver __pthread_cond_destroy,pthread_cond_destroy@@" GLIBC_2_3_2);
 
-int __pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
-                             const struct timespec *abstime) {
-    DEBUG_PTHREAD("[p] pthread_cond_timedwait\n");
-#if !NO_INDIRECTION
-    lock_transparent_mutex_t *impl = ht_lock_get(mutex);
-    return lock_cond_timedwait(cond, impl->lock_lock, get_node(impl), abstime);
-#else
-    return lock_cond_timedwait(cond, mutex, NULL, abstime);
-#endif
-}
-__asm__(
-    ".symver __pthread_cond_timedwait,pthread_cond_timedwait@@" GLIBC_2_3_2);
+// int __pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
+//                              const struct timespec *abstime) {
+//     DEBUG_PTHREAD("[p] pthread_cond_timedwait\n");
+// #if !NO_INDIRECTION
+//     lock_transparent_mutex_t *impl = ht_lock_get(mutex);
+//     return lock_cond_timedwait(cond, impl->lock_lock, get_node(impl), abstime);
+// #else
+//     return lock_cond_timedwait(cond, mutex, NULL, abstime);
+// #endif
+// }
+// __asm__(
+//     ".symver __pthread_cond_timedwait,pthread_cond_timedwait@@" GLIBC_2_3_2);
 
-int __pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex) {
-    DEBUG_PTHREAD("[p] pthread_cond_wait\n");
-#if !NO_INDIRECTION
-    lock_transparent_mutex_t *impl = ht_lock_get(mutex);
-    return lock_cond_wait(cond, impl->lock_lock, get_node(impl));
-#else
-    return lock_cond_wait(cond, mutex, NULL);
-#endif
-}
-__asm__(".symver __pthread_cond_wait,pthread_cond_wait@@" GLIBC_2_3_2);
+// int __pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex) {
+//     DEBUG_PTHREAD("[p] pthread_cond_wait\n");
+// #if !NO_INDIRECTION
+//     lock_transparent_mutex_t *impl = ht_lock_get(mutex);
+//     return lock_cond_wait(cond, impl->lock_lock, get_node(impl));
+// #else
+//     return lock_cond_wait(cond, mutex, NULL);
+// #endif
+// }
+// __asm__(".symver __pthread_cond_wait,pthread_cond_wait@@" GLIBC_2_3_2);
 
-int __pthread_cond_signal(pthread_cond_t *cond) {
-    DEBUG_PTHREAD("[p] pthread_cond_signal\n");
-    return lock_cond_signal(cond);
-}
-__asm__(".symver __pthread_cond_signal,pthread_cond_signal@@" GLIBC_2_3_2);
+// int __pthread_cond_signal(pthread_cond_t *cond) {
+//     DEBUG_PTHREAD("[p] pthread_cond_signal\n");
+//     return lock_cond_signal(cond);
+// }
+// __asm__(".symver __pthread_cond_signal,pthread_cond_signal@@" GLIBC_2_3_2);
 
-int __pthread_cond_broadcast(pthread_cond_t *cond) {
-    DEBUG_PTHREAD("[p] pthread_cond_broadcast\n");
-    return lock_cond_broadcast(cond);
-}
-__asm__(
-    ".symver __pthread_cond_broadcast,pthread_cond_broadcast@@" GLIBC_2_3_2);
+// int __pthread_cond_broadcast(pthread_cond_t *cond) {
+//     DEBUG_PTHREAD("[p] pthread_cond_broadcast\n");
+//     return lock_cond_broadcast(cond);
+// }
+// __asm__(
+//     ".symver __pthread_cond_broadcast,pthread_cond_broadcast@@" GLIBC_2_3_2);
 
 
 
