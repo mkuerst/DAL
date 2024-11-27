@@ -8,7 +8,7 @@ int establish_tcp_connection(unsigned int tid, char* addr) {
     // Create a socket
     sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
-        tcp_error("tcp_client socket creation failed");
+        tcp_error("tcp_client socket creation failed\n");
     }
 
     // Configure server address
@@ -18,12 +18,12 @@ int establish_tcp_connection(unsigned int tid, char* addr) {
 
     // Convert IP address to binary and assign to server address structure
     if (inet_pton(AF_INET, addr, &server_addr.sin_addr) <= 0) {
-        tcp_error("@tcp_client: Invalid address or address not supported");
+        tcp_error("@tcp_client: Invalid address or address not supported\n");
     }
 
     // Connect to the server
     if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        tcp_client_error(sock, "Thread %d failed at connecting", tid);
+        tcp_client_error(sock, "Thread %d failed at connecting\n", tid);
     }
 
     DEBUG("Thread %d: Connected to server.\n", tid);

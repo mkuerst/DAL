@@ -131,7 +131,7 @@ int main(int argc, char *argv[]) {
     if (listen(server_fd, SOMAXCONN) == -1) {
         tcp_error("Listen failed");
     }
-    printf("Server listening on port %d\n", PORT);
+    fprintf(stderr, "Server listening on port %d\n", PORT);
 
     // Create epoll instance
     epoll_fd = epoll_create1(0);
@@ -153,7 +153,6 @@ int main(int argc, char *argv[]) {
         if (event_count == -1) {
             tcp_error("Epoll_wait failed");
         }
-
         for (int i = 0; i < event_count; i++) {
             if (events[i].data.fd == server_fd) {
                 // Handle new connection
@@ -163,14 +162,14 @@ int main(int argc, char *argv[]) {
                     continue;
                 }
 
-                printf("New connection: socket fd %d, IP %s, port %d, thread %d\n",
+                fprintf(stderr, "New connection: socket fd %d, IP %s, port %d, thread %d\n",
                        client_fd, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port), cur_thread_id+1);
 
                 // Add new client socket to epoll
                 event.events = EPOLLIN | EPOLLET; // Enable edge-triggered mode
                 event.data.fd = client_fd;
                 if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &event) == -1) {
-                    perror("Epoll_ctl add client failed");
+                    fprintf(stderr, "Epoll_ctl add client failed\n");
                     close(client_fd);
                 }
                 threads[cur_thread_id].sockfd = client_fd;
@@ -230,5 +229,6 @@ int main(int argc, char *argv[]) {
     shutdown(server_fd, SHUT_RDWR);
     close(server_fd);
     close(epoll_fd);
+    fprintf(stderr, "Server shutdown complete\n");
     return 0;
 }

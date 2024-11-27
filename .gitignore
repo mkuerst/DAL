@@ -7,3 +7,5 @@ litl/Makefile
 litl/src/Makefile
 microbench/main
 rdma-example
+*.nfs*
+microbench/server_logs
