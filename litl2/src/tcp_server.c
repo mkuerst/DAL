@@ -2,24 +2,31 @@
 // #include <pthread.h>
 // #include <sched.h>
 // #include <numa.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <netdb.h>
+#include <arpa/inet.h>
 
-typedef struct locking_thread {
+typedef struct thread_data {
     pthread_t thread;
     unsigned int tid;
     int sockfd;
     int nnuma;
     int ncpu;
-} locking_thread;
-struct locking_thread threads[MAX_THREADS];
+} thread_data;
+struct thread_data threads[MAX_THREADS];
 pthread_mutex_t mutex;
 int cur_thread_id = 0;
 
 void *run_lock_impl(void *_arg)
 {
-    locking_thread* thread = (locking_thread*) _arg;
+    thread_data* thread = (thread_data*) _arg;
     int client_socket = thread->sockfd;
     int tid = thread->tid;
     int node = tid % thread->nnuma;
+    // fprintf(stderr,"RUNNING ON %d ndoes\n", thread->nnuma);
 
     if (thread->ncpu != 0) {
         cpu_set_t cpuset;
@@ -75,7 +82,7 @@ void *run_lock_impl(void *_arg)
 // void *run_lock_impl(void *arg) {
 //     int ret = 0;
 
-//     struct locking_thread* thread = (struct locking_thread *) arg;
+//     struct thread_data* thread = (struct thread_data *) arg;
 //     // int sockfd = *((int *)arg);
 //     char buf[BUFFER_SIZE];
 //     sprintf(buf, "granted lock");
@@ -116,7 +123,7 @@ int main(int argc, char *argv[]) {
     // Bind to address and port
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
-    server_addr.sin_port = htons(PORT);
+    server_addr.sin_port = htons(SERVER_PORT);
 
     if (bind(server_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
         tcp_error("Bind failed");
@@ -131,7 +138,7 @@ int main(int argc, char *argv[]) {
     if (listen(server_fd, SOMAXCONN) == -1) {
         tcp_error("Listen failed");
     }
-    fprintf(stderr, "Server listening on port %d\n", PORT);
+    fprintf(stderr, "Server listening on port %d\n", SERVER_PORT);
 
     // Create epoll instance
     epoll_fd = epoll_create1(0);
@@ -150,10 +157,13 @@ int main(int argc, char *argv[]) {
     while (cur_thread_id < nthreads) {
         // Wait for events
         int event_count = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
+        fprintf(stderr, "T0\n");
         if (event_count == -1) {
             tcp_error("Epoll_wait failed");
+            break;
         }
         for (int i = 0; i < event_count; i++) {
+            fprintf(stderr, "T1\n");
             if (events[i].data.fd == server_fd) {
                 // Handle new connection
                 client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &addr_len);
@@ -179,56 +189,18 @@ int main(int argc, char *argv[]) {
                 pthread_create(&threads[cur_thread_id].thread, NULL, run_lock_impl, &threads[cur_thread_id]);
                 cur_thread_id++;
             } 
-            // else {
-                // setup_done = 1;
-                // break;
-            // }
-
-            // else {
-            //     // Handle I/O on existing client socket
-            //     int client_socket = events[i].data.fd;
-            //     char buffer[BUFFER_SIZE];
-            //     memset(buffer, 0, BUFFER_SIZE);
-
-            //     int bytes_read = read(client_socket, buffer, sizeof(buffer));
-            //     if (bytes_read == -1) {
-            //         perror("Read failed");
-            //         close(client_socket);
-            //         continue;
-            //     } else if (bytes_read == 0) {
-            //         printf("Client disconnected: socket fd %d\n", client_socket);
-            //         close(client_socket);
-            //         continue;
-            //     }
-
-            //     printf("Received message from socket %d: %s\n", client_socket, buffer);
-            //     char cmd;
-            //     int tid;
-            //     if (sscanf(buffer, "%c%d", &cmd, &tid) == 2) {
-            //         fprintf(stderr, "Command: %c\n", cmd);
-            //         fprintf(stderr, "tid: %d\n", tid);
-            //         if (cmd == 'l') {
-            //             pthread_cond_signal(&threads[tid].cond);
-            //         }
-            //         // if (cmd == 'r') {
-            //         //     release?
-            //         // }
-            //     } else {
-            //         fprintf(stderr, "Failed to parse the string\n");
-            //     }
-            // }
         }
-        // if (setup_done)
-        //     break;
     }
+
     for (int i = 0; i < cur_thread_id; i++) {
         pthread_join(threads[i].thread, NULL);
     }
     // Cleanup
-    epoll_ctl(epoll_fd, EPOLL_CTL_DEL, server_fd, NULL);
-    shutdown(server_fd, SHUT_RDWR);
-    close(server_fd);
-    close(epoll_fd);
-    fprintf(stderr, "Server shutdown complete\n");
+    // epoll_ctl(epoll_fd, EPOLL_CTL_DEL, server_fd, NULL);
+    // shutdown(server_fd, SHUT_RDWR);
+    // close(server_fd);
+    // close(epoll_fd);
+    // fprintf(stderr, "Server shutdown complete\n");
+    clean_up(server_fd, epoll_fd);
     return 0;
 }

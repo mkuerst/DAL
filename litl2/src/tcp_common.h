@@ -13,9 +13,8 @@
 #include <sched.h>
 
 // LOCAL
-#define SERVER_IP "10.5.12.168"
+// #define SERVER_IP "10.5.12.168"
 #define SERVER_PORT 12345
-#define PORT 12345
 #define MAX_EVENTS 1000
 #define MAX_CONNECTIONS 1000
 #define BUFFER_SIZE 1024
@@ -39,6 +38,15 @@
 	fprintf(stderr, "\n");\
 	close(socket_fd);\
 	exit(EXIT_FAILURE);\
+}while(0);
+
+#define clean_up(server_fd, epoll_fd) do {\
+    epoll_ctl(epoll_fd, EPOLL_CTL_DEL, server_fd, NULL);\
+    shutdown(server_fd, SHUT_RDWR);\
+    close(server_fd);\
+    close(epoll_fd);\
+    fprintf(stderr, "Server shutdown complete\n");\
+	exit(EXIT_SUCCESS);\
 }while(0);
 
 // #ifdef DEBUG

@@ -22,6 +22,7 @@ nsockets=$(lscpu | grep "^Socket(s)" | awk '{print $2}')
 ncpu=$(lscpu | grep "^Core(s) per socket" | awk '{print $4}')
 nnodes=$(lscpu | grep -oP "NUMA node\(s\):\s+\K[0-9]+")
 
+rm -rf server_logs/
 server_libs_dir=$BASE"/server/"
 client_libs_dir=$BASE"/client/"
 for impl_dir in "$BASE"/original/*
@@ -40,10 +41,11 @@ do
         res_file="$res_dir"/nthread_"$i".csv
         echo "tid,loop_in_cs,lock_acquires,lock_hold(ms)" > "$res_file"
         echo "START $impl SERVER with $i THREADS"
-        tmux new-session -d -s "server_"$impl"_$i" "ssh $REMOTE_USER@$REMOTE_HOST 'bash -c \"LD_PRELOAD=$server_so $tcp_server_app $i $ncpu $nnodes\"' &> $log_dir/server_$i.log"
+        # tmux new-session -d -s "server_"$impl"_$i" "ssh $REMOTE_USER@$REMOTE_HOST 'bash -c \"LD_PRELOAD=$server_so $tcp_server_app $i $ncpu $nnodes\"' &> $log_dir/server_$i.log"
+        tmux new-session -d -s "server_"$impl"_$i" "ssh $REMOTE_USER@$REMOTE_HOST LD_PRELOAD=$server_so $tcp_server_app $i $ncpu $nnodes &> $log_dir/server_$i.log"
         # tmux capture-pane -pt "server_"$impl"_$i"
         # gnome-terminal -- bash -c "ssh $REMOTE_USER@$REMOTE_HOST -i $ssh_key 'LD_PRELOAD=$server_so $tcp_server_app $i $ncpu $nnodes'"
-        sleep 3
+        sleep 1
         echo "START MICROBENCH CLIENT WITH $i THREADS"
         LD_PRELOAD=$client_so ./main $i 3 1000 $ncpu $nnodes >> $res_file
         tmux kill-session -t "server_"$impl"_$i"

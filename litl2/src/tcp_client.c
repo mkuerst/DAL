@@ -8,7 +8,7 @@ int establish_tcp_connection(unsigned int tid, char* addr) {
     // Create a socket
     sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
-        tcp_error("tcp_client socket creation failed\n");
+        tcp_error("socket creation failed\n");
     }
 
     // Configure server address
@@ -18,13 +18,26 @@ int establish_tcp_connection(unsigned int tid, char* addr) {
 
     // Convert IP address to binary and assign to server address structure
     if (inet_pton(AF_INET, addr, &server_addr.sin_addr) <= 0) {
-        tcp_error("@tcp_client: Invalid address or address not supported\n");
+        tcp_error("Invalid address or address not supported\n");
     }
 
-    // Connect to the server
-    if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        tcp_client_error(sock, "Thread %d failed at connecting\n", tid);
+    // Convert back to a string for printing
+    char ip_str[INET_ADDRSTRLEN];
+    if (inet_ntop(AF_INET, &server_addr.sin_addr, ip_str, INET_ADDRSTRLEN) == NULL) {
+        tcp_error("inet_ntop failed\n");
     }
+
+    fprintf(stderr,"Connectin to IP address: %s:%d\n", ip_str, SERVER_PORT);
+    // Connect to the server
+    int trial = 0;
+    int max_tries = 3;
+    while ((connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) && (trial < max_tries)) {
+        fprintf(stderr, "Thread %d failed at establishing connection: try %d\n", tid, trial);
+        trial++;
+    }
+
+    if (trial == max_tries) 
+        tcp_client_error(sock, "Thread %d failed at connecting\n", tid);
 
     DEBUG("Thread %d: Connected to server.\n", tid);
 
