@@ -14,6 +14,7 @@ SOS=$(TARGETS:=.so)
 SOS+=$(SERVER_TARGETS:=_server.so)
 SOS+=$(CLIENT_TARGETS:=_client.so)
 SHS=$(TARGETS:=.sh)
+NUMA_NODES := $(shell lscpu | grep 'NUMA node(s)' | awk '{print $$3}')
 export COND_VAR=1
 
 .PRECIOUS: %.o
@@ -68,7 +69,7 @@ $(SHS): src/liblock.in
 	chmod a+x $@
 
 include/topology.h: include/topology.in
-	cat $< | sed -e "s/@nodes@/$$(numactl -H | head -1 | cut -f 2 -d' ')/g" > $@
+	cat $< | sed -e "s/@nodes@/$(NUMA_NODES)/g" > $@ 
 	sed -i "s/@cpus@/$$(nproc)/g" $@
 	sed -i "s/@cachelinesize@/128/g" $@  # 128 bytes is advised by intel documentation to avoid false-sharing with the HW prefetcher
 	sed -i "s/@pagesize@/$$(getconf PAGESIZE)/g" $@
@@ -77,7 +78,7 @@ include/topology.h: include/topology.in
 
 
 clean:
-	rm -rf lib/ obj/ $(SHS) *_server src/*.o ../microbench/main ../microbench/server_logs/ ../microbench/results/
+	rm -rf lib/ obj/ $(SHS) *_server src/*.o ../microbench/main ../microbench/server_logs/ ../microbench/results/ include/topology.h
 
 format:
 	for i in `find . | egrep "\.c$$|\.cc$$|\.cxx$$|\.cpp$$|\.h$$"`; do clang-format  -i "$$i"; done

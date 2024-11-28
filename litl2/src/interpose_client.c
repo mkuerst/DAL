@@ -416,7 +416,7 @@ static void *lp_start_routine(void *_arg) {
     // CLUSTER: 10.233.0.21 10.1.212.82
     // LOCAL: 10.5.12.168 | 192.168.1.70
     // establish_rdma_connection(cur_thread_id, "10.5.12.168");
-    sockfd = establish_tcp_connection(cur_thread_id, "10.5.12.168");
+    sockfd = establish_tcp_connection(cur_thread_id, "10.233.0.21");
     // fprintf(stderr, "thread %d return from establish connec call\n", cur_thread_id);
     if(sockfd < 0) {
         tcp_error("Thread %d failed at establishing tcp connection", cur_thread_id);

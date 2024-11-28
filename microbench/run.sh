@@ -1,10 +1,10 @@
 #!/bin/sh
 # args: duration(s), cs(us), 
 
-# REMOTE_USER="kumichae"
-# REMOTE_HOST="r630-12"
-REMOTE_USER="mihi"
-REMOTE_HOST="localhost"
+REMOTE_USER="kumichae"
+REMOTE_HOST="r630-12"
+# REMOTE_USER="mihi"
+# REMOTE_HOST="localhost"
 REMOTE_SCRIPT="/home/kumichae/DAL/litl2/tcp_server"
 
 eval "$(ssh-agent -s)"

@@ -194,5 +194,5 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-// LD_PRELOAD=/home/mihi/Desktop/DAL/litl2/lib/libcbomcs_spinlock.so ./main 2 3 1000 8 
-// LD_PRELOAD=/home/kumichae/DAL/litl2/lib/libcbomcs_spinlock.so ./main 2 3 1000 8 
+// LD_PRELOAD=/home/mihi/Desktop/DAL/litl2/lib/original/libcbomcs_spinlock.so ./main 2 3 1000 8 
+// LD_PRELOAD=/home/kumichae/DAL/litl2/lib/original/libcbomcs_spinlock.so ./main 2 3 1000 8 
