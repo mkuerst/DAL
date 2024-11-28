@@ -46,7 +46,6 @@
     close(server_fd);\
     close(epoll_fd);\
     fprintf(stderr, "Server shutdown complete\n");\
-	exit(EXIT_SUCCESS);\
 }while(0);
 
 // #ifdef DEBUG

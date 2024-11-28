@@ -27,19 +27,19 @@ int establish_tcp_connection(unsigned int tid, char* addr) {
         tcp_error("inet_ntop failed\n");
     }
 
-    fprintf(stderr,"Connectin to IP address: %s:%d\n", ip_str, SERVER_PORT);
+    // fprintf(stderr,"Connecting to IP address: %s:%d\n", ip_str, SERVER_PORT);
     // Connect to the server
-    int trial = 0;
+    int try = 0;
     int max_tries = 3;
-    while ((connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) && (trial < max_tries)) {
-        fprintf(stderr, "Thread %d failed at establishing connection: try %d\n", tid, trial);
-        trial++;
+    while ((connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) && (try < max_tries)) {
+        fprintf(stderr, "Thread %d failed at establishing connection: try %d\n", tid, try);
+        try++;
     }
 
-    if (trial == max_tries) 
+    if (try == max_tries) 
         tcp_client_error(sock, "Thread %d failed at connecting\n", tid);
 
-    DEBUG("Thread %d: Connected to server.\n", tid);
+    fprintf(stderr, "Thread %d: Connected to server.\n", tid);
 
     return sock;
 }

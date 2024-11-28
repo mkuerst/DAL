@@ -1,18 +1,24 @@
 include ../Makefile.config
 
 # CLUSTER
-LDFLAGS=-L../obj/CLHT/external/lib -L../obj/CLHT -Wl,--whole-archive -Wl,--version-script=interpose.map -lsspfd -lssmem -lclht -Wl,--no-whole-archive  -lrt -lm -ldl -L/home/kumichae/my_libs/papi-7.2.0b1/src -lpapi -L/home/kumichae/my_libs/rdma-core/build/lib/ -lrdmacm -m64 -pthread -lnuma -libverbs
-CFLAGS=-I../include/ -I/home/kumichae/my_libs/rdma-core/build/include/rdma/ -I../obj/CLHT/include/ -I../obj/CLHT/external/include/ -I/home/kumichae/my_libs/papi-7.2.0b1/src -fPIC -Wall -O0 -g
+# LDFLAGS=-L../obj/CLHT/external/lib -L../obj/CLHT -Wl,--whole-archive -Wl,--version-script=interpose.map -lsspfd -lssmem -lclht -Wl,--no-whole-archive  -lrt -lm -ldl -L/home/kumichae/my_libs/papi-7.2.0b1/src -lpapi -L/home/kumichae/my_libs/rdma-core/build/lib/ -lrdmacm -m64 -pthread -lnuma -libverbs
+# CFLAGS=-I../include/ -I/home/kumichae/my_libs/rdma-core/build/include/rdma/ -I../obj/CLHT/include/ -I../obj/CLHT/external/include/ -I/home/kumichae/my_libs/papi-7.2.0b1/src -fPIC -Wall -O0 -g
 
 # LOCAL MACHINE
-# LDFLAGS=-L../obj/CLHT/external/lib -L../obj/CLHT -Wl,--whole-archive -Wl,--version-script=interpose.map -lsspfd -lssmem -lclht -Wl,--no-whole-archive  -lrt -lm -ldl -lpapi -m64 -pthread -lrdmacm -libverbs -lnuma
-# CFLAGS=-I../include/ -I/usr/include/rdma/ -I../obj/CLHT/include/ -I../obj/CLHT/external/include/ -fPIC -Wall -O0 -g
+LDFLAGS=-L../obj/CLHT/external/lib -L../obj/CLHT -Wl,--whole-archive -Wl,--version-script=interpose.map -lsspfd -lssmem -lclht -Wl,--no-whole-archive  -lrt -lm -ldl -lpapi -m64 -pthread -lrdmacm -libverbs -lnuma
+CFLAGS=-I../include/ -I/usr/include/rdma/ -I../obj/CLHT/include/ -I../obj/CLHT/external/include/ -fPIC -Wall -O0 -g
 
 # SFLAGS=-I../include/ -I/usr/include/rdma/ -fPIC -Wall -O2 -g
 SLDFLAGS=-lrdmacm -libverbs -lnuma -pthread -ldl
 
 SERVER_SOURCES = $(wildcard *_server.c)
 SERVER_TARGETS = $(addprefix ../, $(basename $(SERVER_SOURCES)))
+
+CYCLE_PER_US:=$(shell lscpu | grep "MHz" | awk 'NR==1 {printf "%dL\n", $$4}')
+# CYCLE_PER_US=2400L
+ifndef CYCLE_PER_US
+$(error CYCLE_PER_US not set. Set CYCLE_PER_US according to your machine CPU-SPEED)
+endif
 
 # Keep objects files
 .PRECIOUS: %.o
@@ -24,7 +30,7 @@ all: $(SERVER_TARGETS)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
 ../tcp_server: tcp_server.c
-	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS) -DCYCLE_PER_US=$(CYCLE_PER_US)
 
 ../interpose_server: interpose_server.c
 	echo "Ignoring interpose_server rule"
@@ -41,7 +47,7 @@ all: $(SERVER_TARGETS)
 
 .SECONDEXPANSION:
 ../lib/server/lib%_server.so: ../obj/%/interpose_server.o ../obj/%/utils.o ../obj/%/rdma_common.o $$(subst algo,%,../obj/algo/algo.o)
-	$(CC) -shared -o $@ $^ $(LDFLAGS)
+	$(CC) -shared -o $@ $^ $(LDFLAGS) 
 
 .SECONDEXPANSION:
 ../lib/client/lib%_client.so: ../obj/%/interpose_client.o ../obj/%/utils.o ../obj/%/rdma_common.o $$(subst algo,%,../obj/algo/algo.o)

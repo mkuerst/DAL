@@ -9,12 +9,19 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 
+#ifndef CYCLE_PER_US
+#error Must define CYCLE_PER_US for the current machine in the Makefile or elsewhere
+#endif
+
+typedef unsigned long long ull;
 typedef struct thread_data {
     pthread_t thread;
-    unsigned int tid;
+    unsigned int server_tid;
+    unsigned int client_tid;
     int sockfd;
     int nnuma;
     int ncpu;
+    ull lock_impl_time;
 } thread_data;
 struct thread_data threads[MAX_THREADS];
 pthread_mutex_t mutex;
@@ -24,14 +31,14 @@ void *run_lock_impl(void *_arg)
 {
     thread_data* thread = (thread_data*) _arg;
     int client_socket = thread->sockfd;
-    int tid = thread->tid;
-    int node = tid % thread->nnuma;
+    int server_tid = thread->server_tid;
+    int node = server_tid % thread->nnuma;
     // fprintf(stderr,"RUNNING ON %d ndoes\n", thread->nnuma);
 
     if (thread->ncpu != 0) {
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);
-        CPU_SET((tid-1)/2, &cpuset);
+        CPU_SET((server_tid-1)/2, &cpuset);
         int ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
         if (ret != 0) {
             tcp_error("pthread_set_affinity_np");
@@ -49,27 +56,30 @@ void *run_lock_impl(void *_arg)
     while (1) {
         int bytes_read = read(client_socket, buffer, sizeof(buffer));
         if (bytes_read == -1) {
-            tcp_client_error(client_socket, "Read failed from thread %d on socket %d", tid, client_socket);
+            tcp_client_error(client_socket, "Read failed on server thread %d on socket %d", server_tid, client_socket);
         } else if (bytes_read == 0) {
-            DEBUG("Thread %d disconnected: socket fd %d\n", tid, client_socket);
+            DEBUG("Thread on server thread %d disconnected: socket fd %d\n", server_tid, client_socket);
             close(client_socket);
             pthread_exit(EXIT_SUCCESS);
         }
 
-        DEBUG("Received message from thread %d on socket %d: %s\n", tid, client_socket, buffer);
+        DEBUG("Server %d Received message from: %s\n", server_tid, client_socket, buffer);
         char cmd;
         int id, ret = 0;
         if (sscanf(buffer, "%c%d", &cmd, &id) == 2) {
-            // fprintf(stderr, "Command: %c\n", cmd);
-            // fprintf(stderr, "tid: %d\n", id);
             if (cmd == 'l') {
+                thread->client_tid = id;
+                ull now = rdtsc();
                 pthread_mutex_lock(&mutex);
+                thread->lock_impl_time += rdtsc() - now;
                 if ((ret = send(client_socket, msg, strlen(msg), 0)) < 0)
                     tcp_client_error(client_socket, "lock acquisition notice failed for thread %d", id);
                 DEBUG("Granted lock to thread %d over socket %d\n", id, client_socket);
             }
             if (cmd == 'r') {
+                ull now = rdtsc();
                 pthread_mutex_unlock(&mutex);
+                thread->lock_impl_time += rdtsc() - now;
                 DEBUG("Released lock on server for thread %d\n", id);
             }
         } else {
@@ -78,25 +88,6 @@ void *run_lock_impl(void *_arg)
         memset(buffer, 0, BUFFER_SIZE);
     }
 }
-
-// void *run_lock_impl(void *arg) {
-//     int ret = 0;
-
-//     struct thread_data* thread = (struct thread_data *) arg;
-//     // int sockfd = *((int *)arg);
-//     char buf[BUFFER_SIZE];
-//     sprintf(buf, "granted lock");
-//     pthread_mutex_lock(&mutex);
-//     while (1) {
-//         pthread_cond_wait(&thread->cond, &mutex);
-//         pthread_mutex_lock(&mutex);
-//         if ((ret = send(thread->sockfd, buf, strlen(buf), 0)) < 0)
-//             tcp_client_error(thread->sockfd, "lock acquisition notice failed");
-
-//         fprintf(stderr, "Sent lock notice to thread %d over socket %d", thread->tid, thread->sockfd);
-//     }
-//     return 0;
-// }
 
 int main(int argc, char *argv[]) {
     int nthreads = atoi(argv[1]);
@@ -185,7 +176,8 @@ int main(int argc, char *argv[]) {
                 threads[cur_thread_id].sockfd = client_fd;
                 threads[cur_thread_id].nnuma = nnuma;
                 threads[cur_thread_id].ncpu = ncpu;
-                threads[cur_thread_id].tid = cur_thread_id+1;
+                threads[cur_thread_id].server_tid = cur_thread_id+1;
+                threads[cur_thread_id].lock_impl_time = 0;
                 pthread_create(&threads[cur_thread_id].thread, NULL, run_lock_impl, &threads[cur_thread_id]);
                 cur_thread_id++;
             } 
@@ -195,12 +187,10 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < cur_thread_id; i++) {
         pthread_join(threads[i].thread, NULL);
     }
-    // Cleanup
-    // epoll_ctl(epoll_fd, EPOLL_CTL_DEL, server_fd, NULL);
-    // shutdown(server_fd, SHUT_RDWR);
-    // close(server_fd);
-    // close(epoll_fd);
-    // fprintf(stderr, "Server shutdown complete\n");
+    for (int i = 0; i < cur_thread_id; i++) {
+        thread_data thread = (thread_data) threads[i];
+        printf("%03d,%10.3f\n", thread.client_tid, thread.lock_impl_time / (float) (CYCLE_PER_US * 1000));
+    }
     clean_up(server_fd, epoll_fd);
     return 0;
 }

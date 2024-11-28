@@ -58,11 +58,11 @@ void *worker(void *arg) {
         CPU_SET(task->id/2, &cpuset);
         ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
         if (ret != 0) {
-            perror("pthread_set_affinity_np");
+            fprintf(stderr, "pthread_set_affinity_np");
             exit(-1);
         }
         if (numa_run_on_node(node) != 0) {
-            perror("numa_run_on_node failed");
+            fprintf(stderr, "numa_run_on_node failed");
             exit(-1);
         }
     }
@@ -84,6 +84,7 @@ void *worker(void *arg) {
     while (!*task->stop) {
     // while (*task->global_its < 1000) {
         // fprintf(stderr, "thread %d acquiring lock\n", task->id);
+
         lock_acquire(&lock);
         // fprintf(stderr, "thread %d acquired lock\n", task->id);
         now = rdtscp();
@@ -95,7 +96,7 @@ void *worker(void *arg) {
 
         do {
             loop_in_cs++;
-        } while (((now = rdtscp()) < then) || !*task->stop);
+        } while (((now = rdtscp()) < then));
 
         lock_hold += now - start;
 
@@ -171,8 +172,8 @@ int main(int argc, char *argv[]) {
         pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
     }
     // sleep(2);
-    fprintf(stderr, "MEASUREMENTS\n");
     pthread_barrier_wait(&global_barrier);
+    fprintf(stderr, "MEASUREMENTS\n");
     sleep(duration);
     stop = 1;
     for (int i = 0; i < nthreads; i++) {
