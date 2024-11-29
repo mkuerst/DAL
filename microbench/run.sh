@@ -1,30 +1,40 @@
 #!/bin/sh
 # args: duration(s), cs(us), 
 
-REMOTE_USER="kumichae"
-REMOTE_HOST="r630-12"
-# REMOTE_USER="mihi"
-# REMOTE_HOST="localhost"
-REMOTE_SCRIPT="/home/kumichae/DAL/litl2/tcp_server"
+#LOCAL
+REMOTE_USER="mihi"
+REMOTE_HOST="localhost"
+server_ip=10.5.12.168
+# server_ip=192.168.1.70
+
+#CLUSTER
+# REMOTE_USER="kumichae"
+# REMOTE_HOST="r630-12"
+# server_ip=10.233.0.21
 
 eval "$(ssh-agent -s)"
 ssh_key="/home/mihi/.ssh/id_ed25519_localhost"
 ssh-add $ssh_key  
 ssh-copy-id "$REMOTE_USER@$REMOTE_HOST"
 
+# PATHS
 BASE="$PWD/../litl2/lib"
 logpath="$PWD/server_logs/"
 tcp_server_app="$PWD/../litl2/tcp_server"
 client_suffix="_client.so"
 server_suffix="_server.so"
+server_libs_dir=$BASE"/server/"
+client_libs_dir=$BASE"/client/"
+
+# MICROBENCH INPUTS
 nthreads=$(nproc)
 nsockets=$(lscpu | grep "^Socket(s)" | awk '{print $2}')
 ncpu=$(lscpu | grep "^Core(s) per socket" | awk '{print $4}')
 nnodes=$(lscpu | grep -oP "NUMA node\(s\):\s+\K[0-9]+")
+duration=1
+critical=1000
 
 rm -rf server_logs/
-server_libs_dir=$BASE"/server/"
-client_libs_dir=$BASE"/client/"
 for impl_dir in "$BASE"/original/*
 do
     impl=$(basename $impl_dir)
@@ -51,7 +61,7 @@ do
         # gnome-terminal -- bash -c "ssh $REMOTE_USER@$REMOTE_HOST -i $ssh_key 'LD_PRELOAD=$server_so $tcp_server_app $i $ncpu $nnodes' >> $server_res_file"
         sleep 3
         echo "START MICROBENCH CLIENT WITH $i THREADS"
-        LD_PRELOAD=$client_so ./main $i 3 1000 $ncpu $nnodes >> $client_res_file
+        LD_PRELOAD=$client_so ./main $i $duration $critical $ncpu $nnodes $server_ip >> $client_res_file
         tmux kill-session -t "server_"$impl"_$i"
     done
 done

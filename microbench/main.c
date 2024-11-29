@@ -36,6 +36,7 @@ typedef struct {
     double cs;
     int ncpu;
     int nnodes;
+    char* server_ip;
     // outputs
     ull loop_in_cs;
     ull lock_acquires;
@@ -50,12 +51,14 @@ pthread_barrier_t init_barrier;
 void *worker(void *arg) {
     int ret;
     task_t *task = (task_t *) arg;
-    int node = task->id % task->nnodes;
+    int task_id = task->id;
+    int node = task_id % task->nnodes;
+    int ncpu = task->ncpu;
 
-    if (task->ncpu != 0) {
+    if (ncpu != 0) {
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);
-        CPU_SET(task->id/2, &cpuset);
+        CPU_SET(task_id%ncpu, &cpuset);
         ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
         if (ret != 0) {
             fprintf(stderr, "pthread_set_affinity_np");
@@ -96,7 +99,7 @@ void *worker(void *arg) {
 
         do {
             loop_in_cs++;
-        } while (((now = rdtscp()) < then));
+        } while (((now = rdtscp()) < then) && !task->stop);
 
         lock_hold += now - start;
 
@@ -109,15 +112,30 @@ void *worker(void *arg) {
     task->loop_in_cs = loop_in_cs;
     task->lock_hold = lock_hold;
 
-    // fprintf(stderr,"FINISHED tid %d\n", task->id);
+    fprintf(stderr,"FINISHED tid %d\n", task->id);
     return 0;
 }
 
+double random_double(double min, double max) {
+    if (min > max) {
+        fprintf(stderr, "Invalid range: min must be <= max\n");
+        exit(EXIT_FAILURE);
+    }
+    // Generate a random double in [0, 1)
+    double scale = rand() / (double) RAND_MAX;
+
+    // Scale and shift to [min, max)
+    return min + scale * (max - min);
+}
+
 int main(int argc, char *argv[]) {
+    srand(42);
     int nthreads = atoi(argv[1]);
     int duration = atoi(argv[2]);
+    double cs = atoi(argv[3]);
     int ncpu = atoi(argv[4]);
     int nnodes = atoi(argv[5]);
+    char *server_ip = (argv[6]);
     task_t *tasks = malloc(sizeof(task_t) * nthreads);
 
     pthread_attr_t attr;
@@ -125,22 +143,23 @@ int main(int argc, char *argv[]) {
 
     volatile int stop __attribute__((aligned (CACHELINE_SIZE))) = 0;
     volatile ull global_its __attribute__((aligned (CACHELINE_SIZE))) = 0;
+    double short_cs = duration * 1e6 / 1000.; //range in (us)
+    double long_cs = duration * 1e6 / 10.;
     // int stop_warmup __attribute__((aligned (CACHELINE_SIZE))) = 0;
     // int ncpu = argc > 3 + nthreads*2 ? atoi(argv[3+nthreads*2]) : 0;
     for (int i = 0; i < nthreads; i++) {
         tasks[i].stop = &stop;
         tasks[i].global_its = &global_its;
-        // tasks[i].stop_warmup = &stop_warmup;
-        // tasks[i].cs = atof(argv[3+i*2]);
-        tasks[i].cs = atof(argv[3]);
+        tasks[i].cs = cs == 0 ? (i%2 == 0 ? short_cs : long_cs) : cs;
+        fprintf(stderr, "random cs: %f\n", tasks[i].cs);
 
         // int priority = atoi(argv[4+i*2]);
         // tasks[i].priority = priority;
         tasks[i].priority = 1;
-
         tasks[i].ncpu = ncpu;
         tasks[i].id = i;
         tasks[i].nnodes = nnodes;
+        tasks[i].server_ip = server_ip;
 
         tasks[i].loop_in_cs = 0;
         tasks[i].lock_acquires = 0;
@@ -171,7 +190,6 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < nthreads; i++) {
         pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
     }
-    // sleep(2);
     pthread_barrier_wait(&global_barrier);
     fprintf(stderr, "MEASUREMENTS\n");
     sleep(duration);
@@ -180,15 +198,19 @@ int main(int argc, char *argv[]) {
         pthread_join(tasks[i].thread, NULL);
     }
 
+    float total_lock_hold = 0;
     for (int i = 0; i < nthreads; i++) {
         task_t task = (task_t) tasks[i];
+        float lock_hold = task.lock_hold / (float) (CYCLE_PER_US * 1000);
+        total_lock_hold += lock_hold;
         printf("%03d,%10llu,%8llu,%10.3f\n",
                 task.id,
                 task.loop_in_cs,
                 task.lock_acquires,
-                task.lock_hold / (float) (CYCLE_PER_US * 1000)
+                lock_hold
                 );
     }
+    fprintf(stderr, "Total lock holds(ms): %f\n", total_lock_hold);
     // WAIT SO SERVER CAN SHUTDOWN
     sleep(2);
     fprintf(stderr, "DONE\n");

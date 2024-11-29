@@ -105,15 +105,7 @@
 unsigned int last_thread_id;
 __thread unsigned int cur_thread_id;
 __thread int sockfd;
-pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
-int current_turn = 1;
 
-
-// struct thread_context {
-//     int tcp_sockfd;
-// };
-// struct thread_context threads[MAX_THREADS];
 
 #if !NO_INDIRECTION
 typedef struct {
@@ -399,6 +391,8 @@ static void *lp_start_routine(void *_arg) {
     void *(*fct)(void *) = r->fct;
     void *arg = r->arg;
     void *res;
+
+    task_t* task = (task_t*) r->arg;
     free(r);
 
     cur_thread_id = __sync_fetch_and_add(&last_thread_id, 1);
@@ -408,30 +402,14 @@ static void *lp_start_routine(void *_arg) {
                 MAX_THREADS);
         exit(-1);
     } 
-    // pthread_mutex_lock(&lock);
-    // while (current_turn != cur_thread_id) {
-        // pthread_cond_wait(&cond, &lock);
-        // sleep(0.1);
-    // }
-    // CLUSTER: 10.233.0.21
-    // LOCAL: 10.5.12.168 | 192.168.1.70
-    // establish_rdma_connection(cur_thread_id, "10.5.12.168");
-    sockfd = establish_tcp_connection(cur_thread_id, "10.233.0.21");
+    sockfd = establish_tcp_connection(cur_thread_id, task->server_ip);
     // fprintf(stderr, "thread %d return from establish connec call\n", cur_thread_id);
     if(sockfd < 0) {
         tcp_error("Thread %d failed at establishing tcp connection", cur_thread_id);
     }
-    // current_turn++;
-    // pthread_cond_broadcast(&cond);
-    // pthread_mutex_unlock(&lock);
-
-// #if !NO_INDIRECTION
-//     clht_gc_thread_init(pthread_to_lock, cur_thread_id);
-// #endif
-//     lock_thread_start();
+    //     lock_thread_start();
     res = fct(arg);
     // lock_thread_exit();
-
     return res;
 }
 

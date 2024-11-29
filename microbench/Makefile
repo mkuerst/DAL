@@ -1,7 +1,8 @@
 #Use machine's CPU-SPEED, else results will be wrong.
 #example CYCLE_PER_US=2400L - 2.4 GHz processor
 
-CYCLE_PER_US:=$(shell lscpu | grep "MHz" | awk 'NR==1 {printf "%dL\n", $$4}')
+# CYCLE_PER_US:=$(shell lscpu | grep "MHz" | awk 'NR==1 {printf "%dL\n", $$4}')
+CYCLE_PER_US:=$(shell cat "/proc/cpuinfo" | grep "MHz" | head -1 | awk '{printf "%dL\n", $$4}')
 CACHELINE_SIZE:=$(shell cat /sys/devices/system/cpu/cpu0/cache/index0/coherency_line_size)
 # CYCLE_PER_US=2400L
 ifndef CYCLE_PER_US

@@ -56,6 +56,23 @@
 #define GLIBC_2_3_2 "GLIBC_2.3.2"
 #define GLIBC_2_34 "GLIBC_2.34"
 
+typedef unsigned long long ull;
+typedef struct {
+    volatile int *stop;
+    volatile ull *global_its;
+    pthread_t thread;
+    int priority;
+    int id;
+    double cs;
+    int ncpu;
+    int nnodes;
+    char* server_ip;
+    // outputs
+    ull loop_in_cs;
+    ull lock_acquires;
+    ull lock_hold;
+} task_t;
+
 extern int (*REAL(pthread_mutex_init))(pthread_mutex_t *mutex,
                                        const pthread_mutexattr_t *attr);
 extern int (*REAL(pthread_mutex_destroy))(pthread_mutex_t *mutex);
