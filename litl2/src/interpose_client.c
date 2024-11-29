@@ -391,7 +391,6 @@ static void *lp_start_routine(void *_arg) {
     void *(*fct)(void *) = r->fct;
     void *arg = r->arg;
     void *res;
-
     task_t* task = (task_t*) r->arg;
     free(r);
 

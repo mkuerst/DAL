@@ -64,6 +64,21 @@
 // #define DEBUG_PTHREAD(...)                        fprintf(stderr, ## __VA_ARGS__)
 #define DEBUG_PTHREAD(...)
 
+typedef unsigned long long ull;
+typedef struct {
+    volatile int *stop;
+    volatile ull *global_its;
+    pthread_t thread;
+    int priority;
+    int id;
+    double cs;
+    char* server_ip;
+    // outputs
+    ull loop_in_cs;
+    ull lock_acquires;
+    ull lock_hold;
+} task_t;
+
 void *alloc_cache_align(size_t n);
 
 static inline void *xchg_64(void *ptr, void *x) {

@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <topology.h>
 
 #ifndef CYCLE_PER_US
 #error Must define CYCLE_PER_US for the current machine in the Makefile or elsewhere
@@ -19,8 +20,6 @@ typedef struct thread_data {
     unsigned int server_tid;
     unsigned int client_tid;
     int sockfd;
-    int nnuma;
-    int ncpu;
     ull lock_impl_time;
 } thread_data;
 struct thread_data threads[MAX_THREADS];
@@ -32,13 +31,14 @@ void *run_lock_impl(void *_arg)
     thread_data* thread = (thread_data*) _arg;
     int client_socket = thread->sockfd;
     int server_tid = thread->server_tid;
-    int node = server_tid % thread->nnuma;
-    // fprintf(stderr,"RUNNING ON %d ndoes\n", thread->nnuma);
+    int node = server_tid % NUMA_NODES;
+    // fprintf(stderr,"RUNNING ON %d ndoes\n", NUMA_NODES);
 
-    if (thread->ncpu != 0) {
+    if (CPU_NUMBER != 0) {
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);
-        CPU_SET((server_tid-1)/2, &cpuset);
+        CPU_SET((server_tid-1)%CPU_NUMBER, &cpuset);
+        // fprintf(stderr, "pinning server thread %d to cpu %d\n", server_tid, (server_tid-1)%CPU_NUMBER);
         int ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
         if (ret != 0) {
             tcp_error("pthread_set_affinity_np");
@@ -91,8 +91,6 @@ void *run_lock_impl(void *_arg)
 
 int main(int argc, char *argv[]) {
     int nthreads = atoi(argv[1]);
-    int ncpu = atoi(argv[2]);
-    int nnuma = atoi(argv[3]);
     int server_fd, client_fd, epoll_fd;
     struct sockaddr_in server_addr, client_addr;
     socklen_t addr_len = sizeof(client_addr);
@@ -172,8 +170,6 @@ int main(int argc, char *argv[]) {
                     close(client_fd);
                 }
                 threads[cur_thread_id].sockfd = client_fd;
-                threads[cur_thread_id].nnuma = nnuma;
-                threads[cur_thread_id].ncpu = ncpu;
                 threads[cur_thread_id].server_tid = cur_thread_id+1;
                 threads[cur_thread_id].lock_impl_time = 0;
                 pthread_create(&threads[cur_thread_id].thread, NULL, run_lock_impl, &threads[cur_thread_id]);

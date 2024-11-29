@@ -10,9 +10,11 @@
 #include <sys/syscall.h>
 #include <inttypes.h>
 #include <sys/resource.h>
-#define gettid() syscall(SYS_gettid)
 #include "rdtsc.h"
 #include "lock.h"
+#include "../litl2/include/topology.h"
+
+#define gettid() syscall(SYS_gettid)
 
 #ifndef CYCLE_PER_US
 #error Must define CYCLE_PER_US for the current machine in the Makefile or elsewhere
@@ -22,10 +24,7 @@
 #define CACHELINE_SIZE 64
 #endif
 
-#ifndef NUMA_NODES
-#define NUMA_NODES 1
-#endif
-
+// TODO: MOVE INTO UTILS.H
 typedef unsigned long long ull;
 typedef struct {
     volatile int *stop;
@@ -34,8 +33,6 @@ typedef struct {
     int priority;
     int id;
     double cs;
-    int ncpu;
-    int nnodes;
     char* server_ip;
     // outputs
     ull loop_in_cs;
@@ -44,21 +41,22 @@ typedef struct {
 } task_t __attribute__ ((aligned (CACHELINE_SIZE)));
 
 lock_t lock;
-// TODO: add barrier before threads start actual lock acquisitions 
 pthread_barrier_t global_barrier;
 pthread_barrier_t init_barrier;
 
-void *worker(void *arg) {
+void *cs_worker(void *arg) {
+    // fprintf(stderr, "STARTING WORKER\n");
     int ret;
     task_t *task = (task_t *) arg;
     int task_id = task->id;
-    int node = task_id % task->nnodes;
-    int ncpu = task->ncpu;
+    int node = task_id % NUMA_NODES;
+    // fprintf(stderr,"RUNNING ON %d ndoes\n", NUMA_NODES);
 
-    if (ncpu != 0) {
+    if (CPU_NUMBER != 0) {
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);
-        CPU_SET(task_id%ncpu, &cpuset);
+        CPU_SET(task_id%CPU_NUMBER, &cpuset);
+        // fprintf(stderr, "pinning client thread %d to cpu %d\n", task_id, (task_id)%CPU_NUMBER);
         ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
         if (ret != 0) {
             fprintf(stderr, "pthread_set_affinity_np");
@@ -112,10 +110,79 @@ void *worker(void *arg) {
     task->loop_in_cs = loop_in_cs;
     task->lock_hold = lock_hold;
 
-    fprintf(stderr,"FINISHED tid %d\n", task->id);
+    // fprintf(stderr,"FINISHED tid %d\n", task->id);
     return 0;
 }
 
+void *empty_cs_worker(void *arg) {
+    // fprintf(stderr, "STARTING WORKER\n");
+    int ret;
+    task_t *task = (task_t *) arg;
+    int task_id = task->id;
+    int node = task_id % NUMA_NODES;
+    // fprintf(stderr,"RUNNING ON %d ndoes\n", NUMA_NODES);
+
+    if (CPU_NUMBER != 0) {
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(task_id%CPU_NUMBER, &cpuset);
+        // fprintf(stderr, "pinning client thread %d to cpu %d\n", task_id, (task_id)%CPU_NUMBER);
+        ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+        if (ret != 0) {
+            fprintf(stderr, "pthread_set_affinity_np");
+            exit(-1);
+        }
+        if (numa_run_on_node(node) != 0) {
+            fprintf(stderr, "numa_run_on_node failed");
+            exit(-1);
+        }
+    }
+
+    // pid_t tid = gettid();
+    // ret = setpriority(PRIO_PROCESS, tid, task->priority);
+    // if (ret != 0) {
+    //     perror("setpriority");
+    //     exit(-1);
+    // }
+
+    // loop
+    ull now, start, then;
+    ull lock_acquires = 0;
+    ull lock_hold = 0;
+    ull loop_in_cs = 0;
+    const ull delta = CYCLE_PER_US * task->cs;
+    pthread_barrier_wait(&global_barrier);
+    while (!*task->stop) {
+    // while (*task->global_its < 1000) {
+        // fprintf(stderr, "thread %d acquiring lock\n", task->id);
+
+        lock_acquire(&lock);
+        // fprintf(stderr, "thread %d acquired lock\n", task->id);
+        now = rdtscp();
+
+        lock_acquires++;
+        (*task->global_its)++;
+        start = now;
+        then = now + delta;
+
+        do {
+            loop_in_cs++;
+        } while (((now = rdtscp()) < then) && !task->stop);
+
+        lock_hold += now - start;
+
+        // fprintf(stderr, "thread %d releasing lock\n", task->id);
+        lock_release(&lock);
+        // fprintf(stderr, "thread %d released lock\n", task->id);
+    }
+
+    task->lock_acquires = lock_acquires;
+    task->loop_in_cs = loop_in_cs;
+    task->lock_hold = lock_hold;
+
+    // fprintf(stderr,"FINISHED tid %d\n", task->id);
+    return 0;
+}
 double random_double(double min, double max) {
     if (min > max) {
         fprintf(stderr, "Invalid range: min must be <= max\n");
@@ -133,9 +200,7 @@ int main(int argc, char *argv[]) {
     int nthreads = atoi(argv[1]);
     int duration = atoi(argv[2]);
     double cs = atoi(argv[3]);
-    int ncpu = atoi(argv[4]);
-    int nnodes = atoi(argv[5]);
-    char *server_ip = (argv[6]);
+    char *server_ip = (argv[4]);
     task_t *tasks = malloc(sizeof(task_t) * nthreads);
 
     pthread_attr_t attr;
@@ -151,14 +216,12 @@ int main(int argc, char *argv[]) {
         tasks[i].stop = &stop;
         tasks[i].global_its = &global_its;
         tasks[i].cs = cs == 0 ? (i%2 == 0 ? short_cs : long_cs) : cs;
-        fprintf(stderr, "random cs: %f\n", tasks[i].cs);
+        // fprintf(stderr, "random cs: %f\n", tasks[i].cs);
 
         // int priority = atoi(argv[4+i*2]);
         // tasks[i].priority = priority;
         tasks[i].priority = 1;
-        tasks[i].ncpu = ncpu;
         tasks[i].id = i;
-        tasks[i].nnodes = nnodes;
         tasks[i].server_ip = server_ip;
 
         tasks[i].loop_in_cs = 0;
@@ -199,10 +262,12 @@ int main(int argc, char *argv[]) {
     }
 
     float total_lock_hold = 0;
+    ull total_lock_acq = 0;
     for (int i = 0; i < nthreads; i++) {
         task_t task = (task_t) tasks[i];
         float lock_hold = task.lock_hold / (float) (CYCLE_PER_US * 1000);
         total_lock_hold += lock_hold;
+        total_lock_acq += task.lock_acquires;
         printf("%03d,%10llu,%8llu,%10.3f\n",
                 task.id,
                 task.loop_in_cs,
@@ -210,7 +275,8 @@ int main(int argc, char *argv[]) {
                 lock_hold
                 );
     }
-    fprintf(stderr, "Total lock holds(ms): %f\n", total_lock_hold);
+    fprintf(stderr, "Total lock hold time(ms): %f\n", total_lock_hold);
+    fprintf(stderr, "Total lock acquisitions: %llu\n", total_lock_acq);
     // WAIT SO SERVER CAN SHUTDOWN
     sleep(2);
     fprintf(stderr, "DONE\n");
