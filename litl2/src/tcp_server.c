@@ -148,13 +148,11 @@ int main(int argc, char *argv[]) {
     while (cur_thread_id < nthreads) {
         // Wait for events
         int event_count = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
-        fprintf(stderr, "T0\n");
         if (event_count == -1) {
             tcp_error("Epoll_wait failed");
             break;
         }
         for (int i = 0; i < event_count; i++) {
-            fprintf(stderr, "T1\n");
             if (events[i].data.fd == server_fd) {
                 // Handle new connection
                 client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &addr_len);

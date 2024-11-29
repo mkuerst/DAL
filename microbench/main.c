@@ -191,6 +191,7 @@ int main(int argc, char *argv[]) {
     }
     // WAIT SO SERVER CAN SHUTDOWN
     sleep(2);
+    fprintf(stderr, "DONE\n");
     return 0;
 }
 

@@ -37,8 +37,8 @@ do
     mkdir -p "$client_res_dir" 
     mkdir -p "$server_res_dir" 
     mkdir -p "$log_dir"
-    # for ((i=1; i<=nthreads; i+=1))
-    for ((i=1; i<=2; i+=1))
+    for ((i=1; i<=nthreads; i+=1))
+    # for ((i=1; i<=2; i+=1))
     do
         client_res_file="$client_res_dir"/nthread_"$i".csv
         server_res_file="$server_res_dir"/nthread_"$i".csv
