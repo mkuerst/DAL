@@ -77,6 +77,7 @@ typedef struct {
     ull loop_in_cs;
     ull lock_acquires;
     ull lock_hold;
+    size_t array_size;
 } task_t;
 
 void *alloc_cache_align(size_t n);

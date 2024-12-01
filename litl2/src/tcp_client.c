@@ -39,7 +39,7 @@ int establish_tcp_connection(unsigned int tid, char* addr) {
     if (try == max_tries) 
         tcp_client_error(sock, "Thread %d failed at connecting\n", tid);
 
-    fprintf(stderr, "Thread %d: Connected to server.\n", tid);
+    DEBUG("Thread %d: Connected to server.\n", tid);
 
     return sock;
 }
@@ -56,10 +56,10 @@ int request_lock(int sockfd, int tid)
 
     DEBUG("Thread %d requests the lock: %s on socket %d\n", tid, msg, sockfd);
     if ((ret = send(sockfd, msg, BUFFER_SIZE, 0)) < 0)
-        tcp_client_error(sockfd, "Thread %d failed at sending lock request", tid);
+        tcp_client_error(sockfd, "Thread %d failed at sending lock request\n", tid);
     
     if ((ret = read(sockfd, buffer, BUFFER_SIZE)) < 0)
-        tcp_client_error(sockfd, "Thread %d failed at receiving answer for lock request", tid);
+        tcp_client_error(sockfd, "Thread %d failed at receiving answer for lock request\n", tid);
     
     DEBUG("Thread %d received msg %s\n", tid, buffer);
     return ret;
@@ -67,12 +67,21 @@ int request_lock(int sockfd, int tid)
 
 int release_lock(int sockfd, int tid)
 {
+    char buffer[BUFFER_SIZE];
+    memset(buffer, 0, BUFFER_SIZE);
     char msg[BUFFER_SIZE];
     memset(msg, 0, BUFFER_SIZE);
     int ret = 0;
     sprintf(msg, "r%d", tid);
     if ((ret = send(sockfd, msg, strlen(msg), 0)) < 0)
-        tcp_client_error(sockfd, "Thread %d failed at releasing lock", tid);
+        tcp_client_error(sockfd, "Thread %d failed at releasing lock\n", tid);
+
+    if ((ret = read(sockfd, buffer, BUFFER_SIZE)) < 0)
+        tcp_client_error(sockfd, "Thread %d failed at receiving answer for lock request\n", tid);
+
+    // if (strcmp(buffer, "released lock") == 0) {
+    //     tcp_client_error(sockfd, "Thread %d expected released msg, got '%s'\n", tid, buffer);
+    // }
     DEBUG("Thread %d released lock to memory server\n", tid);
     return ret;
 }

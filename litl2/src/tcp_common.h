@@ -19,14 +19,6 @@
 #define MAX_CONNECTIONS 1000
 #define BUFFER_SIZE 1024
 
-#ifndef NUMA_NODES
-#define NUMA_NODES 1
-#endif
-
-#ifndef NCPU 
-#define NCPU 1
-#endif
-
 #define tcp_error(msg, args...) do {\
 	fprintf(stderr, "\033[1;31m%s : %d : ERROR : \033[0m"msg, __FILE__, __LINE__, ## args);\
 	fprintf(stderr, "\n");\
@@ -47,11 +39,5 @@
     close(epoll_fd);\
     fprintf(stderr, "Server shutdown complete\n");\
 }while(0);
-
-// #ifdef DEBUG
-// #define DEBUG(...)                        fprintf(stderr, ## __VA_ARGS__)
-// #else
-// #define DEBUG(...)
-// #endif
 
 int establish_tcp_connection(unsigned int tid, char* addr);

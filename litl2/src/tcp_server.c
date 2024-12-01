@@ -1,7 +1,4 @@
 #include "tcp_common.h"
-// #include <pthread.h>
-// #include <sched.h>
-// #include <numa.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,9 +47,14 @@ void *run_lock_impl(void *_arg)
 
     char buffer[BUFFER_SIZE];
     memset(buffer, 0, BUFFER_SIZE);
-    char msg[BUFFER_SIZE];
-    memset(msg, 0, BUFFER_SIZE);
-    sprintf(msg, "granted lock");
+
+    char granted_msg[BUFFER_SIZE];
+    memset(granted_msg, 0, BUFFER_SIZE);
+    sprintf(granted_msg, "granted lock");
+
+    char released_msg[BUFFER_SIZE];
+    memset(released_msg, 0, BUFFER_SIZE);
+    sprintf(released_msg, "released lock");
     while (1) {
         int bytes_read = read(client_socket, buffer, sizeof(buffer));
         if (bytes_read == -1) {
@@ -63,7 +65,7 @@ void *run_lock_impl(void *_arg)
             pthread_exit(EXIT_SUCCESS);
         }
 
-        DEBUG("Server %d Received message from: %s\n", server_tid, client_socket, buffer);
+        DEBUG("Server %d Received message on socket %d: %s\n", server_tid, client_socket, buffer);
         char cmd;
         int id, ret = 0;
         if (sscanf(buffer, "%c%d", &cmd, &id) == 2) {
@@ -72,7 +74,7 @@ void *run_lock_impl(void *_arg)
                 ull now = rdtsc();
                 pthread_mutex_lock(&mutex);
                 thread->lock_impl_time += rdtsc() - now;
-                if ((ret = send(client_socket, msg, strlen(msg), 0)) < 0)
+                if ((ret = send(client_socket, granted_msg, strlen(granted_msg), 0)) < 0)
                     tcp_client_error(client_socket, "lock acquisition notice failed for thread %d", id);
                 DEBUG("Granted lock to thread %d over socket %d\n", id, client_socket);
             }
@@ -81,9 +83,11 @@ void *run_lock_impl(void *_arg)
                 pthread_mutex_unlock(&mutex);
                 thread->lock_impl_time += rdtsc() - now;
                 DEBUG("Released lock on server for thread %d\n", id);
+                if ((ret = send(client_socket, released_msg, strlen(released_msg), 0)) < 0)
+                    tcp_client_error(client_socket, "lock acquisition notice failed for thread %d", id);
             }
         } else {
-            DEBUG("Failed to parse the string\n");
+            DEBUG("Failed to parse the string from thread %d, got: %s\n", id, buffer);
         }
         memset(buffer, 0, BUFFER_SIZE);
     }
