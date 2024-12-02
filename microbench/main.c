@@ -20,15 +20,6 @@
 #error Must define CYCLE_PER_US for the current machine in the Makefile or elsewhere
 #endif
 
-#ifndef CACHELINE_SIZE
-#define CACHELINE_SIZE 64
-#endif
-
-#define KB(x) ((x) * 1024LL)
-#define GB(x) (MB(x) * 1024LL)
-#define MB(x) (KB(x) * 1024LL)
-#define MAX_ARRAY_SIZE GB(1LL)
-
 double *array;
 
 lock_t lock;

@@ -64,10 +64,18 @@
 // #define DEBUG_PTHREAD(...)                        fprintf(stderr, ## __VA_ARGS__)
 #define DEBUG_PTHREAD(...)
 
-#define NUM_RUNS 2
+// MICROBENCH PARAMS
+/**************************************************************************************/
+#define NUM_RUNS 5
 #ifndef CACHELINE_SIZE
 #define CACHELINE_SIZE 64
 #endif
+/**************************************************************************************/
+
+#define KB(x) ((x) * 1024LL)
+#define GB(x) (MB(x) * 1024LL)
+#define MB(x) (KB(x) * 1024LL)
+#define MAX_ARRAY_SIZE GB(1LL)
 
 typedef unsigned long long ull;
 typedef struct {
