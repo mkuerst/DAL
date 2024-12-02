@@ -11,14 +11,6 @@
 #error Must define CYCLE_PER_US for the current machine in the Makefile or elsewhere
 #endif
 
-typedef unsigned long long ull;
-typedef struct thread_data {
-    pthread_t thread;
-    unsigned int server_tid;
-    unsigned int client_tid;
-    int sockfd;
-    ull lock_impl_time;
-} thread_data;
 struct thread_data threads[MAX_THREADS];
 pthread_mutex_t mutex;
 int cur_thread_id = 0;
@@ -29,8 +21,10 @@ void *run_lock_impl(void *_arg)
     int client_socket = thread->sockfd;
     int server_tid = thread->server_tid;
     int node = server_tid % NUMA_NODES;
+    int j = 0;
     // fprintf(stderr,"RUNNING ON %d ndoes\n", NUMA_NODES);
 
+    // TODO: MOVE PIN TO UTILS.H
     if (CPU_NUMBER != 0) {
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);
@@ -55,6 +49,11 @@ void *run_lock_impl(void *_arg)
     char released_msg[BUFFER_SIZE];
     memset(released_msg, 0, BUFFER_SIZE);
     sprintf(released_msg, "released lock");
+
+    char ok_msg[BUFFER_SIZE];
+    memset(ok_msg, 0, BUFFER_SIZE);
+    sprintf(ok_msg, "ok");
+
     while (1) {
         int bytes_read = read(client_socket, buffer, sizeof(buffer));
         if (bytes_read == -1) {
@@ -73,7 +72,7 @@ void *run_lock_impl(void *_arg)
                 thread->client_tid = id;
                 ull now = rdtsc();
                 pthread_mutex_lock(&mutex);
-                thread->lock_impl_time += rdtsc() - now;
+                thread->lock_impl_time[j] += rdtsc() - now;
                 if ((ret = send(client_socket, granted_msg, strlen(granted_msg), 0)) < 0)
                     tcp_client_error(client_socket, "lock acquisition notice failed for thread %d", id);
                 DEBUG("Granted lock to thread %d over socket %d\n", id, client_socket);
@@ -81,9 +80,15 @@ void *run_lock_impl(void *_arg)
             if (cmd == 'r') {
                 ull now = rdtsc();
                 pthread_mutex_unlock(&mutex);
-                thread->lock_impl_time += rdtsc() - now;
+                thread->lock_impl_time[j] += rdtsc() - now;
                 DEBUG("Released lock on server for thread %d\n", id);
                 if ((ret = send(client_socket, released_msg, strlen(released_msg), 0)) < 0)
+                    tcp_client_error(client_socket, "lock acquisition notice failed for thread %d", id);
+            }
+            if (cmd == 'd') {
+                j++;
+                DEBUG("Received run complete from thread %d\n", id);
+                if ((ret = send(client_socket, ok_msg, strlen(ok_msg), 0)) < 0)
                     tcp_client_error(client_socket, "lock acquisition notice failed for thread %d", id);
             }
         } else {
@@ -175,7 +180,9 @@ int main(int argc, char *argv[]) {
                 }
                 threads[cur_thread_id].sockfd = client_fd;
                 threads[cur_thread_id].server_tid = cur_thread_id+1;
-                threads[cur_thread_id].lock_impl_time = 0;
+                for (int j = 0; j < NUM_RUNS; j++) {
+                    threads[cur_thread_id].lock_impl_time[j] = 0;
+                }
                 pthread_create(&threads[cur_thread_id].thread, NULL, run_lock_impl, &threads[cur_thread_id]);
                 cur_thread_id++;
             } 
@@ -185,9 +192,13 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < cur_thread_id; i++) {
         pthread_join(threads[i].thread, NULL);
     }
-    for (int i = 0; i < cur_thread_id; i++) {
-        thread_data thread = (thread_data) threads[i];
-        printf("%03d,%10.3f\n", thread.client_tid, thread.lock_impl_time / (float) (CYCLE_PER_US * 1000));
+    for (int j = 0; j < NUM_RUNS; j++) {
+        printf("RUN %d\n", j);
+        for (int i = 0; i < cur_thread_id; i++) {
+            thread_data thread = (thread_data) threads[i];
+            printf("%03d,%10.3f\n", thread.client_tid, thread.lock_impl_time[j] / (float) (CYCLE_PER_US * 1000));
+        }
+        printf("-----------------------------------------------------------------------------------------------\n\n");
     }
     clean_up(server_fd, epoll_fd);
     return 0;

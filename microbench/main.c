@@ -2,10 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-// #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
-// #include <pthread.h>
 #include <numa.h>
 #include <sched.h>
 #include <sys/syscall.h>
@@ -13,7 +11,8 @@
 #include <sys/resource.h>
 #include "rdtsc.h"
 #include "lock.h"
-#include "../litl2/include/topology.h"
+#include <utils.h>
+#include <tcp_client.c>
 
 #define gettid() syscall(SYS_gettid)
 
@@ -26,28 +25,11 @@
 #endif
 
 #define KB(x) ((x) * 1024LL)
-#define MB(x) (KB(x) * 1024LL)
 #define GB(x) (MB(x) * 1024LL)
+#define MB(x) (KB(x) * 1024LL)
 #define MAX_ARRAY_SIZE GB(1LL)
 
 double *array;
-
-// TODO: MOVE INTO UTILS.H
-typedef unsigned long long ull;
-typedef struct {
-    volatile int *stop;
-    volatile ull *global_its;
-    pthread_t thread;
-    int priority;
-    int id;
-    double cs;
-    char* server_ip;
-    // outputs
-    ull loop_in_cs;
-    ull lock_acquires;
-    ull lock_hold;
-    size_t array_size;
-} task_t __attribute__ ((aligned (CACHELINE_SIZE)));
 
 lock_t lock;
 pthread_barrier_t global_barrier;
@@ -87,40 +69,48 @@ void *cs_worker(void *arg) {
     task_t *task = (task_t *) arg;
     int task_id = task->id;
     pin_thread(task_id);
-
     ull now, start, then;
-    ull lock_acquires = 0;
-    ull lock_hold = 0;
-    ull loop_in_cs = 0;
+    ull lock_acquires;
+    ull lock_hold;
+    ull loop_in_cs;
+
     const ull delta = CYCLE_PER_US * task->cs;
-    pthread_barrier_wait(&global_barrier);
-    while (!*task->stop) {
-    // while (*task->global_its < 1000) {
-        // fprintf(stderr, "thread %d acquiring lock\n", task->id);
 
-        lock_acquire(&lock);
-        // fprintf(stderr, "thread %d acquired lock\n", task->id);
-        now = rdtscp();
+    for (int i = 0; i < NUM_RUNS; i++) {
+        lock_acquires = 0;
+        lock_hold = 0;
+        loop_in_cs = 0;
+        pthread_barrier_wait(&global_barrier);
+        while (!*task->stop) {
+        // while (*task->global_its < 1000) {
+            // fprintf(stderr, "thread %d acquiring lock\n", task->id);
 
-        lock_acquires++;
-        (*task->global_its)++;
-        start = now;
-        then = now + delta;
+            lock_acquire(&lock);
+            // fprintf(stderr, "thread %d acquired lock\n", task->id);
+            now = rdtscp();
 
-        do {
-            loop_in_cs++;
-        } while (((now = rdtscp()) < then) && !task->stop);
+            lock_acquires++;
+            (*task->global_its)++;
+            start = now;
+            then = now + delta;
 
-        lock_hold += now - start;
+            do {
+                loop_in_cs++;
+            } while (((now = rdtscp()) < then) && !task->stop);
 
-        // fprintf(stderr, "thread %d releasing lock\n", task->id);
-        lock_release(&lock);
-        // fprintf(stderr, "thread %d released lock\n", task->id);
+            lock_hold += now - start;
+
+            // fprintf(stderr, "thread %d releasing lock\n", task->id);
+            lock_release(&lock);
+            // fprintf(stderr, "thread %d released lock\n", task->id);
+        }
+
+        task->lock_acquires[i] = lock_acquires;
+        task->loop_in_cs[i] = loop_in_cs;
+        task->lock_hold[i] = lock_hold;
+        run_complete(task->sockfd, task_id);
+        pthread_barrier_wait(&global_barrier);
     }
-
-    task->lock_acquires = lock_acquires;
-    task->loop_in_cs = loop_in_cs;
-    task->lock_hold = lock_hold;
 
     // fprintf(stderr,"FINISHED tid %d\n", task->id);
     return 0;
@@ -131,29 +121,36 @@ void *empty_cs_worker(void *arg) {
     int task_id = task->id;
     // fprintf(stderr,"RUNNING ON %d ndoes\n", NUMA_NODES);
     pin_thread(task_id);
-
     ull start;
-    ull lock_acquires = 0;
-    ull lock_hold = 0;
-    ull loop_in_cs = 0;
-    pthread_barrier_wait(&global_barrier);
-    while (!*task->stop) {
-        // fprintf(stderr, "thread %d acquiring lock\n", task->id);
-        lock_acquire(&lock);
-        // fprintf(stderr, "thread %d acquired lock\n", task->id);
-        start = rdtscp();
-        lock_acquires++;
-        (*task->global_its)++;
-        loop_in_cs++;
-        lock_hold += rdtscp() - start;
-        // fprintf(stderr, "thread %d releasing lock\n", task->id);
-        lock_release(&lock);
-        // fprintf(stderr, "thread %d released lock\n", task->id);
-    }
+    ull lock_acquires;
+    ull lock_hold;
+    ull loop_in_cs;
 
-    task->lock_acquires = lock_acquires;
-    task->loop_in_cs = loop_in_cs;
-    task->lock_hold = lock_hold;
+    for (int i = 0; i < NUM_RUNS; i++) {
+        lock_acquires = 0;
+        lock_hold = 0;
+        loop_in_cs = 0;
+        pthread_barrier_wait(&global_barrier);
+        while (!*task->stop) {
+            // fprintf(stderr, "thread %d acquiring lock\n", task->id);
+            lock_acquire(&lock);
+            // fprintf(stderr, "thread %d acquired lock\n", task->id);
+            start = rdtscp();
+            lock_acquires++;
+            (*task->global_its)++;
+            loop_in_cs++;
+            lock_hold += rdtscp() - start;
+            // fprintf(stderr, "thread %d releasing lock\n", task->id);
+            lock_release(&lock);
+            // fprintf(stderr, "thread %d released lock\n", task->id);
+        }
+
+        task->lock_acquires[i] = lock_acquires;
+        task->loop_in_cs[i] = loop_in_cs;
+        task->lock_hold[i] = lock_hold;
+        run_complete(task->sockfd, task_id);
+        pthread_barrier_wait(&global_barrier);
+    }
 
     // fprintf(stderr,"FINISHED tid %d\n", task->id);
     return 0;
@@ -226,6 +223,30 @@ double random_double(double min, double max) {
     return min + scale * (max - min);
 }
 
+int cs_result_to_out(task_t* tasks, int nthreads) {
+    for (int j = 0; j < NUM_RUNS; j++) {
+        float total_lock_hold = 0;
+        ull total_lock_acq = 0;
+        printf("RUN %d\n", j);
+        for (int i = 0; i < nthreads; i++) {
+            task_t task = (task_t) tasks[i];
+            float lock_hold = task.lock_hold[j] / (float) (CYCLE_PER_US * 1000);
+            total_lock_hold += lock_hold;
+            total_lock_acq += task.lock_acquires[j];
+            printf("%03d,%10llu,%8llu,%10.3f\n",
+                    task.id,
+                    task.loop_in_cs[j],
+                    task.lock_acquires[j],
+                    lock_hold
+                    );
+        }
+        printf("-------------------------------------------------------------------------------------------------------\n\n");
+        fprintf(stderr, "Total lock hold time(ms): %f\n", total_lock_hold);
+        fprintf(stderr, "Total lock acquisitions: %llu\n\n", total_lock_acq);
+    }
+    return 0;
+}
+
 int main(int argc, char *argv[]) {
     srand(42);
     int nthreads = atoi(argv[1]);
@@ -240,26 +261,26 @@ int main(int argc, char *argv[]) {
 
     volatile int stop __attribute__((aligned (CACHELINE_SIZE))) = 0;
     volatile ull global_its __attribute__((aligned (CACHELINE_SIZE))) = 0;
-    double short_cs = duration * 1e6 / 1000.; //range in (us)
-    double long_cs = duration * 1e6 / 10.;
+    double short_cs = duration * 1e6 / 100000.; //range in (us)
+    double long_cs = duration * 1e6 / 100.;
     // int stop_warmup __attribute__((aligned (CACHELINE_SIZE))) = 0;
     for (int i = 0; i < nthreads; i++) {
         tasks[i].stop = &stop;
         tasks[i].global_its = &global_its;
         tasks[i].cs = cs == 0 ? (i%2 == 0 ? short_cs : long_cs) : cs;
-        // fprintf(stderr, "random cs: %f\n", tasks[i].cs);
-
-        // int priority = atoi(argv[4+i*2]);
-        // tasks[i].priority = priority;
         tasks[i].priority = 1;
         tasks[i].id = i;
         tasks[i].server_ip = server_ip;
+        // fprintf(stderr, "random cs: %f\n", tasks[i].cs);
+        // int priority = atoi(argv[4+i*2]);
+        // tasks[i].priority = priority;
 
-        tasks[i].loop_in_cs = 0;
-        tasks[i].lock_acquires = 0;
-        tasks[i].lock_hold = 0;
+        for (int j = 0 ; j < NUM_RUNS; j++) {
+            tasks[i].loop_in_cs[j] = 0;
+            tasks[i].lock_acquires[j] = 0;
+            tasks[i].lock_hold[j] = 0;
+        }
     }
-
     lock_init(&lock);
     pthread_barrier_init(&global_barrier, NULL, nthreads+1);
     pthread_barrier_init(&mem_barrier, NULL, nthreads);
@@ -282,36 +303,20 @@ int main(int argc, char *argv[]) {
     // }
 
     void* worker; 
-    stop = 0;
     if (mode == 0 || mode == 1) {
         worker = mode == 0 ? empty_cs_worker : cs_worker;
         for (int i = 0; i < nthreads; i++) {
             pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
         }
-        pthread_barrier_wait(&global_barrier);
-        fprintf(stderr, "MEASUREMENTS\n");
-        sleep(duration);
-        stop = 1;
-        for (int i = 0; i < nthreads; i++) {
-            pthread_join(tasks[i].thread, NULL);
+        for (int i = 0; i < NUM_RUNS; i++) {
+            stop = 0;
+            pthread_barrier_wait(&global_barrier);
+            fprintf(stderr, "MEASUREMENTS RUN %d\n", i);
+            sleep(duration);
+            stop = 1;
+            pthread_barrier_wait(&global_barrier);
         }
-
-        float total_lock_hold = 0;
-        ull total_lock_acq = 0;
-        for (int i = 0; i < nthreads; i++) {
-            task_t task = (task_t) tasks[i];
-            float lock_hold = task.lock_hold / (float) (CYCLE_PER_US * 1000);
-            total_lock_hold += lock_hold;
-            total_lock_acq += task.lock_acquires;
-            printf("%03d,%10llu,%8llu,%10.3f\n",
-                    task.id,
-                    task.loop_in_cs,
-                    task.lock_acquires,
-                    lock_hold
-                    );
-        }
-        fprintf(stderr, "Total lock hold time(ms): %f\n", total_lock_hold);
-        fprintf(stderr, "Total lock acquisitions: %llu\n", total_lock_acq);
+        cs_result_to_out(tasks, nthreads);
     }
     else {
         worker = mem_worker;
@@ -319,11 +324,12 @@ int main(int argc, char *argv[]) {
             pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
         }
         fprintf(stderr, "MEASUREMENTS\n");
-        for (int i = 0; i < nthreads; i++) {
-            pthread_join(tasks[i].thread, NULL);
-        }
-        free(array);
     }
+
+    for (int i = 0; i < nthreads; i++) {
+        pthread_join(tasks[i].thread, NULL);
+    }
+    free(array);
     // WAIT SO SERVER CAN SHUTDOWN
     sleep(2);
     fprintf(stderr, "DONE\n");

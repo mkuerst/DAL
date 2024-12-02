@@ -20,7 +20,7 @@ GCCVERSIONGTEQ5 := $(shell expr `gcc -dumpversion | cut -f1 -d.` \>= 5)
 # endif
 OFLAG=-O2
 
-FLAGS=-I/../litl2/include/ -I/../litl2/src/ -g -Wall -lnuma -DCYCLE_PER_US=${CYCLE_PER_US} -DCACHELINE_SIZE=${CACHELINE_SIZE}
+FLAGS=-I../litl2/include/ -I../litl2/src/ -g -Wall -lnuma -DCYCLE_PER_US=${CYCLE_PER_US} -DCACHELINE_SIZE=${CACHELINE_SIZE}
 
 .PHONY: all target
 

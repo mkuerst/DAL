@@ -64,6 +64,11 @@
 // #define DEBUG_PTHREAD(...)                        fprintf(stderr, ## __VA_ARGS__)
 #define DEBUG_PTHREAD(...)
 
+#define NUM_RUNS 2
+#ifndef CACHELINE_SIZE
+#define CACHELINE_SIZE 64
+#endif
+
 typedef unsigned long long ull;
 typedef struct {
     volatile int *stop;
@@ -73,12 +78,21 @@ typedef struct {
     int id;
     double cs;
     char* server_ip;
+    int sockfd;
     // outputs
-    ull loop_in_cs;
-    ull lock_acquires;
-    ull lock_hold;
+    ull loop_in_cs[NUM_RUNS];
+    ull lock_acquires[NUM_RUNS];
+    ull lock_hold[NUM_RUNS];
     size_t array_size;
-} task_t;
+} task_t __attribute__ ((aligned (CACHELINE_SIZE)));
+
+typedef struct thread_data {
+    pthread_t thread;
+    unsigned int server_tid;
+    unsigned int client_tid;
+    int sockfd;
+    ull lock_impl_time[NUM_RUNS];
+} thread_data;
 
 void *alloc_cache_align(size_t n);
 
@@ -126,10 +140,6 @@ static inline uint64_t rdtsc(void) {
 
     return low | ((uint64_t)high) << 32;
 }
-
-// static inline int gettid() {
-//     return syscall(SYS_gettid);
-// }
 
 // EPFL libslock
 #define my_random xorshf96

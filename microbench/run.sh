@@ -4,9 +4,9 @@
 #LOCAL
 REMOTE_USER="mihi"
 REMOTE_HOST="localhost"
-# server_ip=10.5.12.168
+server_ip=10.5.12.168
 # HOME
-server_ip=192.168.1.70
+# server_ip=192.168.1.70
 
 #CLUSTER
 # REMOTE_USER="kumichae"
