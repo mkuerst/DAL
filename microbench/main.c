@@ -197,7 +197,7 @@ void *mem_worker(void *arg) {
         pthread_barrier_wait(&mem_barrier);
         float lock_hold_ms = lock_hold / (float) (CYCLE_PER_US * 1000);
         float duration_ms = duration / (float) (CYCLE_PER_US * 1000);
-        printf("%03d,%10llu,%8llu,%10.3f,%12.3f,%10zu\n",
+        printf("%03d,%10llu,%8llu,%12.6f,%12.3f,%10zu\n",
                 task_id,
                 loop_in_cs,
                 lock_acquires,
@@ -233,7 +233,7 @@ int cs_result_to_out(task_t* tasks, int nthreads) {
             float lock_hold = task.lock_hold[j] / (float) (CYCLE_PER_US * 1000);
             total_lock_hold += lock_hold;
             total_lock_acq += task.lock_acquires[j];
-            printf("%03d,%10llu,%8llu,%10.3f\n",
+            printf("%03d,%10llu,%8llu,%12.6f\n",
                     task.id,
                     task.loop_in_cs[j],
                     task.lock_acquires[j],
