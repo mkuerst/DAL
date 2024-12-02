@@ -406,6 +406,7 @@ static void *lp_start_routine(void *_arg) {
     if(sockfd < 0) {
         tcp_error("Thread %d failed at establishing tcp connection", cur_thread_id);
     }
+    task->sockfd = sockfd;
     //     lock_thread_start();
     res = fct(arg);
     // lock_thread_exit();
