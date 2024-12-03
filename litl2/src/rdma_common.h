@@ -25,16 +25,17 @@
 
 #include <rdma_cma.h>
 #include <infiniband/verbs.h>
+#include "utils.h"
 
 /* Error Macro*/
 #define rdma_error(msg, args...) do {\
 	fprintf(stderr, "\033[1;31m%s : %d : ERROR : \033[0m"msg, __FILE__, __LINE__, ## args);\
 }while(0);
 
-#ifdef ACN_RDMA_DEBUG 
-/* Debug Macro */
+#ifdef DEBUG 
+/* debug macro */
 #define debug(msg, args...) do {\
-    printf("DEBUG: "msg, ## args);\
+    fprintf(stderr, "debug: "msg, ## args);\
 }while(0);
 
 #else 
@@ -52,22 +53,6 @@
 /* Default port where the RDMA server is listening */
 #define DEFAULT_RDMA_PORT (20886)
 
-/* 
- * We use attribute so that compiler does not step in and try to pad the structure.
- * We use this structure to exchange information between the server and the client. 
- *
- * For details see: http://gcc.gnu.org/onlinedocs/gcc/Type-Attributes.html
- */
-struct __attribute((packed)) rdma_buffer_attr {
-  uint64_t address;
-  uint32_t length;
-  union stag {
-	  /* if we send, we call it local stags */
-	  uint32_t local_stag;
-	  /* if we receive, we call it remote stag */
-	  uint32_t remote_stag;
-  }stag;
-};
 /* resolves a given destination name to sin_addr */
 int get_addr(char *dst, struct sockaddr *addr);
 

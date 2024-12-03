@@ -28,6 +28,7 @@
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <infiniband/verbs.h>
 
 #ifndef __UTILS_H__
 #define __UTILS_H__
@@ -66,7 +67,7 @@
 
 // MICROBENCH PARAMS
 /**************************************************************************************/
-#define NUM_RUNS 5
+#define NUM_RUNS 2
 #ifndef CACHELINE_SIZE
 #define CACHELINE_SIZE 64
 #endif
@@ -101,6 +102,49 @@ typedef struct thread_data {
     int sockfd;
     ull lock_impl_time[NUM_RUNS];
 } thread_data;
+
+/* 
+ * We use attribute so that compiler does not step in and try to pad the structure.
+ * We use this structure to exchange information between the server and the client. 
+ *
+ * For details see: http://gcc.gnu.org/onlinedocs/gcc/Type-Attributes.html
+ */
+struct __attribute((packed)) rdma_buffer_attr {
+  uint64_t address;
+  uint32_t length;
+  union stag {
+	  /* if we send, we call it local stags */
+	  uint32_t local_stag;
+	  /* if we receive, we call it remote stag */
+	  uint32_t remote_stag;
+  }stag;
+};
+
+typedef struct rdma_connection {
+	struct rdma_cm_id *cm_client_id;
+    struct ibv_qp *qp;
+    struct ibv_cq *cq;
+    struct ibv_pd *pd;
+    struct ibv_comp_channel *comp_chan;
+    struct ibv_mr *client_mr;
+    struct ibv_mr *server_mr;
+    struct rdma_buffer_attr client_metadata_attr;
+    struct rdma_buffer_attr server_metadata_attr;
+    struct ibv_recv_wr client_recv_wr;
+    struct ibv_recv_wr *bad_client_recv_wr;
+    struct ibv_send_wr server_send_wr; 
+    struct ibv_send_wr *bad_server_send_wr;
+    struct ibv_sge client_recv_sge; 
+    struct ibv_sge server_send_sge;
+} rdma_connection;
+
+typedef struct rdma_thread {
+    pthread_t thread;
+    unsigned int server_tid;
+    unsigned int client_tid;
+    ull lock_impl_time[NUM_RUNS];
+    rdma_connection connection;
+} rdma_thread;
 
 void *alloc_cache_align(size_t n);
 

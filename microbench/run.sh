@@ -22,6 +22,7 @@ ssh-copy-id "$REMOTE_USER@$REMOTE_HOST"
 BASE="$PWD/../litl2/lib"
 logpath="$PWD/server_logs/"
 tcp_server_app="$PWD/../litl2/tcp_server"
+rdma_server_app="$PWD/../litl2/rdma_server"
 client_suffix="_client.so"
 server_suffix="_server.so"
 server_libs_dir=$BASE"/server/"
@@ -55,14 +56,14 @@ do
         mkdir -p "$server_res_dir" 
         mkdir -p "$log_dir"
         # for ((i=1; i<=nthreads; i+=1))
-        for i in 1 16 29
+        for i in 1 2
         do
             client_res_file="$client_res_dir"/nthread_"$i".csv
             server_res_file="$server_res_dir"/nthread_"$i".csv
             echo "tid,loop_in_cs,lock_acquires,lock_hold(ms)" > "$client_res_file"
             echo "tid,lock_impl_time(ms)" > "$server_res_file"
             echo "START $impl SERVER with $i THREADS"
-            tmux new-session -d -s "server_"$impl"_$i" "ssh $REMOTE_USER@$REMOTE_HOST LD_PRELOAD=$server_so $tcp_server_app $i >> $server_res_file 2>> $log_dir/server_$i.log"
+            tmux new-session -d -s "server_"$impl"_$i" "ssh $REMOTE_USER@$REMOTE_HOST LD_PRELOAD=$server_so $rdma_server_app -t $i -a $server_ip >> $server_res_file 2>> $log_dir/server_$i.log"
             # tmux capture-pane -pt "server_"$impl"_$i"
             # gnome-terminal -- bash -c "ssh $REMOTE_USER@$REMOTE_HOST -i $ssh_key 'LD_PRELOAD=$server_so $tcp_server_app $i' >> $server_res_file"
             sleep 5
@@ -77,6 +78,7 @@ done
 # lsof | grep '.nfs'
 # lsof -iTCP -sTCP:LISTEN
 # kill -9 pid
+# grep flags /proc/cpuinfo | grep -q " ida " && echo Turbo mode is on || echo Turbo mode is off
 
 # LD_PRELOAD=/home/kumichae/DAL/litl2/lib/client/libcbomcs_spinlock_client.so /home/kumichae/DAL/microbench/main 1 2 1000 1 1
 # /home/kumichae/DAL/litl2/tcp_server 1 1 1

@@ -88,11 +88,12 @@ int release_lock(int sockfd, int tid)
 
 int run_complete(int sockfd, int tid)
 {
+    int ret = 0;
+#ifdef TCP
     char buffer[BUFFER_SIZE];
     memset(buffer, 0, BUFFER_SIZE);
     char msg[BUFFER_SIZE];
     memset(msg, 0, BUFFER_SIZE);
-    int ret = 0;
     sprintf(msg, "d%d", tid);
     if ((ret = send(sockfd, msg, strlen(msg), 0)) < 0)
         tcp_client_error(sockfd, "Thread %d failed at notifying run complete\n", tid);
@@ -101,5 +102,6 @@ int run_complete(int sockfd, int tid)
     //     tcp_client_error(sockfd, "Thread %d failed at receiving answer for run complete\n", tid);
 
     DEBUG("Thread %d successfully notified run complete\n", tid);
+#endif
     return ret;
 }

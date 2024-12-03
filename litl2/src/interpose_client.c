@@ -3,9 +3,9 @@
  * The MIT License (MIT)
  *
  * Copyright (c) 2016 Hugo Guiroux <hugo.guiroux at gmail dot com>
- *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of his software and associated documentation files (the "Software"), to deal
+ *
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
@@ -105,6 +105,7 @@
 unsigned int last_thread_id;
 __thread unsigned int cur_thread_id;
 __thread int sockfd;
+int cur_turn = 1;
 
 
 #if !NO_INDIRECTION
@@ -251,8 +252,8 @@ static void __attribute__((constructor)) REAL(interpose_init)(void) {
 #endif
 
     // Init once, other concurrent threads wait
-    // 0 = not initiated
     // 1 = initializing
+    // 0 = not initiated
     // 2 = already initiated
     uint8_t cur_init = __sync_val_compare_and_swap(&init_spinlock, 0, 1);
     if (cur_init == 1) {
@@ -401,12 +402,25 @@ static void *lp_start_routine(void *_arg) {
                 MAX_THREADS);
         exit(-1);
     } 
+#ifdef TCP
     sockfd = establish_tcp_connection(cur_thread_id, task->server_ip);
     // fprintf(stderr, "thread %d return from establish connec call\n", cur_thread_id);
     if(sockfd < 0) {
         tcp_error("Thread %d failed at establishing tcp connection", cur_thread_id);
     }
     task->sockfd = sockfd;
+#else
+    while (cur_thread_id != cur_turn) {
+        CPU_PAUSE();
+    }
+    int ret = establish_rdma_connection(cur_thread_id, task->server_ip);
+    cur_turn++;
+    if(ret < 0) {
+        rdma_error("Thread %d failed at establishing rdma connection\n", cur_thread_id);
+        exit(-1);
+    }
+    DEBUG("Thread %d connected to RDMA server\n", cur_thread_id);
+#endif
     //     lock_thread_start();
     res = fct(arg);
     // lock_thread_exit();
@@ -456,7 +470,10 @@ int pthread_mutex_destroy(pthread_mutex_t *mutex) {
 
 int pthread_mutex_lock(pthread_mutex_t *mutex) {
     DEBUG_PTHREAD("[p] pthread_mutex_lock\n");
+#ifdef TCP
     request_lock(sockfd, cur_thread_id);
+#endif
+    rdma_request_lock(cur_thread_id);
     return 0;
 }
 
@@ -477,7 +494,9 @@ int pthread_mutex_trylock(pthread_mutex_t *mutex) {
 
 int pthread_mutex_unlock(pthread_mutex_t *mutex) {
     DEBUG_PTHREAD("[p] pthread_mutex_unlock\n");
+#ifdef TCP
     release_lock(sockfd, cur_thread_id);
+#endif
     return 0;
 }
 
