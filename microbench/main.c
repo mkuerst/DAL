@@ -140,6 +140,7 @@ void *empty_cs_worker(void *arg) {
         task->loop_in_cs[i] = loop_in_cs;
         task->lock_hold[i] = lock_hold;
         run_complete(task->sockfd, task_id);
+        sleep(3);
         pthread_barrier_wait(&global_barrier);
     }
 

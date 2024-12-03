@@ -30,7 +30,7 @@ int establish_tcp_connection(unsigned int tid, char* addr) {
     // fprintf(stderr,"Connecting to IP address: %s:%d\n", ip_str, SERVER_PORT);
     // Connect to the server
     int try = 0;
-    int max_tries = 3;
+    int max_tries = 8;
     while ((connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) && (try < max_tries)) {
         fprintf(stderr, "Thread %d failed at establishing connection: try %d\n", tid, try);
         try++;
@@ -97,8 +97,8 @@ int run_complete(int sockfd, int tid)
     if ((ret = send(sockfd, msg, strlen(msg), 0)) < 0)
         tcp_client_error(sockfd, "Thread %d failed at notifying run complete\n", tid);
 
-    if ((ret = read(sockfd, buffer, BUFFER_SIZE)) < 0)
-        tcp_client_error(sockfd, "Thread %d failed at receiving answer for run complete\n", tid);
+    // if ((ret = read(sockfd, buffer, BUFFER_SIZE)) < 0)
+    //     tcp_client_error(sockfd, "Thread %d failed at receiving answer for run complete\n", tid);
 
     DEBUG("Thread %d successfully notified run complete\n", tid);
     return ret;

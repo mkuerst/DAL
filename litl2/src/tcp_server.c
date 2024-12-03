@@ -88,8 +88,8 @@ void *run_lock_impl(void *_arg)
             if (cmd == 'd') {
                 j++;
                 DEBUG("Received run complete from thread %d\n", id);
-                if ((ret = send(client_socket, ok_msg, strlen(ok_msg), 0)) < 0)
-                    tcp_client_error(client_socket, "lock acquisition notice failed for thread %d", id);
+                // if ((ret = send(client_socket, ok_msg, strlen(ok_msg), 0)) < 0)
+                //     tcp_client_error(client_socket, "lock acquisition notice failed for thread %d", id);
             }
         } else {
             DEBUG("Failed to parse the string from thread %d, got: %s\n", id, buffer);

@@ -78,7 +78,8 @@ include/topology.h: include/topology.in
 
 
 clean:
-	rm -rf lib/ obj/ $(SHS) *_server src/*.o ../microbench/main ../microbench/server_logs/ ../microbench/results/ include/topology.h
+	rm -rf lib/ obj/ $(SHS) *_server src/*.o ../microbench/main include/topology.h
+#../microbench/server_logs/ ../microbench/results/ 
 
 format:
 	for i in `find . | egrep "\.c$$|\.cc$$|\.cxx$$|\.cpp$$|\.h$$"`; do clang-format  -i "$$i"; done
