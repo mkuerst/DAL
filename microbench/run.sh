@@ -56,7 +56,7 @@ do
         mkdir -p "$server_res_dir" 
         mkdir -p "$log_dir"
         # for ((i=1; i<=nthreads; i+=1))
-        for i in 1 2
+        for i in 1 16 29
         do
             client_res_file="$client_res_dir"/nthread_"$i".csv
             server_res_file="$server_res_dir"/nthread_"$i".csv

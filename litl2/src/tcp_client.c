@@ -30,9 +30,10 @@ int establish_tcp_connection(unsigned int tid, char* addr) {
     // fprintf(stderr,"Connecting to IP address: %s:%d\n", ip_str, SERVER_PORT);
     // Connect to the server
     int try = 0;
-    int max_tries = 8;
+    int max_tries = 10;
     while ((connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) && (try < max_tries)) {
-        fprintf(stderr, "Thread %d failed at establishing connection: try %d\n", tid, try);
+        DEBUG("Thread %d failed at establishing connection: try %d\n", tid, try);
+        sleep(0.5);
         try++;
     }
 

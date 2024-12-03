@@ -61,6 +61,8 @@ for impl in CLIENT_DATA:
         np_holdtime = np.array(lock_holdtime)
         CD[impl][nthreads]["acq"] = np_lockacq / DURATION
         CD[impl][nthreads]["holdtime"] = np_holdtime
+        if nthreads == 1:
+            continue
 
         ax.boxplot(np_lockacq, positions=[position], widths=0.6, patch_artist=True)
         ax.text(position, np.average(np_lockacq)+10, f"{nthreads}", ha="center", va="bottom")
@@ -74,7 +76,7 @@ ax.set_ylabel("Throughput (lock acquisitions/s)")
 ax.set_title("Throughput Comparison Across Implementations")
 ax.grid(axis="y", linestyle="--", alpha=0.7)
 
-output_path = file_dir+"/throughput_comparison.png"
+output_path = file_dir+"/throughput_comparison_single.png"
 plt.savefig(output_path, dpi=300, bbox_inches='tight')
 
 # Show the plot
