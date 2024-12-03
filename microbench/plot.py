@@ -57,28 +57,25 @@ for impl in CLIENT_DATA:
                 lock_acquisitions.append(lock_acq) 
                 lock_holdtime.append(lock_hold)
 
-        np_lockacq = np.array(lock_acquisitions)
+        np_lockacq = np.array(lock_acquisitions) / DURATION / 1e6
         np_holdtime = np.array(lock_holdtime)
-        CD[impl][nthreads]["acq"] = np_lockacq / DURATION
+        CD[impl][nthreads]["acq"] = np_lockacq
         CD[impl][nthreads]["holdtime"] = np_holdtime
-        if nthreads == 1:
-            continue
 
-        ax.boxplot(np_lockacq, positions=[position], widths=0.6, patch_artist=True)
-        ax.text(position, np.average(np_lockacq)+10, f"{nthreads}", ha="center", va="bottom")
+        if nthreads == 29:
+            ax.boxplot(np_lockacq, positions=[position], widths=0.6, patch_artist=True)
+            ax.text(position, np.average(np_lockacq)+1e-6, f"{nthreads}", ha="center", va="bottom")
+            title_thr = nthreads
+
 
 ax.set_xticks(x_positions)
 ax.set_xticklabels(x_labels, rotation=45, ha='right')
 
 # Add labels and title
 ax.set_xlabel("Implementation")
-ax.set_ylabel("Throughput (lock acquisitions/s)")
+ax.set_ylabel("Throughput (lock acquisitions/us)")
 ax.set_title("Throughput Comparison Across Implementations")
 ax.grid(axis="y", linestyle="--", alpha=0.7)
 
-output_path = file_dir+"/throughput_comparison_single.png"
+output_path = file_dir+f"/throughput_comparison_{title_thr}.png"
 plt.savefig(output_path, dpi=300, bbox_inches='tight')
-
-# Show the plot
-plt.show()
-pass
