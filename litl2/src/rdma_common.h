@@ -30,6 +30,7 @@
 /* Error Macro*/
 #define rdma_error(msg, args...) do {\
 	fprintf(stderr, "\033[1;31m%s : %d : ERROR : \033[0m"msg, __FILE__, __LINE__, ## args);\
+	fprintf(stderr, "\n");\
 }while(0);
 
 #ifdef DEBUG 

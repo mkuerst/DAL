@@ -102,8 +102,8 @@
 // and directly calling the specific lock function
 // See empty.c for example.
 
-unsigned int last_thread_id;
 __thread unsigned int cur_thread_id;
+unsigned int last_thread_id;
 __thread int sockfd;
 int cur_turn = 1;
 
@@ -436,6 +436,12 @@ int __pthread_create(pthread_t *thread, const pthread_attr_t *attr,
     r->fct = start_routine;
     r->arg = arg;
 
+    // RDMA seems to spawn threads that need to perform locking ops,
+    // These should still use the standard linux implementation to work!
+    // (rdma_thread*) rdma_arg = (rdma_thread*) arg;
+    // if (thread->rdma == NULL)
+    //     return REAL(pthread_create)(thread, attr, start_routine, arg);
+
     return REAL(pthread_create)(thread, attr, lp_start_routine, r);
 }
 __asm__(".symver __pthread_create,pthread_create@@" GLIBC_2_2_5);
@@ -473,7 +479,7 @@ int pthread_mutex_lock(pthread_mutex_t *mutex) {
 #ifdef TCP
     request_lock(sockfd, cur_thread_id);
 #endif
-    rdma_request_lock(cur_thread_id);
+    rdma_request_lock();
     return 0;
 }
 

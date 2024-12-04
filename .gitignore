@@ -6,6 +6,8 @@ litl/impl/*
 litl/Makefile
 litl/src/Makefile
 microbench/main
+microbench/main_disa
+microbench/main_orig
 rdma-example
 *.nfs*
 microbench/server_logs

@@ -12,8 +12,6 @@
 #include <numa.h>
 #include <sched.h>
 
-// LOCAL
-// #define SERVER_IP "10.5.12.168"
 #define SERVER_PORT 8080
 #define MAX_EVENTS 1000
 #define MAX_CONNECTIONS 1000

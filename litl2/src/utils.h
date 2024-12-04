@@ -57,11 +57,12 @@
 #define UNUSED(x) x
 #endif
 
-#ifdef DEBUG
-#define DEBUG(...)                        fprintf(stderr, ## __VA_ARGS__)
-#else
+#ifndef DEBUG
 #define DEBUG(...)
+#else
+#define DEBUG(...)                        fprintf(stderr, ## __VA_ARGS__)
 #endif
+
 // #define DEBUG_PTHREAD(...)                        fprintf(stderr, ## __VA_ARGS__)
 #define DEBUG_PTHREAD(...)
 
@@ -125,7 +126,7 @@ typedef struct rdma_connection {
     struct ibv_qp *qp;
     struct ibv_cq *cq;
     struct ibv_pd *pd;
-    struct ibv_comp_channel *comp_chan;
+    struct ibv_comp_channel *io_comp_chan;
     struct ibv_mr *client_mr;
     struct ibv_mr *server_mr;
     struct rdma_buffer_attr client_metadata_attr;
@@ -139,6 +140,7 @@ typedef struct rdma_connection {
 } rdma_connection;
 
 typedef struct rdma_thread {
+    int* rdma;
     pthread_t thread;
     unsigned int server_tid;
     unsigned int client_tid;
