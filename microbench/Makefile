@@ -29,7 +29,8 @@ all: target
 target: 
 	@echo "USING CYCLE_PER_US = $(CYCLE_PER_US) MHz"
 	@echo "USING CACHELINE_SIZE = $(CACHELINE_SIZE) Bytes"
-	gcc main.c -o main ${FLAGS} -DMUTEX
+	gcc main_disa.c -o main_disa ${FLAGS} -DMUTEX
+	gcc main_orig.c -o main_orig ${FLAGS} -DMUTEX
 # gcc main.c -o main_spin ${FLAGS} -DSPIN
 
 

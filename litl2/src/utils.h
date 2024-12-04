@@ -32,8 +32,8 @@
 
 #ifndef __UTILS_H__
 #define __UTILS_H__
-
 #include <topology.h>
+
 
 #define MAX_THREADS 2048
 #define CPU_PAUSE() asm volatile("pause\n" : : : "memory")
@@ -67,7 +67,7 @@
 
 // MICROBENCH PARAMS
 /**************************************************************************************/
-#define NUM_RUNS 2
+#define NUM_RUNS 5
 #ifndef CACHELINE_SIZE
 #define CACHELINE_SIZE 64
 #endif

@@ -34,7 +34,7 @@ def read_data(DATA, res_dir):
                         DATA[impl][nthreads][current_run][thread] = values[1:]
 
 
-def plots(CD, include_threads=[]):
+def plots(CD, CLIENT_DATA, SERVER_DATA={},  include_threads=[]):
     title_thr = "all" if len(include_threads) == 0 else "_".join(map(str, include_threads))
     fig_whisk, ax_whisk = plt.subplots(figsize=(10, 6))
     fig_bar, ax_bar = plt.subplots(figsize=(10, 6))
@@ -60,60 +60,66 @@ def plots(CD, include_threads=[]):
                     lock_acq = float(values[1])
                     lock_hold = float(values[2])
                     # Thread id off by one on server
-                    lock_impl = float(SERVER_DATA[impl][nthreads][run][thread+1][0])
+                    if SERVER_DATA:
+                        lock_impl = float(SERVER_DATA[impl][nthreads][run][thread+1][0])
+                        lock_impltime.append(lock_impl)
                     lock_acquisitions.append(lock_acq) 
                     lock_holdtime.append(lock_hold)
-                    lock_impltime.append(lock_impl)
 
             np_lockacq = np.array(lock_acquisitions)
             np_holdtime = np.array(lock_holdtime)
             np_impltime = np.array(lock_impltime)
             fairness = jain_fairness_index(np_lockacq)
-            non_comm_time = (np_holdtime+np_impltime) / 1000
-            comm_time = DURATION - (non_comm_time)
+            if SERVER_DATA:
+                non_comm_time = (np_holdtime+np_impltime) / 1000
+                comm_time = DURATION - (non_comm_time)
+                avg_comm_time = np.mean(comm_time)
+                avg_noncomm_time = np.mean(non_comm_time)
             CD[impl][nthreads]["acq"] = np_lockacq
             CD[impl][nthreads]["holdtime"] = np_holdtime
-            avg_comm_time = np.mean(comm_time)
-            avg_noncomm_time = np.mean(non_comm_time)
 
             if (len(include_threads) == 0) or (nthreads in include_threads):
                 ax_whisk.boxplot(np_lockacq / DURATION / 1e6, positions=[position], widths=0.6, patch_artist=True)
                 ax_whisk.text(position, np.average(np_lockacq / DURATION / 1e6)+1e-6, f"{nthreads}", ha="center", va="bottom")
 
-                ax_bar.bar(position, avg_comm_time, width=0.6, label="Communication Time", color="blue")
-                ax_bar.bar(position, avg_noncomm_time, width=0.6, bottom=avg_comm_time,label="Non-Communication Time", color="orange")
-                ax_bar.text(position, avg_comm_time+1, f"{avg_comm_time:.2f}", ha="center", va="bottom", fontsize=7)
+                if SERVER_DATA:
+                    ax_bar.bar(position, avg_comm_time, width=0.6, label="Communication Time", color="blue")
+                    ax_bar.bar(position, avg_noncomm_time, width=0.6, bottom=avg_comm_time,label="Non-Communication Time", color="orange")
+                    ax_bar.text(position, avg_comm_time+1, f"{avg_comm_time:.2f}", ha="center", va="bottom", fontsize=7)
 
                 ax_fair.bar(position, fairness, width=0.6)
 
+
+    orig = "" if SERVER_DATA else "(ORIGINAL)"
 
     ax_whisk.set_xticks(x_positions)
     ax_whisk.set_xticklabels(x_labels, rotation=45, ha='right')
     ax_whisk.set_xlabel("Implementation")
     ax_whisk.set_ylabel("Throughput (lock acquisitions/us)")
-    ax_whisk.set_title("Throughput Comparison Across Implementations")
+    ax_whisk.set_title("Throughput Comparison Across Implementations "+orig)
     ax_whisk.grid(axis="y", linestyle="--", alpha=0.7)
-    output_path = file_dir+f"/plots/throughput_comparison_{title_thr}.png"
+    output_path = file_dir+f"/plots/throughput_comparison_{title_thr}{orig}.png"
     fig_whisk.savefig(output_path, dpi=300, bbox_inches='tight')
 
-    ax_bar.set_xticks(x_positions)
-    ax_bar.set_xticklabels(x_labels, rotation=45, ha='right')
-    ax_bar.set_xlabel("Implementation")
-    ax_bar.set_ylabel("Time (s)")
-    ax_bar.set_title("Communication/Non-Communication Time Comparison Across Implementations")
-    ax_bar.grid(axis="y", linestyle="--", alpha=0.7)
-    # ax_bar.legend(loc="upper right")
-    output_path = file_dir+f"/plots/comm_comparison_{title_thr}.png"
-    fig_bar.savefig(output_path, dpi=300, bbox_inches='tight')
+    if SERVER_DATA:
+        ax_bar.set_xticks(x_positions)
+        ax_bar.set_xticklabels(x_labels, rotation=45, ha='right')
+        ax_bar.set_xlabel("Implementation")
+        ax_bar.set_ylabel("Time (s)")
+        ax_bar.set_title("Communication/Non-Communication Time Comparison Across Implementations")
+        ax_bar.grid(axis="y", linestyle="--", alpha=0.7)
+        # ax_bar.legend(loc="upper right")
+        output_path = file_dir+f"/plots/comm_comparison_{title_thr}.png"
+        fig_bar.savefig(output_path, dpi=300, bbox_inches='tight')
 
     ax_fair.set_xticks(x_positions)
     ax_fair.set_xticklabels(x_labels, rotation=45, ha='right')
     ax_fair.set_xlabel("Implementation")
     ax_fair.set_ylabel("Jain's Fairness Index")
-    ax_fair.set_title("Fairness Comparison Across Implementations")
+    ax_fair.set_title("Fairness Comparison Across Implementations "+orig)
     ax_fair.grid(axis="y", linestyle="--", alpha=0.7)
     # ax_fair.legend(loc="upper right")
-    output_path = file_dir+f"/plots/fairness_comparison_{title_thr}.png"
+    output_path = file_dir+f"/plots/fairness_comparison_{title_thr}{orig}.png"
     fig_fair.savefig(output_path, dpi=300, bbox_inches='tight')
 
 file_dir = os.path.dirname(os.path.realpath(__file__))
@@ -121,14 +127,18 @@ client_res_dir = os.path.dirname(os.path.realpath(__file__))+"/results/disaggreg
 client_res_dir = glob.glob(client_res_dir)
 server_res_dir = os.path.dirname(os.path.realpath(__file__))+"/results/disaggregated/server/*/empty_cs/"
 server_res_dir = glob.glob(server_res_dir)
+orig_res_dir = os.path.dirname(os.path.realpath(__file__))+"/results/non_disaggregated/*/empty_cs/"
+orig_res_dir = glob.glob(orig_res_dir)
 
 CLIENT_DATA = {}
 SERVER_DATA = {}
-DURATION = 20. # sec
+ORIG_DATA = {}
 CD = {}
-include_threads = [29]
+DURATION = 20. # sec
+include_threads = [1]
 
 read_data(CLIENT_DATA, client_res_dir)
 read_data(SERVER_DATA, server_res_dir)
+read_data(ORIG_DATA, orig_res_dir)
 
-plots(CD, include_threads)
+plots(CD=CD, CLIENT_DATA=ORIG_DATA, SERVER_DATA={}, include_threads=include_threads)

@@ -3,11 +3,11 @@ include ../Makefile.config
 CACHELINE_SIZE:=$(shell cat /sys/devices/system/cpu/cpu0/cache/index0/coherency_line_size)
 # CLUSTER
 LDFLAGS=-L../obj/CLHT/external/lib -L../obj/CLHT -Wl,--whole-archive -Wl,--version-script=interpose.map -lsspfd -lssmem -lclht -Wl,--no-whole-archive  -lrt -lm -ldl -L/home/kumichae/my_libs/papi-7.2.0b1/src -lpapi -L/home/kumichae/my_libs/rdma-core/build/lib/ -lrdmacm -m64 -pthread -lnuma -libverbs
-CFLAGS=-I../include/ -I/home/kumichae/my_libs/rdma-core/build/include/rdma/ -I../obj/CLHT/include/ -I../obj/CLHT/external/include/ -I/home/kumichae/my_libs/papi-7.2.0b1/src -fPIC -Wall -O2 -g -DCACHELINE_SIZE=$(CACHELINE_SIZE) #-DTCO -DDEBUG
+CFLAGS=-I../include/ -I/home/kumichae/my_libs/rdma-core/build/include/rdma/ -I../obj/CLHT/include/ -I../obj/CLHT/external/include/ -I/home/kumichae/my_libs/papi-7.2.0b1/src -fPIC -Wall -O2 -g -DCACHELINE_SIZE=$(CACHELINE_SIZE) #-DTCP -DDEBUG
 
 # LOCAL MACHINE
-LDFLAGS=-L../obj/CLHT/external/lib -L../obj/CLHT -Wl,--whole-archive -Wl,--version-script=interpose.map -lsspfd -lssmem -lclht -Wl,--no-whole-archive  -lrt -lm -ldl -lpapi -m64 -pthread -lrdmacm -libverbs -lnuma
-CFLAGS=-I../include/ -I/usr/include/rdma/ -I../obj/CLHT/include/ -I../obj/CLHT/external/include/ -fPIC -Wall -O2 -g -DCACHELINE_SIZE=$(CACHELINE_SIZE) #-DTCP -DDEBUG
+# LDFLAGS=-L../obj/CLHT/external/lib -L../obj/CLHT -Wl,--whole-archive -Wl,--version-script=interpose.map -lsspfd -lssmem -lclht -Wl,--no-whole-archive  -lrt -lm -ldl -lpapi -m64 -pthread -lrdmacm -libverbs -lnuma
+# CFLAGS=-I../include/ -I/usr/include/rdma/ -I../obj/CLHT/include/ -I../obj/CLHT/external/include/ -fPIC -Wall -O2 -g -DCACHELINE_SIZE=$(CACHELINE_SIZE) #-DTCP -DDEBUG
 
 # SFLAGS=-I../include/ -I/usr/include/rdma/ -fPIC -Wall -O2 -g
 SLDFLAGS=-lrdmacm -libverbs -lnuma -pthread -ldl
