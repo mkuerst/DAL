@@ -30,6 +30,9 @@
 #include <unistd.h>
 #include <infiniband/verbs.h>
 
+#include <sched.h>
+#include <numa.h>
+
 #ifndef __UTILS_H__
 #define __UTILS_H__
 #include <topology.h>
@@ -82,6 +85,13 @@
 #define MAX_ARRAY_SIZE MB(8LL)
 // MEM_RUNS with sizes 128 B, 256, 512, ... 8 MB
 #define NUM_MEM_RUNS 17 
+
+#define _error(msg, args...) do {\
+	fprintf(stderr, "\033[1;31m%s : %d : ERROR : \033[0m"msg, __FILE__, __LINE__, ## args);\
+	fprintf(stderr, "\n");\
+	exit(EXIT_FAILURE);\
+}while(0);
+
 
 typedef unsigned long long ull;
 // typedef struct {
@@ -172,6 +182,8 @@ typedef struct rdma_thread {
 } rdma_thread;
 
 void *alloc_cache_align(size_t n);
+
+int pin_thread(unsigned int id);
 
 static inline void *xchg_64(void *ptr, void *x) {
     __asm__ __volatile__("xchgq %0,%1"

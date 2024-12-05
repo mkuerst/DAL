@@ -38,6 +38,7 @@ void *run_lock_impl(void *_arg)
     struct ibv_sge client_recv_sge = conn.client_recv_sge;
     struct ibv_sge server_send_sge = conn.server_send_sge;
 	unsigned int tid = thread->client_tid;
+	pin_thread(tid);
 
 	/* We need to setup requested memory buffer. This is where the client will 
 	* do RDMA READs and WRITEs. */
@@ -85,10 +86,20 @@ void *run_lock_impl(void *_arg)
 	server_send_wr.send_flags = IBV_SEND_SIGNALED; // We want to get notification 
 
 	while(1){
+		// ibv_post_recv(qp, &server_send_wr, &bad_server_send_wr);
+		ret = ibv_post_recv(qp, &client_recv_wr, &bad_client_recv_wr);
+		if (ret) {
+			rdma_error("Failed to post the receive buffer for thread %d, errno: %d \n", tid, ret);
+			return ret;
+		}
 		ret = process_work_completion_events(io_comp_chan, &wc, 1);
 		if (ret != 1) {
 			rdma_error("Server failed to receive from thread %d, ret = %d \n", tid, ret);
 			exit(EXIT_FAILURE);
+		}
+		if (ret > 0 && wc.status == IBV_WC_SUCCESS && wc.opcode == IBV_WC_RECV) {
+			char *data = (char *)client_metadata_attr.address;
+			printf("Received data: %.*s\n", wc.byte_len, data);
 		}
 		/* if all good, then we should have client's buffer information, lets see */
 		debug("Client side thread %d buffer information is received...\n", tid);
@@ -131,7 +142,7 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nthreads)
 		rdma_error("Creating cm event channel failed with errno : (%d)", -errno);
 		return -errno;
 	}
-	debug("RDMA CM event channel is created successfully at %p \n", cm_event_channel);
+	// debug("RDMA CM event channel is created successfully at %p \n", cm_event_channel);
 	/* rdma_cm_id is the connection identifier (like socket) which is used 
 	 * to define an RDMA connection. 
 	 */
@@ -140,14 +151,14 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nthreads)
 		rdma_error("Creating server cm id failed with errno: %d ", -errno);
 		return -errno;
 	}
-	debug("A RDMA connection id for the server is created \n");
+	// debug("A RDMA connection id for the server is created \n");
 	/* Explicit binding of rdma cm id to the socket credentials */
 	ret = rdma_bind_addr(cm_server_id, (struct sockaddr*) server_addr);
 	if (ret) {
 		rdma_error("Failed to bind server address, errno: %d \n", -errno);
 		return -errno;
 	}
-	debug("Server RDMA CM id is successfully binded \n");
+	// debug("Server RDMA CM id is successfully binded \n");
 	/* Now we start to listen on the passed IP and port. However unlike
 	 * normal TCP listen, this is a non-blocking call. When a new client is 
 	 * connected, a new connection management (CM) event is generated on the 
@@ -158,7 +169,7 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nthreads)
 		rdma_error("rdma_listen failed to listen on server address, errno: %d ", -errno);
 		return -errno;
 	}
-	printf("Server is listening successfully at: %s , port: %d \n",
+	fprintf(stderr, "Server is listening successfully at: %s , port: %d \n",
 			inet_ntoa(server_addr->sin_addr),
 			ntohs(server_addr->sin_port));
 	/* now, we expect a client to connect and generate a RDMA_CM_EVNET_CONNECT_REQUEST 
@@ -190,7 +201,7 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nthreads)
 
 		// int task_id = (int)(long) (cm_client_id->context);
 		unsigned int task_id = *(unsigned int *) (cm_event->param.conn.private_data);
-		debug("Client thread %d requested to connect\n", task_id);
+		// debug("Client thread %d requested to connect\n", task_id);
 
 		if(!cm_client_id){
 			rdma_error("Client id is still NULL \n");
@@ -204,7 +215,7 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nthreads)
 			rdma_error("Failed to allocate a protection domain errno: %d\n", -errno);
 			return -errno;
 		}
-		debug("A new protection domain is allocated at %p \n", pd);
+		// debug("A new protection domain is allocated at %p \n", pd);
 		/* Now we need a completion channel, were the I/O completion 
 			* notifications are sent. Remember, this is different from connection 
 			* management (CM) event notifications. 
@@ -216,7 +227,7 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nthreads)
 			rdma_error("Failed to create an I/O completion event channel, %d\n", -errno);
 			return -errno;
 		}
-		debug("An I/O completion event channel is created at %p \n",  io_completion_channel);
+		// debug("An I/O completion event channel is created at %p \n",  io_completion_channel);
 		/* Now we create a completion queue (CQ) where actual I/O 
 			* completion metadata is placed. The metadata is packed into a structure 
 			* called struct ibv_wc (wc = work completion). ibv_wc has detailed 
@@ -232,7 +243,7 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nthreads)
 			rdma_error("Failed to create a completion queue (cq), errno: %d\n", -errno);
 			return -errno;
 		}
-		debug("Completion queue (CQ) is created at %p with %d elements \n", cq, cq->cqe);
+		// debug("Completion queue (CQ) is created at %p with %d elements \n", cq, cq->cqe);
 		/* Ask for the event for all activities in the completion queue*/
 		ret = ibv_req_notify_cq(cq /* on which CQ */, 
 				0 /* 0 = all event type, no filter*/);
@@ -262,7 +273,7 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nthreads)
 			}
 			/* Save the reference for handy typing but is not required */
 			client_qp = cm_client_id->qp;
-			debug("Client QP created at %p\n", client_qp);
+			// debug("Client QP created at %p\n", client_qp);
 			conn->pd = pd;
 			conn->io_comp_chan = io_completion_channel;
 			conn->cq = cq;
@@ -282,7 +293,7 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nthreads)
 			rdma_error("Failed to acknowledge the cm event errno: %d \n", -errno);
 			return -errno;
 		}
-		debug("A new RDMA client connection id is stored at %p\n", &threads[i].connection.cm_client_id);
+		// debug("A new RDMA client connection id is stored at %p\n", &threads[i].connection.cm_client_id);
 
 		if(!cm_client_id || !client_qp) {
 			rdma_error("Client resources are not properly setup\n");
@@ -307,14 +318,14 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nthreads)
 		bzero(&conn->client_recv_wr, sizeof(conn->client_recv_wr));
 		conn->client_recv_wr.sg_list = &conn->client_recv_sge;
 		conn->client_recv_wr.num_sge = 1; // only one SGE
-		ret = ibv_post_recv(client_qp /* which QP */,
-				&conn->client_recv_wr /* receive work request*/,
-				&conn->bad_client_recv_wr /* error WRs */);
-		if (ret) {
-			rdma_error("Failed to pre-post the receive buffer, errno: %d \n", ret);
-			return ret;
-		}
-		debug("Receive buffer pre-posting is successful \n");
+		// ret = ibv_post_recv(client_qp /* which QP */,
+		// 		&conn->client_recv_wr /* receive work request*/,
+		// 		&conn->bad_client_recv_wr /* error WRs */);
+		// if (ret) {
+		// 	rdma_error("Failed to pre-post the receive buffer, errno: %d \n", ret);
+		// 	return ret;
+		// }
+		// debug("Receive buffer pre-posting is successful \n");
 		/* Now we accept the connection. Recall we have not accepted the connection 
 		* yet because we have to do lots of resource pre-allocation */
 		memset(&conn_param, 0, sizeof(conn_param));
@@ -331,7 +342,7 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nthreads)
 		* connection has been established and everything is fine on both, server 
 		* as well as the client sides.
 		*/
-			debug("Going to wait for : RDMA_CM_EVENT_ESTABLISHED event \n");
+		// debug("Going to wait for : RDMA_CM_EVENT_ESTABLISHED event \n");
 		ret = process_rdma_cm_event(cm_event_channel, 
 				RDMA_CM_EVENT_ESTABLISHED,
 				&cm_event);

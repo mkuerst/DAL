@@ -26,11 +26,11 @@ FLAGS=-I../litl2/include/ -I../litl2/src/ -g -Wall -lnuma -DCYCLE_PER_US=${CYCLE
 
 all: target
 
-target: 
+target: ../litl2/src/utils.c
 	@echo "USING CYCLE_PER_US = $(CYCLE_PER_US) MHz"
 	@echo "USING CACHELINE_SIZE = $(CACHELINE_SIZE) Bytes"
-	gcc main_disa.c -o main_disa ${FLAGS} -DMUTEX
-	gcc main_orig.c -o main_orig ${FLAGS} -DMUTEX
+	gcc main_disa.c $^ -o main_disa ${FLAGS} -DMUTEX
+	gcc main_orig.c $^ -o main_orig ${FLAGS} -DMUTEX
 # gcc main.c -o main_spin ${FLAGS} -DSPIN
 
 

@@ -42,7 +42,7 @@ static int client_prepare_connection(struct sockaddr_in *s_addr)
 		rdma_error("Creating cm event channel failed, errno: %d \n", -errno);
 		return -errno;
 	}
-	debug("RDMA CM event channel is created at : %p \n", cm_event_channel);
+	// debug("RDMA CM event channel is created at : %p \n", cm_event_channel);
 	/* rdma_cm_id is the connection identifier (like socket) which is used 
 	 * to define an RDMA connection. 
 	 */
@@ -61,7 +61,7 @@ static int client_prepare_connection(struct sockaddr_in *s_addr)
 		rdma_error("Failed to resolve address, errno: %d \n", -errno);
 		return -errno;
 	}
-	debug("waiting for cm event: RDMA_CM_EVENT_ADDR_RESOLVED\n");
+	// debug("waiting for cm event: RDMA_CM_EVENT_ADDR_RESOLVED\n");
 	ret  = process_rdma_cm_event(cm_event_channel, 
 			RDMA_CM_EVENT_ADDR_RESOLVED,
 			&cm_event);
@@ -75,7 +75,7 @@ static int client_prepare_connection(struct sockaddr_in *s_addr)
 		rdma_error("Failed to acknowledge the CM event, errno: %d\n", -errno);
 		return -errno;
 	}
-	debug("RDMA address is resolved \n");
+	// debug("RDMA address is resolved \n");
 
 	 /* Resolves an RDMA route to the destination address in order to 
 	  * establish a connection */
@@ -84,7 +84,7 @@ static int client_prepare_connection(struct sockaddr_in *s_addr)
 		rdma_error("Failed to resolve route, erno: %d \n", -errno);
 	       return -errno;
 	}
-	debug("waiting for cm event: RDMA_CM_EVENT_ROUTE_RESOLVED\n");
+	// debug("waiting for cm event: RDMA_CM_EVENT_ROUTE_RESOLVED\n");
 	ret = process_rdma_cm_event(cm_event_channel, 
 			RDMA_CM_EVENT_ROUTE_RESOLVED,
 			&cm_event);
@@ -111,7 +111,7 @@ static int client_prepare_connection(struct sockaddr_in *s_addr)
 		rdma_error("Failed to alloc pd, errno: %d \n", -errno);
 		return -errno;
 	}
-	debug("pd allocated at %p \n", pd);
+	// debug("pd allocated at %p \n", pd);
 	/* Now we need a completion channel, were the I/O completion 
 	 * notifications are sent. Remember, this is different from connection 
 	 * management (CM) event notifications. 
@@ -124,7 +124,7 @@ static int client_prepare_connection(struct sockaddr_in *s_addr)
 			       -errno);
 	return -errno;
 	}
-	debug("completion event channel created at : %p \n", io_completion_channel);
+	// debug("completion event channel created at : %p \n", io_completion_channel);
 	/* Now we create a completion queue (CQ) where actual I/O 
 	 * completion metadata is placed. The metadata is packed into a structure 
 	 * called struct ibv_wc (wc = work completion). ibv_wc has detailed 
@@ -140,7 +140,7 @@ static int client_prepare_connection(struct sockaddr_in *s_addr)
 		rdma_error("Failed to create CQ, errno: %d \n", -errno);
 		return -errno;
 	}
-	debug("CQ created at %p with %d elements \n", client_cq, client_cq->cqe);
+	// debug("CQ created at %p with %d elements \n", client_cq, client_cq->cqe);
 	ret = ibv_req_notify_cq(client_cq, 0);
 	if (ret) {
 		rdma_error("Failed to request notifications, errno: %d\n", -errno);
@@ -167,7 +167,7 @@ static int client_prepare_connection(struct sockaddr_in *s_addr)
 	       return -errno;
 	}
 	client_qp = cm_client_id->qp;
-	debug("QP created at %p \n", client_qp);
+	// debug("QP created at %p \n", client_qp);
 	return 0;
 }
 
@@ -190,6 +190,7 @@ static int client_pre_post_recv_buffer()
 	bzero(&server_recv_wr, sizeof(server_recv_wr));
 	server_recv_wr.sg_list = &server_recv_sge;
 	server_recv_wr.num_sge = 1;
+	// TODO: IS THIS PREPOST NEEDED?
 	ret = ibv_post_recv(client_qp /* which QP */,
 		      &server_recv_wr /* receive work request*/,
 		      &bad_server_recv_wr /* error WRs */);
@@ -197,7 +198,7 @@ static int client_pre_post_recv_buffer()
 		rdma_error("Failed to pre-post the receive buffer, errno: %d \n", ret);
 		return ret;
 	}
-	debug("Receive buffer pre-posting is successful \n");
+	// debug("Receive buffer pre-posting is successful \n");
 	return 0;
 }
 
@@ -219,7 +220,7 @@ static int client_connect_to_server(unsigned int tid)
 		rdma_error("Failed to connect to remote host , errno: %d\n", -errno);
 		return -errno;
 	}
-	debug("waiting for cm event: RDMA_CM_EVENT_ESTABLISHED\n");
+	// debug("waiting for cm event: RDMA_CM_EVENT_ESTABLISHED\n");
 	ret = process_rdma_cm_event(cm_event_channel, 
 			RDMA_CM_EVENT_ESTABLISHED,
 			&cm_event);

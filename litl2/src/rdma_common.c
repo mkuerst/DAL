@@ -50,7 +50,7 @@ struct ibv_mr* rdma_buffer_alloc(struct ibv_pd *pd, uint32_t size,
 		rdma_error("failed to allocate buffer, -ENOMEM\n");
 		return NULL;
 	}
-	debug("Buffer allocated: %p , len: %u \n", buf, size);
+	// debug("Buffer allocated: %p , len: %u \n", buf, size);
 	mr = rdma_buffer_register(pd, buf, size, permission);
 	if(!mr){
 		free(buf);
@@ -72,10 +72,10 @@ struct ibv_mr *rdma_buffer_register(struct ibv_pd *pd,
 		rdma_error("Failed to create mr on buffer, errno: %d \n", -errno);
 		return NULL;
 	}
-	debug("Registered: %p , len: %u , stag: 0x%x \n", 
-			mr->addr, 
-			(unsigned int) mr->length, 
-			mr->lkey);
+	// debug("Registered: %p , len: %u , stag: 0x%x \n", 
+	// 		mr->addr, 
+	// 		(unsigned int) mr->length, 
+	// 		mr->lkey);
 	return mr;
 }
 
@@ -132,7 +132,7 @@ int process_rdma_cm_event(struct rdma_event_channel *echannel,
 		rdma_ack_cm_event(*cm_event);
 		return -1; // unexpected event :(
 	}
-	debug("A new %s type event is received \n", rdma_event_str((*cm_event)->event));
+	// debug("A new %s type event is received \n", rdma_event_str((*cm_event)->event));
 	/* The caller must acknowledge the event */
 	return ret;
 }

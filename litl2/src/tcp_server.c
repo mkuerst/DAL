@@ -20,25 +20,10 @@ void *run_lock_impl(void *_arg)
     thread_data* thread = (thread_data*) _arg;
     int client_socket = thread->sockfd;
     int server_tid = thread->server_tid;
-    int node = server_tid % NUMA_NODES;
+    // int node = server_tid / 2;
     int j = 0;
-    // fprintf(stderr,"RUNNING ON %d ndoes\n", NUMA_NODES);
 
-    // TODO: MOVE PIN TO UTILS.C
-    if (CPU_NUMBER != 0) {
-        cpu_set_t cpuset;
-        CPU_ZERO(&cpuset);
-        CPU_SET((server_tid-1)%CPU_NUMBER, &cpuset);
-        // fprintf(stderr, "pinning server thread %d to cpu %d\n", server_tid, (server_tid-1)%CPU_NUMBER);
-        int ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
-        if (ret != 0) {
-            tcp_error("pthread_set_affinity_np");
-        }
-        if (numa_run_on_node(node) != 0) {
-            tcp_error("numa_run_on_node %d failed", node);
-        }
-    }
-
+    pin_thread(server_tid);
     char buffer[BUFFER_SIZE];
     memset(buffer, 0, BUFFER_SIZE);
 
@@ -179,7 +164,7 @@ int main(int argc, char *argv[]) {
                     close(client_fd);
                 }
                 threads[cur_thread_id].sockfd = client_fd;
-                threads[cur_thread_id].server_tid = cur_thread_id+1;
+                threads[cur_thread_id].server_tid = cur_thread_id;
                 for (int j = 0; j < NUM_RUNS; j++) {
                     threads[cur_thread_id].lock_impl_time[j] = 0;
                 }

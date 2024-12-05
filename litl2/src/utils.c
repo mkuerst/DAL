@@ -37,3 +37,40 @@ inline void *alloc_cache_align(size_t n) {
     }
     return res;
 }
+
+// HARDCODED FOR OUR HW
+inline int pin_thread(unsigned int id) {
+    int node;
+    int cpu_id;
+    if (NUMA_NODES == 1) {
+        cpu_id = id;
+        node = 0;
+    }
+    else if (id < (CPU_NUMBER / NUMA_NODES)) {
+        if (id % 2 == 1) {
+           cpu_id = id*2; 
+           node = 0;
+        }
+    }
+    else {
+        if (id % 2 == 0) {
+            cpu_id = id - (CPU_NUMBER / 2) + 1;
+            node = 1;
+        }
+    }
+    if (CPU_NUMBER != 0) {
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(cpu_id, &cpuset);
+        fprintf(stderr, "pinning thread %d to cpu %d\n", id, cpu_id);
+        int ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+        if (ret != 0) {
+            _error("pthread_set_affinity_np");
+        }
+        if (numa_run_on_node(node) != 0) {
+            _error("numa_run_on_node %d failed", node);
+        }
+        fprintf(stderr, "pinning thread %d to numa node %d\n", id, node);
+    }
+    return 0;
+}

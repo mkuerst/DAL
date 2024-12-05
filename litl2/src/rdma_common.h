@@ -33,7 +33,7 @@
 	fprintf(stderr, "\n");\
 }while(0);
 
-#ifdef DEBUG 
+#ifdef RDMA_DEBUG 
 /* debug macro */
 #define debug(msg, args...) do {\
     fprintf(stderr, "debug: "msg, ## args);\

@@ -26,25 +26,6 @@ lock_t lock;
 pthread_barrier_t global_barrier;
 pthread_barrier_t mem_barrier;
 
-int pin_thread(int task_id) {
-    int ret = 0;
-    int node = task_id % NUMA_NODES;
-    cpu_set_t cpuset;
-    CPU_ZERO(&cpuset);
-    CPU_SET(task_id%CPU_NUMBER, &cpuset);
-    // fprintf(stderr, "pinning client thread %d to cpu %d\n", task_id, (task_id)%CPU_NUMBER);
-    ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
-    if (ret != 0) {
-        fprintf(stderr, "pthread_set_affinity_np");
-        exit(-1);
-    }
-    if (numa_run_on_node(node) != 0) {
-        fprintf(stderr, "numa_run_on_node failed");
-        exit(-1);
-    }
-    return ret;
-}
-
 int set_prio(int prio) {
     int ret;
     pid_t tid = gettid();
