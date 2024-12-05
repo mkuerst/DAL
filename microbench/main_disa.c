@@ -159,6 +159,8 @@ void *mem_worker(void *arg) {
 
     for (int i = 0; i < NUM_RUNS; i++) {
         size_t array_size = 128;
+        if (task_id == 1)
+            fprintf(stderr, "RUN %d\n", i);
         for (int j = 0; j < NUM_MEM_RUNS; j++)  {
             volatile double sum = 0; // Prevent compiler optimizations
             lock_acquires = 0;
@@ -187,8 +189,8 @@ void *mem_worker(void *arg) {
             array_size *= 2;
             pthread_barrier_wait(&mem_barrier);
         }
-        sleep(3);
         run_complete(task->sockfd, task_id);
+        sleep(3);
         pthread_barrier_wait(&mem_barrier);
     }
     // fprintf(stderr,"FINISHED tid %d\n", task->id);
