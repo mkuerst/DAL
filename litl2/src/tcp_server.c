@@ -24,7 +24,7 @@ void *run_lock_impl(void *_arg)
     int j = 0;
     // fprintf(stderr,"RUNNING ON %d ndoes\n", NUMA_NODES);
 
-    // TODO: MOVE PIN TO UTILS.H
+    // TODO: MOVE PIN TO UTILS.C
     if (CPU_NUMBER != 0) {
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);

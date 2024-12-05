@@ -42,7 +42,8 @@ void *run_lock_impl(void *_arg)
 	/* We need to setup requested memory buffer. This is where the client will 
 	* do RDMA READs and WRITEs. */
 	server_mr = rdma_buffer_alloc(pd /* which protection domain */, 
-			client_metadata_attr.length /* what size to allocate */, 
+			// client_metadata_attr.length /* what size to allocate */, 
+			16,
 			(IBV_ACCESS_LOCAL_WRITE|
 			IBV_ACCESS_REMOTE_READ|
 			IBV_ACCESS_REMOTE_WRITE) /* access permissions */);
@@ -282,14 +283,13 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nthreads)
 			return -errno;
 		}
 		debug("A new RDMA client connection id is stored at %p\n", &threads[i].connection.cm_client_id);
-		num_connections++;
 
 		if(!cm_client_id || !client_qp) {
 			rdma_error("Client resources are not properly setup\n");
 			return -EINVAL;
 		}
 		/* we prepare the receive buffer in which we will receive the client metadata*/
-			conn->client_mr = rdma_buffer_register(pd /* which protection domain */, 
+		conn->client_mr = rdma_buffer_register(pd /* which protection domain */, 
 				&conn->client_metadata_attr /* what memory */,
 				sizeof(conn->client_metadata_attr) /* what length */, 
 				(IBV_ACCESS_LOCAL_WRITE) /* access permissions */);

@@ -135,10 +135,10 @@ SERVER_DATA = {}
 ORIG_DATA = {}
 CD = {}
 DURATION = 20. # sec
-include_threads = [1]
+include_threads = [29]
 
 read_data(CLIENT_DATA, client_res_dir)
 read_data(SERVER_DATA, server_res_dir)
 read_data(ORIG_DATA, orig_res_dir)
 
-plots(CD=CD, CLIENT_DATA=ORIG_DATA, SERVER_DATA={}, include_threads=include_threads)
+plots(CD=CD, CLIENT_DATA=CLIENT_DATA, SERVER_DATA=SERVER_DATA, include_threads=include_threads)

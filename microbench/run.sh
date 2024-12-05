@@ -2,16 +2,16 @@
 # args: duration(s), cs(us), 
 
 #LOCAL
-# REMOTE_USER="mihi"
-# REMOTE_HOST="localhost"
-# server_ip=10.5.12.168
+REMOTE_USER="mihi"
+REMOTE_HOST="localhost"
+server_ip=10.5.12.168
 # HOME
 # server_ip=192.168.1.70
 
 #CLUSTER
-REMOTE_USER="kumichae"
-REMOTE_HOST="r630-12"
-server_ip=10.233.0.21
+# REMOTE_USER="kumichae"
+# REMOTE_HOST="r630-12"
+# server_ip=10.233.0.21
 
 eval "$(ssh-agent -s)"
 ssh_key="/home/mihi/.ssh/id_ed25519_localhost"
@@ -36,7 +36,7 @@ nthreads=$(nproc)
 # ncpu=$(lscpu | grep "^Core(s) per socket" | awk '{print $4}')
 # nnodes=$(lscpu | grep -oP "NUMA node\(s\):\s+\K[0-9]+")
 # echo "nthreads: $nthreads | nsockets: $nsockets | cpu_per_socket: $ncpu | nnodes: $nnodes"
-duration=20
+duration=2
 critical=1000
 
 
@@ -48,7 +48,7 @@ do
     client_so=${client_libs_dir}${impl}$client_suffix
     server_so=${server_libs_dir}${impl}$server_suffix
     orig_so=${orig_libs_dir}${impl}.so
-    for ((j=0; j<=0; j+=1))
+    for j in 2 
     do
         microb="${microbenches[$j]}"
         client_res_dir="./results/disaggregated/client/$impl/$microb"
@@ -60,16 +60,17 @@ do
         mkdir -p "$orig_res_dir" 
         mkdir -p "$log_dir"
 
-        # for ((i=1; i<=nthreads; i+=1))
-        for i in 1 16 29
+        # for ((i=1; i<=nthreads; i*=2))
+        for i in 29 
         do
             client_res_file="$client_res_dir"/nthread_"$i".csv
             server_res_file="$server_res_dir"/nthread_"$i".csv
             orig_res_file="$orig_res_dir/nthread_$i.csv"
-            echo "tid,loop_in_cs,lock_acquires,lock_hold(ms)" > "$client_res_file"
-            echo "tid,loop_in_cs,lock_acquires,lock_hold(ms)" > "$orig_res_file"
+            echo "tid,loop_in_cs,lock_acquires,lock_hold(ms),mem_duration(ms),array_size(B)" > "$client_res_file"
+            echo "tid,loop_in_cs,lock_acquires,lock_hold(ms),mem_duration(ms),array_size(B)" > "$orig_res_file"
             echo "tid,lock_impl_time(ms)" > "$server_res_file"
-            # echo "START $impl SERVER with $i THREADS"
+            echo "START $impl SERVER with $i THREADS"
+            tmux new-session -d -s "server_"$impl"_$i" "ssh $REMOTE_USER@$REMOTE_HOST LD_PRELOAD=$server_so $tcp_server_app $i >> $server_res_file 2>> $log_dir/server_$i.log"
             # tmux new-session -d -s "server_"$impl"_$i" "ssh $REMOTE_USER@$REMOTE_HOST LD_PRELOAD=$server_so $rdma_server_app -t $i -a $server_ip >> $server_res_file 2>> $log_dir/server_$i.log"
 
             # tmux capture-pane -pt "server_"$impl"_$i"
@@ -77,9 +78,9 @@ do
 
             sleep 5
             echo "START MICROBENCH CLIENT WITH $i THREADS"
-            # LD_PRELOAD=$client_so ./main_disa $i $duration $critical $server_ip $j >> $client_res_file
-            LD_PRELOAD=$orig_so ./main_orig $i $duration $critical $server_ip $j >> $orig_res_file
-            # tmux kill-session -t "server_"$impl"_$i"
+            LD_PRELOAD=$client_so ./main_disa $i $duration $critical $server_ip $j >> $client_res_file
+            # LD_PRELOAD=$orig_so ./main_orig $i $duration $critical $server_ip $j >> $orig_res_file
+            tmux kill-session -t "server_"$impl"_$i"
         done
     done
 done

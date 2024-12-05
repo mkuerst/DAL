@@ -12,6 +12,7 @@
 #include "rdtsc.h"
 #include "lock.h"
 #include <utils.h>
+#include <tcp_client.c>
 
 #define gettid() syscall(SYS_gettid)
 
@@ -95,9 +96,9 @@ void *cs_worker(void *arg) {
             // fprintf(stderr, "thread %d released lock\n", task->id);
         }
 
-        task->lock_acquires[i] = lock_acquires;
-        task->loop_in_cs[i] = loop_in_cs;
-        task->lock_hold[i] = lock_hold;
+        task->lock_acquires[i][0] = lock_acquires;
+        task->loop_in_cs[i][0] = loop_in_cs;
+        task->lock_hold[i][0] = lock_hold;
         sleep(3);
         pthread_barrier_wait(&global_barrier);
     }
@@ -135,9 +136,9 @@ void *empty_cs_worker(void *arg) {
             // fprintf(stderr, "thread %d released lock\n", task->id);
         }
 
-        task->lock_acquires[i] = lock_acquires;
-        task->loop_in_cs[i] = loop_in_cs;
-        task->lock_hold[i] = lock_hold;
+        task->lock_acquires[i][0] = lock_acquires;
+        task->loop_in_cs[i][0] = loop_in_cs;
+        task->lock_hold[i][0] = lock_hold;
         sleep(3);
         pthread_barrier_wait(&global_barrier);
     }
@@ -149,86 +150,84 @@ void *empty_cs_worker(void *arg) {
 void *mem_worker(void *arg) {
     task_t *task = (task_t *) arg;
     int task_id = task->id;
-    size_t array_size = KB(2);
 
     pin_thread(task_id);
     ull start, lock_start;
     ull lock_acquires, lock_hold, loop_in_cs, duration;
 
-    while (array_size < MAX_ARRAY_SIZE) {
-        volatile double sum = 0; // Prevent compiler optimizations
-        lock_acquires = 0;
-        lock_hold = 0;
-        loop_in_cs = 0;
-        duration = 0;
+    for (int i = 0; i < NUM_RUNS; i++) {
+        size_t array_size = 128;
+        for (int j = 0; j < NUM_MEM_RUNS; j++)  {
+            volatile double sum = 0; // Prevent compiler optimizations
+            lock_acquires = 0;
+            lock_hold = 0;
+            loop_in_cs = 0;
+            duration = 0;
 
-        if (task_id == 0) {
-            array = malloc(array_size);
-            if (!array) {
-                fprintf(stderr, "Failed to allocate memory for size %zu bytes\n", array_size);
-            }
-            memset(array, 0, array_size); // Touch all pages to ensure allocation
-        }
+            pthread_barrier_wait(&mem_barrier);
 
-        pthread_barrier_wait(&mem_barrier);
-
-        start = rdtscp();
-        for (size_t i = 0; i < array_size / sizeof(double); i += CACHELINE_SIZE / sizeof(double)) {
+            start = rdtscp();
             lock_acquire(&lock);
             lock_start = rdtscp();
-            lock_acquires++;
-            sum += array[i];
-            loop_in_cs++;
+            for (size_t i = 0; i < array_size / sizeof(double); i += CACHELINE_SIZE / sizeof(double)) {
+                lock_acquires++;
+                sum += array[i];
+                loop_in_cs++;
+            }
             lock_hold += rdtscp() - lock_start;
             lock_release(&lock);
+            duration = rdtscp() - start;
+            task->lock_acquires[i][j] = lock_acquires;
+            task->loop_in_cs[i][j] = loop_in_cs;
+            task->lock_hold[i][j] = lock_hold;
+            task->mem_duration[i][j] = duration;
+            task->array_size[i][j] = array_size;
+            array_size *= 2;
+            pthread_barrier_wait(&mem_barrier);
         }
-
-        duration = rdtscp() - start;
         pthread_barrier_wait(&mem_barrier);
-        float lock_hold_ms = lock_hold / (float) (CYCLE_PER_US * 1000);
-        float duration_ms = duration / (float) (CYCLE_PER_US * 1000);
-        printf("%03d,%10llu,%8llu,%12.6f,%12.3f,%10zu\n",
-                task_id,
-                loop_in_cs,
-                lock_acquires,
-                lock_hold_ms,
-                duration_ms,
-                array_size
-                );
-        array_size *= 2;
     }
     // fprintf(stderr,"FINISHED tid %d\n", task->id);
     return 0;
 }
 
-double random_double(double min, double max) {
-    if (min > max) {
-        fprintf(stderr, "Invalid range: min must be <= max\n");
-        exit(EXIT_FAILURE);
-    }
-    // Generate a random double in [0, 1)
-    double scale = rand() / (double) RAND_MAX;
+// double random_double(double min, double max) {
+//     if (min > max) {
+//         fprintf(stderr, "Invalid range: min must be <= max\n");
+//         exit(EXIT_FAILURE);
+//     }
+//     // Generate a random double in [0, 1)
+//     double scale = rand() / (double) RAND_MAX;
 
-    // Scale and shift to [min, max)
-    return min + scale * (max - min);
-}
+//     // Scale and shift to [min, max)
+//     return min + scale * (max - min);
+// }
 
-int cs_result_to_out(task_t* tasks, int nthreads) {
+int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
+    int mem_runs = NUM_MEM_RUNS;
+    if (mode != 2)
+       mem_runs = 1; 
     for (int j = 0; j < NUM_RUNS; j++) {
         float total_lock_hold = 0;
         ull total_lock_acq = 0;
         printf("RUN %d\n", j);
         for (int i = 0; i < nthreads; i++) {
-            task_t task = (task_t) tasks[i];
-            float lock_hold = task.lock_hold[j] / (float) (CYCLE_PER_US * 1000);
-            total_lock_hold += lock_hold;
-            total_lock_acq += task.lock_acquires[j];
-            printf("%03d,%10llu,%8llu,%12.6f\n",
-                    task.id,
-                    task.loop_in_cs[j],
-                    task.lock_acquires[j],
-                    lock_hold
-                    );
+            for (int k = 0; k < mem_runs; k++) {
+                task_t task = (task_t) tasks[i];
+                float lock_hold = task.lock_hold[j][k] / (float) (CYCLE_PER_US * 1000);
+                float mem_duration = task.mem_duration[j][k] / (float) (CYCLE_PER_US * 1000);
+                size_t array_size = task.array_size[j][k];
+                total_lock_hold += lock_hold;
+                total_lock_acq += task.lock_acquires[j][k];
+                printf("%03d,%10llu,%8llu,%12.6f,%12.3f,%16lu\n",
+                        task.id,
+                        task.loop_in_cs[j][k],
+                        task.lock_acquires[j][k],
+                        lock_hold,
+                        mem_duration,
+                        array_size
+                        );
+            }
         }
         printf("-------------------------------------------------------------------------------------------------------\n\n");
         fprintf(stderr, "Total lock hold time(ms): %f\n", total_lock_hold);
@@ -255,6 +254,7 @@ int main(int argc, char *argv[]) {
     double long_cs = duration * 1e6 / 100.;
     // int stop_warmup __attribute__((aligned (CACHELINE_SIZE))) = 0;
     for (int i = 0; i < nthreads; i++) {
+        tasks[i].rdma = 1;
         tasks[i].stop = &stop;
         tasks[i].global_its = &global_its;
         tasks[i].cs = cs == 0 ? (i%2 == 0 ? short_cs : long_cs) : cs;
@@ -266,9 +266,13 @@ int main(int argc, char *argv[]) {
         // tasks[i].priority = priority;
 
         for (int j = 0 ; j < NUM_RUNS; j++) {
-            tasks[i].loop_in_cs[j] = 0;
-            tasks[i].lock_acquires[j] = 0;
-            tasks[i].lock_hold[j] = 0;
+            for (int k = 0; k < NUM_MEM_RUNS; k++) {
+                tasks[i].loop_in_cs[j][k] = 0;
+                tasks[i].lock_acquires[j][k] = 0;
+                tasks[i].lock_hold[j][k] = 0;
+                tasks[i].mem_duration[j][k] = 0;
+                tasks[i].array_size[j][k] = 0;
+            }
         }
     }
     lock_init(&lock);
@@ -306,9 +310,13 @@ int main(int argc, char *argv[]) {
             stop = 1;
             pthread_barrier_wait(&global_barrier);
         }
-        cs_result_to_out(tasks, nthreads);
     }
     else {
+        array = (double *) malloc(MAX_ARRAY_SIZE);
+        if (!array) {
+            fprintf(stderr, "Failed to allocate memory for size %llu bytes\n", MAX_ARRAY_SIZE);
+        }
+        memset(array, 0, MAX_ARRAY_SIZE); // Touch all pages to ensure allocation
         worker = mem_worker;
         for (int i = 0; i < nthreads; i++) {
             pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
@@ -319,6 +327,7 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < nthreads; i++) {
         pthread_join(tasks[i].thread, NULL);
     }
+    cs_result_to_out(tasks, nthreads, mode);
     free(array);
     // WAIT SO SERVER CAN SHUTDOWN
     sleep(2);

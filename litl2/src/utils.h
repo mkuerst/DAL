@@ -73,27 +73,51 @@
 #define CACHELINE_SIZE 64
 #endif
 /**************************************************************************************/
+// #define LOG2(x) ((x) <= 1 ? 0 : 1 + LOG2((x) / 2))
 
 #define KB(x) ((x) * 1024LL)
-#define GB(x) (MB(x) * 1024LL)
 #define MB(x) (KB(x) * 1024LL)
-#define MAX_ARRAY_SIZE GB(1LL)
+#define GB(x) (MB(x) * 1024LL)
+// 8 MB (from HMCS paper)
+#define MAX_ARRAY_SIZE MB(8LL)
+// MEM_RUNS with sizes 128 B, 256, 512, ... 8 MB
+#define NUM_MEM_RUNS 17 
 
 typedef unsigned long long ull;
+// typedef struct {
+//     volatile int *stop;
+//     volatile ull *global_its;
+//     pthread_t thread;
+//     int rdma;
+//     int priority;
+//     int id;
+//     double cs;
+//     char* server_ip;
+//     int sockfd;
+//     // outputs
+//     ull loop_in_cs[NUM_RUNS];
+//     ull lock_acquires[NUM_RUNS];
+//     ull lock_hold[NUM_RUNS];
+//     ull mem_duration[NUM_RUNS];
+//     size_t array_size[NUM_RUNS];
+// } task_t __attribute__ ((aligned (CACHELINE_SIZE)));
+
 typedef struct {
     volatile int *stop;
     volatile ull *global_its;
     pthread_t thread;
+    int rdma;
     int priority;
     int id;
     double cs;
     char* server_ip;
     int sockfd;
     // outputs
-    ull loop_in_cs[NUM_RUNS];
-    ull lock_acquires[NUM_RUNS];
-    ull lock_hold[NUM_RUNS];
-    size_t array_size;
+    ull loop_in_cs[NUM_RUNS][NUM_MEM_RUNS];
+    ull lock_acquires[NUM_RUNS][NUM_MEM_RUNS];
+    ull lock_hold[NUM_RUNS][NUM_MEM_RUNS];
+    ull mem_duration[NUM_RUNS][NUM_MEM_RUNS];
+    size_t array_size[NUM_RUNS][NUM_MEM_RUNS];
 } task_t __attribute__ ((aligned (CACHELINE_SIZE)));
 
 typedef struct thread_data {
@@ -140,7 +164,6 @@ typedef struct rdma_connection {
 } rdma_connection;
 
 typedef struct rdma_thread {
-    int* rdma;
     pthread_t thread;
     unsigned int server_tid;
     unsigned int client_tid;
