@@ -55,22 +55,22 @@ void *run_lock_impl(void *_arg)
         if (sscanf(buffer, "%c%d", &cmd, &id) == 2) {
             if (cmd == 'l') {
                 thread->client_tid = id;
-                ull now = rdtsc();
+                ull now = rdtscp();
                 pthread_mutex_lock(&mutex);
-                thread->lock_impl_time[j] += rdtsc() - now;
+                thread->lock_impl_time[j] += rdtscp() - now;
                 if ((ret = send(client_socket, granted_msg, strlen(granted_msg), 0)) < 0)
                     tcp_client_error(client_socket, "lock acquisition notice failed for thread %d", id);
                 DEBUG("Granted lock to thread %d over socket %d\n", id, client_socket);
             }
-            if (cmd == 'r') {
-                ull now = rdtsc();
+            else if (cmd == 'r') {
+                ull now = rdtscp();
                 pthread_mutex_unlock(&mutex);
-                thread->lock_impl_time[j] += rdtsc() - now;
+                thread->lock_impl_time[j] += rdtscp() - now;
                 DEBUG("Released lock on server for thread %d\n", id);
                 if ((ret = send(client_socket, released_msg, strlen(released_msg), 0)) < 0)
                     tcp_client_error(client_socket, "lock acquisition notice failed for thread %d", id);
             }
-            if (cmd == 'd') {
+            else if (cmd == 'd') {
                 j++;
                 DEBUG("Received run complete from thread %d\n", id);
                 // if ((ret = send(client_socket, ok_msg, strlen(ok_msg), 0)) < 0)
@@ -164,7 +164,7 @@ int main(int argc, char *argv[]) {
                     close(client_fd);
                 }
                 threads[cur_thread_id].sockfd = client_fd;
-                threads[cur_thread_id].server_tid = cur_thread_id;
+                threads[cur_thread_id].server_tid = cur_thread_id+1;
                 for (int j = 0; j < NUM_RUNS; j++) {
                     threads[cur_thread_id].lock_impl_time[j] = 0;
                 }

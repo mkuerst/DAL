@@ -2,22 +2,22 @@
 # args: duration(s), cs(us), 
 
 #LOCAL
-# REMOTE_USER="mihi"
-# REMOTE_HOST="localhost"
-# server_ip=10.5.12.168
+REMOTE_USER="mihi"
+REMOTE_HOST="localhost"
+server_ip=10.5.12.168
 # HOME
-# server_ip=192.168.1.70
+server_ip=192.168.1.70
 
 #CLUSTER
-REMOTE_USER="kumichae"
-REMOTE_HOST="r630-12"
-server_ip=10.233.0.21
+# REMOTE_USER="kumichae"
+# REMOTE_HOST="r630-12"
+# server_ip=10.233.0.21
 
 eval "$(ssh-agent -s)"
 ssh_key="/home/mihi/.ssh/id_ed25519_localhost"
-ssh-add $ssh_key  
 ssh-copy-id "$REMOTE_USER@$REMOTE_HOST"
 
+ssh-add $ssh_key  
 # PATHS
 BASE="$PWD/../litl2/lib"
 logpath="$PWD/server_logs/"
@@ -61,16 +61,17 @@ do
         mkdir -p "$log_dir"
 
         # for ((i=1; i<=nthreads; i*=2))
-        for i in 32 
+        for i in 1 16  
         do
+            # duration=$((5 * i))
             client_res_file="$client_res_dir"/nthread_"$i".csv
             server_res_file="$server_res_dir"/nthread_"$i".csv
             orig_res_file="$orig_res_dir/nthread_$i.csv"
-            echo "tid,loop_in_cs,lock_acquires,lock_hold(ms),mem_duration(ms),array_size(B)" > "$client_res_file"
-            echo "tid,loop_in_cs,lock_acquires,lock_hold(ms),mem_duration(ms),array_size(B)" > "$orig_res_file"
+            echo "tid,loop_in_cs,lock_acquires,lock_hold(ms),total_duration(s),wait_acq(ms),wait_rel(ms),array_size(B)" > "$client_res_file"
+            echo "tid,loop_in_cs,lock_acquires,lock_hold(ms),total_duration(s),wait_ac(ms),wait_rel(ms),array_size(B)" > "$orig_res_file"
             echo "tid,lock_impl_time(ms)" > "$server_res_file"
-            # echo "START $impl SERVER with $i THREADS"
-            # tmux new-session -d -s "server_"$impl"_$i" "ssh $REMOTE_USER@$REMOTE_HOST LD_PRELOAD=$server_so $tcp_server_app $i >> $server_res_file 2>> $log_dir/server_$i.log"
+            echo "START $impl SERVER with $i THREADS"
+            tmux new-session -d -s "server_"$impl"_$i" "ssh $REMOTE_USER@$REMOTE_HOST LD_PRELOAD=$server_so $tcp_server_app $i >> $server_res_file 2>> $log_dir/server_$i.log"
             # tmux new-session -d -s "server_"$impl"_$i" "ssh $REMOTE_USER@$REMOTE_HOST LD_PRELOAD=$server_so $rdma_server_app -t $i -a $server_ip >> $server_res_file 2>> $log_dir/server_$i.log"
 
             # tmux capture-pane -pt "server_"$impl"_$i"
@@ -78,8 +79,8 @@ do
 
             sleep 5
             echo "START MICROBENCH CLIENT WITH $i THREADS"
-            # LD_PRELOAD=$client_so ./main_disa $i $duration $critical $server_ip $j >> $client_res_file
-            LD_PRELOAD=$orig_so ./main_orig $i $duration $critical $server_ip $j >> $orig_res_file
+            LD_PRELOAD=$client_so ./main_disa $i $duration $critical $server_ip $j >> $client_res_file
+            # LD_PRELOAD=$orig_so ./main_orig $i $duration $critical $server_ip $j >> $orig_res_file
             tmux kill-session -t "server_"$impl"_$i"
         done
     done

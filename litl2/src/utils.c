@@ -43,7 +43,7 @@ inline int pin_thread(unsigned int id) {
     // int node = 0;
     int cpu_id = id;
     if (NUMA_NODES == 1) {
-        cpu_id = id;
+        return 0;
     }
     else if (id < (CPU_NUMBER / NUMA_NODES)) {
         cpu_id = 2*id;
@@ -57,7 +57,7 @@ inline int pin_thread(unsigned int id) {
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);
         CPU_SET(cpu_id, &cpuset);
-        fprintf(stderr, "pinning thread %d to cpu %d\n", id, cpu_id);
+        DEBUG(stderr, "pinning thread %d to cpu %d\n", id, cpu_id);
         int ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
         if (ret != 0) {
             _error("pthread_set_affinity_np failed for thread %d to cpu %d", id, cpu_id);

@@ -123,10 +123,12 @@ typedef struct {
     char* server_ip;
     int sockfd;
     // outputs
+    ull duration[NUM_RUNS][NUM_MEM_RUNS];
     ull loop_in_cs[NUM_RUNS][NUM_MEM_RUNS];
     ull lock_acquires[NUM_RUNS][NUM_MEM_RUNS];
     ull lock_hold[NUM_RUNS][NUM_MEM_RUNS];
-    ull mem_duration[NUM_RUNS][NUM_MEM_RUNS];
+    ull wait_acq[NUM_RUNS][NUM_MEM_RUNS];
+    ull wait_rel[NUM_RUNS][NUM_MEM_RUNS];
     size_t array_size[NUM_RUNS][NUM_MEM_RUNS];
 } task_t __attribute__ ((aligned (CACHELINE_SIZE)));
 
@@ -228,6 +230,17 @@ static inline uint64_t rdtsc(void) {
     asm volatile("rdtsc" : "=a"(low), "=d"(high));
 
     return low | ((uint64_t)high) << 32;
+}
+
+static __inline__ unsigned long long rdtscp(void)
+{
+	unsigned hi, lo;
+	asm volatile ("rdtscp\n\t"
+		  "mov %%edx, %0\n\t"
+		  "mov %%eax, %1\n\t"
+		  : "=r" (hi), "=r" (lo)
+		  :: "%rax", "%rbx", "%rcx", "%rdx");
+	return ( (unsigned long long)lo)|( ((unsigned long long)hi)<<32 );
 }
 
 // EPFL libslock

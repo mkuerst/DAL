@@ -24,16 +24,16 @@ static __inline__ unsigned long long rdtsc_with_fence(void)
 	return ( (unsigned long long)lo)|( ((unsigned long long)hi)<<32 );
 }
 
-static __inline__ unsigned long long rdtscp(void)
-{
-	unsigned hi, lo;
-	asm volatile ("rdtscp\n\t"
-		  "mov %%edx, %0\n\t"
-		  "mov %%eax, %1\n\t"
-		  : "=r" (hi), "=r" (lo)
-		  :: "%rax", "%rbx", "%rcx", "%rdx");
-	return ( (unsigned long long)lo)|( ((unsigned long long)hi)<<32 );
-}
+// static __inline__ unsigned long long rdtscp(void)
+// {
+// 	unsigned hi, lo;
+// 	asm volatile ("rdtscp\n\t"
+// 		  "mov %%edx, %0\n\t"
+// 		  "mov %%eax, %1\n\t"
+// 		  : "=r" (hi), "=r" (lo)
+// 		  :: "%rax", "%rbx", "%rcx", "%rdx");
+// 	return ( (unsigned long long)lo)|( ((unsigned long long)hi)<<32 );
+// }
 
 static __inline__ unsigned long long rdtscp_before_fence(void)
 {
