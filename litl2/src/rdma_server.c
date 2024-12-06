@@ -90,7 +90,7 @@ void *run_lock_impl(void *_arg)
 		ret = ibv_post_recv(qp, &client_recv_wr, &bad_client_recv_wr);
 		if (ret) {
 			rdma_error("Failed to post the receive buffer for thread %d, errno: %d \n", tid, ret);
-			return ret;
+			exit(EXIT_FAILURE);
 		}
 		ret = process_work_completion_events(io_comp_chan, &wc, 1);
 		if (ret != 1) {

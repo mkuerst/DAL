@@ -2,16 +2,16 @@
 # args: duration(s), cs(us), 
 
 #LOCAL
-REMOTE_USER="mihi"
-REMOTE_HOST="localhost"
-server_ip=10.5.12.168
+# REMOTE_USER="mihi"
+# REMOTE_HOST="localhost"
+# server_ip=10.5.12.168
 # HOME
-server_ip=192.168.1.70
+# server_ip=192.168.1.70
 
 #CLUSTER
-# REMOTE_USER="kumichae"
-# REMOTE_HOST="r630-12"
-# server_ip=10.233.0.21
+REMOTE_USER="kumichae"
+REMOTE_HOST="r630-12"
+server_ip=10.233.0.21
 
 eval "$(ssh-agent -s)"
 ssh_key="/home/mihi/.ssh/id_ed25519_localhost"
@@ -36,7 +36,7 @@ nthreads=$(nproc)
 # ncpu=$(lscpu | grep "^Core(s) per socket" | awk '{print $4}')
 # nnodes=$(lscpu | grep -oP "NUMA node\(s\):\s+\K[0-9]+")
 # echo "nthreads: $nthreads | nsockets: $nsockets | cpu_per_socket: $ncpu | nnodes: $nnodes"
-duration=2
+duration=30
 critical=1000
 
 
@@ -48,7 +48,7 @@ do
     client_so=${client_libs_dir}${impl}$client_suffix
     server_so=${server_libs_dir}${impl}$server_suffix
     orig_so=${orig_libs_dir}${impl}.so
-    for j in 0 
+    for j in 2 
     do
         microb="${microbenches[$j]}"
         client_res_dir="./results/disaggregated/client/$impl/$microb"
@@ -61,7 +61,7 @@ do
         mkdir -p "$log_dir"
 
         # for ((i=1; i<=nthreads; i*=2))
-        for i in 1 16  
+        for i in 16 
         do
             # duration=$((5 * i))
             client_res_file="$client_res_dir"/nthread_"$i".csv

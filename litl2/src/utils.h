@@ -71,7 +71,7 @@
 
 // MICROBENCH PARAMS
 /**************************************************************************************/
-#define NUM_RUNS 2
+#define NUM_RUNS 5
 #ifndef CACHELINE_SIZE
 #define CACHELINE_SIZE 64
 #endif

@@ -20,10 +20,9 @@ void *run_lock_impl(void *_arg)
     thread_data* thread = (thread_data*) _arg;
     int client_socket = thread->sockfd;
     int server_tid = thread->server_tid;
-    // int node = server_tid / 2;
     int j = 0;
 
-    pin_thread(server_tid);
+    pin_thread(server_tid-1);
     char buffer[BUFFER_SIZE];
     memset(buffer, 0, BUFFER_SIZE);
 

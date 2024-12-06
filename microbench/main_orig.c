@@ -80,7 +80,6 @@ void *cs_worker(void *arg) {
         task->lock_acquires[i][0] = lock_acquires;
         task->loop_in_cs[i][0] = loop_in_cs;
         task->lock_hold[i][0] = lock_hold;
-        sleep(3);
         pthread_barrier_wait(&global_barrier);
     }
 
@@ -129,7 +128,6 @@ void *empty_cs_worker(void *arg) {
         task->lock_hold[i][0] = lock_hold;
         task->wait_acq[i][0] = wait_acq;
         task->wait_rel[i][0] = wait_rel;
-        sleep(3);
         pthread_barrier_wait(&global_barrier);
     }
 
@@ -166,7 +164,8 @@ void *mem_worker(void *arg) {
             lock_start = rdtscp();
             wait_acq += lock_start-start;
             lock_acquires++;
-            for (size_t k = 0; k < array_size / sizeof(double); k += CACHELINE_SIZE / sizeof(double)) {
+            // for (size_t k = 0; k < array_size / sizeof(double); k += CACHELINE_SIZE / sizeof(double)) {
+            for (size_t k = 0; k < array_size / sizeof(double); k += 1) {
                 sum += array[k];
                 loop_in_cs++;
             }
@@ -189,7 +188,6 @@ void *mem_worker(void *arg) {
             task->wait_acq[i][j] = wait_acq;
             task->wait_rel[i][j] = wait_rel;
         }
-        sleep(3);
         pthread_barrier_wait(&mem_barrier);
     }
     // fprintf(stderr,"FINISHED tid %d\n", task->id);
@@ -222,7 +220,7 @@ int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
                 float lock_hold = task.lock_hold[j][k] / (float) (CYCLE_PER_US * 1000);
                 float wait_acq = task.wait_acq[j][k] / (float) (CYCLE_PER_US * 1000);
                 float wait_rel = task.wait_rel[j][k] / (float) (CYCLE_PER_US * 1000);
-                float total_duration = mode == 0 ? (float) task.duration[j][k] : task.duration[j][k] / (float) (CYCLE_PER_US * 1e6);
+                float total_duration = mode == 0 ? (float) task.duration[j][k] : task.duration[j][k] / (float) (CYCLE_PER_US * 1e3);
                 size_t array_size = task.array_size[j][k];
                 total_lock_hold += lock_hold;
                 total_lock_acq += task.lock_acquires[j][k];
