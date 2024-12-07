@@ -149,9 +149,9 @@ void *mem_worker(void *arg) {
     ull wait_acq, wait_rel;
 
     for (int i = 0; i < NUM_RUNS; i++) {
-        size_t array_size = 128;
         for (int j = 0; j < NUM_MEM_RUNS; j++)  {
             volatile double sum = 0; // Prevent compiler optimizations
+            ull array_size = array_sizes[j];
             lock_acquires = 0;
             lock_hold = 0;
             loop_in_cs = 0;
@@ -170,6 +170,8 @@ void *mem_worker(void *arg) {
                 for (size_t k = 0; k < array_size / sizeof(double); k += 1) {
                     sum += array[k];
                     loop_in_cs++;
+                    if(*task->stop)
+                        break;
                 }
                 ull rel_start = rdtscp();
                 lock_release(&lock);
@@ -178,7 +180,6 @@ void *mem_worker(void *arg) {
                 lock_hold += rel_end - lock_start;
                 wait_rel += rel_end - rel_start;
 
-                pthread_barrier_wait(&mem_barrier);
 
                 // duration = rdtscp() - start;
             }
@@ -189,11 +190,10 @@ void *mem_worker(void *arg) {
             // task->duration[i][j] = duration;
             task->wait_acq[i][j] = wait_acq;
             task->wait_rel[i][j] = wait_rel;
-            array_size *= 2;
+            pthread_barrier_wait(&global_barrier);
         }
         run_complete(task->sockfd, task_id);
         sleep(3);
-        pthread_barrier_wait(&global_barrier);
     }
     // fprintf(stderr,"FINISHED tid %d\n", task->id);
     return 0;
@@ -320,7 +320,7 @@ int main(int argc, char *argv[]) {
     if (mode == 2) {
         array = (double*) malloc(MAX_ARRAY_SIZE);
         if (!array) {
-            fprintf(stderr, "Failed to allocate memory for size %llu bytes\n", MAX_ARRAY_SIZE);
+            fprintf(stderr, "Failed to allocate memory for size %lu bytes\n", MAX_ARRAY_SIZE);
         }
         memset(array, 0, MAX_ARRAY_SIZE); // Touch all pages to ensure allocation
         num_mem_runs = NUM_MEM_RUNS;

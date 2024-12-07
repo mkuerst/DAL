@@ -28,6 +28,8 @@
 #include <stdint.h>
 #include "utils.h"
 
+size_t array_sizes[4] = {KB(256), MB(2), MB(16), MB(64)};
+
 inline void *alloc_cache_align(size_t n) {
     void *res = 0;
     if ((MEMALIGN(&res, L_CACHE_LINE_SIZE, cache_align(n)) < 0) || !res) {

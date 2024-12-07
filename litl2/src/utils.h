@@ -78,13 +78,15 @@
 /**************************************************************************************/
 // #define LOG2(x) ((x) <= 1 ? 0 : 1 + LOG2((x) / 2))
 
-#define KB(x) ((x) * 1024LL)
-#define MB(x) (KB(x) * 1024LL)
-#define GB(x) (MB(x) * 1024LL)
-// 8 MB (from HMCS paper)
-#define MAX_ARRAY_SIZE MB(8LL)
-// MEM_RUNS with sizes 128 B, 256, 512, ... 8 MB
-#define NUM_MEM_RUNS 17 
+#define KB(x) ((x) * 1024L)
+#define MB(x) (KB(x) * 1024L)
+#define GB(x) (MB(x) * 1024L)
+// CACHE: L1: 512 KiB | L2: 4 MiB | L3: 40 MiB
+// 256 KiB -*8> 2 MiB -*8> 16 -*4>
+#define MAX_ARRAY_SIZE MB(64L)
+#define NUM_MEM_RUNS 4 
+
+extern size_t array_sizes[4];
 
 #define _error(msg, args...) do {\
 	fprintf(stderr, "\033[1;31m%s : %d : ERROR : \033[0m"msg, __FILE__, __LINE__, ## args);\
