@@ -103,9 +103,9 @@
 // See empty.c for example.
 
 __thread unsigned int cur_thread_id;
+__thread int rdma;
 unsigned int last_thread_id;
 __thread int sockfd;
-__thread int conn_established = 0;
 int cur_turn = 1;
 
 
@@ -396,9 +396,10 @@ static void *lp_start_routine(void *_arg) {
     void *arg = r->arg;
     void *res;
     task_t* task = (task_t*) r->arg;
+    int task_id = task->id;
+    
     free(r);
 
-    conn_established = 0;
     cur_thread_id = __sync_fetch_and_add(&last_thread_id, 1);
     if (cur_thread_id >= MAX_THREADS) {
         fprintf(stderr, "Maximum number of threads reached. Consider raising "
@@ -407,7 +408,7 @@ static void *lp_start_routine(void *_arg) {
         exit(-1);
     } 
 #ifdef TCP
-    sockfd = establish_tcp_connection(cur_thread_id, task->server_ip);
+    sockfd = establish_tcp_connection(task_id, task->server_ip);
     // fprintf(stderr, "thread %d return from establish connec call\n", cur_thread_id);
     if(sockfd < 0) {
         tcp_error("Thread %d failed at establishing tcp connection", cur_thread_id);
@@ -417,13 +418,12 @@ static void *lp_start_routine(void *_arg) {
     while (cur_thread_id != cur_turn) {
         CPU_PAUSE();
     }
-    int ret = establish_rdma_connection(task->id, task->server_ip);
+    int ret = establish_rdma_connection(task_id, task->server_ip);
     cur_turn++;
     if(ret < 0) {
         rdma_error("Thread %d failed at establishing rdma connection\n", cur_thread_id);
         exit(-1);
     }
-    conn_established = 1;
     DEBUG("Thread %d connected to RDMA server\n", cur_thread_id);
 #endif
     //     lock_thread_start();
@@ -444,7 +444,8 @@ int __pthread_create(pthread_t *thread, const pthread_attr_t *attr,
     // RDMA seems to spawn threads that need to perform locking ops,
     // These should still use the standard linux implementation to work!
     task_t *rdma_arg = (task_t *) arg;
-    if (rdma_arg->rdma != 1) {
+    rdma = rdma_arg->rdma;
+    if (rdma != 1) {
         DEBUG("Creating cm thread %d\n", cur_thread_id);
         return REAL(pthread_create)(thread, attr, start_routine, arg);
     }
@@ -486,7 +487,7 @@ int pthread_mutex_lock(pthread_mutex_t *mutex) {
 #ifdef TCP
     request_lock(sockfd, cur_thread_id);
 #endif
-    if (!conn_established) {
+    if (rdma != 1) {
         DEBUG("CM thread trying to acquire lock as thread %d\n", cur_thread_id);
         return REAL(pthread_mutex_lock)(mutex);
     }
@@ -513,11 +514,11 @@ int pthread_mutex_trylock(pthread_mutex_t *mutex) {
 int pthread_mutex_unlock(pthread_mutex_t *mutex) {
     DEBUG_PTHREAD("[p] pthread_mutex_unlock\n");
 #ifdef TCP
-    release_lock(sockfd, cur_thread_id);
+    return release_lock(sockfd, cur_thread_id);
 #endif
-    if (!conn_established)
+    if (rdma != 1)
         return REAL(pthread_mutex_unlock)(mutex);
-    return 0;
+    return rdma_release_lock();
 }
 
 // int __pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr) {

@@ -10,18 +10,15 @@
 #include "rdma_common.h"
 
 rdma_thread threads[MAX_THREADS];
+pthread_mutex_t mutex;
 int num_connections = 0;
+char buffer_msg[MESSAGE_SIZE];
 
 void *run_lock_impl(void *_arg)
 {
     rdma_thread* thread = (rdma_thread*) _arg;
 	struct ibv_wc wc;
 	int ret = -1;
-	/* Now, we first wait for the client to start the communication by 
-	 * sending the server its metadata info. The server does not use it 
-	 * in our example. We will receive a work completion notification for 
-	 * our pre-posted receive request.
-	 */
 	
 	rdma_connection conn = thread->connection;
 	struct ibv_qp *qp = conn.qp;
@@ -38,58 +35,67 @@ void *run_lock_impl(void *_arg)
     struct ibv_sge client_recv_sge = conn.client_recv_sge;
     struct ibv_sge server_send_sge = conn.server_send_sge;
 	unsigned int tid = thread->client_tid;
+	int j = 0;
 	pin_thread(tid);
 
-	/* We need to setup requested memory buffer. This is where the client will 
-	* do RDMA READs and WRITEs. */
-	server_mr = rdma_buffer_alloc(pd /* which protection domain */, 
-			// client_metadata_attr.length /* what size to allocate */, 
-			16,
+	server_mr = rdma_buffer_register(pd,
+			buffer_msg,
+			MESSAGE_SIZE,
 			(IBV_ACCESS_LOCAL_WRITE|
-			IBV_ACCESS_REMOTE_READ|
-			IBV_ACCESS_REMOTE_WRITE) /* access permissions */);
+			 IBV_ACCESS_REMOTE_READ|
+			 IBV_ACCESS_REMOTE_WRITE));
 	if(!server_mr){
-		rdma_error("Server failed to create a buffer for thread %d \n", tid);
+		rdma_error("Thread %d failed to register the server_mr buffer, ret = %d \n", tid, ret);
 		exit(EXIT_FAILURE);
 	}
-
-	/* This buffer is used to transmit information about the above 
-	* buffer to the client. So this contains the metadata about the server 
-	* buffer. Hence this is called metadata buffer. Since this is already 
-	* on allocated, we just register it. 
-		* We need to prepare a send I/O operation that will tell the 
-	* client the address of the server buffer. 
-	*/
-	server_metadata_attr.address = (uint64_t) server_mr->addr;
-	server_metadata_attr.length = (uint32_t) server_mr->length;
-	server_metadata_attr.stag.local_stag = (uint32_t) server_mr->lkey;
-	struct ibv_mr *server_metadata_mr = rdma_buffer_register(pd /* which protection domain*/, 
-			&server_metadata_attr /* which memory to register */, 
-			sizeof(server_metadata_attr) /* what is the size of memory */,
-			IBV_ACCESS_LOCAL_WRITE /* what access permission */);
-	if(!server_metadata_mr){
-		rdma_error("Server thread %d failed to create to hold server metadata \n", tid);
-		exit(EXIT_FAILURE);
-	}
-	/* We need to transmit this buffer. So we create a send request. 
-	* A send request consists of multiple SGE elements. In our case, we only
-	* have one 
-	*/
-	server_send_sge.addr = (uint64_t) &server_metadata_attr;
-	server_send_sge.length = sizeof(server_metadata_attr);
-	server_send_sge.lkey = server_metadata_mr->lkey;
-	/* now we link this sge to the send request */
+	// server_mr = rdma_buffer_alloc(pd, 
+	// 		64,
+	// 		(IBV_ACCESS_LOCAL_WRITE|
+	// 		IBV_ACCESS_REMOTE_READ|
+	// 		IBV_ACCESS_REMOTE_WRITE));
+	// if(!server_mr){
+	// 	rdma_error("Server failed to create a server_mr for thread %d \n", tid);
+	// 	exit(EXIT_FAILURE);
+	// }
+	// server_metadata_attr.address = (uint64_t) server_mr->addr;
+	// server_metadata_attr.length = (uint32_t) server_mr->length;
+	// server_metadata_attr.stag.local_stag = (uint32_t) server_mr->lkey;
+	// struct ibv_mr *server_metadata_mr = rdma_buffer_register(pd, 
+	// 		&server_metadata_attr, 
+	// 		sizeof(server_metadata_attr),
+	// 		IBV_ACCESS_LOCAL_WRITE);
+	// if(!server_metadata_mr){
+	// 	rdma_error("Server thread %d failed to create to hold server metadata \n", tid);
+	// 	exit(EXIT_FAILURE);
+	// }
+	server_send_sge.addr = (uint64_t) server_mr->addr;
+	server_send_sge.length = (uint32_t) server_mr->length;
+	server_send_sge.lkey = server_mr->lkey;
 	bzero(&server_send_wr, sizeof(server_send_wr));
 	server_send_wr.sg_list = &server_send_sge;
 	server_send_wr.num_sge = 1; // only 1 SGE element in the array 
 	server_send_wr.opcode = IBV_WR_SEND; // This is a send request 
 	server_send_wr.send_flags = IBV_SEND_SIGNALED; // We want to get notification 
 
+    // char buffer[MESSAGE_SIZE];
+    // memset(buffer, 0, MESSAGE_SIZE);
+
+    // char granted_msg[BUFFER_SIZE];
+    // memset(granted_msg, 0, BUFFER_SIZE);
+    // sprintf(granted_msg, "granted lock");
+
+    // char released_msg[BUFFER_SIZE];
+    // memset(released_msg, 0, BUFFER_SIZE);
+    // sprintf(released_msg, "released lock");
+
+    // char ok_msg[BUFFER_SIZE];
+    // memset(ok_msg, 0, BUFFER_SIZE);
+    // sprintf(ok_msg, "ok");
+
 	while(1){
-		// ibv_post_recv(qp, &server_send_wr, &bad_server_send_wr);
 		ret = ibv_post_recv(qp, &client_recv_wr, &bad_client_recv_wr);
 		if (ret) {
-			rdma_error("Failed to post the receive buffer for thread %d, errno: %d \n", tid, ret);
+			rdma_error("Tread %d failed to post the receive buffer, errno: %d \n", tid, ret);
 			exit(EXIT_FAILURE);
 		}
 		ret = process_work_completion_events(io_comp_chan, &wc, 1);
@@ -98,28 +104,54 @@ void *run_lock_impl(void *_arg)
 			exit(EXIT_FAILURE);
 		}
 		if (ret > 0 && wc.status == IBV_WC_SUCCESS && wc.opcode == IBV_WC_RECV) {
-			char *data = (char *)client_metadata_attr.address;
-			printf("Received data: %.*s\n", wc.byte_len, data);
+			char *buffer = (char *)client_mr->addr;
+			printf("Received data: %s\n", buffer);
+
+			char cmd;
+			int id, ret = 0;
+			if (sscanf(buffer, "%c%d", &cmd, &id) == 2) {
+				if (cmd == 'l') {
+					ull now = rdtscp();
+					pthread_mutex_lock(&mutex);
+					thread->lock_impl_time[j] += rdtscp() - now;
+					ret = ibv_post_send(qp, &server_send_wr, &bad_server_send_wr);
+					if (ret) {
+						rdma_error("Thread %d failed to post lock grant, errno: %d \n", tid, -errno);
+						exit(EXIT_FAILURE);
+					}
+					ret = process_work_completion_events(io_comp_chan, &wc, 1);
+					if (ret != 1) {
+						rdma_error("Thread %d failed to send lock grant, ret = %d \n", tid, ret);
+						exit(EXIT_FAILURE);
+					}
+					DEBUG("Granted lock to thread %d over socket %d\n", id, client_socket);
+				}
+				else if (cmd == 'r') {
+					ull now = rdtscp();
+					pthread_mutex_unlock(&mutex);
+					thread->lock_impl_time[j] += rdtscp() - now;
+					DEBUG("Released lock on server for thread %d\n", id);
+					ret = ibv_post_send(qp, &server_send_wr, &bad_server_send_wr);
+					if (ret) {
+						rdma_error("Thread %d failed to post lock release, errno: %d \n", tid, -errno);
+						exit(EXIT_FAILURE);
+					}
+					ret = process_work_completion_events(io_comp_chan, &wc, 1);
+					if (ret != 1) {
+						rdma_error("Thread %d failed to send lock release, ret = %d \n", tid, ret);
+						exit(EXIT_FAILURE);
+					}
+					DEBUG("Notified thread %d of lock release\n", tid);
+				}
+				else if (cmd == 'd') {
+					j++;
+					DEBUG("Received run complete from thread %d\n", id);
+				}
+			} else {
+				DEBUG("Failed to parse the string from thread %d, got: %s\n", id, buffer);
+			}
+			// memset(buffer, 0, MESSAGE_SIZE);
 		}
-		/* if all good, then we should have client's buffer information, lets see */
-		debug("Client side thread %d buffer information is received...\n", tid);
-		show_rdma_buffer_attr(&client_metadata_attr);
-		debug("Client thread %d has requested buffer length of : %u bytes \n", tid, client_metadata_attr.length);
-		/* This is a fast data path operation. Posting an I/O request */
-		ret = ibv_post_send(qp /* which QP */, 
-				&server_send_wr /* Send request that we prepared before */, 
-				&bad_server_send_wr /* In case of error, this will contain failed requests */);
-		if (ret) {
-			rdma_error("Posting of server metdata for thread %d failed, errno: %d \n", tid, -errno);
-			exit(EXIT_FAILURE);
-		}
-		/* We check for completion notification */
-		ret = process_work_completion_events(io_comp_chan, &wc, 1);
-		if (ret != 1) {
-			rdma_error("Thread %d failed to send server metadata, ret = %d \n", tid, ret);
-			exit(EXIT_FAILURE);
-		}
-		debug("Thread %d local buffer metadata has been sent to the client \n", tid);
 	}
 }
 
@@ -142,17 +174,11 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nthreads)
 		rdma_error("Creating cm event channel failed with errno : (%d)", -errno);
 		return -errno;
 	}
-	// debug("RDMA CM event channel is created successfully at %p \n", cm_event_channel);
-	/* rdma_cm_id is the connection identifier (like socket) which is used 
-	 * to define an RDMA connection. 
-	 */
 	ret = rdma_create_id(cm_event_channel, &cm_server_id, NULL, RDMA_PS_TCP);
 	if (ret) {
 		rdma_error("Creating server cm id failed with errno: %d ", -errno);
 		return -errno;
 	}
-	// debug("A RDMA connection id for the server is created \n");
-	/* Explicit binding of rdma cm id to the socket credentials */
 	ret = rdma_bind_addr(cm_server_id, (struct sockaddr*) server_addr);
 	if (ret) {
 		rdma_error("Failed to bind server address, errno: %d \n", -errno);
@@ -172,10 +198,8 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nthreads)
 	fprintf(stderr, "Server is listening successfully at: %s , port: %d \n",
 			inet_ntoa(server_addr->sin_addr),
 			ntohs(server_addr->sin_port));
-	/* now, we expect a client to connect and generate a RDMA_CM_EVNET_CONNECT_REQUEST 
-	 * We wait (block) on the connection management event channel for 
-	 * the connect event. 
-	 */
+
+    pthread_mutex_init(&mutex, NULL);
 	for (int i = 0; i < nthreads; i++) {
 		struct rdma_connection* conn = &threads[i].connection;
 		debug("Waiting for conn establishment %d\n", i);
@@ -186,54 +210,29 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nthreads)
 			rdma_error("Failed to get cm event CONNECT_REQUEST, ret = %d \n" , ret);
 			return ret;
 		}
-		/* Much like TCP connection, listening returns a new connection identifier 
-		* for newly connected client. In the case of RDMA, this is stored in id 
-		* field. For more details: man rdma_get_cm_event 
-		*/
 		conn->cm_client_id = cm_event->id;
-
 		struct ibv_pd *pd = NULL;
 		struct ibv_comp_channel *io_completion_channel = NULL;
 		struct ibv_cq *cq = NULL;
 		struct ibv_qp_init_attr qp_init_attr;
 		struct ibv_qp *client_qp = NULL;
 		struct rdma_cm_id* cm_client_id = conn->cm_client_id;
-
-		// int task_id = (int)(long) (cm_client_id->context);
 		unsigned int task_id = *(unsigned int *) (cm_event->param.conn.private_data);
-		// debug("Client thread %d requested to connect\n", task_id);
 
 		if(!cm_client_id){
 			rdma_error("Client id is still NULL \n");
 			return -EINVAL;
 		}
-		pd = ibv_alloc_pd(cm_client_id->verbs 
-				/* verbs defines a verb's provider, 
-					* i.e an RDMA device where the incoming 
-					* client connection came */);
+		pd = ibv_alloc_pd(cm_client_id->verbs);
 		if (!pd) {
 			rdma_error("Failed to allocate a protection domain errno: %d\n", -errno);
 			return -errno;
 		}
-		// debug("A new protection domain is allocated at %p \n", pd);
-		/* Now we need a completion channel, were the I/O completion 
-			* notifications are sent. Remember, this is different from connection 
-			* management (CM) event notifications. 
-			* A completion channel is also tied to an RDMA device, hence we will 
-			* use cm_client_id->verbs. 
-			*/
 		io_completion_channel = ibv_create_comp_channel(cm_client_id->verbs);
 		if (!io_completion_channel) {
 			rdma_error("Failed to create an I/O completion event channel, %d\n", -errno);
 			return -errno;
 		}
-		// debug("An I/O completion event channel is created at %p \n",  io_completion_channel);
-		/* Now we create a completion queue (CQ) where actual I/O 
-			* completion metadata is placed. The metadata is packed into a structure 
-			* called struct ibv_wc (wc = work completion). ibv_wc has detailed 
-			* information about the work completion. An I/O request in RDMA world 
-			* is called "work" ;) 
-			*/
 		cq = ibv_create_cq(cm_client_id->verbs /* which device*/, 
 				CQ_CAPACITY /* maximum capacity*/, 
 				NULL /* user context, not used here */,
@@ -243,70 +242,52 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nthreads)
 			rdma_error("Failed to create a completion queue (cq), errno: %d\n", -errno);
 			return -errno;
 		}
-		// debug("Completion queue (CQ) is created at %p with %d elements \n", cq, cq->cqe);
-		/* Ask for the event for all activities in the completion queue*/
 		ret = ibv_req_notify_cq(cq /* on which CQ */, 
 				0 /* 0 = all event type, no filter*/);
 		if (ret) {
 			rdma_error("Failed to request notifications on CQ errno: %d \n", -errno);
 			return -errno;
 		}
-		/* Now the last step, set up the queue pair (send, recv) queues and their capacity.
-			* The capacity here is define statically but this can be probed from the 
-			* device. We just use a small number as defined in rdma_common.h */
-			bzero(&qp_init_attr, sizeof qp_init_attr);
-			qp_init_attr.cap.max_recv_sge = MAX_SGE; /* Maximum SGE per receive posting */
-			qp_init_attr.cap.max_recv_wr = MAX_WR; /* Maximum receive posting capacity */
-			qp_init_attr.cap.max_send_sge = MAX_SGE; /* Maximum SGE per send posting */
-			qp_init_attr.cap.max_send_wr = MAX_WR; /* Maximum send posting capacity */
-			qp_init_attr.qp_type = IBV_QPT_RC; /* QP type, RC = Reliable connection */
-			/* We use same completion queue, but one can use different queues */
-			qp_init_attr.recv_cq = cq; /* Where should I notify for receive completion operations */
-			qp_init_attr.send_cq = cq; /* Where should I notify for send completion operations */
-			/*Lets create a QP */
-			ret = rdma_create_qp(cm_client_id /* which connection id */,
-					pd /* which protection domain*/,
-					&qp_init_attr /* Initial attributes */);
-			if (ret) {
-				rdma_error("Failed to create QP due to errno: %d\n", -errno);
-				return -errno;
-			}
-			/* Save the reference for handy typing but is not required */
-			client_qp = cm_client_id->qp;
-			// debug("Client QP created at %p\n", client_qp);
-			conn->pd = pd;
-			conn->io_comp_chan = io_completion_channel;
-			conn->cq = cq;
-			conn->qp = client_qp;
-		// struct rdma_cm_id* cm_client_id = conn->cm_client_id;
-		// struct ibv_qp* client_qp = conn->qp;
-		// struct ibv_pd* pd = conn->pd;
-		struct sockaddr_in remote_sockaddr; 
+		bzero(&qp_init_attr, sizeof qp_init_attr);
+		qp_init_attr.cap.max_recv_sge = MAX_SGE; /* Maximum SGE per receive posting */
+		qp_init_attr.cap.max_recv_wr = MAX_WR; /* Maximum receive posting capacity */
+		qp_init_attr.cap.max_send_sge = MAX_SGE; /* Maximum SGE per send posting */
+		qp_init_attr.cap.max_send_wr = MAX_WR; /* Maximum send posting capacity */
+		qp_init_attr.qp_type = IBV_QPT_RC; /* QP type, RC = Reliable connection */
+		qp_init_attr.recv_cq = cq; /* Where should I notify for receive completion operations */
+		qp_init_attr.send_cq = cq; /* Where should I notify for send completion operations */
+		/*Lets create a QP */
+		ret = rdma_create_qp(cm_client_id /* which connection id */,
+				pd /* which protection domain*/,
+				&qp_init_attr /* Initial attributes */);
+		if (ret) {
+			rdma_error("Failed to create QP due to errno: %d\n", -errno);
+			return -errno;
+		}
+		client_qp = cm_client_id->qp;
+		conn->pd = pd;
+		conn->io_comp_chan = io_completion_channel;
+		conn->cq = cq;
+		conn->qp = client_qp;
 		struct rdma_conn_param conn_param;
-		/* now we acknowledge the event. Acknowledging the event free the resources 
-		* associated with the event structure. Hence any reference to the event 
-		* must be made before acknowledgment. Like, we have already saved the 
-		* client id from "id" field before acknowledging the event. 
-		*/
+
 		ret = rdma_ack_cm_event(cm_event);
 		if (ret) {
 			rdma_error("Failed to acknowledge the cm event errno: %d \n", -errno);
 			return -errno;
 		}
-		// debug("A new RDMA client connection id is stored at %p\n", &threads[i].connection.cm_client_id);
 
 		if(!cm_client_id || !client_qp) {
 			rdma_error("Client resources are not properly setup\n");
 			return -EINVAL;
 		}
-		/* we prepare the receive buffer in which we will receive the client metadata*/
+
 		conn->client_mr = rdma_buffer_register(pd /* which protection domain */, 
 				&conn->client_metadata_attr /* what memory */,
 				sizeof(conn->client_metadata_attr) /* what length */, 
 				(IBV_ACCESS_LOCAL_WRITE) /* access permissions */);
 		if(!conn->client_mr){
 			rdma_error("Failed to register client attr buffer\n");
-			//we assume ENOMEM
 			return -ENOMEM;
 		}
 		/* We pre-post this receive buffer on the QP. SGE credentials is where we 
@@ -314,35 +295,37 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nthreads)
 		conn->client_recv_sge.addr = (uint64_t) conn->client_mr->addr; // same as &client_buffer_attr
 		conn->client_recv_sge.length = conn->client_mr->length;
 		conn->client_recv_sge.lkey = conn->client_mr->lkey;
-		/* Now we link this SGE to the work request (WR) */
 		bzero(&conn->client_recv_wr, sizeof(conn->client_recv_wr));
 		conn->client_recv_wr.sg_list = &conn->client_recv_sge;
 		conn->client_recv_wr.num_sge = 1; // only one SGE
-		// ret = ibv_post_recv(client_qp /* which QP */,
-		// 		&conn->client_recv_wr /* receive work request*/,
-		// 		&conn->bad_client_recv_wr /* error WRs */);
-		// if (ret) {
-		// 	rdma_error("Failed to pre-post the receive buffer, errno: %d \n", ret);
-		// 	return ret;
-		// }
-		// debug("Receive buffer pre-posting is successful \n");
-		/* Now we accept the connection. Recall we have not accepted the connection 
-		* yet because we have to do lots of resource pre-allocation */
+		
+		
+
+
+
+		ret = ibv_post_recv(client_qp /* which QP */,
+				&conn->client_recv_wr /* receive work request*/,
+				&conn->bad_client_recv_wr /* error WRs */);
+		if (ret) {
+			rdma_error("Failed to pre-post the receive buffer, errno: %d \n", ret);
+			return ret;
+		}
+		
+
+
+
+
+
+
+
 		memset(&conn_param, 0, sizeof(conn_param));
-		/* this tell how many outstanding requests can we handle */
-		conn_param.initiator_depth = 3; /* For this exercise, we put a small number here */
-		/* This tell how many outstanding requests we expect other side to handle */
-		conn_param.responder_resources = 3; /* For this exercise, we put a small number */
+		conn_param.initiator_depth = 3;
+		conn_param.responder_resources = 3;
 		ret = rdma_accept(cm_client_id, &conn_param);
 		if (ret) {
 			rdma_error("Failed to accept the connection, errno: %d \n", -errno);
 			return -errno;
 		}
-		/* We expect an RDMA_CM_EVNET_ESTABLISHED to indicate that the RDMA  
-		* connection has been established and everything is fine on both, server 
-		* as well as the client sides.
-		*/
-		// debug("Going to wait for : RDMA_CM_EVENT_ESTABLISHED event \n");
 		ret = process_rdma_cm_event(cm_event_channel, 
 				RDMA_CM_EVENT_ESTABLISHED,
 				&cm_event);
@@ -350,21 +333,23 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nthreads)
 			rdma_error("Failed to get the cm event, errnp: %d \n", -errno);
 			return -errno;
 		}
-		/* We acknowledge the event */
 		ret = rdma_ack_cm_event(cm_event);
 		if (ret) {
 			rdma_error("Failed to acknowledge the cm event %d\n", -errno);
 			return -errno;
 		}
+
 		/* Just FYI: How to extract connection information */
-		memcpy(&remote_sockaddr /* where to save */, 
-				rdma_get_peer_addr(cm_client_id) /* gives you remote sockaddr */, 
-				sizeof(struct sockaddr_in) /* max size */);
+		// memcpy(&remote_sockaddr /* where to save */, 
+		// 		rdma_get_peer_addr(cm_client_id) /* gives you remote sockaddr */, 
+		// 		sizeof(struct sockaddr_in) /* max size */);
+
 		fprintf(stderr, "A new connection is accepted from thread %d \n", task_id);
 
 		for (int j = 0; j < NUM_RUNS; j++) {
 			threads[i].lock_impl_time[j] = 0;
 		}
+		threads[i].rdma = 1;
 		pthread_create(&threads[i].thread, NULL, run_lock_impl, &threads[i]);
 	}
 	return ret;

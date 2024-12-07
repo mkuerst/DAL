@@ -36,7 +36,7 @@ nthreads=$(nproc)
 # ncpu=$(lscpu | grep "^Core(s) per socket" | awk '{print $4}')
 # nnodes=$(lscpu | grep -oP "NUMA node\(s\):\s+\K[0-9]+")
 # echo "nthreads: $nthreads | nsockets: $nsockets | cpu_per_socket: $ncpu | nnodes: $nnodes"
-duration=30
+duration=2
 critical=1000
 
 

@@ -125,13 +125,13 @@ void *empty_cs_worker(void *arg) {
             // fprintf(stderr, "thread %d released lock\n", task->id);
         }
 
-        sleep(3);
         task->lock_acquires[i][0] = lock_acquires;
         task->loop_in_cs[i][0] = loop_in_cs;
         task->lock_hold[i][0] = lock_hold;
         task->wait_acq[i][0] = wait_acq;
         task->wait_rel[i][0] = wait_rel;
         run_complete(task->sockfd, task_id);
+        sleep(3);
         pthread_barrier_wait(&global_barrier);
     }
 
@@ -145,55 +145,55 @@ void *mem_worker(void *arg) {
 
     pin_thread(task_id);
     ull start, lock_start;
-    ull lock_acquires, lock_hold, loop_in_cs, duration;
+    ull lock_acquires, lock_hold, loop_in_cs;
     ull wait_acq, wait_rel;
 
     for (int i = 0; i < NUM_RUNS; i++) {
         size_t array_size = 128;
-        if (task_id == 1)
-            fprintf(stderr, "RUN %d\n", i);
         for (int j = 0; j < NUM_MEM_RUNS; j++)  {
             volatile double sum = 0; // Prevent compiler optimizations
             lock_acquires = 0;
             lock_hold = 0;
             loop_in_cs = 0;
-            duration = 0;
             wait_acq = 0;
             wait_rel = 0;
+            pthread_barrier_wait(&global_barrier);
+            while (!*task->stop) {
 
-            pthread_barrier_wait(&mem_barrier);
+                // pthread_barrier_wait(&mem_barrier);
 
-            start = rdtscp();
-            lock_acquire(&lock);
-            lock_start = rdtscp();
-            wait_acq += lock_start-start;
-            lock_acquires++;
-            for (size_t k = 0; k < array_size / sizeof(double); k += 1) {
-                sum += array[k];
-                loop_in_cs++;
+                start = rdtscp();
+                lock_acquire(&lock);
+                lock_start = rdtscp();
+                wait_acq += lock_start-start;
+                lock_acquires++;
+                for (size_t k = 0; k < array_size / sizeof(double); k += 1) {
+                    sum += array[k];
+                    loop_in_cs++;
+                }
+                ull rel_start = rdtscp();
+                lock_release(&lock);
+                ull rel_end = rdtscp();
+
+                lock_hold += rel_end - lock_start;
+                wait_rel += rel_end - rel_start;
+
+                pthread_barrier_wait(&mem_barrier);
+
+                // duration = rdtscp() - start;
             }
-            ull rel_start = rdtscp();
-            lock_release(&lock);
-            ull rel_end = rdtscp();
-
-            lock_hold += rel_end - lock_start;
-            wait_rel += rel_end - rel_start;
-
-            pthread_barrier_wait(&mem_barrier);
-
-            duration = rdtscp() - start;
-            array_size *= 2;
             task->lock_acquires[i][j] = lock_acquires;
             task->loop_in_cs[i][j] = loop_in_cs;
             task->lock_hold[i][j] = lock_hold;
             task->array_size[i][j] = array_size;
-            task->duration[i][j] = duration;
+            // task->duration[i][j] = duration;
             task->wait_acq[i][j] = wait_acq;
             task->wait_rel[i][j] = wait_rel;
+            array_size *= 2;
         }
         run_complete(task->sockfd, task_id);
         sleep(3);
-        pthread_barrier_wait(&mem_barrier);
+        pthread_barrier_wait(&global_barrier);
     }
     // fprintf(stderr,"FINISHED tid %d\n", task->id);
     return 0;
@@ -225,7 +225,7 @@ int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
                 float lock_hold = task.lock_hold[j][k] / (float) (CYCLE_PER_US * 1000);
                 float wait_acq = task.wait_acq[j][k] / (float) (CYCLE_PER_US * 1000);
                 float wait_rel = task.wait_rel[j][k] / (float) (CYCLE_PER_US * 1000);
-                float total_duration = mode == 0 ? (float) task.duration[j][k] : task.duration[j][k] / (float) (CYCLE_PER_US * 1e3);
+                float total_duration = (float) task.duration[j][k];
                 size_t array_size = task.array_size[j][k];
                 total_lock_hold += lock_hold;
                 total_lock_acq += task.lock_acquires[j][k];
@@ -311,32 +311,44 @@ int main(int argc, char *argv[]) {
     // }
 
     void* worker; 
-    if (mode == 0 || mode == 1) {
-        worker = mode == 0 ? empty_cs_worker : cs_worker;
-        for (int i = 0; i < nthreads; i++) {
-            pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
-        }
-        for (int i = 0; i < NUM_RUNS; i++) {
-            stop = 0;
-            pthread_barrier_wait(&global_barrier);
-            fprintf(stderr, "MEASUREMENTS RUN %d\n", i);
-            sleep(duration);
-            stop = 1;
-            pthread_barrier_wait(&global_barrier);
-        }
+    int num_mem_runs = 1;
+    // if (mode == 0 || mode == 1) {
+    worker = mode == 0 ? empty_cs_worker : mem_worker;
+    for (int i = 0; i < nthreads; i++) {
+        pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
     }
-    else {
+    if (mode == 2) {
         array = (double*) malloc(MAX_ARRAY_SIZE);
         if (!array) {
             fprintf(stderr, "Failed to allocate memory for size %llu bytes\n", MAX_ARRAY_SIZE);
         }
         memset(array, 0, MAX_ARRAY_SIZE); // Touch all pages to ensure allocation
-        worker = mem_worker;
-        for (int i = 0; i < nthreads; i++) {
-            pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
-        }
-        fprintf(stderr, "MEASUREMENTS\n");
+        num_mem_runs = NUM_MEM_RUNS;
+
     }
+    for (int i = 0; i < NUM_RUNS; i++) {
+        for (int k = 0; k < num_mem_runs; k++) {
+            stop = 0;
+            fprintf(stderr, "MEASUREMENTS RUN %d_%d\n", i, k);
+            pthread_barrier_wait(&global_barrier);
+            sleep(duration);
+            stop = 1;
+            pthread_barrier_wait(&global_barrier);
+        }
+    }
+    // }
+    // else {
+    //     array = (double*) malloc(MAX_ARRAY_SIZE);
+    //     if (!array) {
+    //         fprintf(stderr, "Failed to allocate memory for size %llu bytes\n", MAX_ARRAY_SIZE);
+    //     }
+    //     memset(array, 0, MAX_ARRAY_SIZE); // Touch all pages to ensure allocation
+    //     worker = mem_worker;
+    //     for (int i = 0; i < nthreads; i++) {
+    //         pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
+    //     }
+    //     fprintf(stderr, "MEASUREMENTS\n");
+    // }
 
     for (int i = 0; i < nthreads; i++) {
         pthread_join(tasks[i].thread, NULL);

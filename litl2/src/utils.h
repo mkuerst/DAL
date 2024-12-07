@@ -177,6 +177,7 @@ typedef struct rdma_connection {
 
 typedef struct rdma_thread {
     pthread_t thread;
+    int rdma;
     unsigned int server_tid;
     unsigned int client_tid;
     ull lock_impl_time[NUM_RUNS];

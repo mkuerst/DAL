@@ -45,14 +45,12 @@
 
 #endif /* ACN_RDMA_DEBUG */
 
-/* Capacity of the completion queue (CQ) */
 #define CQ_CAPACITY (16)
-/* MAX SGE capacity */
 #define MAX_SGE (2)
-/* MAX work requests */
 #define MAX_WR (8)
-/* Default port where the RDMA server is listening */
 #define DEFAULT_RDMA_PORT (20886)
+
+#define MESSAGE_SIZE 8
 
 /* resolves a given destination name to sin_addr */
 int get_addr(char *dst, struct sockaddr *addr);
