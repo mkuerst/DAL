@@ -28,7 +28,9 @@
 #include <stdint.h>
 #include "utils.h"
 
-size_t array_sizes[4] = {KB(256), MB(2), MB(16), MB(64)};
+// r630-11: 8 MB, 16 MB, 128 MB
+// r630-12: ???
+size_t array_sizes[NUM_MEM_RUNS] = {MB(8), MB(16), MB(128)};
 
 inline void *alloc_cache_align(size_t n) {
     void *res = 0;

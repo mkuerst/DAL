@@ -160,54 +160,46 @@ def plots_emptycs(CLIENT_DATA, SERVER_DATA={},  include_threads=[], DURATION=20)
         # output_path = file_dir+f"/plots/fairness_{nthreads}{orig}.png"
         # fig_fair.savefig(output_path, dpi=300, bbox_inches='tight')
 
-def plots_mem(CLIENT_DATA, SERVER_DATA, nthreads):
-    base_df = CLIENT_DATA["pthreadinterpose_original"][nthreads]
-    # MESSED UP THE ARRAY SIZE BY FACTOR 2 :S
-    base_df['array_size'] = base_df['array_size'] / 2
-    min_sz = base_df.min()["array_size"]
-    max_sz = base_df.max()["array_size"]
-    median_sz = base_df.median()["array_size"]
-    
-    fig, ax = plt.subplots(figsize=(10, 6))
-    bar_width = 0.5
-    offset = bar_width / 2
-    position = 0
-    x_positions = []
-    x_labels = []
+def plots_mem(CLIENT_DATA, SERVER_DATA, incl_threads):
+    for nthreads in incl_threads:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        bar_width = 0.3
+        offset = 1 / 3
+        position = 0
+        x_positions = []
+        x_labels = []
 
-    for impl in CLIENT_DATA:
-        position += 1
-        x_positions.append(position)
-        x_labels.append(impl)
-        df = CLIENT_DATA[impl][nthreads]
-        df['array_size'] = df['array_size'] / 2
-        min_sz = df.min()["array_size"]
-        max_sz = df.max()["array_size"]
-        median_sz = df.median()["array_size"]
-        max_dur = df.groupby("array_size")["total_duration"].max() * 1e6
-        avg_ops = df.groupby("array_size")["loop_in_cs"].mean()
-        tp = avg_ops / max_dur
-        tp1 = tp[min_sz]
-        tp2 = tp[median_sz]
-        tp3 = tp[max_sz]
-        # ax.bar(position-offset, tp1, width=bar_width, edgecolor='black', color="blue")
-        ax.bar(position-offset, tp2, width=bar_width, edgecolor='black', color="orange")
-        ax.bar(position+offset, tp3, width=bar_width, edgecolor='black', color="green")
-    
-    orig = "" if SERVER_DATA else "(ORIG)"
+        for impl in CLIENT_DATA:
+            df = CLIENT_DATA[impl][nthreads]
+            if df.empty:
+                continue
+            position += 1
+            x_positions.append(position)
+            x_labels.append(impl)
+            max_dur = df.groupby("array_size")["total_duration"].max() * 1e6
+            avg_ops = df.groupby("array_size")["loop_in_cs"].mean()
+            tp = avg_ops / max_dur
+            szs = df['array_size'].unique()
+            ax.bar(position-offset, tp[szs[0]], width=bar_width, edgecolor='black', color="orange")
+            ax.bar(position, tp[szs[1]], width=bar_width, edgecolor='black', color="green")
+            ax.bar(position+offset, tp[szs[2]], width=bar_width, edgecolor='black', color="blue")
+            # ax.bar(position, tp[szs[3]], width=bar_width, edgecolor='black', color="red")
+        
+        orig = "" if SERVER_DATA else "(ORIG)"
 
-    ax.set_xticks(x_positions)
-    ax.set_xticklabels(x_labels, rotation=45, ha='right')
-    ax.set_xlabel("Implementation")
-    ax.set_ylabel("TP (ops/ns)")
-    ax.set_title("Access Array w/ Varying Size TP"+orig)
-    # legend1 = mlines.Line2D([], [], color='blue', marker='o', linestyle='None', markersize=8, label=f"{min_sz} B")
-    legend2 = mlines.Line2D([], [], color='orange', marker='o', linestyle='None', markersize=8, label=f"{median_sz / 1024} KB")
-    legend3 = mlines.Line2D([], [], color='green', marker='o', linestyle='None', markersize=8, label=f"{max_sz / 1024**2} MB")
-    ax.legend(handles=[legend2, legend3])
-    ax.grid(linestyle="--", alpha=0.7)
-    output_path = file_dir+f"/plots/memtp_{nthreads}{orig}.png"
-    fig.savefig(output_path, dpi=300, bbox_inches='tight')
+        ax.set_xticks(x_positions)
+        ax.set_xticklabels(x_labels, rotation=45, ha='right')
+        ax.set_xlabel("Implementation")
+        ax.set_ylabel("TP (ops/ns)")
+        ax.set_title("Access Array w/ Varying Size TP"+orig)
+        # legend1 = mlines.Line2D([], [], color='orange', markersize=4, label=f"{szs[0] / 1024} KB")
+        # legend2 = mlines.Line2D([], [], color='green', markersize=4, label=f"{szs[1] / 1024**2} MB")
+        # legend3 = mlines.Line2D([], [], color='blue', markersize=4, label=f"{szs[2] / 1024**2} MB")
+        # legend4 = mlines.Line2D([], [], color='red', markersize=4, label=f"{szs[3] / 1024**2} MB")
+        # ax.legend(handles=[legend1, legend2, legend3, legend4])
+        ax.grid(linestyle="--", alpha=0.7)
+        output_path = file_dir+f"/plots/memtp_{nthreads}{orig}.png"
+        fig.savefig(output_path, dpi=300, bbox_inches='tight')
 
 file_dir = os.path.dirname(os.path.realpath(__file__))
 client_res_dir = os.path.dirname(os.path.realpath(__file__))+"/results/disaggregated/client/*/empty_cs/"
@@ -234,9 +226,9 @@ ORIG_DATA_MEM = {}
 CD = {}
 DURATION = 30. # sec
 inc_thr_disa = [1, 8, 16]
+inc_thr_disa_mem = [16]
 inc_thr_orig = [1, 16, 32]
-max_nthread_disa = 16
-max_nthread_orig = 32
+inc_thr_orig_mem = [16, 32]
 
 read_data_emptycs(CLIENT_DATA_EMPTYCS, client_res_dir)
 read_data_emptycs(SERVER_DATA_EMPTYCS, server_res_dir)
@@ -249,5 +241,5 @@ read_data_mem(ORIG_DATA_MEM, orig_res_dir_mem)
 # plots_emptycs(CLIENT_DATA=CLIENT_DATA_EMPTYCS, SERVER_DATA=SERVER_DATA_EMPTYCS, include_threads=inc_thr_disa, DURATION=DURATION)
 # plots_emptycs(CLIENT_DATA=ORIG_DATA_EMPTYCS, SERVER_DATA={}, include_threads=inc_thr_orig, DURATION=DURATION)
 
-plots_mem(CLIENT_DATA_MEM, SERVER_DATA_MEM, max_nthread_disa)
-plots_mem(ORIG_DATA_MEM, {}, max_nthread_orig)
+# plots_mem(CLIENT_DATA_MEM, SERVER_DATA_MEM, max_nthread_disa)
+plots_mem(ORIG_DATA_MEM, {}, inc_thr_orig_mem)

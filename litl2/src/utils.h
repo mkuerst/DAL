@@ -71,22 +71,22 @@
 
 // MICROBENCH PARAMS
 /**************************************************************************************/
-#define NUM_RUNS 5
+#define NUM_RUNS 2
 #ifndef CACHELINE_SIZE
 #define CACHELINE_SIZE 64
 #endif
-/**************************************************************************************/
-// #define LOG2(x) ((x) <= 1 ? 0 : 1 + LOG2((x) / 2))
 
 #define KB(x) ((x) * 1024L)
 #define MB(x) (KB(x) * 1024L)
 #define GB(x) (MB(x) * 1024L)
-// CACHE: L1: 512 KiB | L2: 4 MiB | L3: 40 MiB
+// CACHE: L1: 512 KiB (x16 instances) | L2: 4 MiB (x16 instances) | L3: 40 MiB (x2 instances)
 // 256 KiB -*8> 2 MiB -*8> 16 -*4>
 #define MAX_ARRAY_SIZE MB(64L)
-#define NUM_MEM_RUNS 4 
+#define NUM_MEM_RUNS 3 
+#define NUM_LAT_RUNS 10
 
-extern size_t array_sizes[4];
+extern size_t array_sizes[NUM_MEM_RUNS];
+/**************************************************************************************/
 
 #define _error(msg, args...) do {\
 	fprintf(stderr, "\033[1;31m%s : %d : ERROR : \033[0m"msg, __FILE__, __LINE__, ## args);\
@@ -131,6 +131,10 @@ typedef struct {
     ull lock_hold[NUM_RUNS][NUM_MEM_RUNS];
     ull wait_acq[NUM_RUNS][NUM_MEM_RUNS];
     ull wait_rel[NUM_RUNS][NUM_MEM_RUNS];
+    // LATENCY MEASUREMENTS
+    ull lat_lock_hold[NUM_RUNS][NUM_LAT_RUNS];
+    ull lat_wait_acq[NUM_RUNS][NUM_LAT_RUNS];
+    ull lat_wait_rel[NUM_RUNS][NUM_LAT_RUNS];
     size_t array_size[NUM_RUNS][NUM_MEM_RUNS];
 } task_t __attribute__ ((aligned (CACHELINE_SIZE)));
 

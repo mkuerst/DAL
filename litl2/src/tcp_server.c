@@ -66,8 +66,8 @@ void *run_lock_impl(void *_arg)
                 pthread_mutex_unlock(&mutex);
                 thread->lock_impl_time[j] += rdtscp() - now;
                 DEBUG("Released lock on server for thread %d\n", id);
-                if ((ret = send(client_socket, released_msg, strlen(released_msg), 0)) < 0)
-                    tcp_client_error(client_socket, "lock acquisition notice failed for thread %d", id);
+                // if ((ret = send(client_socket, released_msg, strlen(released_msg), 0)) < 0)
+                //     tcp_client_error(client_socket, "lock acquisition notice failed for thread %d", id);
             }
             else if (cmd == 'd') {
                 j++;
