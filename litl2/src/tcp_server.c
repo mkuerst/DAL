@@ -49,7 +49,7 @@ void *run_lock_impl(void *_arg)
             DEBUG("Thread on server thread %d disconnected: socket fd %d\n", server_tid, client_socket);
             close(client_socket);
             pthread_exit(EXIT_SUCCESS);
-        }
+        } 
 
         DEBUG("Server %d Received message on socket %d: %s\n", server_tid, client_socket, buffer);
         char cmd;
@@ -70,9 +70,9 @@ void *run_lock_impl(void *_arg)
                 thread->lock_impl_time[j][l] += rdtscp() - now;
                 if (mode == 1)
                     l++;
+                if ((ret = send(client_socket, released_msg, strlen(released_msg), 0)) < 0)
+                    tcp_client_error(client_socket, "lock acquisition notice failed for thread %d", id);
                 DEBUG("Released lock on server for thread %d\n", id);
-                // if ((ret = send(client_socket, released_msg, strlen(released_msg), 0)) < 0)
-                //     tcp_client_error(client_socket, "lock acquisition notice failed for thread %d", id);
             }
             else if (cmd == 'd') {
                 j++;
@@ -83,6 +83,7 @@ void *run_lock_impl(void *_arg)
             }
         } else {
             DEBUG("Failed to parse the string from thread %d, got: %s\n", id, buffer);
+            continue;
         }
         memset(buffer, 0, BUFFER_SIZE);
     }
@@ -120,9 +121,9 @@ int main(int argc, char *argv[]) {
     }
 
     // Set the server socket to non-blocking mode
-    if (fcntl(server_fd, F_SETFL, O_NONBLOCK) < 0) {
-        tcp_error("Setting server socket to non-blocking failed");
-    }
+    // if (fcntl(server_fd, F_SETFL, O_NONBLOCK) < 0) {
+    //     tcp_error("Setting server socket to non-blocking failed");
+    // }
 
     // Start listening for connections
     if (listen(server_fd, SOMAXCONN) == -1) {
@@ -159,6 +160,10 @@ int main(int argc, char *argv[]) {
                     tcp_error("Accept failed");
                     continue;
                 }
+                // int flag = 1;
+                // setsockopt(client_fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
+                // int optval = 1;
+                // setsockopt(client_fd, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval));
 
                 fprintf(stderr, "New connection: socket fd %d, IP %s, port %d, thread %d\n",
                        client_fd, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port), cur_thread_id+1);
@@ -185,7 +190,6 @@ int main(int argc, char *argv[]) {
     }
 
     for (int i = 0; i < nthreads; i++) {
-        fprintf(stderr, "Joining thread %d (pthread_t: %ld)\n", i, (long)threads[i].thread);
         pthread_join(threads[i].thread, NULL);
     }
     for (int j = 0; j < NUM_RUNS; j++) {

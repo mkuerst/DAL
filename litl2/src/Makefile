@@ -7,7 +7,7 @@ CACHELINE_SIZE:=$(shell cat /sys/devices/system/cpu/cpu0/cache/index0/coherency_
 
 # LOCAL MACHINE
 LDFLAGS=-L../obj/CLHT/external/lib -L../obj/CLHT -Wl,--whole-archive -Wl,--version-script=interpose.map -lsspfd -lssmem -lclht -Wl,--no-whole-archive  -lrt -lm -ldl -lpapi -m64 -pthread -lrdmacm -libverbs -lnuma
-CFLAGS=-I../include/ -I/usr/include/rdma/ -I../obj/CLHT/include/ -I../obj/CLHT/external/include/ -fPIC -Wall -O0 -g -DCACHELINE_SIZE=$(CACHELINE_SIZE) -DRDMA_DEBUG -DTCP -DDEBUG
+CFLAGS=-I../include/ -I/usr/include/rdma/ -I../obj/CLHT/include/ -I../obj/CLHT/external/include/ -fPIC -Wall -O0 -g -DCACHELINE_SIZE=$(CACHELINE_SIZE) -DRDMA_DEBUG -DTCP #-DDEBUG
 
 # SFLAGS=-I../include/ -I/usr/include/rdma/ -fPIC -Wall -O2 -g
 SLDFLAGS=-lrdmacm -libverbs -lnuma -pthread -ldl

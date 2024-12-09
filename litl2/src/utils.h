@@ -119,7 +119,7 @@ typedef struct {
     volatile int *stop;
     volatile ull *global_its;
     pthread_t thread;
-    int rdma;
+    char rdma;
     int priority;
     int id;
     double cs;

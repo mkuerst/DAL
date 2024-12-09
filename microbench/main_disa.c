@@ -193,10 +193,10 @@ void *mem_worker(void *arg) {
                 lock_acquires++;
                 for (int x = 0; x < repeat; x++) {
                     for (size_t k = 0; k < array_size; k += CACHELINE_SIZE) {
-                        sum += array[k];
-                        loop_in_cs++;
                         if(*task->stop)
                             break;
+                        sum += array[k];
+                        loop_in_cs++;
                     }
                 }
                 ull rel_start = rdtscp();
@@ -214,10 +214,10 @@ void *mem_worker(void *arg) {
             // task->duration[i][j] = duration;
             task->wait_acq[i][j] = wait_acq;
             task->wait_rel[i][j] = wait_rel;
-            // run_complete(task->sockfd, task_id);
-            // sleep(3);
             pthread_barrier_wait(&global_barrier);
         }
+        run_complete(task->sockfd, task_id);
+        sleep(3);
     }
     // fprintf(stderr,"FINISHED tid %d\n", task->id);
     return 0;
@@ -298,7 +298,7 @@ int main(int argc, char *argv[]) {
     double long_cs = duration * 1e6 / 100.;
     // int stop_warmup __attribute__((aligned (CACHELINE_SIZE))) = 0;
     for (int i = 0; i < nthreads; i++) {
-        tasks[i].rdma = 1;
+        tasks[i].rdma = 'y';
         tasks[i].stop = &stop;
         tasks[i].global_its = &global_its;
         tasks[i].cs = cs == 0 ? (i%2 == 0 ? short_cs : long_cs) : cs;
@@ -361,7 +361,6 @@ int main(int argc, char *argv[]) {
         pthread_join(tasks[i].thread, NULL);
     }
     cs_result_to_out(tasks, nthreads, mode);
-    // free(array);
     // WAIT SO SERVER CAN SHUTDOWN
     sleep(2);
     fprintf(stderr, "DONE\n");

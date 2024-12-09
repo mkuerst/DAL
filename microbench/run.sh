@@ -4,9 +4,9 @@
 #LOCAL
 REMOTE_USER="mihi"
 REMOTE_HOST="localhost"
-# server_ip=10.5.12.168
+server_ip=10.5.12.168
 # HOME
-server_ip=192.168.1.70
+# server_ip=192.168.1.70
 
 #CLUSTER
 # REMOTE_USER="kumichae"
@@ -36,7 +36,7 @@ nthreads=$(nproc)
 # ncpu=$(lscpu | grep "^Core(s) per socket" | awk '{print $4}')
 # nnodes=$(lscpu | grep -oP "NUMA node\(s\):\s+\K[0-9]+")
 # echo "nthreads: $nthreads | nsockets: $nsockets | cpu_per_socket: $ncpu | nnodes: $nnodes"
-duration=2
+duration=20
 critical=1000
 
 file_header="tid,loop_in_cs,lock_acquires,lock_hold(ms),total_duration(s),wait_acq(ms),wait_rel(ms),array_size(B),lat_lock_hold(ms),lat_wait_acq(ms),lat_wait_rel(ms)"

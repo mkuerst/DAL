@@ -11,6 +11,9 @@
 #include "utils.h"
 #include <numa.h>
 #include <sched.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/tcp.h>
 
 #define SERVER_PORT 8080
 #define MAX_EVENTS 1000

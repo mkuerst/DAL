@@ -42,6 +42,8 @@ int establish_tcp_connection(unsigned int tid, char* addr) {
 
     DEBUG("Thread %d: Connected to server.\n", tid);
 
+    // int flag = 1;
+    // setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
     return sock;
 }
 
@@ -58,7 +60,7 @@ int request_lock(int sockfd, int tid)
     DEBUG("Thread %d requests the lock: %s on socket %d\n", tid, msg, sockfd);
     if ((ret = send(sockfd, msg, BUFFER_SIZE, 0)) < 0)
         tcp_client_error(sockfd, "Thread %d failed at sending lock request\n", tid);
-    
+
     if ((ret = read(sockfd, buffer, BUFFER_SIZE)) < 0)
         tcp_client_error(sockfd, "Thread %d failed at receiving answer for lock request\n", tid);
     
@@ -77,8 +79,8 @@ int release_lock(int sockfd, int tid)
     if ((ret = send(sockfd, msg, strlen(msg), 0)) < 0)
         tcp_client_error(sockfd, "Thread %d failed at releasing lock\n", tid);
 
-    // if ((ret = read(sockfd, buffer, BUFFER_SIZE)) < 0)
-    //     tcp_client_error(sockfd, "Thread %d failed at receiving answer for lock request\n", tid);
+    if ((ret = read(sockfd, buffer, BUFFER_SIZE)) < 0)
+        tcp_client_error(sockfd, "Thread %d failed at receiving answer for lock request\n", tid);
 
     // if (strcmp(buffer, "released lock") == 0) {
     //     tcp_client_error(sockfd, "Thread %d expected released msg, got '%s'\n", tid, buffer);

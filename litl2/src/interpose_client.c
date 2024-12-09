@@ -103,7 +103,7 @@
 // See empty.c for example.
 
 __thread unsigned int cur_thread_id;
-__thread int rdma;
+__thread char rdma;
 unsigned int last_thread_id;
 __thread int sockfd;
 int cur_turn = 1;
@@ -409,11 +409,11 @@ static void *lp_start_routine(void *_arg) {
     } 
 #ifdef TCP
     sockfd = establish_tcp_connection(task_id, task->server_ip);
-    // fprintf(stderr, "thread %d return from establish connec call\n", cur_thread_id);
     if(sockfd < 0) {
         tcp_error("Thread %d failed at establishing tcp connection", cur_thread_id);
     }
     task->sockfd = sockfd;
+    // DEBUG("Thread %d connected to TCP server\n", cur_thread_id);
 #else
     while (cur_thread_id != cur_turn) {
         CPU_PAUSE();
@@ -426,7 +426,7 @@ static void *lp_start_routine(void *_arg) {
     }
     DEBUG("Thread %d connected to RDMA server\n", cur_thread_id);
 #endif
-    //     lock_thread_start();
+    // lock_thread_start();
     res = fct(arg);
     // lock_thread_exit();
     return res;
@@ -445,7 +445,7 @@ int __pthread_create(pthread_t *thread, const pthread_attr_t *attr,
     // These should still use the standard linux implementation to work!
     task_t *rdma_arg = (task_t *) arg;
     rdma = rdma_arg->rdma;
-    if (rdma != 1) {
+    if (rdma != 'y') {
         DEBUG("Creating cm thread %d\n", cur_thread_id);
         return REAL(pthread_create)(thread, attr, start_routine, arg);
     }
