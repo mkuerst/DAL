@@ -21,11 +21,12 @@ void *run_lock_impl(void *_arg)
     thread_data* thread = (thread_data*) _arg;
     int client_socket = thread->sockfd;
     int server_tid = thread->server_tid;
+    int task_id = thread->task_id;
     int j = 0;
     int l = 0;
     int mode = thread->mode;
 
-    pin_thread(server_tid-1);
+    pin_thread(task_id);
     char buffer[BUFFER_SIZE];
     memset(buffer, 0, BUFFER_SIZE);
 
@@ -160,6 +161,14 @@ int main(int argc, char *argv[]) {
                     tcp_error("Accept failed");
                     continue;
                 }
+                char buffer[32] = {0};
+                read(client_fd, buffer, sizeof(buffer));
+                int task_id;
+                if (sscanf(buffer, "%d", &task_id) == 1) {
+                    fprintf(stderr, "Received task_id %d\n", task_id);
+                } else {
+                    tcp_error("Failed to extract task_id for cur_thread_id %d.\n", cur_thread_id);
+                }
                 // int flag = 1;
                 // setsockopt(client_fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
                 // int optval = 1;
@@ -177,6 +186,7 @@ int main(int argc, char *argv[]) {
                 }
                 threads[cur_thread_id].sockfd = client_fd;
                 threads[cur_thread_id].server_tid = cur_thread_id+1;
+                threads[cur_thread_id].task_id = task_id;
                 threads[cur_thread_id].mode = mode;
                 for (int j = 0; j < NUM_RUNS; j++) {
                     for (int l = 0; l < NUM_LAT_RUNS; l++) {

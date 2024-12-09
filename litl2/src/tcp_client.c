@@ -36,11 +36,17 @@ int establish_tcp_connection(unsigned int tid, char* addr) {
         sleep(0.5);
         try++;
     }
-
     if (try == max_tries) 
         tcp_client_error(sock, "Thread %d failed at connecting\n", tid);
 
     DEBUG("Thread %d: Connected to server.\n", tid);
+
+    char msg[BUFFER_SIZE];
+    memset(msg, 0, BUFFER_SIZE);
+    int ret = 0;
+    sprintf(msg, "%d", tid);
+    if ((ret = send(sock, msg, BUFFER_SIZE, 0)) < 0)
+        tcp_client_error(sock, "Thread %d failed at sending task_id\n", tid);
 
     // int flag = 1;
     // setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));

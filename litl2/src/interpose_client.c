@@ -407,6 +407,9 @@ static void *lp_start_routine(void *_arg) {
                 MAX_THREADS);
         exit(-1);
     } 
+    while (cur_thread_id != cur_turn) {
+        CPU_PAUSE();
+    }
 #ifdef TCP
     sockfd = establish_tcp_connection(task_id, task->server_ip);
     if(sockfd < 0) {
@@ -415,17 +418,14 @@ static void *lp_start_routine(void *_arg) {
     task->sockfd = sockfd;
     // DEBUG("Thread %d connected to TCP server\n", cur_thread_id);
 #else
-    while (cur_thread_id != cur_turn) {
-        CPU_PAUSE();
-    }
     int ret = establish_rdma_connection(task_id, task->server_ip);
-    cur_turn++;
     if(ret < 0) {
         rdma_error("Thread %d failed at establishing rdma connection\n", cur_thread_id);
         exit(-1);
     }
     DEBUG("Thread %d connected to RDMA server\n", cur_thread_id);
 #endif
+    cur_turn++;
     // lock_thread_start();
     res = fct(arg);
     // lock_thread_exit();

@@ -143,6 +143,7 @@ typedef struct thread_data {
     pthread_t thread;
     unsigned int server_tid;
     unsigned int client_tid;
+    int task_id;
     int sockfd;
     int mode;
     ull lock_impl_time[NUM_RUNS][NUM_LAT_RUNS];
