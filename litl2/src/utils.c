@@ -61,7 +61,7 @@ inline int pin_thread(unsigned int id) {
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);
         CPU_SET(cpu_id, &cpuset);
-        DEBUG(stderr, "pinning thread %d to cpu %d\n", id, cpu_id);
+        DEBUG("pinning thread %d to cpu %d\n", id, cpu_id);
         int ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
         if (ret != 0) {
             _error("pthread_set_affinity_np failed for thread %d to cpu %d", id, cpu_id);

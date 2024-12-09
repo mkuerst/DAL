@@ -124,7 +124,7 @@ void *run_lock_impl(void *_arg)
 						rdma_error("Thread %d failed to send lock grant, ret = %d \n", tid, ret);
 						exit(EXIT_FAILURE);
 					}
-					DEBUG("Granted lock to thread %d over socket %d\n", id, client_socket);
+					DEBUG("Granted lock to thread %d\n", id);
 				}
 				else if (cmd == 'r') {
 					ull now = rdtscp();

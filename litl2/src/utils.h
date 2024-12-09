@@ -60,10 +60,11 @@
 #define UNUSED(x) x
 #endif
 
-#ifndef DEBUG
-#define DEBUG(...)
-#else
+#ifdef DEBUG
+#undef DEBUG
 #define DEBUG(...)                        fprintf(stderr, ## __VA_ARGS__)
+#else
+#define DEBUG(...)
 #endif
 
 // #define DEBUG_PTHREAD(...)                        fprintf(stderr, ## __VA_ARGS__)
@@ -143,7 +144,8 @@ typedef struct thread_data {
     unsigned int server_tid;
     unsigned int client_tid;
     int sockfd;
-    ull lock_impl_time[NUM_RUNS];
+    int mode;
+    ull lock_impl_time[NUM_RUNS][NUM_LAT_RUNS];
 } thread_data;
 
 /* 

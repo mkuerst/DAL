@@ -92,14 +92,10 @@ void *lat_worker(void *arg) {
     pin_thread(task_id);
     ull now, start, end;
     ull lock_acquires;
-    ull lock_hold;
-    ull loop_in_cs;
 
     for (int i = 0; i < NUM_RUNS; i++) {
         pthread_barrier_wait(&global_barrier);
         lock_acquires = 0;
-        lock_hold = 0;
-        loop_in_cs = 0;
 
         for (int j = 0; j < NUM_LAT_RUNS; j++) {
                 start = rdtscp();
@@ -108,10 +104,9 @@ void *lat_worker(void *arg) {
                 task->lat_wait_acq[i][j] = now - start;
                 lock_acquires++;
                 end = rdtscp();
-                lock_hold = end - now;
+                task->lat_lock_hold[i][j] = end - now;
                 lock_release(&lock);
                 task->lat_wait_rel[i][j] = rdtscp() - end;
-                task->lat_lock_hold[i][j] = lock_hold;
         }
         pthread_barrier_wait(&global_barrier);
     }
@@ -235,33 +230,41 @@ void *mem_worker(void *arg) {
 // }
 
 int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
-    int mem_runs = NUM_MEM_RUNS;
-    if (mode != 2)
-       mem_runs = 1; 
+    int mem_runs = mode == 2 ? NUM_MEM_RUNS : 1;
+    int lat_runs = mode == 1 ? NUM_LAT_RUNS : 1;
+    float cycle_to_ms = (float) (CYCLE_PER_US * 1e3);
     for (int j = 0; j < NUM_RUNS; j++) {
         float total_lock_hold = 0;
         ull total_lock_acq = 0;
         printf("RUN %d\n", j);
         for (int i = 0; i < nthreads; i++) {
             for (int k = 0; k < mem_runs; k++) {
-                task_t task = (task_t) tasks[i];
-                float lock_hold = task.lock_hold[j][k] / (float) (CYCLE_PER_US * 1000);
-                float wait_acq = task.wait_acq[j][k] / (float) (CYCLE_PER_US * 1000);
-                float wait_rel = task.wait_rel[j][k] / (float) (CYCLE_PER_US * 1000);
-                float total_duration = (float) task.duration[j][k];
-                size_t array_size = task.array_size[j][k];
-                total_lock_hold += lock_hold;
-                total_lock_acq += task.lock_acquires[j][k];
-                printf("%03d,%10llu,%8llu,%12.6f,%12.6f,%12.6f,%12.6f,%16lu\n",
-                        task.id,
-                        task.loop_in_cs[j][k],
-                        task.lock_acquires[j][k],
-                        lock_hold,
-                        total_duration,
-                        wait_acq,
-                        wait_rel,
-                        array_size
-                        );
+                for (int l = 0; l < lat_runs; l++) {
+                    task_t task = (task_t) tasks[i];
+                    float lock_hold = task.lock_hold[j][k] / (float) cycle_to_ms;
+                    float wait_acq = task.wait_acq[j][k] / (float) cycle_to_ms;
+                    float wait_rel = task.wait_rel[j][k] / (float) cycle_to_ms;
+                    float lat_lock_hold = task.lat_lock_hold[j][l] / (float) cycle_to_ms;
+                    float lat_wait_acq = task.lat_wait_acq[j][l] / (float) cycle_to_ms;
+                    float lat_wait_rel = task.lat_wait_rel[j][l] / (float) cycle_to_ms;
+                    float total_duration = (float) task.duration[j][k];
+                    size_t array_size = task.array_size[j][k];
+                    total_lock_hold += lock_hold;
+                    total_lock_acq += task.lock_acquires[j][k];
+                    printf("%03d,%10llu,%8llu,%12.6f,%12.6f,%12.6f,%12.6f,%16lu,%12.6f,%12.6f,%12.6f\n",
+                            task.id,
+                            task.loop_in_cs[j][k],
+                            task.lock_acquires[j][k],
+                            lock_hold,
+                            total_duration,
+                            wait_acq,
+                            wait_rel,
+                            array_size,
+                            lat_lock_hold,
+                            lat_wait_acq,
+                            lat_wait_rel
+                            );
+                }
             }
         }
         printf("-------------------------------------------------------------------------------------------------------\n\n");
@@ -301,6 +304,11 @@ int main(int argc, char *argv[]) {
         // tasks[i].priority = priority;
 
         for (int j = 0 ; j < NUM_RUNS; j++) {
+            for (int l = 0; l < NUM_LAT_RUNS; l++) {
+                tasks[i].lat_lock_hold[j][l] = 0;
+                tasks[i].lat_wait_acq[j][l] = 0;
+                tasks[i].lat_wait_rel[j][l] = 0;
+            }
             for (int k = 0; k < NUM_MEM_RUNS; k++) {
                 tasks[i].duration[j][k] = duration;
                 tasks[i].loop_in_cs[j][k] = 0;

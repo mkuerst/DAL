@@ -14,6 +14,7 @@
 struct thread_data threads[MAX_THREADS];
 pthread_mutex_t mutex;
 int cur_thread_id = 0;
+int mode;
 
 void *run_lock_impl(void *_arg)
 {
@@ -21,6 +22,8 @@ void *run_lock_impl(void *_arg)
     int client_socket = thread->sockfd;
     int server_tid = thread->server_tid;
     int j = 0;
+    int l = 0;
+    int mode = thread->mode;
 
     pin_thread(server_tid-1);
     char buffer[BUFFER_SIZE];
@@ -56,7 +59,7 @@ void *run_lock_impl(void *_arg)
                 thread->client_tid = id;
                 ull now = rdtscp();
                 pthread_mutex_lock(&mutex);
-                thread->lock_impl_time[j] += rdtscp() - now;
+                thread->lock_impl_time[j][l] += rdtscp() - now;
                 if ((ret = send(client_socket, granted_msg, strlen(granted_msg), 0)) < 0)
                     tcp_client_error(client_socket, "lock acquisition notice failed for thread %d", id);
                 DEBUG("Granted lock to thread %d over socket %d\n", id, client_socket);
@@ -64,13 +67,16 @@ void *run_lock_impl(void *_arg)
             else if (cmd == 'r') {
                 ull now = rdtscp();
                 pthread_mutex_unlock(&mutex);
-                thread->lock_impl_time[j] += rdtscp() - now;
+                thread->lock_impl_time[j][l] += rdtscp() - now;
+                if (mode == 1)
+                    l++;
                 DEBUG("Released lock on server for thread %d\n", id);
                 // if ((ret = send(client_socket, released_msg, strlen(released_msg), 0)) < 0)
                 //     tcp_client_error(client_socket, "lock acquisition notice failed for thread %d", id);
             }
             else if (cmd == 'd') {
                 j++;
+                l = 0;
                 DEBUG("Received run complete from thread %d\n", id);
                 // if ((ret = send(client_socket, ok_msg, strlen(ok_msg), 0)) < 0)
                 //     tcp_client_error(client_socket, "lock acquisition notice failed for thread %d", id);
@@ -84,6 +90,8 @@ void *run_lock_impl(void *_arg)
 
 int main(int argc, char *argv[]) {
     int nthreads = atoi(argv[1]);
+    mode = atoi(argv[2]);
+    int lat_runs = mode == 1 ? NUM_LAT_RUNS : 1;
     int server_fd, client_fd, epoll_fd;
     struct sockaddr_in server_addr, client_addr;
     socklen_t addr_len = sizeof(client_addr);
@@ -164,8 +172,11 @@ int main(int argc, char *argv[]) {
                 }
                 threads[cur_thread_id].sockfd = client_fd;
                 threads[cur_thread_id].server_tid = cur_thread_id+1;
+                threads[cur_thread_id].mode = mode;
                 for (int j = 0; j < NUM_RUNS; j++) {
-                    threads[cur_thread_id].lock_impl_time[j] = 0;
+                    for (int l = 0; l < NUM_LAT_RUNS; l++) {
+                        threads[cur_thread_id].lock_impl_time[j][l] = 0;
+                    }
                 }
                 pthread_create(&threads[cur_thread_id].thread, NULL, run_lock_impl, &threads[cur_thread_id]);
                 cur_thread_id++;
@@ -173,14 +184,16 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    for (int i = 0; i < cur_thread_id; i++) {
+    for (int i = 0; i < nthreads; i++) {
+        fprintf(stderr, "Joining thread %d (pthread_t: %ld)\n", i, (long)threads[i].thread);
         pthread_join(threads[i].thread, NULL);
     }
     for (int j = 0; j < NUM_RUNS; j++) {
         printf("RUN %d\n", j);
-        for (int i = 0; i < cur_thread_id; i++) {
+        for (int i = 0; i < nthreads; i++) {
             thread_data thread = (thread_data) threads[i];
-            printf("%03d,%10.3f\n", thread.client_tid, thread.lock_impl_time[j] / (float) (CYCLE_PER_US * 1000));
+            for (int l = 0; l < lat_runs; l++)
+            printf("%03d,%10.6f\n", thread.client_tid, thread.lock_impl_time[j][l] / (float) (CYCLE_PER_US * 1000));
         }
         printf("-----------------------------------------------------------------------------------------------\n\n");
     }

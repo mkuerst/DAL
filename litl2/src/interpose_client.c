@@ -485,15 +485,14 @@ int pthread_mutex_destroy(pthread_mutex_t *mutex) {
 int pthread_mutex_lock(pthread_mutex_t *mutex) {
     DEBUG_PTHREAD("[p] pthread_mutex_lock\n");
 #ifdef TCP
-    request_lock(sockfd, cur_thread_id);
+    return request_lock(sockfd, cur_thread_id);
 #endif
     if (rdma != 1) {
         DEBUG("CM thread trying to acquire lock as thread %d\n", cur_thread_id);
         return REAL(pthread_mutex_lock)(mutex);
     }
     else
-        rdma_request_lock();
-    return 0;
+        return rdma_request_lock();
 }
 
 int pthread_mutex_timedlock(pthread_mutex_t *mutex,
