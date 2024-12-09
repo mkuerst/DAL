@@ -162,12 +162,15 @@ int main(int argc, char *argv[]) {
                     continue;
                 }
                 char buffer[32] = {0};
-                read(client_fd, buffer, sizeof(buffer));
+                int bytes_read = read(client_fd, buffer, sizeof(buffer));
+                if (bytes_read < 0) {
+                    tcp_client_error(client_fd, "Server @ cur_thread_id %d failed at receving task_id", cur_thread_id);
+                }
                 int task_id;
                 if (sscanf(buffer, "%d", &task_id) == 1) {
-                    fprintf(stderr, "Received task_id %d\n", task_id);
+                    DEBUG("Received task_id %d\n", task_id);
                 } else {
-                    tcp_error("Failed to extract task_id for cur_thread_id %d.\n", cur_thread_id);
+                    tcp_client_error(client_fd, "Failed to extract task_id for cur_thread_id %d.\n", cur_thread_id);
                 }
                 // int flag = 1;
                 // setsockopt(client_fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
