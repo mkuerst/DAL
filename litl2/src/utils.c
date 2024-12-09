@@ -73,3 +73,12 @@ inline int pin_thread(unsigned int id) {
     }
     return 0;
 }
+
+inline int current_numa_node() {
+    unsigned long a, d, c;
+    int core;
+    __asm__ volatile("rdtscp" : "=a"(a), "=d"(d), "=c"(c));
+    core = c & 0xFFF;
+    // return core / (CPU_NUMBER / NUMA_NODES);
+    return core % 2;
+}

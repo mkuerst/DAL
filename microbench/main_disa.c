@@ -46,7 +46,7 @@ int set_prio(int prio) {
 //     ull lock_hold;
 //     ull loop_in_cs;
 
-//     const ull delta = CYCLE_PER_US * task->cs;
+//     const ull delta = CYCLES_11 * task->cs;
 
 //     for (int i = 0; i < NUM_RUNS; i++) {
 //         lock_acquires = 0;
@@ -238,7 +238,7 @@ void *mem_worker(void *arg) {
 int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
     int mem_runs = mode == 2 ? NUM_MEM_RUNS : 1;
     int lat_runs = mode == 1 ? NUM_LAT_RUNS : 1;
-    float cycle_to_ms = (float) (CYCLE_PER_US * 1e3);
+    float cycle_to_ms = (float) (CYCLES_11 * 1e3);
     for (int j = 0; j < NUM_RUNS; j++) {
         float total_lock_hold = 0;
         ull total_lock_acq = 0;

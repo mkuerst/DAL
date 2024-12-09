@@ -56,13 +56,13 @@
 extern __thread unsigned int cur_thread_id;
 
 // To get the process id, use rdtscp
-static inline int current_numa_node() {
-    unsigned long a, d, c;
-    int core;
-    __asm__ volatile("rdtscp" : "=a"(a), "=d"(d), "=c"(c));
-    core = c & 0xFFF;
-    return core / (CPU_NUMBER / NUMA_NODES);
-}
+// static inline int current_numa_node() {
+//     unsigned long a, d, c;
+//     int core;
+//     __asm__ volatile("rdtscp" : "=a"(a), "=d"(d), "=c"(c));
+//     core = c & 0xFFF;
+//     return core / (CPU_NUMBER / NUMA_NODES);
+// }
 
 static int __mcs_mutex_lock(mcs_mutex_t *impl, mcs_node_t *me) {
     mcs_node_t *tail;

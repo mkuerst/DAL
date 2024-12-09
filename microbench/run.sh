@@ -2,16 +2,16 @@
 # args: duration(s), cs(us), 
 
 #LOCAL
-REMOTE_USER="mihi"
-REMOTE_HOST="localhost"
-server_ip=10.5.12.168
+# REMOTE_USER="mihi"
+# REMOTE_HOST="localhost"
+# server_ip=10.5.12.168
 # HOME
 # server_ip=192.168.1.70
 
 #CLUSTER
-# REMOTE_USER="kumichae"
-# REMOTE_HOST="r630-12"
-# server_ip=10.233.0.21
+REMOTE_USER="kumichae"
+REMOTE_HOST="r630-12"
+server_ip=10.233.0.21
 
 eval "$(ssh-agent -s)"
 ssh_key="/home/mihi/.ssh/id_ed25519_localhost"
@@ -28,7 +28,7 @@ server_suffix="_server.so"
 server_libs_dir=$BASE"/server/"
 client_libs_dir=$BASE"/client/"
 orig_libs_dir=$BASE"/original/"
-microbenches=("empty_cs" "cs" "mem")
+microbenches=("empty_cs" "lat" "mem")
 
 # MICROBENCH INPUTS
 nthreads=$(nproc)
@@ -36,7 +36,7 @@ nthreads=$(nproc)
 # ncpu=$(lscpu | grep "^Core(s) per socket" | awk '{print $4}')
 # nnodes=$(lscpu | grep -oP "NUMA node\(s\):\s+\K[0-9]+")
 # echo "nthreads: $nthreads | nsockets: $nsockets | cpu_per_socket: $ncpu | nnodes: $nnodes"
-duration=20
+duration=0
 critical=1000
 
 file_header="tid,loop_in_cs,lock_acquires,lock_hold(ms),total_duration(s),wait_acq(ms),wait_rel(ms),array_size(B),lat_lock_hold(ms),lat_wait_acq(ms),lat_wait_rel(ms)"
@@ -49,7 +49,7 @@ do
     client_so=${client_libs_dir}${impl}$client_suffix
     server_so=${server_libs_dir}${impl}$server_suffix
     orig_so=${orig_libs_dir}${impl}.so
-    for j in 2 
+    for j in 1 
     do
         microb="${microbenches[$j]}"
         client_res_dir="./results/disaggregated/client/$impl/$microb"
@@ -62,7 +62,7 @@ do
         mkdir -p "$log_dir"
 
         # for ((i=1; i<=nthreads; i*=2))
-        for i in 16
+        for i in 1 8 16
         do
             client_res_file="$client_res_dir"/nthread_"$i".csv
             server_res_file="$server_res_dir"/nthread_"$i".csv
@@ -78,7 +78,7 @@ do
             # gnome-terminal -- bash -c "ssh $REMOTE_USER@$REMOTE_HOST -i $ssh_key 'LD_PRELOAD=$server_so $tcp_server_app $i' >> $server_res_file"
 
             sleep 5
-            echo "START MICROBENCH CLIENT WITH $i THREADS"
+            echo "START MICROBENCH $microb CLIENT WITH $i THREADS"
             LD_PRELOAD=$client_so ./main_disa $i $duration $critical $server_ip $j >> $client_res_file
             # LD_PRELOAD=$orig_so ./main_orig $i $duration $critical $server_ip $j >> $orig_res_file
             tmux kill-session -t "server_"$impl"_$i"

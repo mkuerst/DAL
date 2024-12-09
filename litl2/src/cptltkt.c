@@ -46,13 +46,13 @@
 
 extern __thread unsigned int cur_thread_id;
 
-static inline int current_numa_node() {
-    unsigned long a, d, c;
-    int core;
-    __asm__ volatile("rdtscp" : "=a"(a), "=d"(d), "=c"(c));
-    core = c & 0xFFF;
-    return core / (CPU_NUMBER / NUMA_NODES);
-}
+// static inline int current_numa_node() {
+//     unsigned long a, d, c;
+//     int core;
+//     __asm__ volatile("rdtscp" : "=a"(a), "=d"(d), "=c"(c));
+//     core = c & 0xFFF;
+//     return core / (CPU_NUMBER / NUMA_NODES);
+// }
 
 cpt_mutex_t *cpt_mutex_create(const pthread_mutexattr_t *attr) {
     cpt_mutex_t *impl = (cpt_mutex_t *)alloc_cache_align(sizeof(cpt_mutex_t));

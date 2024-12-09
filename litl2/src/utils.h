@@ -86,6 +86,9 @@
 #define NUM_MEM_RUNS 3 
 #define NUM_LAT_RUNS 10
 
+#define CYCLES_11 1200L
+#define CYCLES_12 2400L
+
 extern size_t array_sizes[NUM_MEM_RUNS];
 /**************************************************************************************/
 
@@ -196,6 +199,8 @@ typedef struct rdma_thread {
 void *alloc_cache_align(size_t n);
 
 int pin_thread(unsigned int id);
+
+int current_numa_node();
 
 static inline void *xchg_64(void *ptr, void *x) {
     __asm__ __volatile__("xchgq %0,%1"

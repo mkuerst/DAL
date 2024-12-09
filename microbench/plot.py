@@ -55,7 +55,8 @@ def read_data_mem(DATA, res_dir):
             DATA[impl][nthreads] = pd.read_csv(cleaned_data, skiprows=1, names=["tid", "loop_in_cs", "lock_acquires", 
                                                   "lock_hold", "total_duration", 
                                                   "wait_acq", "wait_rel", 
-                                                  "array_size"])
+                                                  "array_size", "lat_lock_hold",
+                                                  "lat_wait_acq", "lat_wait_rel"])
 
 def plots_emptycs(CLIENT_DATA, SERVER_DATA={},  include_threads=[], DURATION=20):
     for nthreads in include_threads:
@@ -228,7 +229,7 @@ DURATION = 30. # sec
 inc_thr_disa = [1, 8, 16]
 inc_thr_disa_mem = [16]
 inc_thr_orig = [1, 16, 32]
-inc_thr_orig_mem = [16, 32]
+inc_thr_orig_mem = [32]
 
 read_data_emptycs(CLIENT_DATA_EMPTYCS, client_res_dir)
 read_data_emptycs(SERVER_DATA_EMPTYCS, server_res_dir)
@@ -241,5 +242,5 @@ read_data_mem(ORIG_DATA_MEM, orig_res_dir_mem)
 # plots_emptycs(CLIENT_DATA=CLIENT_DATA_EMPTYCS, SERVER_DATA=SERVER_DATA_EMPTYCS, include_threads=inc_thr_disa, DURATION=DURATION)
 # plots_emptycs(CLIENT_DATA=ORIG_DATA_EMPTYCS, SERVER_DATA={}, include_threads=inc_thr_orig, DURATION=DURATION)
 
-# plots_mem(CLIENT_DATA_MEM, SERVER_DATA_MEM, max_nthread_disa)
+# plots_mem(CLIENT_DATA_MEM, SERVER_DATA_MEM, inc_thr_disa_mem)
 plots_mem(ORIG_DATA_MEM, {}, inc_thr_orig_mem)
