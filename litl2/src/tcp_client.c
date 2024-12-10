@@ -1,6 +1,7 @@
 #include "tcp_common.h"
 
 
+// TODO: rename tid -> to task_id to prevent confusion
 int establish_tcp_connection(unsigned int tid, char* addr) {
     int sock;
     struct sockaddr_in server_addr;
@@ -36,18 +37,22 @@ int establish_tcp_connection(unsigned int tid, char* addr) {
         sleep(0.5);
         try++;
     }
-    if (try == max_tries) 
+    if (try == max_tries)
         tcp_client_error(sock, "Thread %d failed at connecting\n", tid);
 
     DEBUG("Thread %d: Connected to server.\n", tid);
 
     char msg[BUFFER_SIZE];
     memset(msg, 0, BUFFER_SIZE);
-    int ret = 0;
     sprintf(msg, "%d", tid);
-    if ((ret = send(sock, msg, BUFFER_SIZE, 0)) < 0)
-        tcp_client_error(sock, "Thread %d failed at sending task_id\n", tid);
-
+    if (send(sock, msg, BUFFER_SIZE, 0) < 0)
+        tcp_client_error(sock, "Task %d failed at sending task_id\n", tid);
+    if (read(sock, msg, BUFFER_SIZE) < 0)
+        tcp_client_error(sock, "Task %d failed at receiving task_id ack\n", tid);
+    // TODO: WHY SLEEP AND WHY ALL THIS BLOCKING COMM?
+    // HYPOTHESIS: THE SEND OF THE FIRST LOCK REQ HAPPENS BEFORE THE TCP SERVER
+    // CAN START THE THREAD THAT LISTENS TO MSGES FROM ITS CORRESPONDING CLIENT
+    sleep(1);
     // int flag = 1;
     // setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
     return sock;

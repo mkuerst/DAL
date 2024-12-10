@@ -2,16 +2,16 @@
 # args: duration(s), cs(us), 
 
 #LOCAL
-# REMOTE_USER="mihi"
-# REMOTE_HOST="localhost"
-# server_ip=10.5.12.168
+REMOTE_USER="mihi"
+REMOTE_HOST="localhost"
+server_ip=10.5.12.168
 # HOME
 # server_ip=192.168.1.70
 
 #CLUSTER
-REMOTE_USER="kumichae"
-REMOTE_HOST="r630-12"
-server_ip=10.233.0.21
+# REMOTE_USER="kumichae"
+# REMOTE_HOST="r630-12"
+# server_ip=10.233.0.21
 
 eval "$(ssh-agent -s)"
 ssh_key="/home/mihi/.ssh/id_ed25519_localhost"

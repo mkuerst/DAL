@@ -16,6 +16,22 @@ pthread_mutex_t mutex;
 int cur_thread_id = 0;
 int mode;
 
+void _read(int task_id, int socket, char *buf) {
+    int bytes_read;
+    size_t size=0;
+    do {
+        bytes_read = read(socket, buf+size, BUFFER_SIZE-size);
+        if(bytes_read < 0) {
+            tcp_client_error(socket, "Failed to read data from task_id %d", task_id);
+        } else if (bytes_read == 0) {
+            DEBUG("Thread task_id %d disconnected: socket fd %d\n", task_id, socket);
+            close(socket);
+            pthread_exit(EXIT_SUCCESS);
+        }
+        size += bytes_read;
+    } while(strchr(buf, '\n') == NULL && size < BUFFER_SIZE);
+}
+
 void *run_lock_impl(void *_arg)
 {
     thread_data* thread = (thread_data*) _arg;
@@ -43,14 +59,15 @@ void *run_lock_impl(void *_arg)
     sprintf(ok_msg, "ok");
 
     while (1) {
-        int bytes_read = read(client_socket, buffer, sizeof(buffer));
+        int bytes_read = recv(client_socket, buffer, BUFFER_SIZE, 0);
         if (bytes_read == -1) {
             tcp_client_error(client_socket, "Read failed on server thread %d on socket %d", server_tid, client_socket);
         } else if (bytes_read == 0) {
-            DEBUG("Thread on server thread %d disconnected: socket fd %d\n", server_tid, client_socket);
+            DEBUG("Task %d disconnected: socket fd %d\n", task_id, client_socket);
             close(client_socket);
             pthread_exit(EXIT_SUCCESS);
         } 
+        // _read(task_id, client_socket, buffer);
 
         DEBUG("Server %d Received message on socket %d: %s\n", server_tid, client_socket, buffer);
         char cmd;
@@ -62,8 +79,8 @@ void *run_lock_impl(void *_arg)
                 pthread_mutex_lock(&mutex);
                 thread->lock_impl_time[j][l] += rdtscp() - now;
                 if ((ret = send(client_socket, granted_msg, strlen(granted_msg), 0)) < 0)
-                    tcp_client_error(client_socket, "lock acquisition notice failed for thread %d", id);
-                DEBUG("Granted lock to thread %d over socket %d\n", id, client_socket);
+                    tcp_client_error(client_socket, "lock acquisition notice failed for task_id %d", task_id);
+                DEBUG("Granted lock to task %d over socket %d\n", task_id, client_socket);
             }
             else if (cmd == 'r') {
                 ull now = rdtscp();
@@ -72,19 +89,18 @@ void *run_lock_impl(void *_arg)
                 if (mode == 1)
                     l++;
                 if ((ret = send(client_socket, released_msg, strlen(released_msg), 0)) < 0)
-                    tcp_client_error(client_socket, "lock acquisition notice failed for thread %d", id);
-                DEBUG("Released lock on server for thread %d\n", id);
+                    tcp_client_error(client_socket, "lock acquisition notice failed for task %d", task_id);
+                DEBUG("Released lock on server for task %d\n", task_id);
             }
             else if (cmd == 'd') {
                 j++;
                 l = 0;
-                DEBUG("Received run complete from thread %d\n", id);
+                DEBUG("Received run complete from task %d\n", task_id);
                 // if ((ret = send(client_socket, ok_msg, strlen(ok_msg), 0)) < 0)
                 //     tcp_client_error(client_socket, "lock acquisition notice failed for thread %d", id);
             }
         } else {
-            DEBUG("Failed to parse the string from thread %d, got: %s\n", id, buffer);
-            continue;
+            _fail("Failed to parse the string from task %d, got: %s\n", task_id, buffer);
         }
         memset(buffer, 0, BUFFER_SIZE);
     }
@@ -108,7 +124,7 @@ int main(int argc, char *argv[]) {
 
     // Set socket options
     int opt = 1;
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_KEEPALIVE, &opt, sizeof(opt)) == -1) {
         tcp_error("Setsockopt failed");
     }
 
@@ -122,9 +138,9 @@ int main(int argc, char *argv[]) {
     }
 
     // Set the server socket to non-blocking mode
-    // if (fcntl(server_fd, F_SETFL, O_NONBLOCK) < 0) {
-    //     tcp_error("Setting server socket to non-blocking failed");
-    // }
+    if (fcntl(server_fd, F_SETFL, O_NONBLOCK) < 0) {
+        tcp_error("Setting server socket to non-blocking failed");
+    }
 
     // Start listening for connections
     if (listen(server_fd, SOMAXCONN) == -1) {
@@ -162,20 +178,22 @@ int main(int argc, char *argv[]) {
                     continue;
                 }
                 char buffer[32] = {0};
-                int bytes_read = read(client_fd, buffer, sizeof(buffer));
+                int bytes_read = recv(client_fd, buffer, 32, 0);
                 if (bytes_read < 0) {
-                    tcp_client_error(client_fd, "Server @ cur_thread_id %d failed at receving task_id", cur_thread_id);
+                    tcp_client_error(client_fd, "Server @ cur_thread_id %d failed at receving task_id\n", cur_thread_id);
                 }
                 int task_id;
                 if (sscanf(buffer, "%d", &task_id) == 1) {
                     DEBUG("Received task_id %d\n", task_id);
+                    if (send(client_fd, buffer, strlen(buffer), 0) < 0)
+                        tcp_client_error(client_fd, "Server @ task_id %d failed at sending task_id response\n", task_id);
                 } else {
                     tcp_client_error(client_fd, "Failed to extract task_id for cur_thread_id %d.\n", cur_thread_id);
                 }
                 // int flag = 1;
                 // setsockopt(client_fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
-                // int optval = 1;
-                // setsockopt(client_fd, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval));
+                int optval = 1;
+                setsockopt(client_fd, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval));
 
                 fprintf(stderr, "New connection: socket fd %d, IP %s, port %d, thread %d\n",
                        client_fd, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port), cur_thread_id+1);
