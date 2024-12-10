@@ -47,7 +47,7 @@ def read_data_emptycs(DATA, res_dir):
                         thread = int(values[0])
                         DATA[impl][nthreads][current_run][thread] = values[1:]
 
-def read_data(DATA, res_dir, server_data):
+def read_data(DATA, res_dir, server_data=False):
     COLS = SERVER_COLS if server_data else CLIENT_COLS
     for dir in res_dir:
         impl = Path(dir).parent.name.removeprefix("lib")
@@ -236,11 +236,15 @@ def plots_lat(CLIENT_DATA, SERVER_DATA, incl_threads):
             med_hold = df["lat_lock_hold"].median() / FACTOR
             if SERVER_DATA:
                 df_s = SERVER_DATA[impl][nthreads]
-                mean_comm = df_s["lock_impl_time"].mean() / FACTOR
+                mean_impl_acq = df_s["wait_acq"].mean() / FACTOR
+                mean_impl_rel = df_s["wait_rel"].mean() / FACTOR
+                mean_comm = (mean_acq - mean_impl_acq) + (mean_rel - mean_impl_rel)
+                mean_acq = mean_impl_acq
+                mean_rel = mean_impl_rel
+                ax.bar(position, mean_comm, width=bar_width, bottom=mean_acq+mean_rel, edgecolor='black', color="red")
 
             ax.bar(position, mean_acq, width=bar_width, edgecolor='black', color="orange")
             ax.bar(position, mean_rel, width=bar_width, bottom=mean_acq, edgecolor='black', color="blue")
-            # ax.bar(position, med_hold, width=bar_width, bottom=med_acq, edgecolor='black', color="red")
             # ax.plot(position, max_acq, marker="x", color="red")
             # ax.plot(position, max_rel, marker="x", color="black")
             # ax.bar(position, tp[szs[3]], width=bar_width, edgecolor='black', color="red")
@@ -252,14 +256,78 @@ def plots_lat(CLIENT_DATA, SERVER_DATA, incl_threads):
         ax.set_xlabel("Implementation")
         ax.set_ylabel("Latency (us)")
         ax.set_title(f"Latencies w/ {nthreads} Threads"+orig)
-        legend1 = mlines.Line2D([], [], color='orange', markersize=4, label=f"Median Acq Time")
-        legend2 = mlines.Line2D([], [], color='red', markersize=4, label=f"Median Hold Time")
-        legend3 = mlines.Line2D([], [], color='blue', markersize=4, label=f"Median Rel Time")
+        legend1 = mlines.Line2D([], [], color='orange', markersize=4, label=f"Avg Acq Time")
+        legend2 = mlines.Line2D([], [], color='blue', markersize=4, label=f"AvgMedian Rel Time")
+        legend3 = mlines.Line2D([], [], color='red', markersize=4, label=f"Avg Comm Time")
         legend4 = mlines.Line2D([], [], color='red', marker='x', markersize=4, label=f"Max Acq Time")
         legend5 = mlines.Line2D([], [], color='black', marker='x', markersize=4, label=f"Max Rel Time")
-        ax.legend(handles=[legend1, legend2, legend3,legend4, legend5])
+        ax.legend(handles=[legend1, legend2, legend3])
         ax.grid(linestyle="--", alpha=0.7)
         output_path = file_dir+f"/plots/lat_{nthreads}{orig}.png"
+        fig.savefig(output_path, dpi=300, bbox_inches='tight')
+
+def plots_lat_both(CLIENT_DATA, SERVER_DATA, ORIG_DATA, incl_threads):
+    FACTOR = 1e3
+    for nthreads in incl_threads:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        bar_width = 0.4
+        offset = 1 / 4 
+        position = 0
+        x_positions = []
+        x_labels = []
+
+        for impl in CLIENT_DATA:
+            df_c = CLIENT_DATA[impl][nthreads]
+            df_o = ORIG_DATA[impl][nthreads]
+            df_s = SERVER_DATA[impl][nthreads]
+
+            if df_c.empty:
+                continue
+
+            position += 1
+            x_positions.append(position)
+            x_labels.append(impl)
+
+            max_acq_c = df_c["lat_wait_acq"].max() / FACTOR
+            max_rel_c = df_c["lat_wait_rel"].max() / FACTOR
+            med_acq_c = df_c["lat_wait_acq"].median() / FACTOR
+            med_rel_c = df_c["lat_wait_rel"].median() / FACTOR
+            mean_acq_c = df_c["lat_wait_acq"].mean() / FACTOR
+            mean_rel_c = df_c["lat_wait_rel"].mean() / FACTOR
+            med_hold_c = df_c["lat_lock_hold"].median() / FACTOR
+
+            max_acq_o = df_o["lat_wait_acq"].max() / FACTOR
+            max_rel_o = df_o["lat_wait_rel"].max() / FACTOR
+            med_acq_o = df_o["lat_wait_acq"].median() / FACTOR
+            med_rel_o = df_o["lat_wait_rel"].median() / FACTOR
+            mean_acq_o = df_o["lat_wait_acq"].mean() / FACTOR
+            mean_rel_o = df_o["lat_wait_rel"].mean() / FACTOR
+            med_hold_o = df_o["lat_lock_hold"].median() / FACTOR
+
+            mean_impl_acq = df_s["wait_acq"].mean() / FACTOR
+            mean_impl_rel = df_s["wait_rel"].mean() / FACTOR
+            mean_comm = (mean_acq_c - mean_impl_acq) + (mean_rel_c - mean_impl_rel)
+
+            ax.bar(position-offset, mean_impl_acq, width=bar_width, edgecolor='black', color="orange")
+            ax.bar(position-offset, mean_impl_rel, width=bar_width, bottom=mean_impl_acq, edgecolor='black', color="blue")
+            ax.bar(position-offset, mean_comm, width=bar_width, bottom=mean_impl_acq+mean_impl_rel, edgecolor='black', color="red")
+
+            ax.bar(position+offset, mean_acq_o, width=bar_width, edgecolor='black', color="orange")
+            ax.bar(position+offset, mean_rel_o, width=bar_width, bottom=mean_acq_o, edgecolor='black', color="blue")
+        
+        ax.set_xticks(x_positions)
+        ax.set_xticklabels(x_labels, rotation=45, ha='right')
+        ax.set_xlabel("Implementation")
+        ax.set_ylabel("Latency (us)")
+        ax.set_title(f"Latencies w/ {nthreads} Threads")
+        legend1 = mlines.Line2D([], [], color='orange', markersize=4, label=f"Avg Acq Time")
+        legend2 = mlines.Line2D([], [], color='blue', markersize=4, label=f"AvgMedian Rel Time")
+        legend3 = mlines.Line2D([], [], color='red', markersize=4, label=f"Avg Comm Time")
+        legend4 = mlines.Line2D([], [], color='red', marker='x', markersize=4, label=f"Max Acq Time")
+        legend5 = mlines.Line2D([], [], color='black', marker='x', markersize=4, label=f"Max Rel Time")
+        ax.legend(handles=[legend1, legend2, legend3])
+        ax.grid(linestyle="--", alpha=0.7)
+        output_path = file_dir+f"/plots/lat__both_{nthreads}.png"
         fig.savefig(output_path, dpi=300, bbox_inches='tight')
 
 file_dir = os.path.dirname(os.path.realpath(__file__))
@@ -299,11 +367,12 @@ ORIG_DATA_LAT = {}
 
 CD = {}
 DURATION = 30. # sec
-inc_thr_disa = [1, 8, 16]
-inc_thr_disa_mem = [16]
-inc_thr_orig = [1, 16, 32]
-inc_thr_orig_mem = [32]
-inc_lat_orig = [1,16,32]
+inc_disa = [1, 8, 16]
+inc_disa_mem = [16]
+inc_orig = [1, 16, 32]
+inc_orig_mem = [32]
+inc_orig_lat = [1,16,32]
+inc_disa_lat = [1, 8, 16]
 
 read_data_emptycs(CLIENT_DATA_EMPTYCS, client_res_dir)
 read_data_emptycs(SERVER_DATA_EMPTYCS, server_res_dir)
@@ -317,11 +386,12 @@ read_data(CLIENT_DATA_LAT, client_res_dir_lat)
 read_data(SERVER_DATA_LAT, server_res_dir_lat, True)
 read_data(ORIG_DATA_LAT, orig_res_dir_lat)
 
-# plots_emptycs(CLIENT_DATA=CLIENT_DATA_EMPTYCS, SERVER_DATA=SERVER_DATA_EMPTYCS, include_threads=inc_thr_disa, DURATION=DURATION)
-# plots_emptycs(CLIENT_DATA=ORIG_DATA_EMPTYCS, SERVER_DATA={}, include_threads=inc_thr_orig, DURATION=DURATION)
+# plots_emptycs(CLIENT_DATA=CLIENT_DATA_EMPTYCS, SERVER_DATA=SERVER_DATA_EMPTYCS, include_threads=inc_disa, DURATION=DURATION)
+# plots_emptycs(CLIENT_DATA=ORIG_DATA_EMPTYCS, SERVER_DATA={}, include_threads=inc_orig, DURATION=DURATION)
 
-# plots_mem(CLIENT_DATA_MEM, SERVER_DATA_MEM, inc_thr_disa_mem)
-# plots_mem(ORIG_DATA_MEM, {}, inc_thr_orig_mem)
+# plots_mem(CLIENT_DATA_MEM, SERVER_DATA_MEM, inc_disa_mem)
+# plots_mem(ORIG_DATA_MEM, {}, inc_orig_mem)
 
-plots_lat(CLIENT_DATA_LAT, SERVER_DATA_LAT, inc_lat_orig)
+# plots_lat(CLIENT_DATA_LAT, SERVER_DATA_LAT, inc_disa_lat)
 # plots_lat(ORIG_DATA_LAT, {}, inc_lat_orig)
+plots_lat_both(CLIENT_DATA_LAT, SERVER_DATA_LAT, ORIG_DATA_LAT, [1,16])
