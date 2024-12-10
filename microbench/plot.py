@@ -7,6 +7,18 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines            
 
+
+CLIENT_COLS = [
+"tid", "loop_in_cs", "lock_acquires", 
+"lock_hold", "total_duration", 
+"wait_acq", "wait_rel", 
+"array_size", "lat_lock_hold",
+"lat_wait_acq", "lat_wait_rel"
+]
+SERVER_COLS = [
+    "tid", "wait_acq", "wait_rel"
+]
+
 def jain_fairness_index(x):
     numerator = np.sum(x)**2
     denominator = len(x) * np.sum(x**2)
@@ -35,7 +47,8 @@ def read_data_emptycs(DATA, res_dir):
                         thread = int(values[0])
                         DATA[impl][nthreads][current_run][thread] = values[1:]
 
-def read_data_mem(DATA, res_dir):
+def read_data(DATA, res_dir, server_data):
+    COLS = SERVER_COLS if server_data else CLIENT_COLS
     for dir in res_dir:
         impl = Path(dir).parent.name.removeprefix("lib")
         print(impl)
@@ -46,17 +59,12 @@ def read_data_mem(DATA, res_dir):
             cleaned_lines = []
             with open(csv_dir, 'r') as file:
                 for line in file:
-                    # line = line.strip()
                     if line.startswith("---") or line.startswith("RUN") or line == "":
                         continue
                     cleaned_lines.append(line) 
 
             cleaned_data = StringIO("".join(cleaned_lines))
-            DATA[impl][nthreads] = pd.read_csv(cleaned_data, skiprows=1, names=["tid", "loop_in_cs", "lock_acquires", 
-                                                  "lock_hold", "total_duration", 
-                                                  "wait_acq", "wait_rel", 
-                                                  "array_size", "lat_lock_hold",
-                                                  "lat_wait_acq", "lat_wait_rel"])
+            DATA[impl][nthreads] = pd.read_csv(cleaned_data, skiprows=1, names=COLS)
 
 def plots_emptycs(CLIENT_DATA, SERVER_DATA={},  include_threads=[], DURATION=20):
     for nthreads in include_threads:
@@ -202,7 +210,60 @@ def plots_mem(CLIENT_DATA, SERVER_DATA, incl_threads):
         output_path = file_dir+f"/plots/memtp_{nthreads}{orig}.png"
         fig.savefig(output_path, dpi=300, bbox_inches='tight')
 
+def plots_lat(CLIENT_DATA, SERVER_DATA, incl_threads):
+    FACTOR = 1e3
+    for nthreads in incl_threads:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        bar_width = 0.4
+        # offset = 1 / 3
+        position = 0
+        x_positions = []
+        x_labels = []
+
+        for impl in CLIENT_DATA:
+            df = CLIENT_DATA[impl][nthreads]
+            if df.empty:
+                continue
+            position += 1
+            x_positions.append(position)
+            x_labels.append(impl)
+            max_acq = df["lat_wait_acq"].max() / FACTOR
+            max_rel = df["lat_wait_rel"].max() / FACTOR
+            med_acq = df["lat_wait_acq"].median() / FACTOR
+            med_rel = df["lat_wait_rel"].median() / FACTOR
+            mean_acq = df["lat_wait_acq"].mean() / FACTOR
+            mean_rel = df["lat_wait_rel"].mean() / FACTOR
+            med_hold = df["lat_lock_hold"].median() / FACTOR
+            if SERVER_DATA:
+                df_s = SERVER_DATA[impl][nthreads]
+                mean_comm = df_s["lock_impl_time"].mean() / FACTOR
+
+            ax.bar(position, mean_acq, width=bar_width, edgecolor='black', color="orange")
+            ax.bar(position, mean_rel, width=bar_width, bottom=mean_acq, edgecolor='black', color="blue")
+            # ax.bar(position, med_hold, width=bar_width, bottom=med_acq, edgecolor='black', color="red")
+            # ax.plot(position, max_acq, marker="x", color="red")
+            # ax.plot(position, max_rel, marker="x", color="black")
+            # ax.bar(position, tp[szs[3]], width=bar_width, edgecolor='black', color="red")
+        
+        orig = "" if SERVER_DATA else "(ORIG)"
+
+        ax.set_xticks(x_positions)
+        ax.set_xticklabels(x_labels, rotation=45, ha='right')
+        ax.set_xlabel("Implementation")
+        ax.set_ylabel("Latency (us)")
+        ax.set_title(f"Latencies w/ {nthreads} Threads"+orig)
+        legend1 = mlines.Line2D([], [], color='orange', markersize=4, label=f"Median Acq Time")
+        legend2 = mlines.Line2D([], [], color='red', markersize=4, label=f"Median Hold Time")
+        legend3 = mlines.Line2D([], [], color='blue', markersize=4, label=f"Median Rel Time")
+        legend4 = mlines.Line2D([], [], color='red', marker='x', markersize=4, label=f"Max Acq Time")
+        legend5 = mlines.Line2D([], [], color='black', marker='x', markersize=4, label=f"Max Rel Time")
+        ax.legend(handles=[legend1, legend2, legend3,legend4, legend5])
+        ax.grid(linestyle="--", alpha=0.7)
+        output_path = file_dir+f"/plots/lat_{nthreads}{orig}.png"
+        fig.savefig(output_path, dpi=300, bbox_inches='tight')
+
 file_dir = os.path.dirname(os.path.realpath(__file__))
+
 client_res_dir = os.path.dirname(os.path.realpath(__file__))+"/results/disaggregated/client/*/empty_cs/"
 client_res_dir = glob.glob(client_res_dir)
 server_res_dir = os.path.dirname(os.path.realpath(__file__))+"/results/disaggregated/server/*/empty_cs/"
@@ -217,12 +278,24 @@ server_res_dir_mem = glob.glob(server_res_dir_mem)
 orig_res_dir_mem = os.path.dirname(os.path.realpath(__file__))+"/results/non_disaggregated/*/mem/"
 orig_res_dir_mem = glob.glob(orig_res_dir_mem)
 
+client_res_dir_lat = os.path.dirname(os.path.realpath(__file__))+"/results/disaggregated/client/*/lat/"
+client_res_dir_lat = glob.glob(client_res_dir_lat)
+server_res_dir_lat = os.path.dirname(os.path.realpath(__file__))+"/results/disaggregated/server/*/lat/"
+server_res_dir_lat = glob.glob(server_res_dir_lat)
+orig_res_dir_lat = os.path.dirname(os.path.realpath(__file__))+"/results/non_disaggregated/*/lat/"
+orig_res_dir_lat = glob.glob(orig_res_dir_lat)
+
 CLIENT_DATA_EMPTYCS = {}
 SERVER_DATA_EMPTYCS = {}
 ORIG_DATA_EMPTYCS = {}
+
 CLIENT_DATA_MEM = {}
 SERVER_DATA_MEM = {}
 ORIG_DATA_MEM = {}
+
+CLIENT_DATA_LAT = {}
+SERVER_DATA_LAT = {}
+ORIG_DATA_LAT = {}
 
 CD = {}
 DURATION = 30. # sec
@@ -230,17 +303,25 @@ inc_thr_disa = [1, 8, 16]
 inc_thr_disa_mem = [16]
 inc_thr_orig = [1, 16, 32]
 inc_thr_orig_mem = [32]
+inc_lat_orig = [1,16,32]
 
 read_data_emptycs(CLIENT_DATA_EMPTYCS, client_res_dir)
 read_data_emptycs(SERVER_DATA_EMPTYCS, server_res_dir)
 read_data_emptycs(ORIG_DATA_EMPTYCS, orig_res_dir)
 
-read_data_mem(CLIENT_DATA_MEM, client_res_dir_mem)
-read_data_mem(SERVER_DATA_MEM, server_res_dir_mem)
-read_data_mem(ORIG_DATA_MEM, orig_res_dir_mem)
+read_data(CLIENT_DATA_MEM, client_res_dir_mem)
+read_data(SERVER_DATA_MEM, server_res_dir_mem, True)
+read_data(ORIG_DATA_MEM, orig_res_dir_mem)
+
+read_data(CLIENT_DATA_LAT, client_res_dir_lat)
+read_data(SERVER_DATA_LAT, server_res_dir_lat, True)
+read_data(ORIG_DATA_LAT, orig_res_dir_lat)
 
 # plots_emptycs(CLIENT_DATA=CLIENT_DATA_EMPTYCS, SERVER_DATA=SERVER_DATA_EMPTYCS, include_threads=inc_thr_disa, DURATION=DURATION)
 # plots_emptycs(CLIENT_DATA=ORIG_DATA_EMPTYCS, SERVER_DATA={}, include_threads=inc_thr_orig, DURATION=DURATION)
 
 # plots_mem(CLIENT_DATA_MEM, SERVER_DATA_MEM, inc_thr_disa_mem)
-plots_mem(ORIG_DATA_MEM, {}, inc_thr_orig_mem)
+# plots_mem(ORIG_DATA_MEM, {}, inc_thr_orig_mem)
+
+plots_lat(CLIENT_DATA_LAT, SERVER_DATA_LAT, inc_lat_orig)
+# plots_lat(ORIG_DATA_LAT, {}, inc_lat_orig)

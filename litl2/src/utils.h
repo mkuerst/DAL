@@ -149,7 +149,8 @@ typedef struct thread_data {
     int task_id;
     int sockfd;
     int mode;
-    ull lock_impl_time[NUM_RUNS][NUM_LAT_RUNS];
+    ull wait_acq[NUM_RUNS][NUM_LAT_RUNS];
+    ull wait_rel[NUM_RUNS][NUM_LAT_RUNS];
 } thread_data;
 
 /* 

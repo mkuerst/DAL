@@ -77,7 +77,7 @@ void *run_lock_impl(void *_arg)
                 thread->client_tid = id;
                 ull now = rdtscp();
                 pthread_mutex_lock(&mutex);
-                thread->lock_impl_time[j][l] += rdtscp() - now;
+                thread->wait_acq[j][l] += rdtscp() - now;
                 if ((ret = send(client_socket, granted_msg, strlen(granted_msg), 0)) < 0)
                     tcp_client_error(client_socket, "lock acquisition notice failed for task_id %d", task_id);
                 DEBUG("Granted lock to task %d over socket %d\n", task_id, client_socket);
@@ -85,7 +85,7 @@ void *run_lock_impl(void *_arg)
             else if (cmd == 'r') {
                 ull now = rdtscp();
                 pthread_mutex_unlock(&mutex);
-                thread->lock_impl_time[j][l] += rdtscp() - now;
+                thread->wait_rel[j][l] += rdtscp() - now;
                 if (mode == 1)
                     l++;
                 if ((ret = send(client_socket, released_msg, strlen(released_msg), 0)) < 0)
@@ -211,7 +211,8 @@ int main(int argc, char *argv[]) {
                 threads[cur_thread_id].mode = mode;
                 for (int j = 0; j < NUM_RUNS; j++) {
                     for (int l = 0; l < NUM_LAT_RUNS; l++) {
-                        threads[cur_thread_id].lock_impl_time[j][l] = 0;
+                        threads[cur_thread_id].wait_acq[j][l] = 0;
+                        threads[cur_thread_id].wait_rel[j][l] = 0;
                     }
                 }
                 pthread_create(&threads[cur_thread_id].thread, NULL, run_lock_impl, &threads[cur_thread_id]);
@@ -228,7 +229,9 @@ int main(int argc, char *argv[]) {
         for (int i = 0; i < nthreads; i++) {
             thread_data thread = (thread_data) threads[i];
             for (int l = 0; l < lat_runs; l++)
-            printf("%03d,%10.6f\n", thread.client_tid, thread.lock_impl_time[j][l] / (float) (CYCLE_PER_US * 1000));
+            printf("%03d,%10.6f%10.6f\n", thread.client_tid,
+            thread.wait_acq[j][l] / (float) (CYCLE_PER_US * 1000),
+            thread.wait_rel[j][l] / (float) (CYCLE_PER_US * 1e3));
         }
         printf("-----------------------------------------------------------------------------------------------\n\n");
     }

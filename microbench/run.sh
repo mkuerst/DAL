@@ -39,7 +39,8 @@ nthreads=$(nproc)
 duration=0
 critical=1000
 
-file_header="tid,loop_in_cs,lock_acquires,lock_hold(ms),total_duration(s),wait_acq(ms),wait_rel(ms),array_size(B),lat_lock_hold(ms),lat_wait_acq(ms),lat_wait_rel(ms)"
+client_file_header="tid,loop_in_cs,lock_acquires,lock_hold(ms),total_duration(s),wait_acq(ms),wait_rel(ms),array_size(B),lat_lock_hold(ms),lat_wait_acq(ms),lat_wait_rel(ms)"
+server_file_header="tid,wait_acq(ms),wait_rel(ms)"
 
 rm -rf server_logs/
 for impl_dir in "$BASE"/original/*
@@ -67,9 +68,9 @@ do
             client_res_file="$client_res_dir"/nthread_"$i".csv
             server_res_file="$server_res_dir"/nthread_"$i".csv
             orig_res_file="$orig_res_dir/nthread_$i.csv"
-            echo $file_header > "$client_res_file"
-            echo $file_header > "$orig_res_file"
-            echo "tid,lock_impl_time(ms)" > "$server_res_file"
+            echo $client_file_header > "$client_res_file"
+            echo $client_file_header > "$orig_res_file"
+            echo $server_file_header > "$server_res_file"
             echo "START $impl SERVER with $i THREADS"
             tmux new-session -d -s "server_"$impl"_$i" "ssh $REMOTE_USER@$REMOTE_HOST LD_PRELOAD=$server_so $tcp_server_app $i $j >> $server_res_file 2>> $log_dir/server_$i.log"
             # tmux new-session -d -s "server_"$impl"_$i" "ssh $REMOTE_USER@$REMOTE_HOST LD_PRELOAD=$server_so $rdma_server_app -t $i -a $server_ip >> $server_res_file 2>> $log_dir/server_$i.log"
