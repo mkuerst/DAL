@@ -88,8 +88,8 @@ void *run_lock_impl(void *_arg)
                 thread->wait_rel[j][l] += rdtscp() - now;
                 if (mode == 1)
                     l++;
-                // if ((ret = send(client_socket, released_msg, strlen(released_msg), 0)) < 0)
-                //     tcp_client_error(client_socket, "lock acquisition notice failed for task %d", task_id);
+                if ((ret = send(client_socket, released_msg, strlen(released_msg), 0)) < 0)
+                    tcp_client_error(client_socket, "lock acquisition notice failed for task %d", task_id);
                 DEBUG("Released lock on server for task %d\n", task_id);
             }
             else if (cmd == 'd') {
@@ -199,7 +199,7 @@ int main(int argc, char *argv[]) {
                        client_fd, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port), cur_thread_id+1);
 
                 // Add new client socket to epoll
-                // event.events = EPOLLIN | EPOLLET; // Enable edge-triggered mode
+                event.events = EPOLLIN | EPOLLET; // Enable edge-triggered mode
                 event.data.fd = client_fd;
                 if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &event) == -1) {
                     fprintf(stderr, "Epoll_ctl add client failed\n");

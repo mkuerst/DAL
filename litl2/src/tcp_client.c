@@ -90,8 +90,8 @@ int release_lock(int sockfd, int tid)
     if ((ret = send(sockfd, msg, strlen(msg), 0)) < 0)
         tcp_client_error(sockfd, "Thread %d failed at releasing lock\n", tid);
 
-    // if ((ret = read(sockfd, buffer, BUFFER_SIZE)) < 0)
-    //     tcp_client_error(sockfd, "Thread %d failed at receiving answer for lock request\n", tid);
+    if ((ret = read(sockfd, buffer, BUFFER_SIZE)) < 0)
+        tcp_client_error(sockfd, "Thread %d failed at receiving answer for lock request\n", tid);
 
     // if (strcmp(buffer, "released lock") == 0) {
     //     tcp_client_error(sockfd, "Thread %d expected released msg, got '%s'\n", tid, buffer);
