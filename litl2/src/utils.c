@@ -30,7 +30,7 @@
 
 // r630-11: 8 MB, 16 MB, 128 MB
 // r630-12: ???
-size_t array_sizes[NUM_MEM_RUNS] = {MB(8), MB(16), MB(128)};
+size_t array_sizes[NUM_MEM_RUNS] = {KB(256), MB(16), MB(128)};
 
 inline void *alloc_cache_align(size_t n) {
     void *res = 0;

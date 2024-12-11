@@ -36,7 +36,7 @@ nthreads=$(nproc)
 # ncpu=$(lscpu | grep "^Core(s) per socket" | awk '{print $4}')
 # nnodes=$(lscpu | grep -oP "NUMA node\(s\):\s+\K[0-9]+")
 # echo "nthreads: $nthreads | nsockets: $nsockets | cpu_per_socket: $ncpu | nnodes: $nnodes"
-duration=0
+duration=20
 critical=1000
 
 client_file_header="tid,loop_in_cs,lock_acquires,lock_hold(ms),total_duration(s),wait_acq(ms),wait_rel(ms),array_size(B),lat_lock_hold(ms),lat_wait_acq(ms),lat_wait_rel(ms)"
@@ -50,7 +50,7 @@ do
     client_so=${client_libs_dir}${impl}$client_suffix
     server_so=${server_libs_dir}${impl}$server_suffix
     orig_so=${orig_libs_dir}${impl}.so
-    for j in 1
+    for j in 2
     do
         microb="${microbenches[$j]}"
         client_res_dir="./results/disaggregated/client/$impl/$microb"
@@ -63,7 +63,7 @@ do
         mkdir -p "$log_dir"
 
         # for ((i=1; i<=nthreads; i*=2))
-        for i in 1 8 16
+        for i in 16 
         do
             client_res_file="$client_res_dir"/nthread_"$i".csv
             server_res_file="$server_res_dir"/nthread_"$i".csv
@@ -71,6 +71,7 @@ do
             echo $client_file_header > "$client_res_file"
             echo $client_file_header > "$orig_res_file"
             echo $server_file_header > "$server_res_file"
+
             echo "START $impl SERVER with $i THREADS"
             tmux new-session -d -s "server_"$impl"_$i" "ssh $REMOTE_USER@$REMOTE_HOST LD_PRELOAD=$server_so $tcp_server_app $i $j >> $server_res_file 2>> $log_dir/server_$i.log"
             # tmux new-session -d -s "server_"$impl"_$i" "ssh $REMOTE_USER@$REMOTE_HOST LD_PRELOAD=$server_so $rdma_server_app -t $i -a $server_ip >> $server_res_file 2>> $log_dir/server_$i.log"

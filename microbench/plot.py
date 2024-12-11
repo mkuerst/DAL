@@ -389,9 +389,9 @@ read_data(ORIG_DATA_LAT, orig_res_dir_lat)
 # plots_emptycs(CLIENT_DATA=CLIENT_DATA_EMPTYCS, SERVER_DATA=SERVER_DATA_EMPTYCS, include_threads=inc_disa, DURATION=DURATION)
 # plots_emptycs(CLIENT_DATA=ORIG_DATA_EMPTYCS, SERVER_DATA={}, include_threads=inc_orig, DURATION=DURATION)
 
-# plots_mem(CLIENT_DATA_MEM, SERVER_DATA_MEM, inc_disa_mem)
+plots_mem(CLIENT_DATA_MEM, SERVER_DATA_MEM, inc_disa_mem)
 # plots_mem(ORIG_DATA_MEM, {}, inc_orig_mem)
 
 # plots_lat(CLIENT_DATA_LAT, SERVER_DATA_LAT, inc_disa_lat)
 # plots_lat(ORIG_DATA_LAT, {}, inc_lat_orig)
-plots_lat_both(CLIENT_DATA_LAT, SERVER_DATA_LAT, ORIG_DATA_LAT, [1,16])
+# plots_lat_both(CLIENT_DATA_LAT, SERVER_DATA_LAT, ORIG_DATA_LAT, [1,16])

@@ -20,7 +20,8 @@
 #error Must define CYCLE_PER_US for the current machine in the Makefile or elsewhere
 #endif
 
-char *array;
+char *array0;
+char *array1;
 
 lock_t lock;
 pthread_barrier_t global_barrier;
@@ -186,33 +187,33 @@ void *mem_worker(void *arg) {
             wait_rel = 0;
             pthread_barrier_wait(&global_barrier);
             while (!*task->stop) {
-                start = rdtscp();
-                lock_acquire(&lock);
-                lock_start = rdtscp();
-                wait_acq += lock_start-start;
-                lock_acquires++;
                 for (int x = 0; x < repeat; x++) {
                     for (size_t k = 0; k < array_size; k += 1) {
+                        int u = 0;
                         if(*task->stop)
                             break;
-                        // sum += array[k];
-                        array[k] += sum;
-                        loop_in_cs++;
+                        start = rdtscp();
+                        lock_acquire(&lock);
+                        lock_start = rdtscp();
+                        wait_acq += lock_start-start;
+                        lock_acquires++;
+                        while (u < CACHELINE_SIZE) {
+                            array0[k] += sum;
+                            u++;
+                            loop_in_cs++;
+                        }
+                        ull rel_start = rdtscp();
+                        lock_release(&lock);
+                        ull rel_end = rdtscp();
+                        lock_hold += rel_end - lock_start;
+                        wait_rel += rel_end - rel_start;
                     }
                 }
-                ull rel_start = rdtscp();
-                lock_release(&lock);
-                ull rel_end = rdtscp();
-
-                lock_hold += rel_end - lock_start;
-                wait_rel += rel_end - rel_start;
-                // duration = rdtscp() - start;
             }
             task->lock_acquires[i][j] = lock_acquires;
             task->loop_in_cs[i][j] = loop_in_cs;
             task->lock_hold[i][j] = lock_hold;
             task->array_size[i][j] = array_size;
-            // task->duration[i][j] = duration;
             task->wait_acq[i][j] = wait_acq;
             task->wait_rel[i][j] = wait_rel;
             pthread_barrier_wait(&global_barrier);
@@ -339,12 +340,14 @@ int main(int argc, char *argv[]) {
     }
     for (int i = 0; i < NUM_RUNS; i++) {
         for (int k = 0; k < num_mem_runs; k++) {
+            size_t array_sz = array_sizes[k];
             if (mode == 2) {
-                array = aligned_alloc(CACHELINE_SIZE, array_sizes[k]);
-                if (!array) {
-                    fprintf(stderr, "Failed to allocate memory for size %lu bytes\n", array_sizes[k]);
+                array0 = (char *) numa_alloc_onnode(array_sz, 0);
+                array1 = (char *) numa_alloc_onnode(array_sz, 1);
+                if (!array0 || !array1) {
+                    _error("Failed to allocate memory for size %lu bytes\n", array_sizes[k]);
                 }
-                memset(array, 0, array_sizes[k]); // Touch all pages to ensure allocation
+                // memset(array, 0, array_sizes[k]); // Touch all pages to ensure allocation
             }
             stop = 0;
             fprintf(stderr, "MEASUREMENTS RUN %d_%d\n", i, k);
@@ -353,7 +356,8 @@ int main(int argc, char *argv[]) {
             stop = 1;
             pthread_barrier_wait(&global_barrier);
             if (mode == 2) {
-                free(array);
+                numa_free(array0, array_sz);
+                numa_free(array1, array_sz);
             }
         }
     }
