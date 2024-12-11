@@ -172,7 +172,7 @@ void *mem_worker(void *arg) {
 
     for (int i = 0; i < NUM_RUNS; i++) {
         for (int j = 0; j < NUM_MEM_RUNS; j++)  {
-            volatile char sum = 0; // Prevent compiler optimizations
+            volatile char sum = 'a'; // Prevent compiler optimizations
             size_t repeat = array_sizes[NUM_MEM_RUNS-1] / array_sizes[j];
             ull array_size = array_sizes[j];
             lock_acquires = 0;
@@ -188,11 +188,12 @@ void *mem_worker(void *arg) {
                 wait_acq += lock_start-start;
                 lock_acquires++;
                 for (int x = 0; x < repeat; x++) {
-                    for (size_t k = 0; k < array_size; k += CACHELINE_SIZE) {
-                        sum += array[k];
-                        loop_in_cs++;
+                    for (size_t k = 0; k < array_size; k += 1) {
                         if(*task->stop)
                             break;
+                        // sum += array[k];
+                        array[k] += sum;
+                        loop_in_cs++;
                     }
                 }
                 ull rel_start = rdtscp();
