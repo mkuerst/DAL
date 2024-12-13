@@ -103,7 +103,6 @@
 // See empty.c for example.
 
 __thread unsigned int cur_thread_id;
-__thread char rdma;
 unsigned int last_thread_id;
 __thread int sockfd;
 int cur_turn = 1;
@@ -141,7 +140,6 @@ struct routine {
 #define CLEANUP_ON_SIGNAL 0
 #endif
 
-#define RDMA_ID 2050
 
 #if !NO_INDIRECTION
 static lock_transparent_mutex_t *
@@ -396,7 +394,6 @@ static void *lp_start_routine(void *_arg) {
     void *arg = r->arg;
     void *res;
     task_t* task = (task_t*) r->arg;
-    int task_id = task->id;
     
     free(r);
 
@@ -413,22 +410,21 @@ static void *lp_start_routine(void *_arg) {
         tcp_error("Thread %d failed at establishing tcp connection", cur_thread_id);
     }
     task->sockfd = sockfd;
-    // DEBUG("Thread %d connected to TCP server\n", cur_thread_id);
 #else
-    while (cur_thread_id != cur_turn) {
-        CPU_PAUSE();
-    }
-    int ret = establish_rdma_connection(task_id, task->server_ip);
-    if(ret < 0) {
-        rdma_error("Thread %d failed at establishing rdma connection\n", cur_thread_id);
-        exit(-1);
-    }
-    cur_turn++;
-    DEBUG("Thread %d connected to RDMA server\n", cur_thread_id);
+    client_prep_cas(task->rlock_meta);
+    // while (cur_thread_id != cur_turn) {
+    //     CPU_PAUSE();
+    // }
+    // int ret = establish_rdma_connection(task_id, task->server_ip);
+    // if(ret < 0) {
+    //     rdma_error("Thread %d failed at establishing rdma connection\n", cur_thread_id);
+    //     exit(-1);
+    // }
+    // cur_turn++;
 #endif
-    // lock_thread_start();
+    lock_thread_start();
     res = fct(arg);
-    // lock_thread_exit();
+    lock_thread_exit();
     return res;
 }
 
@@ -444,12 +440,10 @@ int __pthread_create(pthread_t *thread, const pthread_attr_t *attr,
     // RDMA seems to spawn threads that need to perform locking ops,
     // These should still use the standard linux implementation to work!
     task_t *rdma_arg = (task_t *) arg;
-    rdma = rdma_arg->rdma;
-    if (rdma != 'y') {
+    if (rdma_arg->rdma != 'y') {
         DEBUG("Creating cm thread %d\n", cur_thread_id);
         return REAL(pthread_create)(thread, attr, start_routine, arg);
     }
-
     return REAL(pthread_create)(thread, attr, lp_start_routine, r);
 }
 __asm__(".symver __pthread_create,pthread_create@@" GLIBC_2_2_5);
@@ -487,12 +481,12 @@ int pthread_mutex_lock(pthread_mutex_t *mutex) {
 #ifdef TCP
     return request_lock(sockfd, cur_thread_id);
 #endif
-    if (rdma != 1) {
-        DEBUG("CM thread trying to acquire lock as thread %d\n", cur_thread_id);
+    disa_mutex_t *disa_mutex = (disa_mutex_t *) mutex;
+    if (disa_mutex->disa != 'y') {
+        // DEBUG("RDMA Comm calls mutex_lock\n");
         return REAL(pthread_mutex_lock)(mutex);
     }
-    else
-        return rdma_request_lock();
+    return rdma_request_lock();
 }
 
 int pthread_mutex_timedlock(pthread_mutex_t *mutex,
@@ -515,8 +509,11 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex) {
 #ifdef TCP
     return release_lock(sockfd, cur_thread_id);
 #endif
-    if (rdma != 1)
+    disa_mutex_t *disa_mutex = (disa_mutex_t *) mutex;
+    if (disa_mutex->disa != 'y') {
+        // DEBUG("RDMA Comm releasing lock\n");
         return REAL(pthread_mutex_unlock)(mutex);
+    }
     return rdma_release_lock();
 }
 

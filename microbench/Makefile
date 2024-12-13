@@ -1,6 +1,3 @@
-#Use machine's CPU-SPEED, else results will be wrong.
-#example CYCLE_PER_US=2400L - 2.4 GHz processor
-
 # CYCLE_PER_US:=$(shell lscpu | grep "MHz" | awk 'NR==1 {printf "%dL\n", $$4}')
 CYCLE_PER_US:=$(shell cat "/proc/cpuinfo" | grep "MHz" | head -1 | awk '{printf "%dL\n", $$4}')
 CACHELINE_SIZE:=$(shell cat /sys/devices/system/cpu/cpu0/cache/index0/coherency_line_size)
@@ -18,18 +15,18 @@ GCCVERSIONGTEQ5 := $(shell expr `gcc -dumpversion | cut -f1 -d.` \>= 5)
 # else
 #     OFLAG=-O3
 # endif
-OFLAG=-O2
+OFLAG=-O0
 
-FLAGS=-I../litl2/include/ -I../litl2/src/ -g -Wall -lnuma ${OFLAG} -DCYCLE_PER_US=${CYCLE_PER_US} -DCACHELINE_SIZE=${CACHELINE_SIZE}
+FLAGS=-I../litl2/include/ -I../litl2/src/ -I/usr/include/rdma/ -g -Wall -lnuma ${OFLAG} -DCYCLE_PER_US=${CYCLE_PER_US} -DCACHELINE_SIZE=${CACHELINE_SIZE} -L/home/kumichae/my_libs/rdma-core/build/lib/ -lrdmacm -libverbs
 
 .PHONY: all target
 
 all: target
 
-target: ../litl2/src/utils.c
+target: ../litl2/src/utils.c ../litl2/src/rdma_common.o
 	@echo "USING CYCLE_PER_US = $(CYCLE_PER_US) MHz"
 	@echo "USING CACHELINE_SIZE = $(CACHELINE_SIZE) Bytes"
-	gcc main_disa.c $^ -o main_disa ${FLAGS} -DMUTEX -DTCP
+	gcc main_disa.c $^ -o main_disa ${FLAGS} -DMUTEX -DRDMA
 	gcc main_orig.c $^ -o main_orig ${FLAGS} -DMUTEX
 # gcc main.c -o main_spin ${FLAGS} -DSPIN
 

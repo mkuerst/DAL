@@ -172,7 +172,7 @@ void *mem_worker(void *arg) {
     ull wait_acq, wait_rel;
 
     for (int i = 0; i < NUM_RUNS; i++) {
-        for (int j = 0; j < NUM_MEM_RUNS; j++)  {
+        for (int j = 0; j < NUM_MEM_RUNS; j++) {
             volatile char sum = 'a'; // Prevent compiler optimizations
             size_t repeat = array_sizes[NUM_MEM_RUNS-1] / array_sizes[j];
             ull array_size = array_sizes[j];

@@ -82,3 +82,4 @@ inline int current_numa_node() {
     // return core / (CPU_NUMBER / NUMA_NODES);
     return core % 2;
 }
+

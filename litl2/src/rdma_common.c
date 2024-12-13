@@ -175,7 +175,7 @@ int process_work_completion_events (struct ibv_comp_channel *comp_channel,
 	       }
 	       total_wc += ret;
        } while (total_wc < max_wc); 
-       debug("%d WC are completed \n", total_wc);
+    //    debug("%d WC are completed \n", total_wc);
        /* Now we check validity and status of I/O work completions */
        for( i = 0 ; i < total_wc ; i++) {
 	       if (wc[i].status != IBV_WC_SUCCESS) {
@@ -205,3 +205,43 @@ int get_addr(char *dst, struct sockaddr *addr)
 	return ret;
 }
 
+
+int check_qp_state(struct ibv_qp *qp) {
+    struct ibv_qp_attr attr;
+    struct ibv_qp_init_attr init_attr;
+    int ret;
+
+    ret = ibv_query_qp(qp, &attr, IBV_QP_STATE, &init_attr);
+    if (ret) {
+        fprintf(stderr, "Failed to query QP state: %d\n", ret);
+        return ret;
+    }
+
+    switch (attr.qp_state) {
+        case IBV_QPS_RESET:
+            printf("QP is in RESET state\n");
+            break;
+        case IBV_QPS_INIT:
+            printf("QP is in INIT state\n");
+            break;
+        case IBV_QPS_RTR:
+            printf("QP is in RTR (Ready to Receive) state\n");
+            break;
+        case IBV_QPS_RTS:
+            printf("QP is in RTS (Ready to Send) state\n");
+            break;
+        case IBV_QPS_SQD:
+            printf("QP is in SQD (Send Queue Drained) state\n");
+            break;
+        case IBV_QPS_SQE:
+            printf("QP is in SQE (Send Queue Error) state\n");
+            break;
+        case IBV_QPS_ERR:
+            printf("QP is in ERR (Error) state\n");
+            break;
+        default:
+            printf("QP is in an unknown state: %d\n", attr.qp_state);
+            break;
+    }
+    return 0;
+}

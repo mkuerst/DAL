@@ -27,14 +27,12 @@
 #include <infiniband/verbs.h>
 #include "utils.h"
 
-/* Error Macro*/
 #define rdma_error(msg, args...) do {\
 	fprintf(stderr, "\033[1;31m%s : %d : ERROR : \033[0m"msg, __FILE__, __LINE__, ## args);\
 	fprintf(stderr, "\n");\
 }while(0);
 
 #ifdef RDMA_DEBUG 
-/* debug macro */
 #define debug(msg, args...) do {\
     fprintf(stderr, "debug: "msg, ## args);\
 }while(0);
@@ -43,14 +41,15 @@
 
 #define debug(msg, args...) 
 
-#endif /* ACN_RDMA_DEBUG */
+#endif 
 
 #define CQ_CAPACITY (16)
 #define MAX_SGE (2)
 #define MAX_WR (8)
 #define DEFAULT_RDMA_PORT (20886)
 
-#define MESSAGE_SIZE 8
+#define MESSAGE_SIZE 8 
+#define META_SIZE 256
 
 /* resolves a given destination name to sin_addr */
 int get_addr(char *dst, struct sockaddr *addr);
@@ -58,6 +57,7 @@ int get_addr(char *dst, struct sockaddr *addr);
 /* prints RDMA buffer info structure */
 void show_rdma_buffer_attr(struct rdma_buffer_attr *attr);
 
+int check_qp_state(struct ibv_qp *qp);
 /* 
  * Processes an RDMA connection management (CM) event. 
  * @echannel: CM event channel where the event is expected. 
@@ -115,3 +115,5 @@ int process_work_completion_events(struct ibv_comp_channel *comp_channel,
 void show_rdma_cmid(struct rdma_cm_id *id);
 
 #endif /* RDMA_COMMON_H */
+
+void* establish_rdma_connection(int tid, char* addr);

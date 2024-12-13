@@ -13,6 +13,7 @@
 #include "lock.h"
 #include <utils.h>
 #include <tcp_client.c>
+#include <rdma_client.c>
 
 #define gettid() syscall(SYS_gettid)
 
@@ -23,7 +24,7 @@
 char *array0;
 char *array1;
 
-lock_t lock;
+disa_lock_t lock;
 pthread_barrier_t global_barrier;
 pthread_barrier_t mem_barrier;
 
@@ -100,13 +101,13 @@ void *lat_worker(void *arg) {
 
         for (int j = 0; j < NUM_LAT_RUNS; j++) {
                 start = rdtscp();
-                lock_acquire(&lock);
+                lock_acquire((pthread_mutex_t *)&lock);
                 now = rdtscp();
                 task->lat_wait_acq[i][j] = now - start;
                 lock_acquires++;
                 end = rdtscp();
                 task->lat_lock_hold[i][j] = end - now;
-                lock_release(&lock);
+                lock_release((pthread_mutex_t *)&lock);
                 task->lat_wait_rel[i][j] = rdtscp() - end;
         }
         run_complete(task->sockfd, task_id);
@@ -138,7 +139,7 @@ void *empty_cs_worker(void *arg) {
         while (!*task->stop) {
             // fprintf(stderr, "thread %d acquiring lock\n", task->id);
             start = rdtscp();
-            lock_acquire(&lock);
+            lock_acquire((pthread_mutex_t *)&lock);
             ull s = rdtscp();
             wait_acq += s - start;
             // fprintf(stderr, "thread %d acquired lock\n", task->id);
@@ -147,7 +148,7 @@ void *empty_cs_worker(void *arg) {
             start = rdtscp();
             // fprintf(stderr, "thread %d releasing lock\n", task->id);
             lock_hold += start - s;
-            lock_release(&lock);
+            lock_release((pthread_mutex_t *)&lock);
             wait_rel += rdtscp() - start;
             // fprintf(stderr, "thread %d released lock\n", task->id);
         }
@@ -193,7 +194,7 @@ void *mem_worker(void *arg) {
                         if(*task->stop)
                             break;
                         start = rdtscp();
-                        lock_acquire(&lock);
+                        lock_acquire((pthread_mutex_t *)&lock);
                         lock_start = rdtscp();
                         wait_acq += lock_start-start;
                         lock_acquires++;
@@ -203,7 +204,7 @@ void *mem_worker(void *arg) {
                             loop_in_cs++;
                         }
                         ull rel_start = rdtscp();
-                        lock_release(&lock);
+                        lock_release((pthread_mutex_t *)&lock);
                         ull rel_end = rdtscp();
                         lock_hold += rel_end - lock_start;
                         wait_rel += rel_end - rel_start;
@@ -298,7 +299,13 @@ int main(int argc, char *argv[]) {
     volatile ull global_its __attribute__((aligned (CACHELINE_SIZE))) = 0;
     double short_cs = duration * 1e6 / 100000.; //range in (us)
     double long_cs = duration * 1e6 / 100.;
+    rlock_meta* rlock = NULL;
     // int stop_warmup __attribute__((aligned (CACHELINE_SIZE))) = 0;
+#ifdef RDMA
+    if (!(rlock = establish_rdma_connection(0, server_ip))) {
+        _error("Main thread failed to eastablish rdma connection\n");
+    }
+#endif
     for (int i = 0; i < nthreads; i++) {
         tasks[i].rdma = 'y';
         tasks[i].stop = &stop;
@@ -307,6 +314,7 @@ int main(int argc, char *argv[]) {
         tasks[i].priority = 1;
         tasks[i].id = i;
         tasks[i].server_ip = server_ip;
+        tasks[i].rlock_meta = rlock;
         // fprintf(stderr, "random cs: %f\n", tasks[i].cs);
         // int priority = atoi(argv[4+i*2]);
         // tasks[i].priority = priority;
@@ -328,9 +336,11 @@ int main(int argc, char *argv[]) {
             }
         }
     }
-    lock_init(&lock);
+    lock.disa = 'y';
+    lock_init((pthread_mutex_t *) &lock);
     pthread_barrier_init(&global_barrier, NULL, nthreads+1);
     pthread_barrier_init(&mem_barrier, NULL, nthreads);
+
 
     void* worker; 
     int num_mem_runs = mode == 2 ? NUM_MEM_RUNS : 1;

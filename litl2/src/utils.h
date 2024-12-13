@@ -29,6 +29,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <infiniband/verbs.h>
+#include <rdma_cma.h>
 
 #include <sched.h>
 #include <numa.h>
@@ -100,23 +101,16 @@ extern size_t array_sizes[NUM_MEM_RUNS];
 
 
 typedef unsigned long long ull;
-// typedef struct {
-//     volatile int *stop;
-//     volatile ull *global_its;
-//     pthread_t thread;
-//     int rdma;
-//     int priority;
-//     int id;
-//     double cs;
-//     char* server_ip;
-//     int sockfd;
-//     // outputs
-//     ull loop_in_cs[NUM_RUNS];
-//     ull lock_acquires[NUM_RUNS];
-//     ull lock_hold[NUM_RUNS];
-//     ull mem_duration[NUM_RUNS];
-//     size_t array_size[NUM_RUNS];
-// } task_t __attribute__ ((aligned (CACHELINE_SIZE)));
+
+typedef struct {
+	uint64_t rlock_addr;
+	uint32_t rkey;
+    uint64_t *cas_result;
+    struct ibv_qp *qp;
+    struct ibv_comp_channel *io_comp_chan;
+    struct ibv_wc *wc;
+	struct ibv_send_wr cas_wr, *bad_wr;
+} rlock_meta;
 
 typedef struct {
     volatile int *stop;
@@ -128,7 +122,8 @@ typedef struct {
     double cs;
     char* server_ip;
     int sockfd;
-    // outputs
+    rlock_meta* rlock_meta;
+    // EMPTY_CS/MEM MEASUREMENTS 
     ull duration[NUM_RUNS][NUM_MEM_RUNS];
     ull loop_in_cs[NUM_RUNS][NUM_MEM_RUNS];
     ull lock_acquires[NUM_RUNS][NUM_MEM_RUNS];
@@ -152,6 +147,11 @@ typedef struct thread_data {
     ull wait_acq[NUM_RUNS][NUM_LAT_RUNS];
     ull wait_rel[NUM_RUNS][NUM_LAT_RUNS];
 } thread_data;
+
+typedef struct {
+    pthread_mutex_t mutex;
+    char disa;
+} disa_mutex_t;
 
 /* 
  * We use attribute so that compiler does not step in and try to pad the structure.

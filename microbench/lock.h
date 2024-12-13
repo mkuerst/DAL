@@ -3,6 +3,8 @@
 
 #ifdef MUTEX
 #include <pthread.h>
+#include <utils.h>
+typedef disa_mutex_t disa_lock_t;
 typedef pthread_mutex_t lock_t;
 #define lock_init(plock) pthread_mutex_init(plock, NULL)
 #define lock_acquire(plock) pthread_mutex_lock(plock)

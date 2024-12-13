@@ -425,6 +425,7 @@ int __pthread_create(pthread_t *thread, const pthread_attr_t *attr,
 
     r->fct = start_routine;
     r->arg = arg;
+    // rdma_thread *rdma_info = (rdma_thread *) arg;
 
     return REAL(pthread_create)(thread, attr, lp_start_routine, r);
 }
@@ -459,7 +460,7 @@ int pthread_mutex_destroy(pthread_mutex_t *mutex) {
 }
 
 int pthread_mutex_lock(pthread_mutex_t *mutex) {
-    DEBUG("server is running pthread_mutex_lock for thread %d\n", cur_thread_id);
+    DEBUG_PTHREAD("[p] pthread_mutex_lock\n");
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get(mutex);
     return lock_mutex_lock(impl->lock_lock, get_node(impl));
