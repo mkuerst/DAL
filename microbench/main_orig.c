@@ -22,6 +22,7 @@
 
 char *array0;
 char *array1;
+int nthreads;
 
 lock_t lock;
 pthread_barrier_t global_barrier;
@@ -90,7 +91,7 @@ int set_prio(int prio) {
 void *lat_worker(void *arg) {
     task_t *task = (task_t *) arg;
     int task_id = task->id;
-    pin_thread(task_id);
+    pin_thread(task_id, nthreads);
     ull now, start, end;
     ull lock_acquires;
 
@@ -118,7 +119,7 @@ void *empty_cs_worker(void *arg) {
     task_t *task = (task_t *) arg;
     int task_id = task->id;
     // fprintf(stderr,"RUNNING ON %d ndoes\n", NUMA_NODES);
-    pin_thread(task_id);
+    pin_thread(task_id, nthreads);
     ull start;
     ull lock_acquires;
     ull lock_hold;
@@ -166,7 +167,7 @@ void *mem_worker(void *arg) {
     task_t *task = (task_t *) arg;
     int task_id = task->id;
 
-    pin_thread(task_id);
+    pin_thread(task_id, nthreads);
     ull start, lock_start;
     ull lock_acquires, lock_hold, loop_in_cs;
     ull wait_acq, wait_rel;
@@ -279,7 +280,7 @@ int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
 
 int main(int argc, char *argv[]) {
     srand(42);
-    int nthreads = atoi(argv[1]);
+    nthreads = atoi(argv[1]);
     int duration = atoi(argv[2]);
     double cs = atoi(argv[3]);
     char *server_ip = (argv[4]);

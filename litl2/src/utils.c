@@ -30,7 +30,7 @@
 
 // r630-11: 8 MB, 16 MB, 128 MB
 // r630-12: ???
-size_t array_sizes[NUM_MEM_RUNS] = {KB(256), MB(16), MB(128)};
+size_t array_sizes[NUM_MEM_RUNS] = {KB(256), MB(16), MAX_ARRAY_SIZE};
 
 inline void *alloc_cache_align(size_t n) {
     void *res = 0;
@@ -43,18 +43,19 @@ inline void *alloc_cache_align(size_t n) {
 }
 
 // HARDCODED FOR OUR HW
-inline int pin_thread(unsigned int id) {
+// CURRENT PINNING: always use 2 nodes
+inline int pin_thread(unsigned int id, int nthreads) {
     // int node = 0;
     int cpu_id = id;
     if (NUMA_NODES == 1) {
         return 0;
     }
-    else if (id < (CPU_NUMBER / NUMA_NODES)) {
+    else if (id < (nthreads / NUMA_NODES)) {
         cpu_id = 2*id;
     }
     else {
         if (id % 2 == 0) {
-            cpu_id = id - (CPU_NUMBER / 2) + 1;
+            cpu_id = id - (nthreads / 2) + 1;
         }
     }
     if (CPU_NUMBER != 0) {

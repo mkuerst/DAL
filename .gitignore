@@ -11,3 +11,4 @@ microbench/main_orig
 rdma-example
 *.nfs*
 microbench/server_logs
+microbench/client_logs

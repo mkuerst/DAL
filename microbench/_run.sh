@@ -30,7 +30,12 @@ server_suffix="_server.so"
 server_libs_dir=$BASE"/server/"
 client_libs_dir=$BASE"/client/"
 orig_libs_dir=$BASE"/original/"
+
+disa_bench="$PWD/../microbench/main_disa"
+
 microbenches=("empty_cs" "lat" "mem")
+client_ids=(0)
+num_clients=${#client_ids[@]}
 
 # MICROBENCH INPUTS
 nthreads=$(nproc)
@@ -45,6 +50,7 @@ client_file_header="tid,loop_in_cs,lock_acquires,lock_hold(ms),total_duration(s)
 server_file_header="tid,wait_acq(ms),wait_rel(ms)"
 
 rm -rf server_logs/
+rm -rf client_logs/
 for impl_dir in "$BASE"/original/*
 do
     impl=$(basename $impl_dir)
@@ -52,41 +58,51 @@ do
     client_so=${client_libs_dir}${impl}$client_suffix
     server_so=${server_libs_dir}${impl}$server_suffix
     orig_so=${orig_libs_dir}${impl}.so
-    for j in 1
+    for j in 0
     do
         microb="${microbenches[$j]}"
-        client_res_dir="./results/disaggregated/client/$impl/$microb"
         server_res_dir="./results/disaggregated/server/$impl/$microb"
         orig_res_dir="./results/non_disaggregated/$impl/$microb"
         server_log_dir="$server_logpath/$impl/$microb"
-        mkdir -p "$client_res_dir" 
+        client_log_dir="$client_logpath/$impl/$microb"
         mkdir -p "$server_res_dir" 
         mkdir -p "$orig_res_dir" 
         mkdir -p "$server_log_dir"
+        mkdir -p "$client_log_dir"
 
         # for ((i=1; i<=nthreads; i*=2))
-        for i in 1 16 
+        for i in 1
         do
-            client_res_file="$client_res_dir"/nthread_"$i".csv
             server_res_file="$server_res_dir"/nthread_"$i".csv
             orig_res_file="$orig_res_dir/nthread_$i.csv"
-            echo $client_file_header > "$client_res_file"
             echo $client_file_header > "$orig_res_file"
             echo $server_file_header > "$server_res_file"
-            session_name="server_$impl_$i"
+            server_session="server_$i"
 
-            echo "START $impl SERVER with $i THREADS"
-            tmux new-session -d -s "server_"$impl"_$i" "ssh $REMOTE_USER@$REMOTE_HOST LD_PRELOAD=$server_so $tcp_server_app $i $j $1 >> $server_res_file 2>> $log_dir/server_$i.log"
-            # tmux new-session -d -s "$session_name" "ssh $REMOTE_USER@$REMOTE_HOST $rdma_server_app -t $i -a $server_ip >> $server_res_file 2>> $server_log_dir/server_$i.log"
+            echo "START $impl SERVER FOR $i THREADS PER CLIENT"
+            # tmux new-session -d -s "$server_session" "ssh $REMOTE_USER@$REMOTE_HOST $rdma_server_app -t $i -a $server_ip >> $server_res_file 2>> $server_log_dir/server_$i.log"
+            tmux new-session -d -s "$server_session" "ssh $REMOTE_USER@$REMOTE_HOST $tcp_server_app $i $j $num_clients >> $server_res_file 2>> $server_log_dir/server_$i.log"
+            # $rdma_server_app -t $i -a $server_ip >> $server_res_file 2>> $server_log_dir/server_$i.log
 
-            # tmux capture-pane -pt "server_"$impl"_$i"
-            # gnome-terminal -- bash -c "ssh $REMOTE_USER@$REMOTE_HOST -i $ssh_key 'LD_PRELOAD=$server_so $tcp_server_app $i' >> $server_res_file"
-
-            sleep 5
-            echo "START MICROBENCH $microb CLIENT WITH $i THREADS"
-            LD_PRELOAD=$client_so ./main_disa $i $duration $critical $server_ip $j 0 >> $client_res_file
-            # LD_PRELOAD=$orig_so ./main_orig $i $duration $critical $server_ip $j >> $orig_res_file
-            tmux kill-session -t "$session_name"
+            sleep 3
+            client_res_dir="./results/disaggregated/client/$impl/$microb"
+            client_res_file="$client_res_dir"/nthread_"$i".csv
+            echo $client_file_header > "$client_res_file"
+            mkdir -p "$client_res_dir" 
+            for c in $client_ids
+            do
+                client_session="client_$impl"
+                echo "START MICROBENCH $microb CLIENT $c WITH $i THREADS"
+                tmux new-session -d -s "$client_session"_"$c" "ssh $REMOTE_USER@$REMOTE_HOST LD_PRELOAD=$client_so $disa_bench $i $duration $critical $server_ip $j $c \
+                >> $client_res_file 2>> $client_log_dir/client$c_$i.log; tmux wait-for -S done_${impl}_$c"
+                # LD_PRELOAD=$client_so ./main_disa $i $duration $critical $server_ip $j >> $client_res_file
+            done
+            for c in $client_ids
+            do
+                tmux wait-for done_${impl}_$c
+            done
+            # tmux kill-session -t $server_session
+            tmux kill-server
         done
     done
 done

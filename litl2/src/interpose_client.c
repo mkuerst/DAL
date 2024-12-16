@@ -7,9 +7,9 @@
  * of his software and associated documentation files (the "Software"), to deal
  *
  * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * furnished to do so, subject to the following conditions:
  *
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
@@ -103,8 +103,10 @@
 // See empty.c for example.
 
 __thread unsigned int cur_thread_id;
-unsigned int last_thread_id;
 __thread int sockfd;
+__thread int client_id;
+__thread int task_id;
+unsigned int last_thread_id;
 int cur_turn = 1;
 
 
@@ -394,6 +396,8 @@ static void *lp_start_routine(void *_arg) {
     void *arg = r->arg;
     void *res;
     task_t* task = (task_t*) r->arg;
+    client_id = task->client_id;
+    task_id = task->id;
     
     free(r);
 
@@ -404,13 +408,17 @@ static void *lp_start_routine(void *_arg) {
                 MAX_THREADS);
         exit(-1);
     } 
-#ifdef TCP
+#ifdef TCP_PROXY
     sockfd = establish_tcp_connection(task_id, task->server_ip);
     if(sockfd < 0) {
         tcp_error("Thread %d failed at establishing tcp connection", cur_thread_id);
     }
     task->sockfd = sockfd;
-#else
+#endif
+#ifdef TCP_SPINLOCK
+    sockfd = task->sockfd;
+#endif
+#ifdef RDMA
     client_prep_cas(task->rlock_meta);
     // while (cur_thread_id != cur_turn) {
     //     CPU_PAUSE();
@@ -437,13 +445,6 @@ int __pthread_create(pthread_t *thread, const pthread_attr_t *attr,
     r->fct = start_routine;
     r->arg = arg;
 
-    // RDMA seems to spawn threads that need to perform locking ops,
-    // These should still use the standard linux implementation to work!
-    task_t *rdma_arg = (task_t *) arg;
-    if (rdma_arg->rdma != 'y') {
-        DEBUG("Creating cm thread %d\n", cur_thread_id);
-        return REAL(pthread_create)(thread, attr, start_routine, arg);
-    }
     return REAL(pthread_create)(thread, attr, lp_start_routine, r);
 }
 __asm__(".symver __pthread_create,pthread_create@@" GLIBC_2_2_5);
@@ -478,15 +479,26 @@ int pthread_mutex_destroy(pthread_mutex_t *mutex) {
 
 int pthread_mutex_lock(pthread_mutex_t *mutex) {
     DEBUG_PTHREAD("[p] pthread_mutex_lock\n");
-#ifdef TCP
-    return request_lock(sockfd, cur_thread_id);
+#ifdef TCP_PROXY
+    return tcp_request_lock(sockfd, client_id, task_id);
 #endif
     disa_mutex_t *disa_mutex = (disa_mutex_t *) mutex;
     if (disa_mutex->disa != 'y') {
         // DEBUG("RDMA Comm calls mutex_lock\n");
         return REAL(pthread_mutex_lock)(mutex);
     }
+#if !NO_INDIRECTION
+    lock_transparent_mutex_t *impl = ht_lock_get(mutex);
+    lock_mutex_lock(impl->lock_lock, get_node(impl));
+#else
+    lock_mutex_lock(mutex, NULL);
+#endif
+#ifdef RDMA
     return rdma_request_lock();
+#endif
+#ifdef TCP_SPINLOCK
+    return tcp_request_lock(sockfd, client_id, task_id);
+#endif
 }
 
 int pthread_mutex_timedlock(pthread_mutex_t *mutex,
@@ -506,65 +518,77 @@ int pthread_mutex_trylock(pthread_mutex_t *mutex) {
 
 int pthread_mutex_unlock(pthread_mutex_t *mutex) {
     DEBUG_PTHREAD("[p] pthread_mutex_unlock\n");
-#ifdef TCP
-    return release_lock(sockfd, cur_thread_id);
+#ifdef TCP_PROXY
+    return tcp_release_lock(sockfd, client_id, task_id);
 #endif
     disa_mutex_t *disa_mutex = (disa_mutex_t *) mutex;
     if (disa_mutex->disa != 'y') {
         // DEBUG("RDMA Comm releasing lock\n");
         return REAL(pthread_mutex_unlock)(mutex);
     }
-    return rdma_release_lock();
+#ifdef RDMA
+    rdma_release_lock();
+#endif
+#ifdef TCP_SPINLOCK
+    tcp_release_lock(sockfd, client_id, task_id);
+#endif
+#if !NO_INDIRECTION
+    lock_transparent_mutex_t *impl = ht_lock_get(mutex);
+    lock_mutex_unlock(impl->lock_lock, get_node(impl));
+#else
+    lock_mutex_unlock(mutex, NULL);
+#endif
+    return 0;
 }
 
-// int __pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr) {
-//     DEBUG_PTHREAD("[p] pthread_cond_init\n");
-//     return lock_cond_init(cond, attr);
-// }
-// __asm__(".symver __pthread_cond_init,pthread_cond_init@@" GLIBC_2_3_2);
+int __pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr) {
+    DEBUG_PTHREAD("[p] pthread_cond_init\n");
+    return lock_cond_init(cond, attr);
+}
+__asm__(".symver __pthread_cond_init,pthread_cond_init@@" GLIBC_2_3_2);
 
-// int __pthread_cond_destroy(pthread_cond_t *cond) {
-//     DEBUG_PTHREAD("[p] pthread_cond_destroy\n");
-//     return lock_cond_destroy(cond);
-// }
-// __asm__(".symver __pthread_cond_destroy,pthread_cond_destroy@@" GLIBC_2_3_2);
+int __pthread_cond_destroy(pthread_cond_t *cond) {
+    DEBUG_PTHREAD("[p] pthread_cond_destroy\n");
+    return lock_cond_destroy(cond);
+}
+__asm__(".symver __pthread_cond_destroy,pthread_cond_destroy@@" GLIBC_2_3_2);
 
-// int __pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
-//                              const struct timespec *abstime) {
-//     DEBUG_PTHREAD("[p] pthread_cond_timedwait\n");
-// #if !NO_INDIRECTION
-//     lock_transparent_mutex_t *impl = ht_lock_get(mutex);
-//     return lock_cond_timedwait(cond, impl->lock_lock, get_node(impl), abstime);
-// #else
-//     return lock_cond_timedwait(cond, mutex, NULL, abstime);
-// #endif
-// }
-// __asm__(
-//     ".symver __pthread_cond_timedwait,pthread_cond_timedwait@@" GLIBC_2_3_2);
+int __pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
+                             const struct timespec *abstime) {
+    DEBUG_PTHREAD("[p] pthread_cond_timedwait\n");
+#if !NO_INDIRECTION
+    lock_transparent_mutex_t *impl = ht_lock_get(mutex);
+    return lock_cond_timedwait(cond, impl->lock_lock, get_node(impl), abstime);
+#else
+    return lock_cond_timedwait(cond, mutex, NULL, abstime);
+#endif
+}
+__asm__(
+    ".symver __pthread_cond_timedwait,pthread_cond_timedwait@@" GLIBC_2_3_2);
 
-// int __pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex) {
-//     DEBUG_PTHREAD("[p] pthread_cond_wait\n");
-// #if !NO_INDIRECTION
-//     lock_transparent_mutex_t *impl = ht_lock_get(mutex);
-//     return lock_cond_wait(cond, impl->lock_lock, get_node(impl));
-// #else
-//     return lock_cond_wait(cond, mutex, NULL);
-// #endif
-// }
-// __asm__(".symver __pthread_cond_wait,pthread_cond_wait@@" GLIBC_2_3_2);
+int __pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex) {
+    DEBUG_PTHREAD("[p] pthread_cond_wait\n");
+#if !NO_INDIRECTION
+    lock_transparent_mutex_t *impl = ht_lock_get(mutex);
+    return lock_cond_wait(cond, impl->lock_lock, get_node(impl));
+#else
+    return lock_cond_wait(cond, mutex, NULL);
+#endif
+}
+__asm__(".symver __pthread_cond_wait,pthread_cond_wait@@" GLIBC_2_3_2);
 
-// int __pthread_cond_signal(pthread_cond_t *cond) {
-//     DEBUG_PTHREAD("[p] pthread_cond_signal\n");
-//     return lock_cond_signal(cond);
-// }
-// __asm__(".symver __pthread_cond_signal,pthread_cond_signal@@" GLIBC_2_3_2);
+int __pthread_cond_signal(pthread_cond_t *cond) {
+    DEBUG_PTHREAD("[p] pthread_cond_signal\n");
+    return lock_cond_signal(cond);
+}
+__asm__(".symver __pthread_cond_signal,pthread_cond_signal@@" GLIBC_2_3_2);
 
-// int __pthread_cond_broadcast(pthread_cond_t *cond) {
-//     DEBUG_PTHREAD("[p] pthread_cond_broadcast\n");
-//     return lock_cond_broadcast(cond);
-// }
-// __asm__(
-//     ".symver __pthread_cond_broadcast,pthread_cond_broadcast@@" GLIBC_2_3_2);
+int __pthread_cond_broadcast(pthread_cond_t *cond) {
+    DEBUG_PTHREAD("[p] pthread_cond_broadcast\n");
+    return lock_cond_broadcast(cond);
+}
+__asm__(
+    ".symver __pthread_cond_broadcast,pthread_cond_broadcast@@" GLIBC_2_3_2);
 
 
 

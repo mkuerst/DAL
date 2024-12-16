@@ -23,6 +23,8 @@
 
 char *array0;
 char *array1;
+int client_id;
+int nthreads;
 
 disa_lock_t lock;
 pthread_barrier_t global_barrier;
@@ -91,7 +93,7 @@ int set_prio(int prio) {
 void *lat_worker(void *arg) {
     task_t *task = (task_t *) arg;
     int task_id = task->id;
-    pin_thread(task_id);
+    pin_thread(task_id, nthreads);
     ull now, start, end;
     ull lock_acquires;
 
@@ -121,7 +123,7 @@ void *empty_cs_worker(void *arg) {
     task_t *task = (task_t *) arg;
     int task_id = task->id;
     // fprintf(stderr,"RUNNING ON %d ndoes\n", NUMA_NODES);
-    pin_thread(task_id);
+    pin_thread(task_id, nthreads);
     ull start;
     ull lock_acquires;
     ull lock_hold;
@@ -171,7 +173,7 @@ void *mem_worker(void *arg) {
     task_t *task = (task_t *) arg;
     int task_id = task->id;
 
-    pin_thread(task_id);
+    pin_thread(task_id, nthreads);
     ull start, lock_start;
     ull lock_acquires, lock_hold, loop_in_cs;
     ull wait_acq, wait_rel;
@@ -205,6 +207,7 @@ void *mem_worker(void *arg) {
                         }
                         ull rel_start = rdtscp();
                         lock_release((pthread_mutex_t *)&lock);
+                        exit(EXIT_SUCCESS);
                         ull rel_end = rdtscp();
                         lock_hold += rel_end - lock_start;
                         wait_rel += rel_end - rel_start;
@@ -260,7 +263,7 @@ int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
                     size_t array_size = task.array_size[j][k];
                     total_lock_hold += lock_hold;
                     total_lock_acq += task.lock_acquires[j][k];
-                    printf("%03d,%10llu,%8llu,%12.6f,%12.6f,%12.6f,%12.6f,%16lu,%12.6f,%12.6f,%12.6f\n",
+                    printf("%03d,%10llu,%8llu,%12.6f,%12.6f,%12.6f,%12.6f,%16lu,%12.6f,%12.6f,%12.6f,%03d\n",
                             task.id,
                             task.loop_in_cs[j][k],
                             task.lock_acquires[j][k],
@@ -271,7 +274,8 @@ int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
                             array_size,
                             lat_lock_hold,
                             lat_wait_acq,
-                            lat_wait_rel
+                            lat_wait_rel,
+                            client_id
                             );
                 }
             }
@@ -285,11 +289,12 @@ int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
 
 int main(int argc, char *argv[]) {
     srand(42);
-    int nthreads = atoi(argv[1]);
+    nthreads = atoi(argv[1]);
     int duration = atoi(argv[2]);
     double cs = atoi(argv[3]);
     char *server_ip = (argv[4]);
     int mode = argc < 6 ? 0 : atoi(argv[5]);
+    client_id = atoi(argv[6]);
     task_t *tasks = malloc(sizeof(task_t) * nthreads);
 
     pthread_attr_t attr;
@@ -300,10 +305,16 @@ int main(int argc, char *argv[]) {
     double short_cs = duration * 1e6 / 100000.; //range in (us)
     double long_cs = duration * 1e6 / 100.;
     rlock_meta* rlock = NULL;
+    int tcp_fd = 0;
     // int stop_warmup __attribute__((aligned (CACHELINE_SIZE))) = 0;
 #ifdef RDMA
     if (!(rlock = establish_rdma_connection(0, server_ip))) {
         _error("Main thread failed to eastablish rdma connection\n");
+    }
+#endif
+#ifdef TCP_SPINLOCK
+    if ((tcp_fd = establish_tcp_connection(client_id, server_ip)) == 0) {
+        _error("Client %d failed to establish TCP_SPINLOCK connection\n", client_id);
     }
 #endif
     for (int i = 0; i < nthreads; i++) {
@@ -315,6 +326,8 @@ int main(int argc, char *argv[]) {
         tasks[i].id = i;
         tasks[i].server_ip = server_ip;
         tasks[i].rlock_meta = rlock;
+        tasks[i].sockfd = tcp_fd;
+        tasks[i].client_id = client_id;
         // fprintf(stderr, "random cs: %f\n", tasks[i].cs);
         // int priority = atoi(argv[4+i*2]);
         // tasks[i].priority = priority;

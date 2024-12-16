@@ -32,7 +32,7 @@
 	fprintf(stderr, "\n");\
 }while(0);
 
-#ifdef RDMA_DEBUG 
+#ifdef DEBUG 
 #define debug(msg, args...) do {\
     fprintf(stderr, "debug: "msg, ## args);\
 }while(0);
@@ -46,7 +46,11 @@
 #define CQ_CAPACITY (16)
 #define MAX_SGE (2)
 #define MAX_WR (8)
-#define DEFAULT_RDMA_PORT (20886)
+#define DEFAULT_RDMA_PORT (20051)
+// #define DEFAULT_RDMA_PORT (20049)
+// #define DEFAULT_RDMA_PORT (20886)
+// #define DEFAULT_RDMA_PORT (18515)
+// #define DEFAULT_RDMA_PORT (8080)
 
 #define MESSAGE_SIZE 8 
 #define META_SIZE 256

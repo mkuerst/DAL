@@ -59,44 +59,44 @@ int establish_tcp_connection(unsigned int tid, char* addr) {
 }
 
 
-int request_lock(int sockfd, int tid)
+int tcp_request_lock(int sockfd, int client_id, int task_id)
 {
     char buffer[BUFFER_SIZE];
     memset(buffer, 0, BUFFER_SIZE);
     char msg[BUFFER_SIZE];
     memset(msg, 0, BUFFER_SIZE);
     int ret = 0;
-    sprintf(msg, "l%d", tid);
+    sprintf(msg, "l%d.%d", client_id, task_id);
 
-    DEBUG("Thread %d requests the lock: %s on socket %d\n", tid, msg, sockfd);
+    DEBUG("Client.Task %d.%d requests the lock: %s on socket %d\n", client_id, task_id, msg, sockfd);
     if ((ret = send(sockfd, msg, BUFFER_SIZE, 0)) < 0)
-        tcp_client_error(sockfd, "Thread %d failed at sending lock request\n", tid);
+        tcp_client_error(sockfd, "Client.Task %d.%d failed at sending lock request\n", client_id, task_id);
 
     if ((ret = read(sockfd, buffer, BUFFER_SIZE)) < 0)
-        tcp_client_error(sockfd, "Thread %d failed at receiving answer for lock request\n", tid);
+        tcp_client_error(sockfd, "Client.Task %d.%d failed at receiving answer for lock request\n", client_id, task_id);
     
-    DEBUG("Thread %d received msg %s\n", tid, buffer);
+    DEBUG("Client.Task %d.%d received msg %s\n", client_id, task_id, buffer);
     return ret;
 }
 
-int release_lock(int sockfd, int tid)
+int tcp_release_lock(int sockfd, int client_id, int task_id)
 {
     char buffer[BUFFER_SIZE];
     memset(buffer, 0, BUFFER_SIZE);
     char msg[BUFFER_SIZE];
     memset(msg, 0, BUFFER_SIZE);
     int ret = 0;
-    sprintf(msg, "r%d", tid);
+    sprintf(msg, "r%d.%d", client_id, task_id);
     if ((ret = send(sockfd, msg, strlen(msg), 0)) < 0)
-        tcp_client_error(sockfd, "Thread %d failed at releasing lock\n", tid);
+        tcp_client_error(sockfd, "Client.Task %d.%d failed at releasing lock\n", client_id, task_id);
 
     if ((ret = read(sockfd, buffer, BUFFER_SIZE)) < 0)
-        tcp_client_error(sockfd, "Thread %d failed at receiving answer for lock request\n", tid);
+        tcp_client_error(sockfd, "Client.Task %d.%d failed at receiving answer for lock request\n", client_id, task_id);
 
     // if (strcmp(buffer, "released lock") == 0) {
-    //     tcp_client_error(sockfd, "Thread %d expected released msg, got '%s'\n", tid, buffer);
+    //     tcp_client_error(sockfd, "Thread %d expected released msg, got '%s'\n", task_id, buffer);
     // }
-    DEBUG("Thread %d released lock to memory server\n", tid);
+    DEBUG("Client.Task %d.%d released lock to memory server\n", client_id, task_id);
     return ret;
 }
 

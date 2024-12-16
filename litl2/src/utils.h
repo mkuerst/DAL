@@ -40,6 +40,7 @@
 
 
 #define MAX_THREADS 2048
+#define MAX_CLIENTS 16
 #define CPU_PAUSE() asm volatile("pause\n" : : : "memory")
 #define COMPILER_BARRIER() asm volatile("" : : : "memory")
 #define MEMORY_BARRIER() __sync_synchronize()
@@ -83,10 +84,11 @@
 #define GB(x) (MB(x) * 1024L)
 // CACHE: L1: 512 KiB (x16 instances) | L2: 4 MiB (x16 instances) | L3: 40 MiB (x2 instances)
 // 256 KiB -*8> 2 MiB -*8> 16 -*4>
-#define MAX_ARRAY_SIZE MB(64L)
+#define MAX_ARRAY_SIZE MB(128)
 #define NUM_MEM_RUNS 3 
 #define NUM_LAT_RUNS 10
 
+#define LOCKS_PER_MEMRUN MAX_ARRAY_SIZE
 #define CYCLES_11 1200L
 #define CYCLES_12 2400L
 
@@ -106,10 +108,12 @@ typedef struct {
 	uint64_t rlock_addr;
 	uint32_t rkey;
     uint64_t *cas_result;
+    uint64_t *unlock_val;
     struct ibv_qp *qp;
     struct ibv_comp_channel *io_comp_chan;
     struct ibv_wc *wc;
-	struct ibv_send_wr cas_wr, *bad_wr;
+	struct ibv_send_wr cas_wr, *bad_wr, w_wr;
+    struct ibv_sge cas_sge, w_sge;
 } rlock_meta;
 
 typedef struct {
@@ -122,6 +126,7 @@ typedef struct {
     double cs;
     char* server_ip;
     int sockfd;
+    int client_id;
     rlock_meta* rlock_meta;
     // EMPTY_CS/MEM MEASUREMENTS 
     ull duration[NUM_RUNS][NUM_MEM_RUNS];
@@ -147,6 +152,16 @@ typedef struct thread_data {
     ull wait_acq[NUM_RUNS][NUM_LAT_RUNS];
     ull wait_rel[NUM_RUNS][NUM_LAT_RUNS];
 } thread_data;
+
+typedef struct client_data {
+    unsigned int client_tid;
+    int sockfd;
+    int mode;
+    ull wait_acq[NUM_RUNS][NUM_LAT_RUNS];
+    ull wait_rel[NUM_RUNS][NUM_LAT_RUNS];
+    ull wait_acq_mem[NUM_RUNS][NUM_MEM_RUNS];
+    ull wait_rel_mem[NUM_RUNS][NUM_MEM_RUNS];
+} client_data;
 
 typedef struct {
     pthread_mutex_t mutex;
@@ -175,6 +190,7 @@ typedef struct rdma_connection {
     struct ibv_qp *qp;
     struct ibv_cq *cq;
     struct ibv_pd *pd;
+    struct ibv_wc wc[2];
     struct ibv_comp_channel *io_comp_chan;
     struct ibv_mr *client_mr;
     struct ibv_mr *server_mr;
@@ -199,7 +215,7 @@ typedef struct rdma_thread {
 
 void *alloc_cache_align(size_t n);
 
-int pin_thread(unsigned int id);
+int pin_thread(unsigned int id, int nthreads);
 
 int current_numa_node();
 

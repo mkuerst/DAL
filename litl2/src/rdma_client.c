@@ -13,10 +13,12 @@ static struct ibv_comp_channel *io_completion_channel = NULL;
 static struct ibv_cq *client_cq = NULL;
 static struct ibv_qp_init_attr qp_init_attr;
 static struct ibv_qp *client_qp;
-static struct ibv_wc *wc;
+static struct ibv_wc wc;
 static struct ibv_mr 
 			// *client_metadata_mr = NULL, 
 		     *client_src_mr = NULL, 
+			 *local_cas_mr = NULL,
+			 *local_unlock_mr = NULL,
 		    // *client_dst_mr = NULL, 
 		     *server_metadata_mr = NULL;
 // static struct rdma_buffer_attr 
@@ -28,9 +30,10 @@ static struct ibv_sge
 // client_send_sge, 
 server_recv_sge;
 
-struct ibv_send_wr cas_wr, *bad_wr;
-struct ibv_sge cas_sge;
+struct ibv_send_wr cas_wr, *bad_wr, w_wr;
+struct ibv_sge cas_sge, w_sge;
 uint64_t *cas_result;
+uint64_t *unlock_val;
 
 
 int id;
@@ -43,10 +46,13 @@ static uint32_t rkey;
 void client_prep_cas(rlock_meta* rlock) {
 	client_qp = rlock->qp;
 	cas_wr = rlock->cas_wr;
+	cas_sge = rlock->cas_sge;
+	w_wr = rlock->w_wr;
+	w_sge = rlock->w_sge;
 	bad_wr = rlock->bad_wr;
 	io_completion_channel = rlock->io_comp_chan;
-	wc = rlock->wc;
 	cas_result = rlock->cas_result;
+	unlock_val = rlock->unlock_val;
 }
 
 int client_prepare_connection(struct sockaddr_in *s_addr)
@@ -58,15 +64,15 @@ int client_prepare_connection(struct sockaddr_in *s_addr)
 		rdma_error("Creating cm event channel failed, errno: %d \n", -errno);
 		return -errno;
 	}
-	if ((ret = rdma_create_id(cm_event_channel, &cm_client_id, NULL, RDMA_PS_TCP))) {
+	if (rdma_create_id(cm_event_channel, &cm_client_id, NULL, RDMA_PS_TCP)) {
 		rdma_error("Creating cm id failed with errno: %d \n", -errno); 
 		return -errno;
 	}
-	if ((ret = rdma_resolve_addr(cm_client_id, NULL, (struct sockaddr*) s_addr, 2000))) {
+	if (rdma_resolve_addr(cm_client_id, NULL, (struct sockaddr*) s_addr, 2000)) {
 		rdma_error("Failed to resolve address, errno: %d \n", -errno);
 		return -errno;
 	}
-	if ((ret  = process_rdma_cm_event(cm_event_channel, RDMA_CM_EVENT_ADDR_RESOLVED, &cm_event))) {
+	if (process_rdma_cm_event(cm_event_channel, RDMA_CM_EVENT_ADDR_RESOLVED, &cm_event)) {
 		rdma_error("Failed to receive a valid event, ret = %d \n", ret);
 		return ret;
 	}
@@ -120,6 +126,8 @@ int client_prepare_connection(struct sockaddr_in *s_addr)
 		return -errno;
 	}
 	client_qp = cm_client_id->qp;
+
+	debug("Connection prep done\n");
 	return 0;
 }
 
@@ -189,7 +197,7 @@ void* client_connect_to_server(int tid)
 		rdma_error("Task %d failed to connect to remote host , errno: %d\n", tid, -errno);
 		return NULL;
 	}
-	if (process_rdma_cm_event(cm_event_channel, RDMA_CM_EVENT_ESTABLISHED,&cm_event)) {
+	if (process_rdma_cm_event(cm_event_channel, RDMA_CM_EVENT_ESTABLISHED, &cm_event)) {
 		rdma_error("Task %d failed to get cm event, -errno = %d \n", tid, -errno);
 	       return NULL;
 	}
@@ -203,8 +211,8 @@ void* client_connect_to_server(int tid)
 	// 	return -errno;
 	// }
 	// Receive the server metadata from the prepost in client_prep_buffers
-	wc = malloc(sizeof(struct ibv_wc));
-	if(process_work_completion_events(io_completion_channel, wc, 1) != 1) {
+	// wc = malloc(sizeof(struct ibv_wc));
+	if(process_work_completion_events(io_completion_channel, &wc, 1) != 1) {
 		rdma_error("Failed to get mr metadata, -errno = %d", -errno);
 		return NULL;
 	}
@@ -222,21 +230,33 @@ void* client_connect_to_server(int tid)
 
 	cas_result = aligned_alloc(sizeof(uint64_t), sizeof(uint64_t));
 	*cas_result = 0;
+	unlock_val = aligned_alloc(sizeof(uint64_t), sizeof(uint64_t));
+	*unlock_val = 0;
 	memset(&cas_wr, 0, sizeof(cas_wr));
-	client_src_mr = rdma_buffer_register(pd,
+	local_cas_mr = rdma_buffer_register(pd,
 			cas_result,
 			sizeof(uint64_t),
 			(IBV_ACCESS_LOCAL_WRITE|
 			 IBV_ACCESS_REMOTE_READ|
 			 IBV_ACCESS_REMOTE_WRITE|
 			 IBV_ACCESS_REMOTE_ATOMIC));
-	if(!client_src_mr){
+	local_unlock_mr = rdma_buffer_register(pd,
+			unlock_val,
+			sizeof(uint64_t),
+			(IBV_ACCESS_LOCAL_WRITE|
+			 IBV_ACCESS_REMOTE_READ|
+			 IBV_ACCESS_REMOTE_WRITE|
+			 IBV_ACCESS_REMOTE_ATOMIC));
+	if(!local_cas_mr || !local_unlock_mr){
 		rdma_error("Task %d failed to register the client_src_mr buffer, -errno = %d \n", id, -errno);
 		return NULL;
 	}
-	cas_sge.addr   = (uintptr_t)client_src_mr->addr;
+	cas_sge.addr   = (uintptr_t)local_cas_mr->addr;
 	cas_sge.length = sizeof(uint64_t);
-	cas_sge.lkey   = client_src_mr->lkey;
+	cas_sge.lkey   = local_cas_mr->lkey;
+	w_sge.addr   = (uintptr_t)local_unlock_mr->addr;
+	w_sge.length = sizeof(uint64_t);
+	w_sge.lkey   = local_unlock_mr->lkey;
 
 	cas_wr.wr_id          = 0;
 	cas_wr.sg_list        = &cas_sge;
@@ -245,119 +265,70 @@ void* client_connect_to_server(int tid)
 	cas_wr.send_flags     = IBV_SEND_SIGNALED;
 	cas_wr.wr.atomic.remote_addr = rlock_addr;
 	cas_wr.wr.atomic.rkey        = rkey;
+	cas_wr.wr.rdma.remote_addr = rlock_addr;
+	cas_wr.wr.rdma.rkey        = rkey;
 	cas_wr.wr.atomic.compare_add = 0;
 	cas_wr.wr.atomic.swap        = 1;
+
+	w_wr.wr_id          = 0;
+	w_wr.sg_list        = &w_sge;
+	w_wr.num_sge        = 1;
+	w_wr.opcode         = IBV_WR_RDMA_WRITE;
+	w_wr.send_flags     = IBV_SEND_SIGNALED;
+	w_wr.wr.atomic.remote_addr = rlock_addr;
+	w_wr.wr.atomic.rkey        = rkey;
+	w_wr.wr.rdma.remote_addr = rlock_addr;
+	w_wr.wr.rdma.rkey        = rkey;
 
 	rlock_meta* rlock = (rlock_meta *) malloc(sizeof(rlock_meta));
 	rlock->rlock_addr = rlock_addr;
 	rlock->rkey = rkey;
 	rlock->qp = client_qp;
 	rlock->cas_wr = cas_wr;
+	rlock->cas_sge = cas_sge;
+	rlock->w_wr = w_wr;
+	rlock->w_sge = w_sge;
 	rlock->io_comp_chan = io_completion_channel;
-	rlock->wc = wc;
+	// rlock->wc = wc;
 	rlock->bad_wr = bad_client_send_wr;
 	rlock->cas_result = cas_result;
 
 	fprintf(stderr, "Task %d connected to RDMA server\n", tid);
-	do {
-		if (ibv_post_send(client_qp, &cas_wr, &bad_wr)) {
-			rdma_error("Failed to post CAS wr to remote_addr: 0x%lx rkey: %u, -errno %d\n", cas_wr.wr.atomic.remote_addr,cas_wr.wr.atomic.rkey, -errno);
-			fprintf(stderr, "Failed to post CAS WR, errno = %d\n", errno);
-			if (bad_wr) {
-				fprintf(stderr, "Bad WR details:\n");
-				fprintf(stderr, "  Opcode: %d\n", bad_wr->opcode);
-				fprintf(stderr, "  WR ID: %lu\n", bad_wr->wr_id);
-				if (bad_wr->sg_list) {
-					fprintf(stderr, "  SGE Address: 0x%lx, Length: %u\n", bad_wr->sg_list->addr, bad_wr->sg_list->length);
-				}
-				fprintf(stderr, "  Number of SGEs: %d\n", bad_wr->num_sge);
-				fprintf(stderr, "  Send Flags: %x\n", bad_wr->send_flags);
-			}
-			if (wc->status != IBV_WC_SUCCESS) {
-				fprintf(stderr, "CAS operation failed with status: %d\n", wc->status);
-			}
-			// exit(EXIT_FAILURE);
-		}
-
-		if (process_work_completion_events(io_completion_channel, wc, 1)) {
-			rdma_error("Failed to poll CAS completion, -errno %d\n", -errno);
-			return NULL;
-		}
-	} while(*cas_result);
 	return rlock;
 }
 
 int rdma_request_lock()
 {
-	// sprintf(buffer_msg, "l%d", id);
-	// if (ibv_post_send(client_qp, &client_send_wr, &bad_client_send_wr)) {
-	// 	rdma_error("Task %d failed to send client metadata, errno: %d \n", id, -errno);
-	// 	return -errno;
-	// }
-	// // ret = process_work_completion_events(io_completion_channel, wc, 1);
-	// // if(ret != 1) {
-	// // 	rdma_error("Task %d failed to get 2 work completions for lock request, ret = %d \n", id, ret);
-	// // 	return ret;
-	// // }
-	// if (ibv_post_recv(client_qp, &server_recv_wr, &bad_server_recv_wr)) {
-	// 	rdma_error("Task %d id failed to post the receive buffer, errno: %d \n", id, -errno);
-	// 	return -errno;
-	// }
-	// if(process_work_completion_events(io_completion_channel, wc, 2) != 2) {
-	// 	rdma_error("Task %d failed to get 2 work completions for lock request, ret = %d \n", id, -errno);
-	// 	return -errno;
-	// }
+	do {
+		if (ibv_post_send(client_qp, &cas_wr, &bad_wr)) {
+			rdma_error("Failed to post CAS-LOCK wr to remote_addr: 0x%lx rkey: %u, -errno %d\n", cas_wr.wr.atomic.remote_addr,cas_wr.wr.atomic.rkey, -errno);
+			exit(EXIT_FAILURE);
+		}
 
-	// do {
-	// 	if (ibv_post_send(client_qp, &cas_wr, &bad_wr)) {
-	// 		rdma_error("Failed to post CAS wr to remote_addr: 0x%lx rkey: %u, -errno %d\n", cas_wr.wr.atomic.remote_addr,cas_wr.wr.atomic.rkey, -errno);
-	// 		fprintf(stderr, "Failed to post CAS WR, errno = %d\n", errno);
-	// 		if (bad_wr) {
-	// 			fprintf(stderr, "Bad WR details:\n");
-	// 			fprintf(stderr, "  Opcode: %d\n", bad_wr->opcode);
-	// 			fprintf(stderr, "  WR ID: %lu\n", bad_wr->wr_id);
-	// 			if (bad_wr->sg_list) {
-	// 				fprintf(stderr, "  SGE Address: 0x%lx, Length: %u\n", bad_wr->sg_list->addr, bad_wr->sg_list->length);
-	// 			}
-	// 			fprintf(stderr, "  Number of SGEs: %d\n", bad_wr->num_sge);
-	// 			fprintf(stderr, "  Send Flags: %x\n", bad_wr->send_flags);
-	// 		}
-	// 		if (wc->status != IBV_WC_SUCCESS) {
-	// 			fprintf(stderr, "CAS operation failed with status: %d\n", wc->status);
-	// 		}
-	// 		// exit(EXIT_FAILURE);
-	// 	}
-
-	// 	if (process_work_completion_events(io_completion_channel, wc, 1)) {
-	// 		rdma_error("Failed to poll CAS completion, -errno %d\n", -errno);
-	// 		return -errno;
-	// 	}
-	// } while(*cas_result);
-
+		if (process_work_completion_events(io_completion_channel, &wc, 1) != 1) {
+			rdma_error("Failed to poll CAS-LOCK completion, -errno %d\n", -errno);
+			exit(EXIT_FAILURE);
+			return -errno;
+		}
+	} while(*cas_result);
 	debug("Task %d got rlock from server\n", id);
 	return 0;
 }
 
 int rdma_release_lock()
 {
-	// sprintf(buffer_msg, "r%d", id);
-	// if (ibv_post_send(client_qp, &client_send_wr, &bad_client_send_wr)) {
-	// 	rdma_error("Task %d failed to post send release lock, -errno: %d \n", id, -errno);
-	// 	return -errno;
-	// }
-	// // if(process_work_completion_events(io_completion_channel, wc, 1)) {
-	// // 	rdma_error("Task %d failed to get 2 work completions for lock request, -errno = %d \n", id, -errno);
-	// // 	return -errno;
-	// // }
-	// if (ibv_post_recv(client_qp, &server_recv_wr, &bad_server_recv_wr)) {
-	// 	rdma_error("Task %d id failed post release lock, -errno: %d \n", id, -errno);
-	// 	return -errno;
-	// }
-	// if(process_work_completion_events(io_completion_channel, wc, 2) != 2) {
-	// 	rdma_error("Task %d failed to get 2 work completions for lock request, -errno = %d \n", id, -errno);
-	// 	return -errno;
-	// }
-	// debug("Task %d released rlock on server\n", id);
+	if (ibv_post_send(client_qp, &w_wr, &bad_wr)) {
+		rdma_error("Failed to post CAS-RELEASE wr to remote_addr: 0x%lx rkey: %u, -errno %d\n", cas_wr.wr.atomic.remote_addr,cas_wr.wr.atomic.rkey, -errno);
+		exit(EXIT_FAILURE);
+	}
+
+	if (process_work_completion_events(io_completion_channel, &wc, 1) != 1) {
+		rdma_error("Failed to poll CAS-RELEASE completion, -errno %d\n", -errno);
+		exit(EXIT_FAILURE);
+		return -errno;
+	}
+
+	debug("Task %d released rlock on server\n", id);
 	return 0;
 }
 

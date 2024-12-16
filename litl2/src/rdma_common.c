@@ -108,16 +108,17 @@ int process_rdma_cm_event(struct rdma_event_channel *echannel,
 		enum rdma_cm_event_type expected_event,
 		struct rdma_cm_event **cm_event)
 {
+	debug("processing an rdma_cm_event\n");
 	int ret = 1;
 	ret = rdma_get_cm_event(echannel, cm_event);
+	debug("Server got an cm_event\n");
 	if (ret) {
-		rdma_error("Failed to retrieve a cm event, errno: %d \n",
-				-errno);
+		rdma_error("Failed to retrieve a cm event, errno: %d \n", -errno);
 		return -errno;
 	}
 	/* lets see, if it was a good event */
 	if(0 != (*cm_event)->status){
-		rdma_error("CM event has non zero status: %d\n", (*cm_event)->status);
+		rdma_error("CM event has non zero status: %d\nevent: %s\n", (*cm_event)->status, rdma_event_str((*cm_event)->status));
 		ret = -((*cm_event)->status);
 		/* important, we acknowledge the event */
 		rdma_ack_cm_event(*cm_event);
@@ -134,6 +135,7 @@ int process_rdma_cm_event(struct rdma_event_channel *echannel,
 	}
 	// debug("A new %s type event is received \n", rdma_event_str((*cm_event)->event));
 	/* The caller must acknowledge the event */
+	debug("done processing rdma_cm_event\n");
 	return ret;
 }
 
@@ -181,7 +183,7 @@ int process_work_completion_events (struct ibv_comp_channel *comp_channel,
 	       if (wc[i].status != IBV_WC_SUCCESS) {
 		       rdma_error("Work completion (WC) has error status: %s at index %d", ibv_wc_status_str(wc[i].status), i);
 		       /* return negative value */
-		       return -(wc[i].status);
+		       return (wc[i].status);
 	       }
        }
        /* Similar to connection management events, we need to acknowledge CQ events */
