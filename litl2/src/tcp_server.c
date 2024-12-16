@@ -251,7 +251,7 @@ TCP PROXY MAIN
 TCP_SPINLOCK
 ==========================================
 */
-int _recv(int fd, char* buffer, size_t size) {
+int _recv(int fd) {
     int bytes_read = recv(fd, buffer, sizeof(buffer), 0);
     DEBUG("Received message on socket %d: %s\n", fd, buffer);
     if (bytes_read == -1) {
@@ -273,7 +273,7 @@ int _recv(int fd, char* buffer, size_t size) {
     return bytes_read;
 }
 
-int process_msg(int fd, char* buffer, size_t size) {
+int process_msg(int fd) {
     char cmd;
     int client_id, task_id;
     if (sscanf(buffer, "%c%d.%d", &cmd, &client_id, &task_id) == 3) {
@@ -284,7 +284,7 @@ int process_msg(int fd, char* buffer, size_t size) {
                 tcp_client_error(fd, "lock acquisition notice failed for client.task_id %d.%d", client_id, task_id);
             DEBUG("Granted lock to task %d over socket %d\n", task_id, fd);
             memset(buffer, 0, BUFFER_SIZE);
-            int bytes_read = _recv(fd, buffer, sizeof(buffer));
+            int bytes_read = _recv(fd);
             if (bytes_read < 0) {
                 tcp_client_error(fd, "lock release failed for client.task %d.%d", client_id, task_id);
             }
@@ -307,7 +307,7 @@ int process_msg(int fd, char* buffer, size_t size) {
             return 0;
         }
     } else {
-        _fail("Failed to parse the string from client %d, got: %s\n", client_id, buffer);
+        // _fail("Failed to parse the string from client %d, got: %s\n", client_id, buffer);
         return 1;
     }
     memset(buffer, 0, BUFFER_SIZE);
@@ -326,13 +326,12 @@ void _poll(int epoll_fd, struct epoll_event *events) {
             int fd = events[i].data.fd;
             while (bench_running) {
                 memset(buffer, 0, sizeof(buffer));
-                int bytes_read = _recv(fd, buffer, sizeof(buffer));
-                if (bytes_read <= 0) {
+                int bytes_read = _recv(fd);
+                if (bytes_read <= 0 || buffer[0] == '\0') {
                     break;
                 }
                 else {
-                    buffer[bytes_read] = '\0'; // Null-terminate the string
-                    if (process_msg(fd, buffer, strlen(buffer))) {
+                    if (process_msg(fd)) {
                         // tcp_error("Failed to process msg %s\n", buffer);
                     }
                 }
