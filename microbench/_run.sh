@@ -46,7 +46,7 @@ nthreads=$(nproc)
 duration=1
 critical=1000
 
-client_file_header="tid,loop_in_cs,lock_acquires,lock_hold(ms),total_duration(s),wait_acq(ms),wait_rel(ms),array_size(B),lat_lock_hold(ms),lat_wait_acq(ms),lat_wait_rel(ms)"
+client_file_header="tid,loop_in_cs,lock_acquires,lock_hold(ms),total_duration(s),wait_acq(ms),wait_rel(ms),lwait_acq, lwait_rel,gwait_acq,gwait_rel,array_size(B),client_id"
 server_file_header="tid,wait_acq(ms),wait_rel(ms)"
 
 rm -rf server_logs/

@@ -28,6 +28,7 @@
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <sys/time.h>
 #include <infiniband/verbs.h>
 #include <rdma_cma.h>
 
@@ -40,7 +41,7 @@
 
 
 #define MAX_THREADS 2048
-#define MAX_CLIENTS 16
+#define MAX_CLIENTS 64 
 #define CPU_PAUSE() asm volatile("pause\n" : : : "memory")
 #define COMPILER_BARRIER() asm volatile("" : : : "memory")
 #define MEMORY_BARRIER() __sync_synchronize()
@@ -87,6 +88,7 @@
 #define MAX_ARRAY_SIZE MB(128)
 #define NUM_MEM_RUNS 3 
 #define NUM_LAT_RUNS 10
+#define NUM_SND_RUNS (NUM_LAT_RUNS > NUM_MEM_RUNS ? NUM_LAT_RUNS : NUM_MEM_RUNS)
 
 #define LOCKS_PER_MEMRUN MAX_ARRAY_SIZE
 #define CYCLES_11 1200L
@@ -103,6 +105,8 @@ extern size_t array_sizes[NUM_MEM_RUNS];
 
 
 typedef unsigned long long ull;
+//TODO: change long int type in tcp measurements!
+typedef long int li;
 
 typedef struct {
 	uint64_t rlock_addr;
@@ -120,7 +124,6 @@ typedef struct {
     volatile int *stop;
     volatile ull *global_its;
     pthread_t thread;
-    char rdma;
     int priority;
     int id;
     double cs;
@@ -129,17 +132,18 @@ typedef struct {
     int client_id;
     rlock_meta* rlock_meta;
     // EMPTY_CS/MEM MEASUREMENTS 
-    ull duration[NUM_RUNS][NUM_MEM_RUNS];
-    ull loop_in_cs[NUM_RUNS][NUM_MEM_RUNS];
-    ull lock_acquires[NUM_RUNS][NUM_MEM_RUNS];
-    ull lock_hold[NUM_RUNS][NUM_MEM_RUNS];
-    ull wait_acq[NUM_RUNS][NUM_MEM_RUNS];
-    ull wait_rel[NUM_RUNS][NUM_MEM_RUNS];
-    // LATENCY MEASUREMENTS
-    ull lat_lock_hold[NUM_RUNS][NUM_LAT_RUNS];
-    ull lat_wait_acq[NUM_RUNS][NUM_LAT_RUNS];
-    ull lat_wait_rel[NUM_RUNS][NUM_LAT_RUNS];
-    size_t array_size[NUM_RUNS][NUM_MEM_RUNS];
+    ull duration[NUM_RUNS][NUM_SND_RUNS];
+    ull loop_in_cs[NUM_RUNS][NUM_SND_RUNS];
+    ull lock_acquires[NUM_RUNS][NUM_SND_RUNS];
+    ull lock_hold[NUM_RUNS][NUM_SND_RUNS];
+    ull wait_acq[NUM_RUNS][NUM_SND_RUNS];
+    ull wait_rel[NUM_RUNS][NUM_SND_RUNS];
+    ull lwait_acq[NUM_RUNS][NUM_SND_RUNS];
+    ull lwait_rel[NUM_RUNS][NUM_SND_RUNS];
+    ull gwait_acq[NUM_RUNS][NUM_SND_RUNS];
+    ull gwait_rel[NUM_RUNS][NUM_SND_RUNS];
+    size_t array_size[NUM_RUNS][NUM_SND_RUNS];
+    int run, snd_run;
 } task_t __attribute__ ((aligned (CACHELINE_SIZE)));
 
 typedef struct thread_data {
@@ -149,18 +153,17 @@ typedef struct thread_data {
     int task_id;
     int sockfd;
     int mode;
-    ull wait_acq[NUM_RUNS][NUM_LAT_RUNS];
-    ull wait_rel[NUM_RUNS][NUM_LAT_RUNS];
+    ull wait_acq[NUM_RUNS][NUM_SND_RUNS];
+    ull wait_rel[NUM_RUNS][NUM_SND_RUNS];
 } thread_data;
 
 typedef struct client_data {
-    unsigned int client_tid;
+    pthread_t thread;
+    int id;
     int sockfd;
     int mode;
-    ull wait_acq[NUM_RUNS][NUM_LAT_RUNS];
-    ull wait_rel[NUM_RUNS][NUM_LAT_RUNS];
-    ull wait_acq_mem[NUM_RUNS][NUM_MEM_RUNS];
-    ull wait_rel_mem[NUM_RUNS][NUM_MEM_RUNS];
+    ull wait_acq[128][NUM_RUNS][NUM_SND_RUNS];
+    ull wait_rel[128][NUM_RUNS][NUM_SND_RUNS];
 } client_data;
 
 typedef struct {

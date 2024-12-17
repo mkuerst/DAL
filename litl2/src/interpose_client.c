@@ -106,6 +106,8 @@ __thread unsigned int cur_thread_id;
 __thread int sockfd;
 __thread int client_id;
 __thread int task_id;
+__thread task_t *task;
+
 unsigned int last_thread_id;
 int cur_turn = 1;
 
@@ -395,7 +397,7 @@ static void *lp_start_routine(void *_arg) {
     void *(*fct)(void *) = r->fct;
     void *arg = r->arg;
     void *res;
-    task_t* task = (task_t*) r->arg;
+    task = (task_t*) r->arg; 
     client_id = task->client_id;
     task_id = task->id;
     
@@ -417,6 +419,7 @@ static void *lp_start_routine(void *_arg) {
 #endif
 #ifdef TCP_SPINLOCK
     sockfd = task->sockfd;
+    init_tcp_client(task);
 #endif
 #ifdef RDMA
     client_prep_cas(task->rlock_meta);
@@ -479,8 +482,9 @@ int pthread_mutex_destroy(pthread_mutex_t *mutex) {
 
 int pthread_mutex_lock(pthread_mutex_t *mutex) {
     DEBUG_PTHREAD("[p] pthread_mutex_lock\n");
+    ull start = rdtscp();
 #ifdef TCP_PROXY
-    return tcp_request_lock(sockfd, client_id, task_id);
+    return tcp_request_lock();
 #endif
     disa_mutex_t *disa_mutex = (disa_mutex_t *) mutex;
     if (disa_mutex->disa != 'y') {
@@ -493,12 +497,16 @@ int pthread_mutex_lock(pthread_mutex_t *mutex) {
 #else
     lock_mutex_lock(mutex, NULL);
 #endif
+    ull end_lacq = rdtscp();
 #ifdef RDMA
-    return rdma_request_lock();
+    rdma_request_lock();
 #endif
 #ifdef TCP_SPINLOCK
-    return tcp_request_lock(sockfd, client_id, task_id);
+    tcp_request_lock();
 #endif
+    task->gwait_acq[task->run][task->snd_run] += rdtscp() - end_lacq; 
+    task->lwait_acq[task->run][task->snd_run] += end_lacq - start;
+    return 0;
 }
 
 int pthread_mutex_timedlock(pthread_mutex_t *mutex,
@@ -518,8 +526,9 @@ int pthread_mutex_trylock(pthread_mutex_t *mutex) {
 
 int pthread_mutex_unlock(pthread_mutex_t *mutex) {
     DEBUG_PTHREAD("[p] pthread_mutex_unlock\n");
+    ull start = rdtscp();
 #ifdef TCP_PROXY
-    return tcp_release_lock(sockfd, client_id, task_id);
+    return tcp_release_lock();
 #endif
     disa_mutex_t *disa_mutex = (disa_mutex_t *) mutex;
     if (disa_mutex->disa != 'y') {
@@ -530,14 +539,17 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex) {
     rdma_release_lock();
 #endif
 #ifdef TCP_SPINLOCK
-    tcp_release_lock(sockfd, client_id, task_id);
+    tcp_release_lock();
 #endif
+    ull end_grel = rdtscp();
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get(mutex);
     lock_mutex_unlock(impl->lock_lock, get_node(impl));
 #else
     lock_mutex_unlock(mutex, NULL);
 #endif
+    task->lwait_rel[task->run][task->snd_run] += rdtscp() - end_grel;
+    task->gwait_rel[task->run][task->snd_run] += end_grel - start;
     return 0;
 }
 

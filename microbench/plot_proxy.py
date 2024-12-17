@@ -13,7 +13,8 @@ CLIENT_COLS = [
 "lock_hold", "total_duration", 
 "wait_acq", "wait_rel", 
 "array_size", "lat_lock_hold",
-"lat_wait_acq", "lat_wait_rel"
+"lat_wait_acq", "lat_wait_rel",
+"client_id"
 ]
 SERVER_COLS = [
     "tid", "wait_acq", "wait_rel"

@@ -23,8 +23,8 @@
 
 char *array0;
 char *array1;
-int client_id;
 int nthreads;
+int client;
 
 disa_lock_t lock;
 pthread_barrier_t global_barrier;
@@ -105,15 +105,15 @@ void *lat_worker(void *arg) {
                 start = rdtscp();
                 lock_acquire((pthread_mutex_t *)&lock);
                 now = rdtscp();
-                task->lat_wait_acq[i][j] = now - start;
+                task->wait_acq[i][j] = now - start;
                 lock_acquires++;
                 end = rdtscp();
-                task->lat_lock_hold[i][j] = end - now;
+                task->lock_hold[i][j] = end - now;
                 lock_release((pthread_mutex_t *)&lock);
-                task->lat_wait_rel[i][j] = rdtscp() - end;
+                task->wait_rel[i][j] = rdtscp() - end;
+                task->snd_run++;
         }
-        run_complete(task->sockfd, task_id);
-        sleep(3);
+        task->run++;
         pthread_barrier_wait(&global_barrier);
     }
     return 0;
@@ -147,11 +147,11 @@ void *empty_cs_worker(void *arg) {
             // fprintf(stderr, "thread %d acquired lock\n", task->id);
             lock_acquires++;
             loop_in_cs++;
-            start = rdtscp();
             // fprintf(stderr, "thread %d releasing lock\n", task->id);
-            lock_hold += start - s;
+            start = rdtscp();
             lock_release((pthread_mutex_t *)&lock);
             wait_rel += rdtscp() - start;
+            lock_hold += start - s;
             // fprintf(stderr, "thread %d released lock\n", task->id);
         }
 
@@ -160,8 +160,7 @@ void *empty_cs_worker(void *arg) {
         task->lock_hold[i][0] = lock_hold;
         task->wait_acq[i][0] = wait_acq;
         task->wait_rel[i][0] = wait_rel;
-        run_complete(task->sockfd, task_id);
-        sleep(3);
+        task->run++;
         pthread_barrier_wait(&global_barrier);
     }
 
@@ -220,10 +219,10 @@ void *mem_worker(void *arg) {
             task->array_size[i][j] = array_size;
             task->wait_acq[i][j] = wait_acq;
             task->wait_rel[i][j] = wait_rel;
+            task->snd_run++;
             pthread_barrier_wait(&global_barrier);
         }
-        run_complete(task->sockfd, task_id);
-        sleep(3);
+        task->run++;
     }
     // fprintf(stderr,"FINISHED tid %d\n", task->id);
     return 0;
@@ -242,42 +241,43 @@ void *mem_worker(void *arg) {
 // }
 
 int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
-    int mem_runs = mode == 2 ? NUM_MEM_RUNS : 1;
-    int lat_runs = mode == 1 ? NUM_LAT_RUNS : 1;
+    int snd_runs = mode == 2 ? NUM_MEM_RUNS : (mode == 1 ? NUM_LAT_RUNS : 1);
     float cycle_to_ms = (float) (CYCLES_11 * 1e3);
     for (int j = 0; j < NUM_RUNS; j++) {
         float total_lock_hold = 0;
         ull total_lock_acq = 0;
         printf("RUN %d\n", j);
         for (int i = 0; i < nthreads; i++) {
-            for (int k = 0; k < mem_runs; k++) {
-                for (int l = 0; l < lat_runs; l++) {
-                    task_t task = (task_t) tasks[i];
-                    float lock_hold = task.lock_hold[j][k] / (float) cycle_to_ms;
-                    float wait_acq = task.wait_acq[j][k] / (float) cycle_to_ms;
-                    float wait_rel = task.wait_rel[j][k] / (float) cycle_to_ms;
-                    float lat_lock_hold = task.lat_lock_hold[j][l] / (float) cycle_to_ms;
-                    float lat_wait_acq = task.lat_wait_acq[j][l] / (float) cycle_to_ms;
-                    float lat_wait_rel = task.lat_wait_rel[j][l] / (float) cycle_to_ms;
-                    float total_duration = (float) task.duration[j][k];
-                    size_t array_size = task.array_size[j][k];
-                    total_lock_hold += lock_hold;
-                    total_lock_acq += task.lock_acquires[j][k];
-                    printf("%03d,%10llu,%8llu,%12.6f,%12.6f,%12.6f,%12.6f,%16lu,%12.6f,%12.6f,%12.6f,%03d\n",
-                            task.id,
-                            task.loop_in_cs[j][k],
-                            task.lock_acquires[j][k],
-                            lock_hold,
-                            total_duration,
-                            wait_acq,
-                            wait_rel,
-                            array_size,
-                            lat_lock_hold,
-                            lat_wait_acq,
-                            lat_wait_rel,
-                            client_id
-                            );
-                }
+            task_t task = (task_t) tasks[i];
+            for (int l = 0; l < snd_runs; l++) {
+                float lock_hold = task.lock_hold[j][l] / cycle_to_ms;
+                float wait_acq = task.wait_acq[j][l] / cycle_to_ms;
+                float wait_rel = task.wait_rel[j][l] / cycle_to_ms;
+                float lwait_acq = task.lwait_acq[j][l] / cycle_to_ms;
+                float lwait_rel = task.lwait_rel[j][l] / cycle_to_ms;
+                float gwait_acq = task.gwait_acq[j][l] / cycle_to_ms;
+                float gwait_rel = task.gwait_rel[j][l] / cycle_to_ms;
+
+
+                float total_duration = (float) task.duration[j][l];
+                size_t array_size = task.array_size[j][l];
+                total_lock_hold += lock_hold;
+                total_lock_acq += task.lock_acquires[j][l];
+                printf("%03d,%10llu,%8llu,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%16lu,%03d\n",
+                        task.id,
+                        task.loop_in_cs[j][l],
+                        task.lock_acquires[j][l],
+                        lock_hold,
+                        total_duration,
+                        wait_acq,
+                        wait_rel,
+                        lwait_acq,
+                        lwait_rel,
+                        gwait_acq,
+                        gwait_rel,
+                        array_size,
+                        task.client_id
+                        );
             }
         }
         printf("-------------------------------------------------------------------------------------------------------\n\n");
@@ -294,7 +294,7 @@ int main(int argc, char *argv[]) {
     double cs = atoi(argv[3]);
     char *server_ip = (argv[4]);
     int mode = argc < 6 ? 0 : atoi(argv[5]);
-    client_id = atoi(argv[6]);
+    client = atoi(argv[6]);
     task_t *tasks = malloc(sizeof(task_t) * nthreads);
 
     pthread_attr_t attr;
@@ -313,12 +313,12 @@ int main(int argc, char *argv[]) {
     }
 #endif
 #ifdef TCP_SPINLOCK
-    if ((tcp_fd = establish_tcp_connection(client_id, server_ip)) == 0) {
-        _error("Client %d failed to establish TCP_SPINLOCK connection\n", client_id);
+    if ((tcp_fd = establish_tcp_connection(client, server_ip)) == 0) {
+        _error("Client %d failed to establish TCP_SPINLOCK connection\n", client);
     }
 #endif
     for (int i = 0; i < nthreads; i++) {
-        tasks[i].rdma = 'y';
+        tasks[i] = (task_t) {0};
         tasks[i].stop = &stop;
         tasks[i].global_its = &global_its;
         tasks[i].cs = cs == 0 ? (i%2 == 0 ? short_cs : long_cs) : cs;
@@ -327,27 +327,15 @@ int main(int argc, char *argv[]) {
         tasks[i].server_ip = server_ip;
         tasks[i].rlock_meta = rlock;
         tasks[i].sockfd = tcp_fd;
-        tasks[i].client_id = client_id;
+        tasks[i].client_id = client;
+        for (int j = 0; j < NUM_RUNS; j++) {
+            for (int k = 0; k < NUM_SND_RUNS; k++) {
+                tasks[i].duration[j][k] = duration;
+            }
+        }
         // fprintf(stderr, "random cs: %f\n", tasks[i].cs);
         // int priority = atoi(argv[4+i*2]);
         // tasks[i].priority = priority;
-
-        for (int j = 0 ; j < NUM_RUNS; j++) {
-            for (int l = 0; l < NUM_LAT_RUNS; l++) {
-                tasks[i].lat_lock_hold[j][l] = 0;
-                tasks[i].lat_wait_acq[j][l] = 0;
-                tasks[i].lat_wait_rel[j][l] = 0;
-            }
-            for (int k = 0; k < NUM_MEM_RUNS; k++) {
-                tasks[i].duration[j][k] = duration;
-                tasks[i].loop_in_cs[j][k] = 0;
-                tasks[i].lock_acquires[j][k] = 0;
-                tasks[i].lock_hold[j][k] = 0;
-                tasks[i].array_size[j][k] = 0;
-                tasks[i].wait_acq[j][k] = 0;
-                tasks[i].wait_rel[j][k] = 0;
-            }
-        }
     }
     lock.disa = 'y';
     lock_init((pthread_mutex_t *) &lock);
