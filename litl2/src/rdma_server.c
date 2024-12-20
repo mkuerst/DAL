@@ -13,11 +13,11 @@
 #include <signal.h>
 
 volatile bool server_running = true;
-rdma_thread threads[MAX_THREADS];
+rdma_thread clients[MAX_CLIENTS];
 pthread_mutex_t mutex;
 int num_connections = 0;
 char* meta_data;
-int nthreads = 0;
+int nclients = 0;
 
 
 int* cas_lock;
@@ -32,9 +32,9 @@ void _shutdown() {
 	if (system(command)) {
 			rdma_error("Failed to kill rdma listener. Please execute killall rdma_server manually on server-side machine.\n");
 	} 
-	for (int i = 0; i < nthreads; i++) {
-		rdma_thread thread = threads[i]; 
-		rdma_connection conn = thread.connection;
+	for (int i = 0; i < nclients; i++) {
+		rdma_thread client = clients[i]; 
+		rdma_connection conn = client.connection;
 		if (conn.cm_client_id) {
 			rdma_disconnect(conn.cm_client_id);
 			ibv_destroy_qp(conn.qp);
@@ -67,7 +67,7 @@ void register_sigint_handler() {
 	sigaction(SIGKILL, &sa, NULL);
 }
 
-static int start_rdma_server(struct sockaddr_in *server_addr, int nthreads) 
+static int start_rdma_server(struct sockaddr_in *server_addr, int nclients) 
 {
 	cm_event_channel = rdma_create_event_channel();
 	if (!cm_event_channel) {
@@ -82,7 +82,7 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nthreads)
 		rdma_error("Failed to bind server address, errno: %d \n", -errno);
 		return -errno;
 	}
-	if (rdma_listen(cm_server_id, nthreads)) {
+	if (rdma_listen(cm_server_id, nclients)) {
 		rdma_error("rdma_listen failed to listen on server address, errno: %d ", -errno);
 		return -errno;
 	}
@@ -90,8 +90,8 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nthreads)
 			inet_ntoa(server_addr->sin_addr),
 			ntohs(server_addr->sin_port));
 
-	for (int i = 0; i < nthreads; i++) {
-		struct rdma_connection* conn = &threads[i].connection;
+	for (int i = 0; i < nclients; i++) {
+		struct rdma_connection* conn = &clients[i].connection;
 		debug("Waiting for conn establishment %d\n", i);
 		if (process_rdma_cm_event(cm_event_channel, 
 				RDMA_CM_EVENT_CONNECT_REQUEST,
@@ -250,7 +250,7 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nthreads)
 void usage() 
 {
 	printf("Usage:\n");
-	printf("rdma_server: [-a <server_addr>] [-p <server_port>] [-t <nthreads>]\n");
+	printf("rdma_server: [-a <server_addr>] [-p <server_port>] [-t <nclients>]\n");
 	printf("(default port is %d)\n", DEFAULT_RDMA_PORT);
 	exit(1);
 }
@@ -275,7 +275,7 @@ int main(int argc, char **argv)
 				server_sockaddr.sin_port = htons(strtol(optarg, NULL, 0)); 
 				break;
 			case 't':
-				nthreads = atoi(optarg);
+				nclients = atoi(optarg);
 				break;
 			default:
 				usage();
@@ -285,20 +285,21 @@ int main(int argc, char **argv)
 	if(!server_sockaddr.sin_port) {
 		server_sockaddr.sin_port = htons(DEFAULT_RDMA_PORT); 
 	}
-	if(!nthreads) {
+	if(!nclients) {
 		usage();
 		return -1;
 	}
-	if (start_rdma_server(&server_sockaddr, nthreads)) {
+	if (start_rdma_server(&server_sockaddr, nclients)) {
 		rdma_error("RDMA server failed to start, -errno = %d \n", -errno);
 		_shutdown();
 	}
 
 	while (server_running) {
-		if (process_work_completion_events(threads[0].connection.io_comp_chan, &wc, 1) == IBV_WC_WR_FLUSH_ERR) {
+		if (process_work_completion_events(clients[0].connection.io_comp_chan, &wc, 1) == IBV_WC_WR_FLUSH_ERR) {
 			_shutdown();
 			break;
 		}
+		sleep(0.5);
 	}
 	return 0;
 }

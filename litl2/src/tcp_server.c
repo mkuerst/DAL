@@ -71,14 +71,16 @@ int process_msg(int fd) {
             DEBUG("Granted lock to client.task %d.%d over socket %d\n", client_id, task_id, fd);
 
             memset(buffer, 0, BUFFER_SIZE);
-            int bytes_read = _recv(fd);
-            if (bytes_read < 0 || buffer[0] == '\0') {
+            // int bytes_read = _recv(fd);
+            // if (bytes_read < 0 || buffer[0] == '\0') {
+            //     tcp_client_error(fd, "lock release failed for client.task %d.%d", client_id, task_id);
+            // }
+            if (recv(fd, buffer, BUFFER_SIZE, 0) < 0)
                 tcp_client_error(fd, "lock release failed for client.task %d.%d", client_id, task_id);
-            }
 
-            start = rdtscp();
             if (send(fd, released_msg, BUFFER_SIZE, 0) < 0)
                 tcp_client_error(fd, "lock release notice failed for client.task_id %d.%d", client_id, task_id);
+            start = rdtscp();
             pthread_mutex_unlock(&mutex);
             time = rdtscp() - start;
             client->wait_rel[task_id][run][snd_run] += time; 
@@ -330,7 +332,7 @@ void *run_client_lock_impl(void *_arg)
     client = (client_data*) _arg;
     int client_socket = client->sockfd;
 
-    pin_thread(client->id, nclients);
+    // pin_thread(client->id, nclients);
     memset(buffer, 0, BUFFER_SIZE);
 
     memset(granted_msg, 0, BUFFER_SIZE);
@@ -344,12 +346,12 @@ void *run_client_lock_impl(void *_arg)
 
     while (bench_running) {
         memset(buffer, 0, sizeof(buffer));
-        int bytes_read = _recv(client_socket);
-        if (bytes_read <= 0 || buffer[0] == '\0') {
+        if (_recv(client_socket) <= 0 || buffer[0] == '\0') {
             continue;
         }
         process_msg(client_socket);
     }
+    return 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -374,7 +376,7 @@ int main(int argc, char *argv[]) {
         tcp_error("Socket failed");
     }
     int opt = 1;
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_KEEPALIVE, &opt, sizeof(opt)) == -1) {
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_KEEPALIVE | SO_REUSEPORT, &opt, sizeof(opt)) == -1) {
         tcp_error("Setsockopt failed");
     }
     server_addr.sin_family = AF_INET;
@@ -458,19 +460,20 @@ int main(int argc, char *argv[]) {
         pthread_join(clients[i].thread, NULL);
     }
     for (int j = 0; j < NUM_RUNS; j++) {
-        printf("RUN %d\n", j);
+        // printf("RUN %d\n", j);
         for (int i = 0; i < nclients; i++) {
             for (int k = 0; k < nthreads; k++) {
                 client_data client = (client_data) clients[i];
                 for (int l = 0; l < lat_runs; l++) {
-                    printf("%03d,%10.6f,%10.6f,%03d\n", k,
+                    printf("%03d,%10.6f,%10.6f,%03d,%03d\n", k,
                     client.wait_acq[k][j][l] / FACTOR,
                     client.wait_rel[k][j][l] / FACTOR,
-                    client.id);
+                    client.id,
+                    j);
                 }
             }
         }
-        printf("-----------------------------------------------------------------------------------------------\n\n");
+        // printf("-----------------------------------------------------------------------------------------------\n\n");
     }
     clean_up(server_fd, epoll_fd);
     return 0;

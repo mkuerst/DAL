@@ -422,7 +422,7 @@ static void *lp_start_routine(void *_arg) {
     init_tcp_client(task);
 #endif
 #ifdef RDMA
-    client_prep_cas(task->rlock_meta);
+    client_prep_cas(task->rlock_meta, client_id, task_id);
     // while (cur_thread_id != cur_turn) {
     //     CPU_PAUSE();
     // }
@@ -504,7 +504,8 @@ int pthread_mutex_lock(pthread_mutex_t *mutex) {
 #ifdef TCP_SPINLOCK
     tcp_request_lock();
 #endif
-    task->gwait_acq[task->run][task->snd_run] += rdtscp() - end_lacq; 
+    ull end = rdtscp();
+    task->gwait_acq[task->run][task->snd_run] += end - end_lacq; 
     task->lwait_acq[task->run][task->snd_run] += end_lacq - start;
     return 0;
 }

@@ -15,10 +15,10 @@
 #include <sys/socket.h>
 #include <netinet/tcp.h>
 
-#define SERVER_PORT 8080
+#define SERVER_PORT 8000 
 #define MAX_EVENTS 1000
 #define MAX_CONNECTIONS 1000
-#define BUFFER_SIZE 256 
+#define BUFFER_SIZE 128 
 
 #define tcp_error(msg, args...) do {\
 	fprintf(stderr, "\033[1;31m%s : %d : ERROR : \033[0m"msg, __FILE__, __LINE__, ## args);\

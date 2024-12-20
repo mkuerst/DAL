@@ -36,14 +36,15 @@ uint64_t *cas_result;
 uint64_t *unlock_val;
 
 
-int id;
+int rdma_task_id;
+int rdma_client_id;
 static char buffer_msg[MESSAGE_SIZE] = {0};
 static char server_metadata[META_SIZE] = {0};
 
 static uint64_t rlock_addr;
 static uint32_t rkey;
 
-void client_prep_cas(rlock_meta* rlock) {
+void client_prep_cas(rlock_meta* rlock, int cid, int tid) {
 	client_qp = rlock->qp;
 	cas_wr = rlock->cas_wr;
 	cas_sge = rlock->cas_sge;
@@ -53,6 +54,8 @@ void client_prep_cas(rlock_meta* rlock) {
 	io_completion_channel = rlock->io_comp_chan;
 	cas_result = rlock->cas_result;
 	unlock_val = rlock->unlock_val;
+	rdma_task_id = tid;
+	rdma_client_id = cid;
 }
 
 int client_prepare_connection(struct sockaddr_in *s_addr)
@@ -131,7 +134,7 @@ int client_prepare_connection(struct sockaddr_in *s_addr)
 	return 0;
 }
 
-int client_prep_buffers(int tid)
+int client_prep_buffers(int cid)
 {
 	server_metadata_mr = rdma_buffer_register(pd, server_metadata, META_SIZE, (IBV_ACCESS_LOCAL_WRITE));
 	if(!server_metadata_mr){
@@ -182,7 +185,7 @@ int client_prep_buffers(int tid)
 	return 0;
 }
 
-void* client_connect_to_server(int tid) 
+void* client_connect_to_server(int cid) 
 {
 	struct rdma_conn_param conn_param;
 	struct rdma_cm_event *cm_event = NULL;
@@ -190,19 +193,19 @@ void* client_connect_to_server(int tid)
 	conn_param.initiator_depth = 3;
 	conn_param.responder_resources = 3;
 	conn_param.retry_count = 3;
-	conn_param.private_data = &tid;
-	conn_param.private_data_len = sizeof(tid);
-	cm_client_id->context = (void *)(long) tid;
+	conn_param.private_data = &cid;
+	conn_param.private_data_len = sizeof(cid);
+	cm_client_id->context = (void *)(long) cid;
 	if (rdma_connect(cm_client_id, &conn_param)) {
-		rdma_error("Task %d failed to connect to remote host , errno: %d\n", tid, -errno);
+		rdma_error("Client %d failed to connect to remote host , errno: %d\n", cid, -errno);
 		return NULL;
 	}
 	if (process_rdma_cm_event(cm_event_channel, RDMA_CM_EVENT_ESTABLISHED, &cm_event)) {
-		rdma_error("Task %d failed to get cm event, -errno = %d \n", tid, -errno);
+		rdma_error("Client %d failed to get cm event, -errno = %d \n", cid, -errno);
 	       return NULL;
 	}
 	if (rdma_ack_cm_event(cm_event)) {
-		rdma_error("Task %d failed to acknowledge cm event, errno: %d\n", tid, -errno);
+		rdma_error("Client %d failed to acknowledge cm event, errno: %d\n", cid, -errno);
 		return NULL;
 	}
 
@@ -248,7 +251,7 @@ void* client_connect_to_server(int tid)
 			 IBV_ACCESS_REMOTE_WRITE|
 			 IBV_ACCESS_REMOTE_ATOMIC));
 	if(!local_cas_mr || !local_unlock_mr){
-		rdma_error("Task %d failed to register the client_src_mr buffer, -errno = %d \n", id, -errno);
+		rdma_error("Client %d failed to register the client_src_mr buffer, -errno = %d \n", cid, -errno);
 		return NULL;
 	}
 	cas_sge.addr   = (uintptr_t)local_cas_mr->addr;
@@ -293,7 +296,7 @@ void* client_connect_to_server(int tid)
 	rlock->bad_wr = bad_client_send_wr;
 	rlock->cas_result = cas_result;
 
-	fprintf(stderr, "Task %d connected to RDMA server\n", tid);
+	fprintf(stderr, "Client %d connected to RDMA server\n", cid);
 	return rlock;
 }
 
@@ -308,10 +311,9 @@ int rdma_request_lock()
 		if (process_work_completion_events(io_completion_channel, &wc, 1) != 1) {
 			rdma_error("Failed to poll CAS-LOCK completion, -errno %d\n", -errno);
 			exit(EXIT_FAILURE);
-			return -errno;
 		}
 	} while(*cas_result);
-	debug("Task %d got rlock from server\n", id);
+	debug("Client.Task %d.%d got rlock from server\n", rdma_client_id, rdma_task_id);
 	return 0;
 }
 
@@ -328,15 +330,14 @@ int rdma_release_lock()
 		return -errno;
 	}
 
-	debug("Task %d released rlock on server\n", id);
+	debug("Client.Task %d.%d released rlock on server\n", rdma_client_id, rdma_task_id);
 	return 0;
 }
 
-void* establish_rdma_connection(int tid, char* addr)
+void* establish_rdma_connection(int cid, char* addr)
 {
 	struct sockaddr_in server_sockaddr;
 	rlock_meta* rlock;
-	id = tid;
 	bzero(&server_sockaddr, sizeof server_sockaddr);
 	server_sockaddr.sin_family = AF_INET;
 	server_sockaddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
@@ -352,11 +353,11 @@ void* establish_rdma_connection(int tid, char* addr)
 		rdma_error("Failed to setup client connection , -errno = %d \n", -errno);
 		return NULL;
 	}
-	if (client_prep_buffers(tid)) { 
+	if (client_prep_buffers(cid)) { 
 		rdma_error("Failed to setup client connection , -errno = %d \n", -errno);
 		return NULL;
 	}
-	if (!(rlock = client_connect_to_server(tid))) { 
+	if (!(rlock = client_connect_to_server(cid))) { 
 		rdma_error("Failed to setup client connection , -errno = %d \n", -errno);
 		return NULL;
 	}

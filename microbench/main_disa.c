@@ -14,6 +14,7 @@
 #include <utils.h>
 #include <tcp_client.c>
 #include <rdma_client.c>
+#include <mpi.h>
 
 #define gettid() syscall(SYS_gettid)
 
@@ -25,10 +26,10 @@ char *array0;
 char *array1;
 int nthreads;
 int client;
+int num_clients;
 
 disa_lock_t lock;
 pthread_barrier_t global_barrier;
-pthread_barrier_t mem_barrier;
 
 int set_prio(int prio) {
     int ret;
@@ -40,7 +41,61 @@ int set_prio(int prio) {
     }
     return ret;
 }
+ 
+#define SHARED_FILE "/home/kumichae/DAL/microbench/barrier_file"
+#define SLEEP_INTERVAL 1
 
+void barrier() {
+    int fd;
+    char hostname[256];
+    char buffer[1024];
+    int machines_ready = 0;
+
+    gethostname(hostname, sizeof(hostname));
+    fd = open(SHARED_FILE, O_CREAT | O_WRONLY | O_APPEND, 0666);
+    if (fd < 0) {
+        _error("Failed to open shared file\n");
+    }
+    dprintf(fd, "%s\n", hostname);
+    close(fd);
+    fprintf(stderr, "[%s] Signaled readiness. Waiting for others...\n", hostname);
+
+    while (1) {
+        fd = open(SHARED_FILE, O_RDONLY);
+        if (fd < 0) {
+            _error("Failed to open shared file\n");
+        }
+
+        ssize_t bytes_read = read(fd, buffer, sizeof(buffer) - 1);
+        close(fd);
+        if (bytes_read < 0) {
+            _error("Failed to read shared file\n");
+        }
+
+        buffer[bytes_read] = '\0';
+
+        machines_ready = 0;
+        for (char *line = strtok(buffer, "\n"); line != NULL; line = strtok(NULL, "\n")) {
+            machines_ready++;
+        }
+
+        if (machines_ready >= num_clients) {
+            break;
+        }
+        // sleep(SLEEP_INTERVAL); 
+    }
+
+    fprintf(stderr, "[%s] All machines are ready. Proceeding...\n", hostname);
+
+    // Reset the file if this machine is the last to detect readiness
+    // if (machines_ready == num_clients) {
+    //     fd = open(SHARED_FILE, O_TRUNC | O_WRONLY, 0666); // Truncate the file to reset it
+    //     if (fd < 0) {
+    //         _error("Failed to reset shared file");
+    //     }
+    //     close(fd);
+    // }
+}
 // void *cs_worker(void *arg) {
 //     task_t *task = (task_t *) arg;
 //     int task_id = task->id;
@@ -99,6 +154,8 @@ void *lat_worker(void *arg) {
 
     for (int i = 0; i < NUM_RUNS; i++) {
         pthread_barrier_wait(&global_barrier);
+        // MPI_Barrier(MPI_COMM_WORLD);
+        // barrier();
         lock_acquires = 0;
 
         for (int j = 0; j < NUM_LAT_RUNS; j++) {
@@ -115,6 +172,8 @@ void *lat_worker(void *arg) {
         }
         task->run++;
         pthread_barrier_wait(&global_barrier);
+        // MPI_Barrier(MPI_COMM_WORLD);
+        // barrier();
     }
     return 0;
 }
@@ -129,8 +188,8 @@ void *empty_cs_worker(void *arg) {
     ull lock_hold;
     ull loop_in_cs;
     ull wait_rel;
-    ull wait_acq;
 
+    ull wait_acq;
     for (int i = 0; i < NUM_RUNS; i++) {
         lock_acquires = 0;
         lock_hold = 0;
@@ -138,6 +197,8 @@ void *empty_cs_worker(void *arg) {
         wait_acq = 0;
         wait_rel = 0;
         pthread_barrier_wait(&global_barrier);
+        // MPI_Barrier(MPI_COMM_WORLD);
+        // barrier();
         while (!*task->stop) {
             // fprintf(stderr, "thread %d acquiring lock\n", task->id);
             start = rdtscp();
@@ -162,6 +223,8 @@ void *empty_cs_worker(void *arg) {
         task->wait_rel[i][0] = wait_rel;
         task->run++;
         pthread_barrier_wait(&global_barrier);
+        // MPI_Barrier(MPI_COMM_WORLD);
+        // barrier();
     }
 
     // fprintf(stderr,"FINISHED tid %d\n", task->id);
@@ -188,6 +251,8 @@ void *mem_worker(void *arg) {
             wait_acq = 0;
             wait_rel = 0;
             pthread_barrier_wait(&global_barrier);
+            // MPI_Barrier(MPI_COMM_WORLD);
+            // barrier();
             while (!*task->stop) {
                 for (int x = 0; x < repeat; x++) {
                     for (size_t k = 0; k < array_size; k += 1) {
@@ -221,6 +286,8 @@ void *mem_worker(void *arg) {
             task->wait_rel[i][j] = wait_rel;
             task->snd_run++;
             pthread_barrier_wait(&global_barrier);
+            // MPI_Barrier(MPI_COMM_WORLD);
+            // barrier();
         }
         task->run++;
     }
@@ -242,11 +309,11 @@ void *mem_worker(void *arg) {
 
 int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
     int snd_runs = mode == 2 ? NUM_MEM_RUNS : (mode == 1 ? NUM_LAT_RUNS : 1);
-    float cycle_to_ms = (float) (CYCLES_11 * 1e3);
+    float cycle_to_ms = (float) (CYCLES_12 * 1e3);
     for (int j = 0; j < NUM_RUNS; j++) {
         float total_lock_hold = 0;
         ull total_lock_acq = 0;
-        printf("RUN %d\n", j);
+        // printf("RUN %d\n", j);
         for (int i = 0; i < nthreads; i++) {
             task_t task = (task_t) tasks[i];
             for (int l = 0; l < snd_runs; l++) {
@@ -263,7 +330,7 @@ int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
                 size_t array_size = task.array_size[j][l];
                 total_lock_hold += lock_hold;
                 total_lock_acq += task.lock_acquires[j][l];
-                printf("%03d,%10llu,%8llu,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%16lu,%03d\n",
+                printf("%03d,%10llu,%8llu,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%16lu,%03d,%03d\n",
                         task.id,
                         task.loop_in_cs[j][l],
                         task.lock_acquires[j][l],
@@ -276,11 +343,12 @@ int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
                         gwait_acq,
                         gwait_rel,
                         array_size,
-                        task.client_id
+                        task.client_id,
+                        j
                         );
             }
         }
-        printf("-------------------------------------------------------------------------------------------------------\n\n");
+        // printf("-------------------------------------------------------------------------------------------------------\n\n");
         fprintf(stderr, "Total lock hold time(ms): %f\n", total_lock_hold);
         fprintf(stderr, "Total lock acquisitions: %llu\n\n", total_lock_acq);
     }
@@ -288,13 +356,31 @@ int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
 }
 
 int main(int argc, char *argv[]) {
+    client = atoi(argv[6]);
+    fprintf(stderr, "HI from client %d\n", client);
+    // MPI_Init(NULL, NULL);
+    // fprintf(stderr, "HI from client %d\n", client);
+    // int rank, size;
+    // MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    // fprintf(stderr, "HI from client %d\n", client);
+    // MPI_Comm_size(MPI_COMM_WORLD, &size);
+    // fprintf(stderr, "HI from client %d\n", client);
+    // client = rank;
+    // fprintf(stderr, "HI from client %d\n", client);
+
+    // int initialized;
+    // MPI_Initialized(&initialized);
+    // if (!initialized)
+    //     MPI_Init(&argc, &argv);
+    // fprintf(stderr, "MPI INIT DONE\n");
+
     srand(42);
     nthreads = atoi(argv[1]);
     int duration = atoi(argv[2]);
     double cs = atoi(argv[3]);
     char *server_ip = (argv[4]);
     int mode = argc < 6 ? 0 : atoi(argv[5]);
-    client = atoi(argv[6]);
+    num_clients = atoi(argv[7]);
     task_t *tasks = malloc(sizeof(task_t) * nthreads);
 
     pthread_attr_t attr;
@@ -309,7 +395,7 @@ int main(int argc, char *argv[]) {
     // int stop_warmup __attribute__((aligned (CACHELINE_SIZE))) = 0;
 #ifdef RDMA
     if (!(rlock = establish_rdma_connection(0, server_ip))) {
-        _error("Main thread failed to eastablish rdma connection\n");
+        _error("Client %d failed to eastablish rdma connection\n", client);
     }
 #endif
 #ifdef TCP_SPINLOCK
@@ -340,7 +426,6 @@ int main(int argc, char *argv[]) {
     lock.disa = 'y';
     lock_init((pthread_mutex_t *) &lock);
     pthread_barrier_init(&global_barrier, NULL, nthreads+1);
-    pthread_barrier_init(&mem_barrier, NULL, nthreads);
 
 
     void* worker; 
@@ -363,9 +448,13 @@ int main(int argc, char *argv[]) {
             stop = 0;
             fprintf(stderr, "MEASUREMENTS RUN %d_%d\n", i, k);
             pthread_barrier_wait(&global_barrier);
+            // MPI_Barrier(MPI_COMM_WORLD);
             sleep(duration);
             stop = 1;
+
+
             pthread_barrier_wait(&global_barrier);
+            // MPI_Barrier(MPI_COMM_WORLD);
             if (mode == 2) {
                 numa_free(array0, array_sz);
                 numa_free(array1, array_sz);
@@ -377,9 +466,10 @@ int main(int argc, char *argv[]) {
         pthread_join(tasks[i].thread, NULL);
     }
     cs_result_to_out(tasks, nthreads, mode);
+    // MPI_Finalize();
     // WAIT SO SERVER CAN SHUTDOWN
     sleep(2);
-    fprintf(stderr, "DONE\n");
+    fprintf(stderr, "CLIENT %d DONE\n", client);
     return 0;
 }
 

@@ -15,12 +15,12 @@ GCCVERSIONGTEQ5 := $(shell expr `gcc -dumpversion | cut -f1 -d.` \>= 5)
 # else
 #     OFLAG=-O3
 # endif
-OFLAG=-O0
+OFLAG=-O2
 
 FLAGS=-I../litl2/include/ -I../litl2/src/ -I/usr/include/rdma/ \
 -I/home/kumichae/my_libs/rdma-core/build/include/rdma \
 -g -Wall ${OFLAG} -DCYCLE_PER_US=${CYCLE_PER_US} -DCACHELINE_SIZE=${CACHELINE_SIZE} \
--L/home/kumichae/my_libs/rdma-core/build/lib/ -lrdmacm -libverbs -lnuma 
+-L/home/kumichae/my_libs/rdma-core/build/lib/ -lrdmacm -libverbs -lnuma
 
 .PHONY: all target
 
@@ -29,7 +29,7 @@ all: target
 target: ../litl2/src/utils.c ../litl2/src/rdma_common.o
 	@echo "USING CYCLE_PER_US = $(CYCLE_PER_US) MHz"
 	@echo "USING CACHELINE_SIZE = $(CACHELINE_SIZE) Bytes"
-	gcc main_disa.c $^ -o main_disa ${FLAGS} -DMUTEX -DTCP_SPINLOCK
+	mpicc main_disa.c $^ -o main_disa ${FLAGS} -DMUTEX -DTCP_SPINLOCK
 	gcc main_orig.c $^ -o main_orig ${FLAGS} -DMUTEX
 # gcc main.c -o main_spin ${FLAGS} -DSPIN
 
