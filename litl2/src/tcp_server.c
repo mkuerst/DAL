@@ -455,7 +455,7 @@ int main(int argc, char *argv[]) {
         num_connections++;
     }
 
-    float FACTOR = (float) (CYCLES_12 * 1e3);
+    float FACTOR = (float) (CYCLES_MAX * 1e3);
     for (int i = 0; i < nclients; i++) {
         pthread_join(clients[i].thread, NULL);
     }

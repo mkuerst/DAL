@@ -87,12 +87,13 @@
 // 256 KiB -*8> 2 MiB -*8> 16 -*4>
 #define MAX_ARRAY_SIZE MB(128)
 #define NUM_MEM_RUNS 3 
-#define NUM_LAT_RUNS 10
+#define NUM_LAT_RUNS 1 
 #define NUM_SND_RUNS (NUM_LAT_RUNS > NUM_MEM_RUNS ? NUM_LAT_RUNS : NUM_MEM_RUNS)
 
 #define LOCKS_PER_MEMRUN MAX_ARRAY_SIZE
 #define CYCLES_11 1200L
 #define CYCLES_12 2400L
+#define CYCLES_MAX 3200L
 
 extern size_t array_sizes[NUM_MEM_RUNS];
 /**************************************************************************************/
@@ -142,6 +143,7 @@ typedef struct {
     ull lwait_rel[NUM_RUNS][NUM_SND_RUNS];
     ull gwait_acq[NUM_RUNS][NUM_SND_RUNS];
     ull gwait_rel[NUM_RUNS][NUM_SND_RUNS];
+    ull glock_tries[NUM_RUNS][NUM_SND_RUNS];
     size_t array_size[NUM_RUNS][NUM_SND_RUNS];
     int run, snd_run;
 } task_t __attribute__ ((aligned (CACHELINE_SIZE)));

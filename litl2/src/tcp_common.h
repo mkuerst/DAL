@@ -15,7 +15,7 @@
 #include <sys/socket.h>
 #include <netinet/tcp.h>
 
-#define SERVER_PORT 8000 
+#define SERVER_PORT 8080 
 #define MAX_EVENTS 1000
 #define MAX_CONNECTIONS 1000
 #define BUFFER_SIZE 128 

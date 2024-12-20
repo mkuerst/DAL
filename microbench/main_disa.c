@@ -42,60 +42,6 @@ int set_prio(int prio) {
     return ret;
 }
  
-#define SHARED_FILE "/home/kumichae/DAL/microbench/barrier_file"
-#define SLEEP_INTERVAL 1
-
-void barrier() {
-    int fd;
-    char hostname[256];
-    char buffer[1024];
-    int machines_ready = 0;
-
-    gethostname(hostname, sizeof(hostname));
-    fd = open(SHARED_FILE, O_CREAT | O_WRONLY | O_APPEND, 0666);
-    if (fd < 0) {
-        _error("Failed to open shared file\n");
-    }
-    dprintf(fd, "%s\n", hostname);
-    close(fd);
-    fprintf(stderr, "[%s] Signaled readiness. Waiting for others...\n", hostname);
-
-    while (1) {
-        fd = open(SHARED_FILE, O_RDONLY);
-        if (fd < 0) {
-            _error("Failed to open shared file\n");
-        }
-
-        ssize_t bytes_read = read(fd, buffer, sizeof(buffer) - 1);
-        close(fd);
-        if (bytes_read < 0) {
-            _error("Failed to read shared file\n");
-        }
-
-        buffer[bytes_read] = '\0';
-
-        machines_ready = 0;
-        for (char *line = strtok(buffer, "\n"); line != NULL; line = strtok(NULL, "\n")) {
-            machines_ready++;
-        }
-
-        if (machines_ready >= num_clients) {
-            break;
-        }
-        // sleep(SLEEP_INTERVAL); 
-    }
-
-    fprintf(stderr, "[%s] All machines are ready. Proceeding...\n", hostname);
-
-    // Reset the file if this machine is the last to detect readiness
-    // if (machines_ready == num_clients) {
-    //     fd = open(SHARED_FILE, O_TRUNC | O_WRONLY, 0666); // Truncate the file to reset it
-    //     if (fd < 0) {
-    //         _error("Failed to reset shared file");
-    //     }
-    //     close(fd);
-    // }
-}
 // void *cs_worker(void *arg) {
 //     task_t *task = (task_t *) arg;
 //     int task_id = task->id;
@@ -154,8 +100,6 @@ void *lat_worker(void *arg) {
 
     for (int i = 0; i < NUM_RUNS; i++) {
         pthread_barrier_wait(&global_barrier);
-        // MPI_Barrier(MPI_COMM_WORLD);
-        // barrier();
         lock_acquires = 0;
 
         for (int j = 0; j < NUM_LAT_RUNS; j++) {
@@ -172,8 +116,6 @@ void *lat_worker(void *arg) {
         }
         task->run++;
         pthread_barrier_wait(&global_barrier);
-        // MPI_Barrier(MPI_COMM_WORLD);
-        // barrier();
     }
     return 0;
 }
@@ -309,7 +251,7 @@ void *mem_worker(void *arg) {
 
 int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
     int snd_runs = mode == 2 ? NUM_MEM_RUNS : (mode == 1 ? NUM_LAT_RUNS : 1);
-    float cycle_to_ms = (float) (CYCLES_12 * 1e3);
+    float cycle_to_ms = (float) (CYCLES_MAX * 1e3);
     for (int j = 0; j < NUM_RUNS; j++) {
         float total_lock_hold = 0;
         ull total_lock_acq = 0;
@@ -330,7 +272,7 @@ int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
                 size_t array_size = task.array_size[j][l];
                 total_lock_hold += lock_hold;
                 total_lock_acq += task.lock_acquires[j][l];
-                printf("%03d,%10llu,%8llu,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%16lu,%03d,%03d\n",
+                printf("%03d,%10llu,%8llu,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%10llu,%16lu,%03d,%03d\n",
                         task.id,
                         task.loop_in_cs[j][l],
                         task.lock_acquires[j][l],
@@ -342,6 +284,7 @@ int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
                         lwait_rel,
                         gwait_acq,
                         gwait_rel,
+                        task.glock_tries[j][l],
                         array_size,
                         task.client_id,
                         j

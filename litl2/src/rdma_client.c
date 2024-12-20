@@ -300,9 +300,11 @@ void* client_connect_to_server(int cid)
 	return rlock;
 }
 
-int rdma_request_lock()
+ull rdma_request_lock()
 {
+	int tries = 0;
 	do {
+		tries++;
 		if (ibv_post_send(client_qp, &cas_wr, &bad_wr)) {
 			rdma_error("Failed to post CAS-LOCK wr to remote_addr: 0x%lx rkey: %u, -errno %d\n", cas_wr.wr.atomic.remote_addr,cas_wr.wr.atomic.rkey, -errno);
 			exit(EXIT_FAILURE);
@@ -314,7 +316,7 @@ int rdma_request_lock()
 		}
 	} while(*cas_result);
 	debug("Client.Task %d.%d got rlock from server\n", rdma_client_id, rdma_task_id);
-	return 0;
+	return tries;
 }
 
 int rdma_release_lock()

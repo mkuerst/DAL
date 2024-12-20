@@ -235,7 +235,7 @@ void *mem_worker(void *arg) {
 
 int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
     int snd_runs = mode == 2 ? NUM_MEM_RUNS : (mode == 1 ? NUM_LAT_RUNS : 1);
-    float cycle_to_ms = (float) (CYCLES_12 * 1e3);
+    float cycle_to_ms = (float) (CYCLES_MAX * 1e3);
     for (int j = 0; j < NUM_RUNS; j++) {
         float total_lock_hold = 0;
         ull total_lock_acq = 0;

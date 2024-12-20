@@ -1,5 +1,6 @@
 #!/bin/sh
-TCP_PORT1=8000
+TCP_PORT0=8000
+TCP_PORT1=8022
 TCP_PORT2=8080
 RDMA_PORT=20051
  
@@ -14,12 +15,13 @@ cleanup() {
         kill $SERVER_PID
     fi
     tmux kill-server
+    fuser -k ${TCP_PORT0}/tcp 2>/dev/null || echo "Port $TCP_PORT0 is free."
     fuser -k ${TCP_PORT1}/tcp 2>/dev/null || echo "Port $TCP_PORT1 is free."
     fuser -k ${TCP_PORT2}/tcp 2>/dev/null || echo "Port $TCP_PORT2 is free."
     fuser -k ${RDMA_PORT}/rdma 2>/dev/null || echo "Port $RDMA_PORT is free."
     # rdma-devices reset
     pkill -P $$ 
-    # exit 1
+    exit 1
 }
 trap cleanup SIGINT
 
@@ -34,18 +36,20 @@ trap cleanup SIGINT
 REMOTE_USER="kumichae"
 REMOTE_SERVER="r630-12"
 server_ip=10.233.0.21
+REMOTE_SERVER="r630-06"
+server_ip=10.233.0.15
 rdma_ip=0.0.0.0
 
-REMOTE_CLIENTS=("r630-11" "r630-01")
-REMOTE_CLIENT="r630-11"
+REMOTE_CLIENTS=("r630-01" "r630-02" "r630-05" "r630-06" "r630-09")
+REMOTE_CLIENT="r630-01"
 
 eval "$(ssh-agent -s)"
 # ssh_key="/home/mihi/.ssh/id_ed25519_localhost"
 # ssh-add $ssh_key  
-for remote_client in ${REMOTE_CLIENTS[@]}
-do
-    ssh-copy-id "$REMOTE_USER@$remote_client"
-done
+# for remote_client in ${REMOTE_CLIENTS[@]}
+# do
+#     ssh-copy-id "$REMOTE_USER@$remote_client"
+# done
 
 # PATHS
 BASE="$PWD/../litl2/lib"
@@ -63,7 +67,7 @@ spinlock_so="$server_libs_dir/libspinlock_original_server.so"
 disa_bench="$PWD/main_disa"
 # disa_bench="./main_disa"
 
-microbenches=("empty_cs" "lat" "mem")
+microbenches=("empty_cs" "lat" "mem_2nodes")
 client_ids=(0 1 2 3 4 5 6 7 8 9)
 n_clients=(1)
 # num_clients=${#client_ids[@]}
@@ -75,7 +79,7 @@ nthreads=$(nproc)
 # ncpu=$(lscpu | grep "^Core(s) per socket" | awk '{print $4}')
 # nnodes=$(lscpu | grep -oP "NUMA node\(s\):\s+\K[0-9]+")
 # echo "nthreads: $nthreads | nsockets: $nsockets | cpu_per_socket: $ncpu | nnodes: $nnodes"
-duration=30
+duration=0
 critical=1000
 
 client_file_header="tid,loop_in_cs,lock_acquires,lock_hold(ms),total_duration(s),wait_acq(ms),wait_rel(ms),lwait_acq, lwait_rel,gwait_acq,gwait_rel,array_size(B),client_id,run"
@@ -93,7 +97,7 @@ do
     client_so=${client_libs_dir}${impl}$client_suffix
     server_so=${server_libs_dir}${impl}$server_suffix
     orig_so=${orig_libs_dir}${impl}.so
-    for j in 0
+    for j in 2
     do
         microb="${microbenches[$j]}"
         client_res_dir="./results/disaggregated/client/$impl/$microb"
@@ -110,7 +114,7 @@ do
         # for ((i=1; i<=nthreads; i*=2))
         for nclients in ${n_clients[@]}
         do
-            for i in 1 16 32
+            for i in 16 32
             do
                 client_res_file="$client_res_dir"/nclients$nclients"_nthreads"$i.csv
                 server_res_file="$server_res_dir"/nclients$nclients"_nthreads"$i.csv
@@ -135,12 +139,13 @@ do
                 # strace -e trace=connect -o mpi.log -f 
 
                 # ============= MPIRUN ========================================================
-                # mpiexec --hostfile ./clients.txt -np $nclients -x LD_PRELOAD=$client_so \
-                # --mca oob_tcp_dynamic_ipv4_ports 8080,8000 \
+                # mpirun --hostfile ./clients.txt -np $nclients -x LD_PRELOAD=$client_so \
+                # --mca oob_tcp_dynamic_ipv4_ports 8000,8080 \
+                # --mca btl_tcp_port_min_v4 8022 --mca btl_tcp_port_range_v4 5 \
                 # --mca mpi_debug 1 \
                 # --report-bindings --mca mpi_add_procs_verbose 1 --mca mpi_btl_base_verbose 1 \
                 # --mca btl_base_debug 1 --mca oob_tcp_debug 1 --mca plm_base_verbose 5 --mca orte_base_help_aggregate 0 \
-                # --mca btl_tcp_port_min_v4 8080 --mca btl_tcp_port_range_v4 2 \
+                # mpirun -np $nclients -x LD_PRELOAD=$client_so \
                 # $disa_bench $i $duration $critical $server_ip $j 0 $nclients \
                 # >> $client_res_file 2>> $client_log_dir/nclients$n_clients"_nthreads"$i.log
                 # ============= MPIRUN ========================================================
@@ -159,18 +164,18 @@ do
                 do
                     echo "START MICROBENCH $microb CLIENT $c WITH $i THREADS"
                     # client_session="client_$impl"
-                    # tmux new-session -d -s "${client_session}_${c}" \
-                    # "ssh $REMOTE_USER@${REMOTE_CLIENTS[$c]} LD_PRELOAD=$client_so $disa_bench $i $duration $critical $server_ip $j $c $nclients \
-                    # >> $client_res_file 2>> $client_log_dir/client${c}_${i}.log; \
-                    # tmux wait-for -S done_${impl}_${c}"
-                    LD_PRELOAD=$client_so $disa_bench $i $duration $critical $server_ip $j $c $nclients \
-                    >> $client_res_file 2>> $client_log_dir/client${c}_${i}.log 
+                    tmux new-session -d -s "${client_session}_${c}" \
+                    "ssh $REMOTE_USER@${REMOTE_CLIENTS[$c]} LD_PRELOAD=$client_so $disa_bench $i $duration $critical $server_ip $j $c $nclients \
+                    >> $client_res_file 2>> $client_log_dir/client${c}_${i}.log; \
+                    tmux wait-for -S done_${impl}_${c}"
+                    # LD_PRELOAD=$client_so $disa_bench $i $duration $critical $server_ip $j $c $nclients \
+                    # >> $client_res_file 2>> $client_log_dir/client${c}_${i}.log 
 
                 done
-                # for ((c=0; c<nclients; c++));
-                # do
-                #     tmux wait-for done_${impl}_${c}
-                # done
+                for ((c=0; c<nclients; c++));
+                do
+                    tmux wait-for done_${impl}_${c}
+                done
                 tmux kill-session -t $server_session
                 tmux kill-server
             done

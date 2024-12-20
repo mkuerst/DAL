@@ -482,6 +482,7 @@ int pthread_mutex_destroy(pthread_mutex_t *mutex) {
 
 int pthread_mutex_lock(pthread_mutex_t *mutex) {
     DEBUG_PTHREAD("[p] pthread_mutex_lock\n");
+    ull tries = 0;
     ull start = rdtscp();
 #ifdef TCP_PROXY
     return tcp_request_lock();
@@ -499,7 +500,7 @@ int pthread_mutex_lock(pthread_mutex_t *mutex) {
 #endif
     ull end_lacq = rdtscp();
 #ifdef RDMA
-    rdma_request_lock();
+    tries = rdma_request_lock();
 #endif
 #ifdef TCP_SPINLOCK
     tcp_request_lock();
@@ -507,6 +508,7 @@ int pthread_mutex_lock(pthread_mutex_t *mutex) {
     ull end = rdtscp();
     task->gwait_acq[task->run][task->snd_run] += end - end_lacq; 
     task->lwait_acq[task->run][task->snd_run] += end_lacq - start;
+    task->glock_tries[task->run][task->snd_run] += tries;
     return 0;
 }
 
@@ -731,7 +733,7 @@ int pthread_rwlock_wrlock(pthread_rwlock_t *rwlock) {
 #endif
 }
 
-int pthread_rwlock_timedrdlock(pthread_rwlock_t *lcok,
+int pthread_rwlock_timedrdlock(pthread_rwlock_t *lock,
                             const struct timespec *abstime) {
     assert(0 && "Timed locks not supported");
 }
