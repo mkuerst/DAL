@@ -299,23 +299,18 @@ int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
 }
 
 int main(int argc, char *argv[]) {
-    client = atoi(argv[6]);
-    fprintf(stderr, "HI from client %d\n", client);
-    // MPI_Init(NULL, NULL);
-    // fprintf(stderr, "HI from client %d\n", client);
-    // int rank, size;
-    // MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    // fprintf(stderr, "HI from client %d\n", client);
-    // MPI_Comm_size(MPI_COMM_WORLD, &size);
-    // fprintf(stderr, "HI from client %d\n", client);
-    // client = rank;
-    // fprintf(stderr, "HI from client %d\n", client);
+    // client = atoi(argv[6]);
+    int initialized;
+    MPI_Initialized(&initialized);
+    if (!initialized)
+        MPI_Init(&argc, &argv);
+    DEBUG(stderr, "MPI INIT DONE\n");
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    client = rank;
+    DEBUG(stderr, "HI from client %d\n", client);
 
-    // int initialized;
-    // MPI_Initialized(&initialized);
-    // if (!initialized)
-    //     MPI_Init(&argc, &argv);
-    // fprintf(stderr, "MPI INIT DONE\n");
 
     srand(42);
     nthreads = atoi(argv[1]);
@@ -389,13 +384,11 @@ int main(int argc, char *argv[]) {
                 // memset(array, 0, array_sizes[k]); // Touch all pages to ensure allocation
             }
             stop = 0;
-            fprintf(stderr, "MEASUREMENTS RUN %d_%d\n", i, k);
+            fprintf(stderr, "CLIENT %d MEASUREMENTS RUN %d_%d\n", client, i, k);
             pthread_barrier_wait(&global_barrier);
-            // MPI_Barrier(MPI_COMM_WORLD);
+            MPI_Barrier(MPI_COMM_WORLD);
             sleep(duration);
             stop = 1;
-
-
             pthread_barrier_wait(&global_barrier);
             // MPI_Barrier(MPI_COMM_WORLD);
             if (mode == 2) {
@@ -409,7 +402,7 @@ int main(int argc, char *argv[]) {
         pthread_join(tasks[i].thread, NULL);
     }
     cs_result_to_out(tasks, nthreads, mode);
-    // MPI_Finalize();
+    MPI_Finalize();
     // WAIT SO SERVER CAN SHUTDOWN
     sleep(2);
     fprintf(stderr, "CLIENT %d DONE\n", client);

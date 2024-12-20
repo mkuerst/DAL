@@ -22,6 +22,7 @@ cleanup() {
     # rdma-devices reset
     pkill -P $$ 
     exit 1
+    exit 1
 }
 trap cleanup SIGINT
 
@@ -46,6 +47,10 @@ REMOTE_CLIENT="r630-01"
 eval "$(ssh-agent -s)"
 # ssh_key="/home/mihi/.ssh/id_ed25519_localhost"
 # ssh-add $ssh_key  
+# for remote_client in ${REMOTE_CLIENTS[@]}
+# do
+#     ssh-copy-id "$REMOTE_USER@$remote_client"
+# done
 # for remote_client in ${REMOTE_CLIENTS[@]}
 # do
 #     ssh-copy-id "$REMOTE_USER@$remote_client"
@@ -127,14 +132,14 @@ do
                 echo "START $impl SERVER FOR $i THREADS PER CLIENT"
                 # tmux new-session -d -s "$server_session" "ssh $REMOTE_USER@$REMOTE_SERVER $rdma_server_app -t $nclients -a $server_ip >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
 
-                tmux new-session -d -s "$server_session" \
-                "ssh $REMOTE_USER@$REMOTE_SERVER LD_PRELOAD=$spinlock_so $tcp_server_app $i $j $nclients >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
+                # tmux new-session -d -s "$server_session" \
+                # "ssh $REMOTE_USER@$REMOTE_SERVER LD_PRELOAD=$spinlock_so $tcp_server_app $i $j $nclients >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
 
                 # LD_PRELOAD=$spinlock_so $tcp_server_app $i $j $num_clients & >> $server_res_file 2>> $server_log_dir/server_${n_clients}_$i.log
                 # SERVER_PID=$!
 
                 # $rdma_server_app -t $i -a $server_ip >> $server_res_file 2>> $server_log_dir/server_$i.log
-                sleep 3
+                # sleep 3
 
                 # strace -e trace=connect -o mpi.log -f 
 

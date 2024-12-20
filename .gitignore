@@ -12,3 +12,4 @@ rdma-example
 *.nfs*
 microbench/server_logs
 microbench/client_logs
+microbench/mpi_test

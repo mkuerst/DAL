@@ -400,7 +400,6 @@ static void *lp_start_routine(void *_arg) {
     free(r);
 
     cur_thread_id = __sync_fetch_and_add(&last_thread_id, 1);
-    DEBUG("server is running lp_start_routine with tid %d for task %d\n", cur_thread_id, task->task_id);
     if (cur_thread_id >= MAX_THREADS) {
         fprintf(stderr, "Maximum number of threads reached. Consider raising "
                         "MAX_THREADS in interpose.c (current = %u)\n",

@@ -456,6 +456,10 @@ __asm__(".symver __pthread_create,pthread_create@" GLIBC_2_34);
 int pthread_mutex_init(pthread_mutex_t *mutex,
                        const pthread_mutexattr_t *attr) {
     DEBUG_PTHREAD("[p] pthread_mutex_init\n");
+    disa_mutex_t *disa_mutex = (disa_mutex_t *) mutex;
+    if (disa_mutex->disa != 'y') {
+        REAL(pthread_mutex_init)(mutex, attr);
+    }
 #if !NO_INDIRECTION
     ht_lock_create(mutex, attr);
     return 0;
@@ -583,6 +587,10 @@ __asm__(
 
 int __pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex) {
     DEBUG_PTHREAD("[p] pthread_cond_wait\n");
+    disa_mutex_t *disa_mutex = (disa_mutex_t *) mutex;
+    if (disa_mutex->disa != 'y') {
+        return REAL(pthread_cond_wait)(cond, mutex);
+    }
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get(mutex);
     return lock_cond_wait(cond, impl->lock_lock, get_node(impl));
@@ -600,6 +608,7 @@ __asm__(".symver __pthread_cond_signal,pthread_cond_signal@@" GLIBC_2_3_2);
 
 int __pthread_cond_broadcast(pthread_cond_t *cond) {
     DEBUG_PTHREAD("[p] pthread_cond_broadcast\n");
+    return REAL(pthread_cond_broadcast)(cond);
     return lock_cond_broadcast(cond);
 }
 __asm__(
