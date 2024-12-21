@@ -99,10 +99,12 @@ void *lat_worker(void *arg) {
     ull lock_acquires;
 
     for (int i = 0; i < NUM_RUNS; i++) {
+        task->run = i;
         pthread_barrier_wait(&global_barrier);
         lock_acquires = 0;
 
         for (int j = 0; j < NUM_LAT_RUNS; j++) {
+                task->snd_run = j;
                 start = rdtscp();
                 lock_acquire((pthread_mutex_t *)&lock);
                 now = rdtscp();
@@ -112,9 +114,7 @@ void *lat_worker(void *arg) {
                 task->lock_hold[i][j] = end - now;
                 lock_release((pthread_mutex_t *)&lock);
                 task->wait_rel[i][j] = rdtscp() - end;
-                task->snd_run++;
         }
-        task->run++;
         pthread_barrier_wait(&global_barrier);
     }
     return 0;
@@ -123,7 +123,6 @@ void *lat_worker(void *arg) {
 void *empty_cs_worker(void *arg) {
     task_t *task = (task_t *) arg;
     int task_id = task->id;
-    // fprintf(stderr,"RUNNING ON %d ndoes\n", NUMA_NODES);
     pin_thread(task_id, nthreads);
     ull start;
     ull lock_acquires;
@@ -133,29 +132,24 @@ void *empty_cs_worker(void *arg) {
 
     ull wait_acq;
     for (int i = 0; i < NUM_RUNS; i++) {
+        task->run = i;
         lock_acquires = 0;
         lock_hold = 0;
         loop_in_cs = 0;
         wait_acq = 0;
         wait_rel = 0;
         pthread_barrier_wait(&global_barrier);
-        // MPI_Barrier(MPI_COMM_WORLD);
-        // barrier();
         while (!*task->stop) {
-            // fprintf(stderr, "thread %d acquiring lock\n", task->id);
             start = rdtscp();
             lock_acquire((pthread_mutex_t *)&lock);
             ull s = rdtscp();
             wait_acq += s - start;
-            // fprintf(stderr, "thread %d acquired lock\n", task->id);
             lock_acquires++;
             loop_in_cs++;
-            // fprintf(stderr, "thread %d releasing lock\n", task->id);
             start = rdtscp();
             lock_release((pthread_mutex_t *)&lock);
             wait_rel += rdtscp() - start;
             lock_hold += start - s;
-            // fprintf(stderr, "thread %d released lock\n", task->id);
         }
 
         task->lock_acquires[i][0] = lock_acquires;
@@ -163,13 +157,8 @@ void *empty_cs_worker(void *arg) {
         task->lock_hold[i][0] = lock_hold;
         task->wait_acq[i][0] = wait_acq;
         task->wait_rel[i][0] = wait_rel;
-        task->run++;
         pthread_barrier_wait(&global_barrier);
-        // MPI_Barrier(MPI_COMM_WORLD);
-        // barrier();
     }
-
-    // fprintf(stderr,"FINISHED tid %d\n", task->id);
     return 0;
 }
 
@@ -183,7 +172,9 @@ void *mem_worker(void *arg) {
     ull wait_acq, wait_rel;
 
     for (int i = 0; i < NUM_RUNS; i++) {
+        task->run = i;
         for (int j = 0; j < NUM_MEM_RUNS; j++)  {
+            task->snd_run = j;
             volatile char sum = 'a'; // Prevent compiler optimizations
             size_t repeat = array_sizes[NUM_MEM_RUNS-1] / array_sizes[j];
             ull array_size = array_sizes[j];
@@ -193,8 +184,6 @@ void *mem_worker(void *arg) {
             wait_acq = 0;
             wait_rel = 0;
             pthread_barrier_wait(&global_barrier);
-            // MPI_Barrier(MPI_COMM_WORLD);
-            // barrier();
             while (!*task->stop) {
                 for (int x = 0; x < repeat; x++) {
                     for (size_t k = 0; k < array_size; k += 1) {
@@ -213,7 +202,6 @@ void *mem_worker(void *arg) {
                         }
                         ull rel_start = rdtscp();
                         lock_release((pthread_mutex_t *)&lock);
-                        exit(EXIT_SUCCESS);
                         ull rel_end = rdtscp();
                         lock_hold += rel_end - lock_start;
                         wait_rel += rel_end - rel_start;
@@ -226,14 +214,9 @@ void *mem_worker(void *arg) {
             task->array_size[i][j] = array_size;
             task->wait_acq[i][j] = wait_acq;
             task->wait_rel[i][j] = wait_rel;
-            task->snd_run++;
             pthread_barrier_wait(&global_barrier);
-            // MPI_Barrier(MPI_COMM_WORLD);
-            // barrier();
         }
-        task->run++;
     }
-    // fprintf(stderr,"FINISHED tid %d\n", task->id);
     return 0;
 }
 
@@ -255,7 +238,6 @@ int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
     for (int j = 0; j < NUM_RUNS; j++) {
         float total_lock_hold = 0;
         ull total_lock_acq = 0;
-        // printf("RUN %d\n", j);
         for (int i = 0; i < nthreads; i++) {
             task_t task = (task_t) tasks[i];
             for (int l = 0; l < snd_runs; l++) {
@@ -272,7 +254,7 @@ int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
                 size_t array_size = task.array_size[j][l];
                 total_lock_hold += lock_hold;
                 total_lock_acq += task.lock_acquires[j][l];
-                printf("%03d,%10llu,%8llu,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%10llu,%16lu,%03d,%03d\n",
+                printf("%03d,%10llu,%8llu,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%16lu,%03d,%03d\n",
                         task.id,
                         task.loop_in_cs[j][l],
                         task.lock_acquires[j][l],
@@ -284,14 +266,13 @@ int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
                         lwait_rel,
                         gwait_acq,
                         gwait_rel,
-                        task.glock_tries[j][l],
+                        // task.glock_tries[j][l],
                         array_size,
                         task.client_id,
-                        j
-                        );
+                        j);
             }
         }
-        // printf("-------------------------------------------------------------------------------------------------------\n\n");
+        fprintf(stderr, "RUN %d\n", j);
         fprintf(stderr, "Total lock hold time(ms): %f\n", total_lock_hold);
         fprintf(stderr, "Total lock acquisitions: %llu\n\n", total_lock_acq);
     }
@@ -357,9 +338,23 @@ int main(int argc, char *argv[]) {
         tasks[i].rlock_meta = rlock;
         tasks[i].sockfd = tcp_fd;
         tasks[i].client_id = client;
+        tasks[i].run = 0;
+        tasks[i].snd_run = 0;
         for (int j = 0; j < NUM_RUNS; j++) {
             for (int k = 0; k < NUM_SND_RUNS; k++) {
                 tasks[i].duration[j][k] = duration;
+                // tasks[i].duration[j][k] = 0;
+                // tasks[i].loop_in_cs[j][k] = 0;
+                // tasks[i].lock_acquires[j][k] = 0;
+                // tasks[i].lock_hold[j][k] = 0;
+                // tasks[i].wait_acq[j][k] = 0;
+                // tasks[i].wait_rel[j][k] = 0;
+                // tasks[i].lwait_acq[j][k] = 0;
+                // tasks[i].lwait_rel[j][k] = 0;
+                // tasks[i].gwait_acq[j][k] = 0;
+                // tasks[i].gwait_rel[j][k] = 0;
+                // tasks[i].glock_tries[j][k] = 0;
+                // tasks[i].array_size[j][k] = 0;
             }
         }
         // fprintf(stderr, "random cs: %f\n", tasks[i].cs);
@@ -394,8 +389,6 @@ int main(int argc, char *argv[]) {
             // MPI_Barrier(MPI_COMM_WORLD);
             sleep(duration);
             stop = 1;
-
-
             pthread_barrier_wait(&global_barrier);
             // MPI_Barrier(MPI_COMM_WORLD);
             if (mode == 2) {

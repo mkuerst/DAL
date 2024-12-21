@@ -97,7 +97,7 @@ do
     client_so=${client_libs_dir}${impl}$client_suffix
     server_so=${server_libs_dir}${impl}$server_suffix
     orig_so=${orig_libs_dir}${impl}.so
-    for j in 2
+    for j in 1
     do
         microb="${microbenches[$j]}"
         client_res_dir="./results/disaggregated/client/$impl/$microb"
@@ -114,7 +114,7 @@ do
         # for ((i=1; i<=nthreads; i*=2))
         for nclients in ${n_clients[@]}
         do
-            for i in 16 32
+            for i in 1 16 32
             do
                 client_res_file="$client_res_dir"/nclients$nclients"_nthreads"$i.csv
                 server_res_file="$server_res_dir"/nclients$nclients"_nthreads"$i.csv
