@@ -87,7 +87,7 @@
 // 256 KiB -*8> 2 MiB -*8> 16 -*4>
 #define MAX_ARRAY_SIZE MB(128)
 #define NUM_MEM_RUNS 3 
-#define NUM_LAT_RUNS 20
+#define NUM_LAT_RUNS 1 
 #define NUM_SND_RUNS (NUM_LAT_RUNS > NUM_MEM_RUNS ? NUM_LAT_RUNS : NUM_MEM_RUNS)
 
 #define LOCKS_PER_MEMRUN MAX_ARRAY_SIZE
@@ -219,6 +219,8 @@ void *alloc_cache_align(size_t n);
 int pin_thread(unsigned int id, int nthreads);
 
 int current_numa_node();
+
+int get_snd_runs(int mode);
 
 static inline void *xchg_64(void *ptr, void *x) {
     __asm__ __volatile__("xchgq %0,%1"

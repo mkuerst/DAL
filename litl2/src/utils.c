@@ -42,6 +42,15 @@ inline void *alloc_cache_align(size_t n) {
     return res;
 }
 
+inline int get_snd_runs(int mode) {
+    switch(mode) {
+        case(0): return 1;
+        case(1): return NUM_LAT_RUNS;
+        case(2): return NUM_MEM_RUNS;
+        default: return 1;
+    }
+}
+
 // HARDCODED FOR OUR HW
 // CURRENT PINNING: always use 2 nodes
 inline int pin_thread(unsigned int id, int nthreads) {
