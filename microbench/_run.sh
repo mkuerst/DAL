@@ -4,9 +4,6 @@ TCP_PORT1=8022
 TCP_PORT2=8080
 RDMA_PORT=20051
  
-chmod +x _run.sh
-
-unset DISPLAY
 cleanup() {
     echo ""
     echo "Cleaning up..."
@@ -15,16 +12,24 @@ cleanup() {
         kill $SERVER_PID
     fi
     tmux kill-server
-    fuser -k ${TCP_PORT0}/tcp 2>/dev/null || echo "Port $TCP_PORT0 is free."
-    fuser -k ${TCP_PORT1}/tcp 2>/dev/null || echo "Port $TCP_PORT1 is free."
-    fuser -k ${TCP_PORT2}/tcp 2>/dev/null || echo "Port $TCP_PORT2 is free."
-    fuser -k ${RDMA_PORT}/rdma 2>/dev/null || echo "Port $RDMA_PORT is free."
+    fuser -k ${TCP_PORT0}/tcp 2>/dev/null
+    fuser -k ${TCP_PORT1}/tcp 2>/dev/null
+    fuser -k ${TCP_PORT2}/tcp 2>/dev/null
+    fuser -k ${RDMA_PORT}/rdma 2>/dev/null
     # rdma-devices reset
     pkill -P $$ 
+    for pid in $(lsof | grep infiniband | awk '{print $2}' | sort -u); do
+        echo "Killing process $pid using RDMA resources..."
+        kill -9 "$pid"
+    done
+    echo "CLEANUP DONE"
     exit 1
     exit 1
 }
 trap cleanup SIGINT
+trap cleanup SIGTERM
+trap cleanup SIGKILL
+trap cleanup SIGHUP
 
 #LOCAL
 # REMOTE_USER="mihi"
@@ -87,7 +92,7 @@ nthreads=$(nproc)
 duration=30
 critical=1000
 
-client_file_header="tid,loop_in_cs,lock_acquires,lock_hold(ms),total_duration(s),wait_acq(ms),wait_rel(ms),lwait_acq, lwait_rel,gwait_acq,gwait_rel,array_size(B),client_id,run"
+client_file_header="tid,loop_in_cs,lock_acquires,lock_hold(ms),total_duration(s),wait_acq(ms),wait_rel(ms),lwait_acq, lwait_rel,gwait_acq,gwait_rel,glock_tries,array_size(B),client_id,run"
 server_file_header="tid,wait_acq(ms),wait_rel(ms),client_id,run"
 
 
@@ -130,7 +135,7 @@ do
 
                 server_session="server_$i"
                 echo "START $impl SERVER FOR $i THREADS PER CLIENT"
-                # tmux new-session -d -s "$server_session" "ssh $REMOTE_USER@$REMOTE_SERVER $rdma_server_app -t $nclients -a $server_ip >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
+                tmux new-session -d -s "$server_session" "ssh $REMOTE_USER@$REMOTE_SERVER $rdma_server_app -t $nclients -a $server_ip >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
 
                 # tmux new-session -d -s "$server_session" \
                 # "ssh $REMOTE_USER@$REMOTE_SERVER LD_PRELOAD=$spinlock_so $tcp_server_app $i $j $nclients >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
@@ -181,8 +186,26 @@ do
                 do
                     tmux wait-for done_${impl}_${c}
                 done
-                tmux kill-session -t $server_session
+                # tmux kill-session -t $server_session
+                # tmux kill-server
+
+                echo ""
+                echo "Cleaning up..."
+                if kill -0 $SERVER_PID 2>/dev/null; then
+                    echo "Stopping server with PID $SERVER_PID..."
+                    kill $SERVER_PID
+                fi
                 tmux kill-server
+                fuser -k ${TCP_PORT0}/tcp 2>/dev/null
+                fuser -k ${TCP_PORT1}/tcp 2>/dev/null
+                fuser -k ${TCP_PORT2}/tcp 2>/dev/null
+                fuser -k ${RDMA_PORT}/rdma 2>/dev/null
+                pkill -P $$ 
+                for pid in $(lsof | grep infiniband | awk '{print $2}' | sort -u); do
+                    echo "Killing process $pid using RDMA resources..."
+                    kill -9 "$pid"
+                done
+
             done
         done
     done

@@ -78,8 +78,13 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients)
 		rdma_error("Creating server cm id failed with errno: %d ", -errno);
 		return -errno;
 	}
-	if (rdma_bind_addr(cm_server_id, (struct sockaddr*) server_addr)) {
+	int retry = 0;
+	while (rdma_bind_addr(cm_server_id, (struct sockaddr*) server_addr) && retry < 10) {
 		rdma_error("Failed to bind server address, errno: %d \n", -errno);
+		retry++;
+	}
+	if (retry >= 10) {
+		rdma_error("Failed to bind server address after 10 retries\n");
 		return -errno;
 	}
 	if (rdma_listen(cm_server_id, nclients)) {
@@ -292,15 +297,17 @@ int main(int argc, char **argv)
 	if (start_rdma_server(&server_sockaddr, nclients)) {
 		rdma_error("RDMA server failed to start, -errno = %d \n", -errno);
 		_shutdown();
+		return -errno;
 	}
 
 	while (server_running) {
-		if (process_work_completion_events(clients[0].connection.io_comp_chan, &wc, 1) == IBV_WC_WR_FLUSH_ERR) {
-			_shutdown();
-			break;
-		}
+		// if (*cas_lock == -1) {
+		// 	_shutdown();
+		// 	break;
+		// }
 		sleep(0.5);
 	}
+	_shutdown();
 	return 0;
 }
 

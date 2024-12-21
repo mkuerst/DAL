@@ -66,8 +66,12 @@
 #ifdef DEBUG
 #undef DEBUG
 #define DEBUG(...)                        fprintf(stderr, ## __VA_ARGS__)
+#define debug(msg, args...) do {\
+    fprintf(stderr, "debug: "msg, ## args);\
+}while(0);
 #else
 #define DEBUG(...)
+#define debug(msg, args...)
 #endif
 
 // #define DEBUG_PTHREAD(...)                        fprintf(stderr, ## __VA_ARGS__)

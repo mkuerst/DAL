@@ -32,17 +32,6 @@
 	fprintf(stderr, "\n");\
 }while(0);
 
-#ifdef DEBUG 
-#define debug(msg, args...) do {\
-    fprintf(stderr, "debug: "msg, ## args);\
-}while(0);
-
-#else 
-
-#define debug(msg, args...) 
-
-#endif 
-
 #define CQ_CAPACITY (16)
 #define MAX_SGE (2)
 #define MAX_WR (8)

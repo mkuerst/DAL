@@ -254,7 +254,7 @@ int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
                 size_t array_size = task.array_size[j][l];
                 total_lock_hold += lock_hold;
                 total_lock_acq += task.lock_acquires[j][l];
-                printf("%03d,%10llu,%8llu,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%16lu,%03d,%03d\n",
+                printf("%03d,%10llu,%8llu,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%10llu,%16lu,%03d,%03d\n",
                         task.id,
                         task.loop_in_cs[j][l],
                         task.lock_acquires[j][l],
@@ -266,7 +266,7 @@ int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
                         lwait_rel,
                         gwait_acq,
                         gwait_rel,
-                        // task.glock_tries[j][l],
+                        task.glock_tries[j][l],
                         array_size,
                         task.client_id,
                         j);
@@ -364,6 +364,7 @@ int main(int argc, char *argv[]) {
     void* worker; 
     int num_mem_runs = mode == 2 ? NUM_MEM_RUNS : 1;
     worker = mode == 0 ? empty_cs_worker : (mode == 1 ? lat_worker : mem_worker);
+    duration = mode == 1 ? 0 : duration;
     for (int i = 0; i < nthreads; i++) {
         pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
     }

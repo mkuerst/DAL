@@ -395,7 +395,6 @@ static void *lp_start_routine(void *_arg) {
     struct routine *r = _arg;
     void *(*fct)(void *) = r->fct;
     void *arg = r->arg;
-    thread_data* task = (thread_data *) arg;
     void *res;
     free(r);
 
