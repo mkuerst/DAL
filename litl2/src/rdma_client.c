@@ -6,6 +6,9 @@
 
 #include "rdma_common.h"
 
+/*******************************************************************/
+/******************** EVENTS & CHANNELS ****************************/
+/*******************************************************************/
 static struct rdma_event_channel *cm_event_channel = NULL;
 static struct rdma_cm_id *cm_client_id = NULL;
 static struct ibv_pd *pd = NULL;
@@ -14,6 +17,9 @@ static struct ibv_cq *client_cq = NULL;
 static struct ibv_qp_init_attr qp_init_attr;
 static struct ibv_qp *client_qp;
 static struct ibv_wc wc;
+/*******************************************************************/
+/******************** MEMORY REGIONS *******************************/
+/*******************************************************************/
 static struct ibv_mr 
 			// *client_metadata_mr = NULL, 
 		     *client_src_mr = NULL, 
@@ -24,25 +30,34 @@ static struct ibv_mr
 // static struct rdma_buffer_attr 
 // client_metadata_attr, 
 // server_metadata_attr;
-static struct ibv_send_wr client_send_wr, *bad_client_send_wr = NULL;
-static struct ibv_recv_wr server_recv_wr, *bad_server_recv_wr = NULL;
-static struct ibv_sge 
-// client_send_sge, 
-server_recv_sge;
-
-struct ibv_send_wr cas_wr, *bad_wr, w_wr;
-struct ibv_sge cas_sge, w_sge;
 uint64_t *cas_result;
 uint64_t *unlock_val;
 
+/*******************************************************************/
+/******************** WORK REQUESTS & SGEs *************************/
+/*******************************************************************/
+static struct ibv_send_wr 
+// client_send_wr, 
+*bad_client_send_wr = NULL;
+static struct ibv_recv_wr server_recv_wr, *bad_server_recv_wr = NULL;
+struct ibv_send_wr cas_wr, *bad_wr, w_wr;
 
+static struct ibv_sge 
+// client_send_sge, 
+server_recv_sge;
+struct ibv_sge cas_sge, w_sge;
+
+/*******************************************************************/
+/******************** TASK INFO ************************************/
+/*******************************************************************/
 int rdma_task_id;
 int rdma_client_id;
-static char buffer_msg[MESSAGE_SIZE] = {0};
+// static char buffer_msg[MESSAGE_SIZE] = {0};
 static char server_metadata[META_SIZE] = {0};
 
 static uint64_t rlock_addr;
 static uint32_t rkey;
+
 
 void client_prep_cas(rlock_meta* rlock, int cid, int tid) {
 	client_qp = rlock->qp;
@@ -364,4 +379,19 @@ void* establish_rdma_connection(int cid, char* addr)
 		return NULL;
 	}
 	return rlock;
+}
+
+int rdma_disc()
+{
+    ibv_destroy_qp(cm_client_id->qp);
+    ibv_dealloc_pd(cm_client_id->pd);
+    ibv_dereg_mr(client_src_mr);
+    ibv_dereg_mr(local_cas_mr);
+    ibv_dereg_mr(local_unlock_mr);
+    ibv_dereg_mr(server_metadata_mr);
+    ibv_destroy_cq(cm_client_id->send_cq);
+    ibv_destroy_cq(cm_client_id->recv_cq);
+    rdma_destroy_id(cm_client_id);
+    rdma_destroy_event_channel(cm_client_id->channel);
+	return 0;
 }
