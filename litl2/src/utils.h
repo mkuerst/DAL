@@ -40,7 +40,7 @@
 #include <topology.h>
 
 
-#define MAX_THREADS 2048
+#define MAX_THREADS 128
 #define MAX_CLIENTS 64 
 #define CPU_PAUSE() asm volatile("pause\n" : : : "memory")
 #define COMPILER_BARRIER() asm volatile("" : : : "memory")
@@ -75,7 +75,7 @@
 
 // MICROBENCH PARAMS
 /**************************************************************************************/
-#define NUM_RUNS 2
+#define NUM_RUNS 3
 #ifndef CACHELINE_SIZE
 #define CACHELINE_SIZE 64
 #endif
@@ -87,7 +87,7 @@
 // 256 KiB -*8> 2 MiB -*8> 16 -*4>
 #define MAX_ARRAY_SIZE MB(128)
 #define NUM_MEM_RUNS 3 
-#define NUM_LAT_RUNS 1 
+#define NUM_LAT_RUNS 20
 #define NUM_SND_RUNS (NUM_LAT_RUNS > NUM_MEM_RUNS ? NUM_LAT_RUNS : NUM_MEM_RUNS)
 
 #define LOCKS_PER_MEMRUN MAX_ARRAY_SIZE
@@ -106,7 +106,6 @@ extern size_t array_sizes[NUM_MEM_RUNS];
 
 
 typedef unsigned long long ull;
-//TODO: change long int type in tcp measurements!
 typedef long int li;
 
 typedef struct {
@@ -132,7 +131,7 @@ typedef struct {
     int sockfd;
     int client_id;
     rlock_meta* rlock_meta;
-    // EMPTY_CS/MEM MEASUREMENTS 
+    // MEASUREMENTS 
     ull duration[NUM_RUNS][NUM_SND_RUNS];
     ull loop_in_cs[NUM_RUNS][NUM_SND_RUNS];
     ull lock_acquires[NUM_RUNS][NUM_SND_RUNS];
@@ -164,8 +163,8 @@ typedef struct client_data {
     int id;
     int sockfd;
     int mode;
-    ull wait_acq[128][NUM_RUNS][NUM_SND_RUNS];
-    ull wait_rel[128][NUM_RUNS][NUM_SND_RUNS];
+    ull wait_acq[MAX_THREADS][NUM_RUNS][NUM_SND_RUNS];
+    ull wait_rel[MAX_THREADS][NUM_RUNS][NUM_SND_RUNS];
 } client_data;
 
 typedef struct {

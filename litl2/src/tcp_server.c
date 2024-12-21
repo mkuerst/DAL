@@ -25,8 +25,7 @@ int nclients;
 int nthreads;
 bool bench_running = true;
 
-int lat_runs = 0;
-int mem_runs = 0;
+int snd_runs = 0;
 
 __thread char buffer[BUFFER_SIZE];
 __thread char granted_msg[BUFFER_SIZE];
@@ -358,8 +357,7 @@ int main(int argc, char *argv[]) {
     nthreads = atoi(argv[1]);
     mode = atoi(argv[2]);
     nclients = atoi(argv[3]);
-    lat_runs = mode == 1 ? NUM_LAT_RUNS : 1;
-    mem_runs = mode == 2 ? NUM_MEM_RUNS : 1;
+    snd_runs = mode == 1 ? NUM_LAT_RUNS :(mode == 2 ? NUM_MEM_RUNS : 1);
     int client_fd;
     struct sockaddr_in server_addr, client_addr;
     socklen_t addr_len = sizeof(client_addr);
@@ -462,10 +460,10 @@ int main(int argc, char *argv[]) {
     for (int j = 0; j < NUM_RUNS; j++) {
         // printf("RUN %d\n", j);
         for (int i = 0; i < nclients; i++) {
+            client_data client = (client_data) clients[i];
             for (int k = 0; k < nthreads; k++) {
-                client_data client = (client_data) clients[i];
-                for (int l = 0; l < lat_runs; l++) {
-                    printf("%03d,%10.6f,%10.6f,%03d,%03d\n", k,
+                for (int l = 0; l < snd_runs; l++) {
+                    printf("%03d,%10.9f,%10.9f,%03d,%03d\n", k,
                     client.wait_acq[k][j][l] / FACTOR,
                     client.wait_rel[k][j][l] / FACTOR,
                     client.id,
