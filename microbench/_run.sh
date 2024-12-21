@@ -79,7 +79,7 @@ nthreads=$(nproc)
 # ncpu=$(lscpu | grep "^Core(s) per socket" | awk '{print $4}')
 # nnodes=$(lscpu | grep -oP "NUMA node\(s\):\s+\K[0-9]+")
 # echo "nthreads: $nthreads | nsockets: $nsockets | cpu_per_socket: $ncpu | nnodes: $nnodes"
-duration=0
+duration=30
 critical=1000
 
 client_file_header="tid,loop_in_cs,lock_acquires,lock_hold(ms),total_duration(s),wait_acq(ms),wait_rel(ms),lwait_acq, lwait_rel,gwait_acq,gwait_rel,array_size(B),client_id,run"
@@ -97,7 +97,7 @@ do
     client_so=${client_libs_dir}${impl}$client_suffix
     server_so=${server_libs_dir}${impl}$server_suffix
     orig_so=${orig_libs_dir}${impl}.so
-    for j in 1
+    for j in 2
     do
         microb="${microbenches[$j]}"
         client_res_dir="./results/disaggregated/client/$impl/$microb"
@@ -114,7 +114,7 @@ do
         # for ((i=1; i<=nthreads; i*=2))
         for nclients in ${n_clients[@]}
         do
-            for i in 1 16 32
+            for i in 16 32
             do
                 client_res_file="$client_res_dir"/nclients$nclients"_nthreads"$i.csv
                 server_res_file="$server_res_dir"/nclients$nclients"_nthreads"$i.csv
