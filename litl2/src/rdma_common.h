@@ -30,6 +30,7 @@
 #define rdma_error(msg, args...) do {\
 	fprintf(stderr, "\033[1;31m%s : %d : ERROR : \033[0m"msg, __FILE__, __LINE__, ## args);\
 	fprintf(stderr, "\n");\
+	exit(EXIT_FAILURE);\
 }while(0);
 
 #define CQ_CAPACITY (16)

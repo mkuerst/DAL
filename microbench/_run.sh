@@ -4,7 +4,7 @@ TCP_PORT1=8022
 TCP_PORT2=8080
 RDMA_PORT=20051
  
-cleanup() {
+cleanup_exit() {
     echo ""
     echo "Cleaning up..."
     if kill -0 $SERVER_PID 2>/dev/null; then
@@ -23,13 +23,34 @@ cleanup() {
         kill -9 "$pid"
     done
     echo "CLEANUP DONE"
-    exit 1
+    echo "EXIT"
     exit 1
 }
-trap cleanup SIGINT
-trap cleanup SIGTERM
-trap cleanup SIGKILL
-trap cleanup SIGHUP
+
+cleanup() {
+    echo ""
+    echo "Cleaning up..."
+    if kill -0 $SERVER_PID 2>/dev/null; then
+        echo "Stopping server with PID $SERVER_PID..."
+        kill $SERVER_PID
+    fi
+    tmux kill-server
+    fuser -k ${TCP_PORT0}/tcp 2>/dev/null
+    fuser -k ${TCP_PORT1}/tcp 2>/dev/null
+    fuser -k ${TCP_PORT2}/tcp 2>/dev/null
+    fuser -k ${RDMA_PORT}/rdma 2>/dev/null
+    pkill -P $$ 
+    for pid in $(lsof | grep infiniband | awk '{print $2}' | sort -u); do
+        echo "Killing process $pid using RDMA resources..."
+        kill -9 "$pid"
+    done
+    echo "CLEANUP DONE"
+}
+
+trap cleanup_exit SIGINT
+trap cleanup_exit SIGTERM
+trap cleanup_exit SIGKILL
+trap cleanup_exit SIGHUP
 
 #LOCAL
 # REMOTE_USER="mihi"
@@ -73,32 +94,23 @@ server_libs_dir=$BASE"/server/"
 client_libs_dir=$BASE"/client/"
 orig_libs_dir=$BASE"/original/"
 spinlock_so="$server_libs_dir/libspinlock_original_server.so"
-
 disa_bench="$PWD/main_disa"
-# disa_bench="./main_disa"
 
-microbenches=("empty_cs" "lat" "mem_2nodes")
-client_ids=(0 1 2 3 4 5 6 7 8 9)
-n_clients=(1)
-# num_clients=${#client_ids[@]}
-
-
-# MICROBENCH INPUTS
-nthreads=$(nproc)
-# nsockets=$(lscpu | grep "^Socket(s)" | awk '{print $2}')
-# ncpu=$(lscpu | grep "^Core(s) per socket" | awk '{print $4}')
-# nnodes=$(lscpu | grep -oP "NUMA node\(s\):\s+\K[0-9]+")
-# echo "nthreads: $nthreads | nsockets: $nsockets | cpu_per_socket: $ncpu | nnodes: $nnodes"
-duration=30
-critical=1000
 
 client_file_header="tid,loop_in_cs,lock_acquires,lock_hold(ms),total_duration(s),wait_acq(ms),wait_rel(ms),lwait_acq, lwait_rel,gwait_acq,gwait_rel,glock_tries,array_size(B),client_id,run"
 server_file_header="tid,wait_acq(ms),wait_rel(ms),client_id,run"
 
-
+# MICROBENCH INPUTS
+duration=30
+critical=1000
 
 rm -rf server_logs/
 rm -rf client_logs/
+
+microbenches=("empty_cs" "lat" "mem_2nodes")
+client_ids=(0 1 2 3 4 5 6 7 8 9)
+n_clients=(2 3)
+# num_clients=${#client_ids[@]}
 
 for impl_dir in "$BASE"/original/*
 do
@@ -149,15 +161,15 @@ do
                 # strace -e trace=connect -o mpi.log -f 
 
                 # ============= MPIRUN ========================================================
-                # mpirun --hostfile ./clients.txt -np $nclients -x LD_PRELOAD=$client_so \
-                # --mca oob_tcp_dynamic_ipv4_ports 8000,8080 \
-                # --mca btl_tcp_port_min_v4 8022 --mca btl_tcp_port_range_v4 5 \
+                mpirun --hostfile ./clients.txt -np $nclients -x LD_PRELOAD=$client_so \
+                --mca oob_tcp_dynamic_ipv4_ports 8000,8080 \
+                --mca btl_tcp_port_min_v4 8022 --mca btl_tcp_port_range_v4 5 \
+                $disa_bench $i $duration $critical $server_ip $j 0 $nclients \
+                >> $client_res_file 2>> $client_log_dir/nclients$n_clients"_nthreads"$i.log
                 # --mca mpi_debug 1 \
                 # --report-bindings --mca mpi_add_procs_verbose 1 --mca mpi_btl_base_verbose 1 \
                 # --mca btl_base_debug 1 --mca oob_tcp_debug 1 --mca plm_base_verbose 5 --mca orte_base_help_aggregate 0 \
                 # mpirun -np $nclients -x LD_PRELOAD=$client_so \
-                # $disa_bench $i $duration $critical $server_ip $j 0 $nclients \
-                # >> $client_res_file 2>> $client_log_dir/nclients$n_clients"_nthreads"$i.log
                 # ============= MPIRUN ========================================================
 
                 # --mca btl_tcp_inf_include 10.233.0.0/24,10.233.0.10/24,10.233.0.20/24 \
@@ -170,41 +182,24 @@ do
                 # --mca oob_tcp_port_min_v4 8090 --mca oob_tcp_port_range_v4 5 \
                 # --mca oob_tcp_static_ports 8082 --mca btl_tcp_static_ports 8085 \
 
-                for ((c=0; c<nclients; c++));
-                do
-                    echo "START MICROBENCH $microb CLIENT $c WITH $i THREADS"
-                    # client_session="client_$impl"
-                    tmux new-session -d -s "${client_session}_${c}" \
-                    "ssh $REMOTE_USER@${REMOTE_CLIENTS[$c]} LD_PRELOAD=$client_so $disa_bench $i $duration $critical $server_ip $j $c $nclients \
-                    >> $client_res_file 2>> $client_log_dir/client${c}_${i}.log; \
-                    tmux wait-for -S done_${impl}_${c}"
-                    # LD_PRELOAD=$client_so $disa_bench $i $duration $critical $server_ip $j $c $nclients \
-                    # >> $client_res_file 2>> $client_log_dir/client${c}_${i}.log 
+                # for ((c=0; c<nclients; c++));
+                # do
+                #     echo "START MICROBENCH $microb CLIENT $c WITH $i THREADS"
+                #     # client_session="client_$impl"
+                #     tmux new-session -d -s "${client_session}_${c}" \
+                #     "ssh $REMOTE_USER@${REMOTE_CLIENTS[$c]} LD_PRELOAD=$client_so $disa_bench $i $duration $critical $server_ip $j $c $nclients \
+                #     >> $client_res_file 2>> $client_log_dir/client${c}_${i}.log; \
+                #     tmux wait-for -S done_${impl}_${c}"
+                #     # LD_PRELOAD=$client_so $disa_bench $i $duration $critical $server_ip $j $c $nclients \
+                #     # >> $client_res_file 2>> $client_log_dir/client${c}_${i}.log 
 
-                done
-                for ((c=0; c<nclients; c++));
-                do
-                    tmux wait-for done_${impl}_${c}
-                done
-                # tmux kill-session -t $server_session
-                # tmux kill-server
+                # done
+                # for ((c=0; c<nclients; c++));
+                # do
+                #     tmux wait-for done_${impl}_${c}
+                # done
 
-                echo ""
-                echo "Cleaning up..."
-                if kill -0 $SERVER_PID 2>/dev/null; then
-                    echo "Stopping server with PID $SERVER_PID..."
-                    kill $SERVER_PID
-                fi
-                tmux kill-server
-                fuser -k ${TCP_PORT0}/tcp 2>/dev/null
-                fuser -k ${TCP_PORT1}/tcp 2>/dev/null
-                fuser -k ${TCP_PORT2}/tcp 2>/dev/null
-                fuser -k ${RDMA_PORT}/rdma 2>/dev/null
-                pkill -P $$ 
-                for pid in $(lsof | grep infiniband | awk '{print $2}' | sort -u); do
-                    echo "Killing process $pid using RDMA resources..."
-                    kill -9 "$pid"
-                done
+                cleanup
 
             done
         done
@@ -212,7 +207,7 @@ do
 done
 
 pkill -u $USER ssh-agent 
-cleanup
+cleanup_exit
 # lsof | grep '.nfs'
 # lsof -iTCP -sTCP:LISTEN
 # lsof -i :20886

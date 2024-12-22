@@ -111,7 +111,6 @@ int process_rdma_cm_event(struct rdma_event_channel *echannel,
 	debug("processing an rdma_cm_event\n");
 	int ret = 1;
 	ret = rdma_get_cm_event(echannel, cm_event);
-	debug("Server got an cm_event\n");
 	if (ret) {
 		rdma_error("Failed to retrieve a cm event, errno: %d \n", -errno);
 		return -errno;

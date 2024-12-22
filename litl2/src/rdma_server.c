@@ -95,6 +95,9 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients)
 			inet_ntoa(server_addr->sin_addr),
 			ntohs(server_addr->sin_port));
 
+	char *global_lock = malloc(MESSAGE_SIZE);
+	memset(global_lock, 0, MESSAGE_SIZE);
+
 	for (int i = 0; i < nclients; i++) {
 		struct rdma_connection* conn = &clients[i].connection;
 		debug("Waiting for conn establishment %d\n", i);
@@ -166,8 +169,6 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients)
 			return -EINVAL;
 		}
 
-		char *global_lock = malloc(MESSAGE_SIZE);
-		memset(global_lock, 0, MESSAGE_SIZE);
 		conn->client_mr = rdma_buffer_register(
 			pd, global_lock, MESSAGE_SIZE,
 			IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_REMOTE_ATOMIC
@@ -255,7 +256,7 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients)
 void usage() 
 {
 	printf("Usage:\n");
-	printf("rdma_server: [-a <server_addr>] [-p <server_port>] [-t <nclients>]\n");
+	printf("rdma_server: [-a <server_addr>] [-p <server_port>] [-c <nclients>]\n");
 	printf("(default port is %d)\n", DEFAULT_RDMA_PORT);
 	exit(1);
 }
@@ -268,7 +269,7 @@ int main(int argc, char **argv)
 	bzero(&server_sockaddr, sizeof server_sockaddr);
 	server_sockaddr.sin_family = AF_INET;
 	server_sockaddr.sin_addr.s_addr = htonl(INADDR_ANY); 
-	while ((option = getopt(argc, argv, "a:p:t:")) != -1) {
+	while ((option = getopt(argc, argv, "a:p:c:")) != -1) {
 		switch (option) {
 			case 'a':
 				if (get_addr(optarg, (struct sockaddr*) &server_sockaddr)) {
@@ -279,7 +280,7 @@ int main(int argc, char **argv)
 			case 'p':
 				server_sockaddr.sin_port = htons(strtol(optarg, NULL, 0)); 
 				break;
-			case 't':
+			case 'c':
 				nclients = atoi(optarg);
 				break;
 			default:

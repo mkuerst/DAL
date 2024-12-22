@@ -1,5 +1,4 @@
 #!/bin/sh
-# args: duration(s), cs(us), 
 
 #LOCAL
 # REMOTE_USER="mihi"
@@ -32,12 +31,6 @@ client_libs_dir=$BASE"/client/"
 orig_libs_dir=$BASE"/original/"
 microbenches=("empty_cs" "lat" "mem")
 
-# MICROBENCH INPUTS
-nthreads=$(nproc)
-# nsockets=$(lscpu | grep "^Socket(s)" | awk '{print $2}')
-# ncpu=$(lscpu | grep "^Core(s) per socket" | awk '{print $4}')
-# nnodes=$(lscpu | grep -oP "NUMA node\(s\):\s+\K[0-9]+")
-# echo "nthreads: $nthreads | nsockets: $nsockets | cpu_per_socket: $ncpu | nnodes: $nnodes"
 duration=1
 critical=1000
 
@@ -64,7 +57,6 @@ do
         mkdir -p "$orig_res_dir" 
         mkdir -p "$server_log_dir"
 
-        # for ((i=1; i<=nthreads; i*=2))
         for i in 1 16 
         do
             client_res_file="$client_res_dir"/nthread_"$i".csv
