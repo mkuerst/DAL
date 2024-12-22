@@ -30,6 +30,7 @@ int num_clients;
 
 disa_lock_t lock;
 pthread_barrier_t global_barrier;
+pthread_barrier_t local_barrier;
 
 int set_prio(int prio) {
     int ret;
@@ -100,8 +101,12 @@ void *lat_worker(void *arg) {
 
     for (int i = 0; i < NUM_RUNS; i++) {
         task->run = i;
-        pthread_barrier_wait(&global_barrier);
         lock_acquires = 0;
+
+        pthread_barrier_wait(&local_barrier);
+        if (task_id == 0)
+            MPI_Barrier(MPI_COMM_WORLD);
+        pthread_barrier_wait(&global_barrier);
 
         for (int j = 0; j < NUM_LAT_RUNS; j++) {
                 task->snd_run = j;
@@ -138,7 +143,12 @@ void *empty_cs_worker(void *arg) {
         loop_in_cs = 0;
         wait_acq = 0;
         wait_rel = 0;
+
+        pthread_barrier_wait(&local_barrier);
+        if (task_id == 0)
+            MPI_Barrier(MPI_COMM_WORLD);
         pthread_barrier_wait(&global_barrier);
+        
         while (!*task->stop) {
             start = rdtscp();
             lock_acquire((pthread_mutex_t *)&lock);
@@ -183,7 +193,12 @@ void *mem_worker(void *arg) {
             loop_in_cs = 0;
             wait_acq = 0;
             wait_rel = 0;
+
+            pthread_barrier_wait(&local_barrier);
+            if (task_id == 0)
+                MPI_Barrier(MPI_COMM_WORLD);
             pthread_barrier_wait(&global_barrier);
+
             while (!*task->stop) {
                 for (int x = 0; x < repeat; x++) {
                     for (size_t k = 0; k < array_size; k += 1) {
@@ -285,13 +300,20 @@ int main(int argc, char *argv[]) {
     MPI_Initialized(&initialized);
     if (!initialized)
         MPI_Init(&argc, &argv);
-    DEBUG(stderr, "MPI INIT DONE\n");
+    // int provided;
+    // MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
+    // if (provided < MPI_THREAD_MULTIPLE) {
+    //     fprintf(stderr, "Error: MPI does not provide required threading support\n");
+    //     MPI_Abort(MPI_COMM_WORLD, 1);
+    // }
+
+
+    DEBUG("MPI INIT DONE\n");
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     client = rank;
-    DEBUG(stderr, "HI from client %d\n", client);
-
+    DEBUG("HI from client %d\n", client);
 
     srand(42);
     nthreads = atoi(argv[1]);
@@ -312,16 +334,22 @@ int main(int argc, char *argv[]) {
     rlock_meta* rlock = NULL;
     int tcp_fd = 0;
     // int stop_warmup __attribute__((aligned (CACHELINE_SIZE))) = 0;
-#ifdef RDMA
-    if (!(rlock = establish_rdma_connection(0, server_ip))) {
-        _error("Client %d failed to eastablish rdma connection\n", client);
+    for (int i = 0; i < num_clients;i++) {
+        if (i == rank) {
+            fprintf(stderr, "Client %d trying to connect\n", client);
+        #ifdef RDMA
+            if (!(rlock = establish_rdma_connection(client, server_ip))) {
+                _error("Client %d failed to eastablish rdma connection\n", client);
+            }
+        #endif
+        #ifdef TCP_SPINLOCK
+            if ((tcp_fd = establish_tcp_connection(client, server_ip)) == 0) {
+                _error("Client %d failed to establish TCP_SPINLOCK connection\n", client);
+            }
+        #endif
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
     }
-#endif
-#ifdef TCP_SPINLOCK
-    if ((tcp_fd = establish_tcp_connection(client, server_ip)) == 0) {
-        _error("Client %d failed to establish TCP_SPINLOCK connection\n", client);
-    }
-#endif
     for (int i = 0; i < nthreads; i++) {
         tasks[i] = (task_t) {0};
         tasks[i].stop = &stop;
@@ -338,18 +366,6 @@ int main(int argc, char *argv[]) {
         for (int j = 0; j < NUM_RUNS; j++) {
             for (int k = 0; k < NUM_SND_RUNS; k++) {
                 tasks[i].duration[j][k] = duration;
-                // tasks[i].duration[j][k] = 0;
-                // tasks[i].loop_in_cs[j][k] = 0;
-                // tasks[i].lock_acquires[j][k] = 0;
-                // tasks[i].lock_hold[j][k] = 0;
-                // tasks[i].wait_acq[j][k] = 0;
-                // tasks[i].wait_rel[j][k] = 0;
-                // tasks[i].lwait_acq[j][k] = 0;
-                // tasks[i].lwait_rel[j][k] = 0;
-                // tasks[i].gwait_acq[j][k] = 0;
-                // tasks[i].gwait_rel[j][k] = 0;
-                // tasks[i].glock_tries[j][k] = 0;
-                // tasks[i].array_size[j][k] = 0;
             }
         }
         // fprintf(stderr, "random cs: %f\n", tasks[i].cs);
@@ -359,6 +375,7 @@ int main(int argc, char *argv[]) {
     lock.disa = 'y';
     lock_init((pthread_mutex_t *) &lock);
     pthread_barrier_init(&global_barrier, NULL, nthreads+1);
+    pthread_barrier_init(&local_barrier, NULL, nthreads);
 
 
     void* worker; 
@@ -382,7 +399,6 @@ int main(int argc, char *argv[]) {
             stop = 0;
             fprintf(stderr, "CLIENT %d MEASUREMENTS RUN %d_%d\n", client, i, k);
             pthread_barrier_wait(&global_barrier);
-            MPI_Barrier(MPI_COMM_WORLD);
             sleep(duration);
             stop = 1;
             pthread_barrier_wait(&global_barrier);
