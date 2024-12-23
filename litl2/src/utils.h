@@ -77,9 +77,15 @@
 // #define DEBUG_PTHREAD(...)                        fprintf(stderr, ## __VA_ARGS__)
 #define DEBUG_PTHREAD(...)
 
+#define _error(msg, args...) do {\
+	fprintf(stderr, "\033[1;31m%s : %d : ERROR : \033[0m"msg, __FILE__, __LINE__, ## args);\
+	fprintf(stderr, "\n");\
+	exit(EXIT_FAILURE);\
+}while(0);
+
 // MICROBENCH PARAMS
 /**************************************************************************************/
-#define NUM_RUNS 3
+#define NUM_RUNS 2
 #ifndef CACHELINE_SIZE
 #define CACHELINE_SIZE 64
 #endif
@@ -102,11 +108,6 @@
 extern size_t array_sizes[NUM_MEM_RUNS];
 /**************************************************************************************/
 
-#define _error(msg, args...) do {\
-	fprintf(stderr, "\033[1;31m%s : %d : ERROR : \033[0m"msg, __FILE__, __LINE__, ## args);\
-	fprintf(stderr, "\n");\
-	exit(EXIT_FAILURE);\
-}while(0);
 
 
 typedef unsigned long long ull;
@@ -134,6 +135,7 @@ typedef struct {
     char* server_ip;
     int sockfd;
     int client_id;
+    char disa;
     rlock_meta* rlock_meta;
     // MEASUREMENTS 
     ull duration[NUM_RUNS][NUM_SND_RUNS];

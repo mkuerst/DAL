@@ -4,6 +4,8 @@ TCP_PORT1=8022
 TCP_PORT2=8080
 RDMA_PORT=20051
  
+chmod +x "$0"
+
 cleanup_exit() {
     echo ""
     echo "Cleaning up..."
@@ -119,7 +121,7 @@ do
     client_so=${client_libs_dir}${impl}$client_suffix
     server_so=${server_libs_dir}${impl}$server_suffix
     orig_so=${orig_libs_dir}${impl}.so
-    for j in 2
+    for j in 0
     do
         microb="${microbenches[$j]}"
         client_res_dir="./results/disaggregated/client/$impl/$microb"
@@ -133,10 +135,9 @@ do
         mkdir -p "$server_log_dir"
         mkdir -p "$client_log_dir"
 
-        # for ((i=1; i<=nthreads; i*=2))
         for nclients in ${n_clients[@]}
         do
-            for i in 16 32
+            for i in 1 16 32
             do
                 client_res_file="$client_res_dir"/nclients$nclients"_nthreads"$i.csv
                 server_res_file="$server_res_dir"/nclients$nclients"_nthreads"$i.csv
@@ -146,8 +147,8 @@ do
                 echo $client_file_header > "$orig_res_file"
 
                 server_session="server_$i"
-                echo "START $impl SERVER FOR $i THREADS PER CLIENT"
-                tmux new-session -d -s "$server_session" "ssh $REMOTE_USER@$REMOTE_SERVER $rdma_server_app -t $nclients -a $server_ip >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
+                echo "START $impl SERVER FOR $i THREADS PER CLIENT & $nclients CLIENTS"
+                tmux new-session -d -s "$server_session" "ssh $REMOTE_USER@$REMOTE_SERVER $rdma_server_app -c $nclients -a $server_ip >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
 
                 # tmux new-session -d -s "$server_session" \
                 # "ssh $REMOTE_USER@$REMOTE_SERVER LD_PRELOAD=$spinlock_so $tcp_server_app $i $j $nclients >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
@@ -156,31 +157,27 @@ do
                 # SERVER_PID=$!
 
                 # $rdma_server_app -t $i -a $server_ip >> $server_res_file 2>> $server_log_dir/server_$i.log
-                # sleep 3
+                sleep 3
 
                 # strace -e trace=connect -o mpi.log -f 
 
                 # ============= MPIRUN ========================================================
-                mpirun --hostfile ./clients.txt -np $nclients -x LD_PRELOAD=$client_so \
+                mpirun --hostfile ./clients.txt -np $nclients \
+                --x LD_PRELOAD=$client_so \
                 --mca oob_tcp_dynamic_ipv4_ports 8000,8080 \
-                --mca btl_tcp_port_min_v4 8022 --mca btl_tcp_port_range_v4 5 \
+                --mca btl_tcp_port_min_v4 8000 --mca btl_tcp_port_range_v4 10 \
+                --mca btl_base_debug 1 --mca oob_tcp_debug 1 --mca plm_base_verbose 5 --mca orte_base_help_aggregate 0 \
+                --mca btl_tcp_if_exclude lo,eno3,eno1,eno4,eno2,docker0 \
                 $disa_bench $i $duration $critical $server_ip $j 0 $nclients \
                 >> $client_res_file 2>> $client_log_dir/nclients$n_clients"_nthreads"$i.log
                 # --mca mpi_debug 1 \
+                # --mca oob_tcp_if_include enp3s0 \
+                # --mca btl_tcp_inf_include 10.233.0.10/24,10.233.0.11/24,10.233.0.20/24 \
                 # --report-bindings --mca mpi_add_procs_verbose 1 --mca mpi_btl_base_verbose 1 \
-                # --mca btl_base_debug 1 --mca oob_tcp_debug 1 --mca plm_base_verbose 5 --mca orte_base_help_aggregate 0 \
                 # mpirun -np $nclients -x LD_PRELOAD=$client_so \
                 # ============= MPIRUN ========================================================
 
-                # --mca btl_tcp_inf_include 10.233.0.0/24,10.233.0.10/24,10.233.0.20/24 \
-                # --mca oob_tcp_if_include enp3s0 \
-                # --mca oob_tcp_if_include 10.233.0.0/24,10.233.0.10/24,10.233.0.20/24 \
-                # --mca oob_tcp_if_exclude lo,eno3,eno1,eno4,eno2,docker0 \
-                # --mca btl_tcp_if_exclude lo,eno3,eno1,eno4,eno2,docker0 \
-                # --mca oob_tcp_dynamic_ipv4_ports 8082 \
 
-                # --mca oob_tcp_port_min_v4 8090 --mca oob_tcp_port_range_v4 5 \
-                # --mca oob_tcp_static_ports 8082 --mca btl_tcp_static_ports 8085 \
 
                 # for ((c=0; c<nclients; c++));
                 # do

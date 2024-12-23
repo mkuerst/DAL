@@ -447,8 +447,11 @@ int __pthread_create(pthread_t *thread, const pthread_attr_t *attr,
 
     r->fct = start_routine;
     r->arg = arg;
-
-    return REAL(pthread_create)(thread, attr, lp_start_routine, r);
+    task_t *t = (task_t *) arg;
+    if (t->disa == 'y') {
+        return REAL(pthread_create)(thread, attr, lp_start_routine, r);
+    }
+    return REAL(pthread_create)(thread, attr, start_routine, arg);
 }
 __asm__(".symver __pthread_create,pthread_create@@" GLIBC_2_2_5);
 __asm__(".symver __pthread_create,pthread_create@" GLIBC_2_34);
@@ -458,6 +461,7 @@ int pthread_mutex_init(pthread_mutex_t *mutex,
     DEBUG_PTHREAD("[p] pthread_mutex_init\n");
     disa_mutex_t *disa_mutex = (disa_mutex_t *) mutex;
     if (disa_mutex->disa != 'y') {
+        // DEBUG("native mutex_init\n");
         REAL(pthread_mutex_init)(mutex, attr);
     }
 #if !NO_INDIRECTION
@@ -493,7 +497,7 @@ int pthread_mutex_lock(pthread_mutex_t *mutex) {
 #endif
     disa_mutex_t *disa_mutex = (disa_mutex_t *) mutex;
     if (disa_mutex->disa != 'y') {
-        // DEBUG("RDMA Comm calls mutex_lock\n");
+        // DEBUG("native mutex_lock\n");
         return REAL(pthread_mutex_lock)(mutex);
     }
 #if !NO_INDIRECTION
@@ -539,7 +543,7 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex) {
 #endif
     disa_mutex_t *disa_mutex = (disa_mutex_t *) mutex;
     if (disa_mutex->disa != 'y') {
-        // DEBUG("RDMA Comm releasing lock\n");
+        // DEBUG("native mutex_unlock\n");
         return REAL(pthread_mutex_unlock)(mutex);
     }
 #ifdef RDMA
@@ -589,6 +593,7 @@ int __pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex) {
     DEBUG_PTHREAD("[p] pthread_cond_wait\n");
     disa_mutex_t *disa_mutex = (disa_mutex_t *) mutex;
     if (disa_mutex->disa != 'y') {
+        DEBUG("native cond_wait\n");
         return REAL(pthread_cond_wait)(cond, mutex);
     }
 #if !NO_INDIRECTION
