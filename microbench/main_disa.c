@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+#include <dlfcn.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -296,10 +297,11 @@ int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
 
 int main(int argc, char *argv[]) {
     // client = atoi(argv[6]);
+    fprintf(stderr, "HI\n");
     int initialized;
     MPI_Initialized(&initialized);
     if (!initialized)
-        MPI_Init(&argc, &argv);
+        MPI_Init(NULL, NULL);
     // int provided;
     // MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
     // if (provided < MPI_THREAD_MULTIPLE) {
@@ -350,6 +352,15 @@ int main(int argc, char *argv[]) {
         }
         MPI_Barrier(MPI_COMM_WORLD);
     }
+
+    const char *lib_path = "/home/mihi/Desktop/DAL/lib/client/libspinlock_original_client.so";
+    void *handle = dlopen(lib_path, RTLD_LAZY);
+    if (!handle) {
+        fprintf(stderr, "Failed to preload library: %s\n", dlerror());
+        exit(EXIT_FAILURE);
+    }
+    printf("Library %s preloaded successfully\n", lib_path);
+
     for (int i = 0; i < nthreads; i++) {
         tasks[i] = (task_t) {0};
         tasks[i].stop = &stop;

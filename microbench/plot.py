@@ -8,13 +8,33 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines            
 
+REMOTE_LOCKS = ["spinlock"]
 
-CLIENT_COLS = [
+COMM_PROTOCOLS = ["tcp", "rdma"]
+
+ORIG_COLS = [
+"tid", "loop_in_cs", "lock_acquires", 
+"lock_hold", "total_duration", 
+"lwait_acq", "lwait_rel", "array_size",
+"lat_lock_hold", "lat_lwait_acq", "lat_lwait_rel",
+]
+
+CLIENT_TCP_COLS = [
 "tid", "loop_in_cs", "lock_acquires", 
 "lock_hold", "total_duration", 
 "wait_acq", "wait_rel", 
 "lwait_acq", "lwait_rel",
 "gwait_acq", "gwait_rel",
+"array_size", "client_id",
+"run"
+]
+CLIENT_RDMA_COLS = [
+"tid", "loop_in_cs", "lock_acquires", 
+"lock_hold", "total_duration", 
+"wait_acq", "wait_rel", 
+"lwait_acq", "lwait_rel",
+"gwait_acq", "gwait_rel",
+"glock_tries",
 "array_size", "client_id",
 "run"
 ]
@@ -28,8 +48,7 @@ def jain_fairness_index(x):
     denominator = len(x) * np.sum(x**2)
     return numerator / denominator if denominator != 0 else 0
 
-def to_pd(DATA, RES_DIRS, server=False):
-    COLS = SERVER_COLS if server else CLIENT_COLS
+def to_pd(DATA, RES_DIRS, COLS):
     for mb,dirs in RES_DIRS.items():
         DATA[mb] = {}
         for dir in dirs:
@@ -54,54 +73,203 @@ def to_pd(DATA, RES_DIRS, server=False):
     
 
 def read_data(DATA, RES_DIRS):
-    DATA["client"] = {}
-    DATA["server"] = {}
-    DATA["orig"] = {}
-    to_pd(DATA["client"], RES_DIRS["client"])
-    to_pd(DATA["server"], RES_DIRS["server"], True)
+    for comm_prot in COMM_PROTOCOLS:
+        CLIENT_COLS = CLIENT_TCP_COLS if comm_prot == "tcp" else CLIENT_RDMA_COLS
+        for remote_lock in REMOTE_LOCKS:
+            DATA[comm_prot] = {remote_lock: {"client": {}, "server": {}}}
+            to_pd(DATA[comm_prot][remote_lock]["client"], RES_DIRS[comm_prot][remote_lock]["client"], CLIENT_COLS)
+            to_pd(DATA[comm_prot][remote_lock]["server"], RES_DIRS[comm_prot][remote_lock]["server"], SERVER_COLS)
 
-def plots_emptycs(DATA):
-    CD = DATA["client"]["empty_cs"]
-    fig_whisk, ax_whisk = plt.subplots(figsize=(10, 6))
-    fig_bar, ax_bar = plt.subplots(figsize=(10, 6))
-    fig_fair, ax_fair = plt.subplots(figsize=(10, 6))
+    DATA["orig"] = {"none": {"client": {}}}
+    to_pd(DATA["orig"]["none"]["client"], RES_DIRS["orig"], ORIG_COLS)
+
+def plots(DATA):
+    CD = DATA["tcp"]["spinlock"]["client"]["empty_cs"]
+    fig_emptycs, ax_emptycs = plt.subplots(figsize=(10, 6))
+    fig_lat, ax_lat = plt.subplots(figsize=(10, 6))
+    fig_mem2n, ax_mem2n = plt.subplots(figsize=(10, 6))
+    lat_bar_width = 0.3  # Width of each bar
+    comm_prot_colors = {"tcp": "blue", "rdma": "green", "orig": "red"}
+    comm_prot_offset = {"orig": -lat_bar_width, "rdma": 0, "tcp": lat_bar_width}
+    lat_bar_colors = {"gwait_acq": "gray", "lwait_acq": "pink", "gwait_rel": "blue", "lwait_rel": "green", "lock_hold": "red",
+                      "lat_lwait_acq": "pink", "lat_lwait_rel": "green", "lat_lock_hold": "red"}
+    nthreads_markers = {1: "o", 16: "x", 32: "^", 8: "D", 16: "P"}
+    # fig_bar, ax_bar = plt.subplots(figsize=(10, 6))
+    # fig_fair, ax_fair = plt.subplots(figsize=(10, 6))
     position = 0
     x_positions = []
     x_labels = []
+    legend_nthreads = {}
+    legend_commprot = {}
+    legend_lat = {}
     for impl in CD:
         position += 1
         x_positions.append(position)
         x_labels.append(impl)
-        for nclients in CD[impl]:
-            for nthreads, values in CD[impl][nclients].items():
-                duration = values["total_duration"][0] / 1e6
+        for comm_prot in DATA:
+            for remote_lock in DATA[comm_prot]:
+                DE = DATA[comm_prot][remote_lock]["client"]["empty_cs"]
+                DCL = DATA[comm_prot][remote_lock]["client"]["lat"]
+                DCM = DATA[comm_prot][remote_lock]["client"]["mem_2nodes"]
+                # DSL = DATA[comm_prot][remote_lock]["server"]["lat"]
+                for nclients in DE[impl]:
+                    ################################ EMPTY CS ############################################
+                    for nthreads, values in DE[impl][nclients].items():
+                        duration = values["total_duration"][0] / 1e6
 
-                ax_whisk.boxplot(values["lock_acquires"] / duration, positions=[position], widths=0.6, patch_artist=True)
-                ax_whisk.text(position, np.average(values["lock_acquires"] / duration)+1e-6, f"{nclients}.{nthreads}", ha="center", va="bottom")
+                        # ax_whisk.plot(position, values["lock_acquires"].mean() / duration, label=comm_prot)
+                        # ax_whisk.boxplot(values["lock_acquires"] / duration, positions=[position], label=comm_prot, widths=0.6)
+                        # ax_whisk.text(position, np.average(values["lock_acquires"] / duration)+1e-6, f"{comm_prot[0]}.{nclients}.{nthreads}", ha="center", va="bottom")
 
-    ax_whisk.set_xticks(x_positions)
-    ax_whisk.set_xticklabels(x_labels, rotation=45, ha='right')
-    ax_whisk.set_xlabel("Implementation")
-    ax_whisk.set_ylabel("Throughput (lock acquisitions/us)")
-    # ax_whisk.set_yscale('log')
-    ax_whisk.set_title("Empty CS Throughput")
-    ax_whisk.grid(linestyle="--", alpha=0.7)
+                        # ax_whisk.boxplot(
+                        #     values["lock_acquires"] / duration,
+                        #     positions=[position],
+                        #     widths=0.4,  # Make boxplots narrower
+                        #     patch_artist=True,  # Enable box color customization
+                        #     boxprops=dict(facecolor=comm_prot_colors.get(comm_prot, "gray")),
+                        # )
+                        color = comm_prot_colors.get(comm_prot, "gray")
+                        marker = nthreads_markers.get(nthreads, "x")
+
+                        if comm_prot not in legend_commprot:
+                            legend_commprot[comm_prot] = mlines.Line2D([], [], color=color, marker="o",
+                                markersize=2, linestyle="None",label=comm_prot)
+
+                        if nthreads not in legend_nthreads:
+                            legend_nthreads[nthreads] = mlines.Line2D([], [],color="black",marker=marker,
+                                markersize=8, linestyle="None", label=f"{nthreads} threads")
+
+                        ax_emptycs.scatter(
+                            [position],  # X position
+                            [values["lock_acquires"].mean() / duration],  # Y value (average throughput)
+                            color=color,  # Color based on comm_prot
+                            marker=marker,
+                            label=comm_prot if position == 1 else "",  # Add legend only once per comm_prot
+                            s=55,  # Size of the scatter point
+                            edgecolor="black",  # Optional: add border to points
+                            alpha=0.5,
+                        )
+                    ######################################################################################
+
+                    ################################ LAT ############################################
+                    for nthreads, values in DCL[impl][nclients].items():
+                        if nthreads == 1:
+                            FACTOR = 1e3
+                            gwait_acq = (values["gwait_acq"].median() / FACTOR) if ("gwait_acq" in values) else 0
+                            ax_lat.bar(position+comm_prot_offset[comm_prot], gwait_acq, width=lat_bar_width,
+                                color=lat_bar_colors["gwait_acq"], label=f"{comm_prot} (gwait_acq)" if position == 1 else "",
+                                edgecolor="black"
+                            )
+                            lwait_acq = values["lwait_acq"].median() / FACTOR if comm_prot != "orig" else values["lat_lwait_acq"].median() / FACTOR
+                            ax_lat.bar(position+comm_prot_offset[comm_prot], lwait_acq, width=lat_bar_width, bottom=gwait_acq,
+                                color=lat_bar_colors["lwait_acq"], label=f"{comm_prot} (lwait_acq)" if position == 1 else "",
+                                edgecolor="black"
+                            )
+                            gwait_rel = values["gwait_rel"].median() / FACTOR if ("gwait_rel" in values) else 0
+                            ax_lat.bar(position+comm_prot_offset[comm_prot], gwait_rel, width=lat_bar_width, bottom=gwait_acq+lwait_acq,
+                                color=lat_bar_colors["gwait_rel"], label=f"{comm_prot} (gwait_rel)" if position == 1 else "",
+                                edgecolor="black"
+                            )
+                            lwait_rel = values["lwait_rel"].median() / FACTOR if comm_prot != "orig" else values["lat_lwait_rel"].median() / FACTOR
+                            ax_lat.bar(position+comm_prot_offset[comm_prot], lwait_rel, width=lat_bar_width, bottom=gwait_acq+lwait_acq+gwait_rel,
+                                color=lat_bar_colors["lwait_rel"], label=f"{comm_prot} (lwait_rel)" if position == 1 else "",
+                                edgecolor="black"
+                            )
+                            lock_hold = values["lock_hold"].median() if comm_prot != "orig" else values["lat_lock_hold"].median() / FACTOR
+                            ax_lat.bar(position+comm_prot_offset[comm_prot], lock_hold, width=lat_bar_width, bottom=gwait_acq+lwait_acq+gwait_rel+lwait_rel,
+                                color=lat_bar_colors["lock_hold"], label=f"{comm_prot} (lock_hold)" if position == 1 else "",
+                                edgecolor="black"
+                            )
+                    ######################################################################################
+
+
+                    ###################################### MEM 2NODES ################################################
+                    for nthreads, values in DCM[impl][nclients].items():
+                        if nthreads == 32:
+                            max_array_size = values["array_size"].max()
+                            FACTOR = 1e3
+                            values = values[values["array_size"] == max_array_size]
+                            gwait_acq = (values["gwait_acq"].mean() / FACTOR) if ("gwait_acq" in values) else 0
+                            ax_mem2n.bar(position+comm_prot_offset[comm_prot], gwait_acq, width=lat_bar_width,
+                                color=lat_bar_colors["gwait_acq"], label=f"{comm_prot} (gwait_acq)" if position == 1 else "",
+                                edgecolor="black"
+                            )
+                            lwait_acq = values["lwait_acq"].mean() / FACTOR if comm_prot != "orig" else values["lat_lwait_acq"].mean() / FACTOR
+                            ax_mem2n.bar(position+comm_prot_offset[comm_prot], lwait_acq, width=lat_bar_width, bottom=gwait_acq,
+                                color=lat_bar_colors["lwait_acq"], label=f"{comm_prot} (lwait_acq)" if position == 1 else "",
+                                edgecolor="black"
+                            )
+                            gwait_rel = values["gwait_rel"].mean() / FACTOR if ("gwait_rel" in values) else 0
+                            ax_mem2n.bar(position+comm_prot_offset[comm_prot], gwait_rel, width=lat_bar_width, bottom=gwait_acq+lwait_acq,
+                                color=lat_bar_colors["gwait_rel"], label=f"{comm_prot} (gwait_rel)" if position == 1 else "",
+                                edgecolor="black"
+                            )
+                            lwait_rel = values["lwait_rel"].mean() / FACTOR if comm_prot != "orig" else values["lat_lwait_rel"].mean() / FACTOR
+                            ax_mem2n.bar(position+comm_prot_offset[comm_prot], lwait_rel, width=lat_bar_width, bottom=gwait_acq+lwait_acq+gwait_rel,
+                                color=lat_bar_colors["lwait_rel"], label=f"{comm_prot} (lwait_rel)" if position == 1 else "",
+                                edgecolor="black"
+                            )
+                            lock_hold = values["lock_hold"].mean() if comm_prot != "orig" else values["lat_lock_hold"].mean() / FACTOR
+                            ax_mem2n.bar(position+comm_prot_offset[comm_prot], lock_hold, width=lat_bar_width, bottom=gwait_acq+lwait_acq+gwait_rel+lwait_rel,
+                                color=lat_bar_colors["lock_hold"], label=f"{comm_prot} (lock_hold)" if position == 1 else "",
+                                edgecolor="black"
+                            )
+                    ######################################################################################
+
+    ax_emptycs.set_xticks(x_positions)
+    ax_emptycs.set_xticklabels(x_labels, rotation=45, ha='right')
+    ax_emptycs.set_xlabel("Implementation")
+    ax_emptycs.set_ylabel("Throughput (lock acquisitions/us)")
+    ax_emptycs.set_yscale('log')
+    ax_emptycs.set_title("Empty CS Throughput with 1 Client and 2 Node Pinning")
+    ax_emptycs.grid(linestyle="--", alpha=0.7)
+    #TODO: not visible
+    ax_emptycs.legend(legend_nthreads.values(), [entry.get_label() for entry in legend_nthreads.values()],
+              title="Number of Threads", loc="upper right")
+    ax_emptycs.legend(legend_commprot.values(), [entry.get_label() for entry in legend_commprot.values()],
+              title="Communication Protocol", loc="upper left", bbox_to_anchor=(1.05, 1))
     output_path = file_dir+f"/plots/tp_empty_cs.png"
-    fig_whisk.savefig(output_path, dpi=300, bbox_inches='tight')
+    fig_emptycs.savefig(output_path, dpi=300, bbox_inches='tight')
 
-        # if SERVER_DATA:
-        #     ax_bar.set_xticks(x_positions)
-        #     ax_bar.set_xticklabels(x_labels, rotation=45, ha='right')
-        #     ax_bar.set_xlabel("Implementation")
-        #     ax_bar.set_ylabel("Time (s)")
-        #     ax_bar.set_title("Median Latency Across Implementations")
-        #     ax_bar.grid(linestyle="--", alpha=0.7)
-        #     legend_comm = mlines.Line2D([], [], color='green', marker='o', linestyle='None', markersize=8, label="Network Communication")
-        #     legend_impl = mlines.Line2D([], [], color='orange', marker='o', linestyle='None', markersize=8, label="Lock Implementation")
-        #     ax_bar.legend(handles=[legend_comm, legend_impl])
-        #     output_path = file_dir+f"/plots/latency_{nthreads}.png"
-        #     fig_bar.savefig(output_path, dpi=300, bbox_inches='tight')
+    ax_lat.set_xticks(x_positions)
+    ax_lat.set_xticklabels(x_labels, rotation=45, ha='right')
+    ax_lat.set_xlabel("Implementation")
+    ax_lat.set_ylabel("Latency Medians (us)")
+    # ax_lat.set_yscale('log')
+    ax_lat.set_title("Latency")
+    ax_lat.grid(linestyle="--", alpha=0.7)
+    for metric,color in lat_bar_colors.items():
+        legend_lat[metric] = mlines.Line2D(
+                                [], [],
+                                color=color,
+                                marker="o",
+                                markersize=8,
+                                linestyle="None",
+                                label=metric)
+    ax_lat.legend(legend_lat.values(), [entry.get_label() for entry in legend_lat.values()],
+              title="Latency", loc="upper left", bbox_to_anchor=(1.05, 1))
+    output_path = file_dir+f"/plots/lat.png"
+    fig_lat.savefig(output_path, dpi=300, bbox_inches='tight')
 
+    ax_mem2n.set_xticks(x_positions)
+    ax_mem2n.set_xticklabels(x_labels, rotation=45, ha='right')
+    ax_mem2n.set_xlabel("Implementation")
+    ax_mem2n.set_ylabel("Latency Means (us)")
+    # ax_mem2n.set_yscale('log')
+    ax_mem2n.set_title("Latency of Memory MB with 2 NUMA Nodes")
+    ax_mem2n.grid(linestyle="--", alpha=0.7)
+    for metric,color in lat_bar_colors.items():
+        legend_lat[metric] = mlines.Line2D(
+                                [], [],
+                                color=color,
+                                marker="o",
+                                markersize=8,
+                                linestyle="None",
+                                label=metric)
+    ax_mem2n.legend(legend_lat.values(), [entry.get_label() for entry in legend_lat.values()],
+              title="Latency", loc="upper left", bbox_to_anchor=(1.05, 1))
+    output_path = file_dir+f"/plots/mem_avglats.png"
+    fig_lat.savefig(output_path, dpi=300, bbox_inches='tight')
         # ax_fair.set_xticks(x_positions)
         # ax_fair.set_xticklabels(x_labels, rotation=45, ha='right')
         # ax_fair.set_xlabel("Implementation")
@@ -112,183 +280,24 @@ def plots_emptycs(DATA):
         # output_path = file_dir+f"/plots/fairness_{nthreads}{orig}.png"
         # fig_fair.savefig(output_path, dpi=300, bbox_inches='tight')
 
-def plots_mem(CLIENT_DATA, SERVER_DATA, incl_threads):
-    for nthreads in incl_threads:
-        fig, ax = plt.subplots(figsize=(10, 6))
-        bar_width = 0.3
-        offset = 1 / 3
-        position = 0
-        x_positions = []
-        x_labels = []
-
-        for impl in CLIENT_DATA:
-            df = CLIENT_DATA[impl][nthreads]
-            if df.empty:
-                continue
-            position += 1
-            x_positions.append(position)
-            x_labels.append(impl)
-            max_dur = df.groupby("array_size")["total_duration"].max() * 1e6
-            avg_ops = df.groupby("array_size")["loop_in_cs"].mean()
-            tp = avg_ops / max_dur
-            szs = df['array_size'].unique()
-            ax.bar(position-offset, tp[szs[0]], width=bar_width, edgecolor='black', color="orange")
-            ax.bar(position, tp[szs[1]], width=bar_width, edgecolor='black', color="green")
-            ax.bar(position+offset, tp[szs[2]], width=bar_width, edgecolor='black', color="blue")
-            # ax.bar(position, tp[szs[3]], width=bar_width, edgecolor='black', color="red")
-        
-        orig = "" if SERVER_DATA else "(ORIG)"
-
-        ax.set_xticks(x_positions)
-        ax.set_xticklabels(x_labels, rotation=45, ha='right')
-        ax.set_xlabel("Implementation")
-        ax.set_ylabel("TP (ops/ns)")
-        ax.set_title("Access Array w/ Varying Size TP"+orig)
-        # legend1 = mlines.Line2D([], [], color='orange', markersize=4, label=f"{szs[0] / 1024} KB")
-        # legend2 = mlines.Line2D([], [], color='green', markersize=4, label=f"{szs[1] / 1024**2} MB")
-        # legend3 = mlines.Line2D([], [], color='blue', markersize=4, label=f"{szs[2] / 1024**2} MB")
-        # legend4 = mlines.Line2D([], [], color='red', markersize=4, label=f"{szs[3] / 1024**2} MB")
-        # ax.legend(handles=[legend1, legend2, legend3, legend4])
-        ax.grid(linestyle="--", alpha=0.7)
-        output_path = file_dir+f"/plots/memtp_{nthreads}{orig}.png"
-        fig.savefig(output_path, dpi=300, bbox_inches='tight')
-
-def plots_lat(CLIENT_DATA, SERVER_DATA, incl_threads):
-    FACTOR = 1e3
-    for nthreads in incl_threads:
-        fig, ax = plt.subplots(figsize=(10, 6))
-        bar_width = 0.4
-        # offset = 1 / 3
-        position = 0
-        x_positions = []
-        x_labels = []
-
-        for impl in CLIENT_DATA:
-            df = CLIENT_DATA[impl][nthreads]
-            if df.empty:
-                continue
-            position += 1
-            x_positions.append(position)
-            x_labels.append(impl)
-            max_acq = df["lat_wait_acq"].max() / FACTOR
-            max_rel = df["lat_wait_rel"].max() / FACTOR
-            med_acq = df["lat_wait_acq"].median() / FACTOR
-            med_rel = df["lat_wait_rel"].median() / FACTOR
-            mean_acq = df["lat_wait_acq"].mean() / FACTOR
-            mean_rel = df["lat_wait_rel"].mean() / FACTOR
-            med_hold = df["lat_lock_hold"].median() / FACTOR
-            if SERVER_DATA:
-                df_s = SERVER_DATA[impl][nthreads]
-                mean_impl_acq = df_s["wait_acq"].mean() / FACTOR
-                mean_impl_rel = df_s["wait_rel"].mean() / FACTOR
-                mean_comm = (mean_acq - mean_impl_acq) + (mean_rel - mean_impl_rel)
-                mean_acq = mean_impl_acq
-                mean_rel = mean_impl_rel
-                ax.bar(position, mean_comm, width=bar_width, bottom=mean_acq+mean_rel, edgecolor='black', color="red")
-
-            ax.bar(position, mean_acq, width=bar_width, edgecolor='black', color="orange")
-            ax.bar(position, mean_rel, width=bar_width, bottom=mean_acq, edgecolor='black', color="blue")
-            # ax.plot(position, max_acq, marker="x", color="red")
-            # ax.plot(position, max_rel, marker="x", color="black")
-            # ax.bar(position, tp[szs[3]], width=bar_width, edgecolor='black', color="red")
-        
-        orig = "" if SERVER_DATA else "(ORIG)"
-
-        ax.set_xticks(x_positions)
-        ax.set_xticklabels(x_labels, rotation=45, ha='right')
-        ax.set_xlabel("Implementation")
-        ax.set_ylabel("Latency (us)")
-        ax.set_title(f"Latencies w/ {nthreads} Threads"+orig)
-        legend1 = mlines.Line2D([], [], color='orange', markersize=4, label=f"Avg Acq Time")
-        legend2 = mlines.Line2D([], [], color='blue', markersize=4, label=f"AvgMedian Rel Time")
-        legend3 = mlines.Line2D([], [], color='red', markersize=4, label=f"Avg Comm Time")
-        legend4 = mlines.Line2D([], [], color='red', marker='x', markersize=4, label=f"Max Acq Time")
-        legend5 = mlines.Line2D([], [], color='black', marker='x', markersize=4, label=f"Max Rel Time")
-        ax.legend(handles=[legend1, legend2, legend3])
-        ax.grid(linestyle="--", alpha=0.7)
-        output_path = file_dir+f"/plots/lat_{nthreads}{orig}.png"
-        fig.savefig(output_path, dpi=300, bbox_inches='tight')
-
-def plots_lat_both(CLIENT_DATA, SERVER_DATA, ORIG_DATA, incl_threads):
-    FACTOR = 1e3
-    for nthreads in incl_threads:
-        fig, ax = plt.subplots(figsize=(10, 6))
-        bar_width = 0.4
-        offset = 1 / 4 
-        position = 0
-        x_positions = []
-        x_labels = []
-
-        for impl in CLIENT_DATA:
-            df_c = CLIENT_DATA[impl][nthreads]
-            df_o = ORIG_DATA[impl][nthreads]
-            df_s = SERVER_DATA[impl][nthreads]
-
-            if df_c.empty:
-                continue
-
-            position += 1
-            x_positions.append(position)
-            x_labels.append(impl)
-
-            max_acq_c = df_c["lat_wait_acq"].max() / FACTOR
-            max_rel_c = df_c["lat_wait_rel"].max() / FACTOR
-            med_acq_c = df_c["lat_wait_acq"].median() / FACTOR
-            med_rel_c = df_c["lat_wait_rel"].median() / FACTOR
-            mean_acq_c = df_c["lat_wait_acq"].mean() / FACTOR
-            mean_rel_c = df_c["lat_wait_rel"].mean() / FACTOR
-            med_hold_c = df_c["lat_lock_hold"].median() / FACTOR
-
-            max_acq_o = df_o["lat_wait_acq"].max() / FACTOR
-            max_rel_o = df_o["lat_wait_rel"].max() / FACTOR
-            med_acq_o = df_o["lat_wait_acq"].median() / FACTOR
-            med_rel_o = df_o["lat_wait_rel"].median() / FACTOR
-            mean_acq_o = df_o["lat_wait_acq"].mean() / FACTOR
-            mean_rel_o = df_o["lat_wait_rel"].mean() / FACTOR
-            med_hold_o = df_o["lat_lock_hold"].median() / FACTOR
-
-            mean_impl_acq = df_s["wait_acq"].mean() / FACTOR
-            mean_impl_rel = df_s["wait_rel"].mean() / FACTOR
-            mean_comm = (mean_acq_c - mean_impl_acq) + (mean_rel_c - mean_impl_rel)
-
-            ax.bar(position-offset, mean_impl_acq, width=bar_width, edgecolor='black', color="orange")
-            ax.bar(position-offset, mean_impl_rel, width=bar_width, bottom=mean_impl_acq, edgecolor='black', color="blue")
-            ax.bar(position-offset, mean_comm, width=bar_width, bottom=mean_impl_acq+mean_impl_rel, edgecolor='black', color="red")
-
-            ax.bar(position+offset, mean_acq_o, width=bar_width, edgecolor='black', color="orange")
-            ax.bar(position+offset, mean_rel_o, width=bar_width, bottom=mean_acq_o, edgecolor='black', color="blue")
-        
-        ax.set_xticks(x_positions)
-        ax.set_xticklabels(x_labels, rotation=45, ha='right')
-        ax.set_xlabel("Implementation")
-        ax.set_ylabel("Latency (us)")
-        ax.set_title(f"Latencies w/ {nthreads} Threads")
-        legend1 = mlines.Line2D([], [], color='orange', markersize=4, label=f"Avg Acq Time")
-        legend2 = mlines.Line2D([], [], color='blue', markersize=4, label=f"AvgMedian Rel Time")
-        legend3 = mlines.Line2D([], [], color='red', markersize=4, label=f"Avg Comm Time")
-        legend4 = mlines.Line2D([], [], color='red', marker='x', markersize=4, label=f"Max Acq Time")
-        legend5 = mlines.Line2D([], [], color='black', marker='x', markersize=4, label=f"Max Rel Time")
-        ax.legend(handles=[legend1, legend2, legend3])
-        ax.grid(linestyle="--", alpha=0.7)
-        output_path = file_dir+f"/plots/lat__both_{nthreads}.png"
-        fig.savefig(output_path, dpi=300, bbox_inches='tight')
-
-        
 def prep_res_dirs(RES_DIRS):
-    file_dir = os.path.dirname(os.path.realpath(__file__))
-    RES_DIRS["client"] = {}
-    RES_DIRS["server"] = {}
+    for comm_prot in COMM_PROTOCOLS:
+        RES_DIRS[comm_prot] = {}
+        for remote_lock in REMOTE_LOCKS:
+            RES_DIRS[comm_prot][remote_lock] = {"client" : {}, "server": {}}
+            for mb in MICROBENCHES:
+                client_res_dir = os.path.dirname(os.path.realpath(__file__))+f"/results/{comm_prot}/{remote_lock}/client/*/{mb}/"
+                client_res_dir = glob.glob(client_res_dir)
+                server_res_dir = os.path.dirname(os.path.realpath(__file__))+f"/results/{comm_prot}/{remote_lock}/server/*/{mb}/"
+                server_res_dir = glob.glob(server_res_dir)
+
+                RES_DIRS[comm_prot][remote_lock]["client"][mb] = client_res_dir
+                RES_DIRS[comm_prot][remote_lock]["server"][mb] = server_res_dir
+
     RES_DIRS["orig"] = {}
     for mb in MICROBENCHES:
-        client_res_dir = os.path.dirname(os.path.realpath(__file__))+f"/results/disaggregated/client/*/{mb}/"
-        client_res_dir = glob.glob(client_res_dir)
-        server_res_dir = os.path.dirname(os.path.realpath(__file__))+f"/results/disaggregated/server/*/{mb}/"
-        server_res_dir = glob.glob(server_res_dir)
-        orig_res_dir = os.path.dirname(os.path.realpath(__file__))+f"/results/non_disaggregated/*/{mb}/"
+        orig_res_dir = os.path.dirname(os.path.realpath(__file__))+f"/results/orig/*/{mb}/"
         orig_res_dir = glob.glob(orig_res_dir)
-
-        RES_DIRS["client"][mb] = client_res_dir
-        RES_DIRS["server"][mb] = server_res_dir
         RES_DIRS["orig"][mb] = orig_res_dir
 
         
@@ -307,5 +316,4 @@ inc_disa_lat = [1, 8, 16]
 
 prep_res_dirs(RES_DIRS)
 read_data(DATA, RES_DIRS)
-plots_emptycs(DATA)
-pass
+plots(DATA)

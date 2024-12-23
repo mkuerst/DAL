@@ -101,7 +101,7 @@ client_file_header="tid,loop_in_cs,lock_acquires,lock_hold(ms),total_duration(s)
 server_file_header="tid,wait_acq(ms),wait_rel(ms),client_id,run"
 
 # MICROBENCH INPUTS
-duration=30
+duration=1
 critical=1000
 
 rm -rf server_logs/
