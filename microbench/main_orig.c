@@ -239,13 +239,12 @@ int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
     for (int j = 0; j < NUM_RUNS; j++) {
         float total_lock_hold = 0;
         ull total_lock_acq = 0;
-        printf("RUN %d\n", j);
         for (int i = 0; i < nthreads; i++) {
             task_t task = (task_t) tasks[i];
             for (int l = 0; l < snd_runs; l++) {
-                float lock_hold = task.lock_hold[j][l] / (float) cycle_to_ms;
-                float wait_acq = task.wait_acq[j][l] / (float) cycle_to_ms;
-                float wait_rel = task.wait_rel[j][l] / (float) cycle_to_ms;
+                float lock_hold = task.lock_hold[j][l] / cycle_to_ms;
+                float wait_acq = task.wait_acq[j][l] / cycle_to_ms;
+                float wait_rel = task.wait_rel[j][l] / cycle_to_ms;
                 float lwait_acq = task.lwait_acq[j][l] / cycle_to_ms;
                 float lwait_rel = task.lwait_rel[j][l] / cycle_to_ms;
                 float gwait_acq = task.gwait_acq[j][l] / cycle_to_ms;
@@ -256,7 +255,7 @@ int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
                 size_t array_size = task.array_size[j][l];
                 total_lock_hold += lock_hold;
                 total_lock_acq += task.lock_acquires[j][l];
-                printf("%03d,%10llu,%8llu,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%16lu,%03d\n",
+                printf("%03d,%10llu,%8llu,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%10llu,%16lu,%03d,%03d\n",
                         task.id,
                         task.loop_in_cs[j][l],
                         task.lock_acquires[j][l],
@@ -268,12 +267,13 @@ int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
                         lwait_rel,
                         gwait_acq,
                         gwait_rel,
+                        task.glock_tries[j][l],
                         array_size,
-                        task.client_id
-                        );
+                        task.client_id,
+                        j);
             }
         }
-        printf("-------------------------------------------------------------------------------------------------------\n\n");
+        fprintf(stderr, "RUN %d\n", j);
         fprintf(stderr, "Total lock hold time(ms): %f\n", total_lock_hold);
         fprintf(stderr, "Total lock acquisitions: %llu\n\n", total_lock_acq);
     }
@@ -298,6 +298,7 @@ int main(int argc, char *argv[]) {
     double long_cs = duration * 1e6 / 100.;
     // int stop_warmup __attribute__((aligned (CACHELINE_SIZE))) = 0;
     for (int i = 0; i < nthreads; i++) {
+        tasks[i] = (task_t) {0};
         tasks[i].stop = &stop;
         tasks[i].global_its = &global_its;
         tasks[i].cs = cs == 0 ? (i%2 == 0 ? short_cs : long_cs) : cs;
@@ -311,12 +312,6 @@ int main(int argc, char *argv[]) {
         for (int j = 0 ; j < NUM_RUNS; j++) {
             for (int k = 0; k < NUM_MEM_RUNS; k++) {
                 tasks[i].duration[j][k] = duration;
-                tasks[i].loop_in_cs[j][k] = 0;
-                tasks[i].lock_acquires[j][k] = 0;
-                tasks[i].lock_hold[j][k] = 0;
-                tasks[i].array_size[j][k] = 0;
-                tasks[i].wait_acq[j][k] = 0;
-                tasks[i].wait_rel[j][k] = 0;
             }
         }
     }

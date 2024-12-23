@@ -33,7 +33,6 @@ disa_lock_t lock;
 pthread_barrier_t global_barrier;
 pthread_barrier_t local_barrier;
 
-
 int set_prio(int prio) {
     int ret;
     pid_t tid = gettid();
@@ -341,13 +340,11 @@ int main(int argc, char *argv[]) {
         if (i == rank) {
             fprintf(stderr, "Client %d trying to connect\n", client);
         #ifdef RDMA
-            fprintf(stderr, "RDMA\n");
             if (!(rlock = establish_rdma_connection(client, server_ip))) {
                 _error("Client %d failed to eastablish rdma connection\n", client);
             }
         #endif
         #ifdef TCP_SPINLOCK
-            fprintf(stderr, "TCP\n");
             if ((tcp_fd = establish_tcp_connection(client, server_ip)) == 0) {
                 _error("Client %d failed to establish TCP_SPINLOCK connection\n", client);
             }
@@ -356,10 +353,17 @@ int main(int argc, char *argv[]) {
         MPI_Barrier(MPI_COMM_WORLD);
     }
 
+    const char *lib_path = "/home/mihi/Desktop/DAL/lib/client/libspinlock_original_client.so";
+    void *handle = dlopen(lib_path, RTLD_LAZY);
+    if (!handle) {
+        fprintf(stderr, "Failed to preload library: %s\n", dlerror());
+        exit(EXIT_FAILURE);
+    }
+    printf("Library %s preloaded successfully\n", lib_path);
+
     for (int i = 0; i < nthreads; i++) {
         tasks[i] = (task_t) {0};
         tasks[i].stop = &stop;
-        tasks[i].disa = 'y';
         tasks[i].global_its = &global_its;
         tasks[i].cs = cs == 0 ? (i%2 == 0 ? short_cs : long_cs) : cs;
         tasks[i].priority = 1;

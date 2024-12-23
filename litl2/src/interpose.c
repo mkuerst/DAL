@@ -87,6 +87,12 @@
 #include <partitioned.h>
 #elif defined(MUTEXEE)
 #include <mutexee.h>
+#elif defined(FNS)
+#include <fns.h>
+#elif defined(FNM)
+#include <fnm.h>
+#elif defined(CNA)
+#include <cna.h>
 #else
 #error "No lock algorithm known"
 #endif
