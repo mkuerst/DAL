@@ -50,7 +50,7 @@ struct ibv_sge cas_sge, w_sge;
 /*******************************************************************/
 /******************** TASK INFO ************************************/
 /*******************************************************************/
-int rdma_task_id;
+__thread int rdma_task_id;
 int rdma_client_id;
 // static char buffer_msg[MESSAGE_SIZE] = {0};
 static char server_metadata[META_SIZE] = {0};
@@ -71,6 +71,7 @@ void client_prep_cas(rlock_meta* rlock, int cid, int tid) {
 	unlock_val = rlock->unlock_val;
 	rdma_task_id = tid;
 	rdma_client_id = cid;
+	debug("PREP_CAS remote_addr: 0x%lx rkey: %u, -errno %d\n", cas_wr.wr.atomic.remote_addr,cas_wr.wr.atomic.rkey, -errno);
 }
 
 int client_prepare_connection(struct sockaddr_in *s_addr)
@@ -330,7 +331,7 @@ ull rdma_request_lock()
 			exit(EXIT_FAILURE);
 		}
 	} while(*cas_result);
-	debug("Client.Task %d.%d got rlock from server\n", rdma_client_id, rdma_task_id);
+	debug("Client.Task %d.%d got rlock from server after %d tries\n", rdma_client_id, rdma_task_id, tries);
 	return tries;
 }
 
@@ -344,7 +345,6 @@ int rdma_release_lock()
 	if (process_work_completion_events(io_completion_channel, &wc, 1) != 1) {
 		rdma_error("Failed to poll CAS-RELEASE completion, -errno %d\n", -errno);
 		exit(EXIT_FAILURE);
-		return -errno;
 	}
 
 	debug("Client.Task %d.%d released rlock on server\n", rdma_client_id, rdma_task_id);

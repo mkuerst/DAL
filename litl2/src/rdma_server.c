@@ -234,8 +234,8 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients)
 		server_send_wr.send_flags = IBV_SEND_SIGNALED; 
 
 
-		uintptr_t remote_addr = (uintptr_t)server_mr->addr;
-		uint32_t rkey = server_mr->rkey; 
+		uintptr_t remote_addr = (uintptr_t)conn->client_mr->addr;
+		uint32_t rkey = conn->client_mr->rkey; 
 		memset(meta_data, 0, META_SIZE);
 		sprintf(meta_data, "remote_addr: %lu\nrkey: %u\n", remote_addr, rkey);
 

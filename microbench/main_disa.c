@@ -16,6 +16,11 @@
 #include <tcp_client.c>
 #include <rdma_client.c>
 #include <mpi.h>
+#include <dirent.h>
+
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <errno.h>
 
 #define gettid() syscall(SYS_gettid)
 
@@ -28,6 +33,7 @@ char *array1;
 int nthreads;
 int client;
 int num_clients;
+char* res_file;
 
 disa_lock_t lock;
 pthread_barrier_t global_barrier;
@@ -44,6 +50,43 @@ int set_prio(int prio) {
     return ret;
 }
  
+void client_barrier(int run) {
+    struct dirent *entry;
+    char dir_name[256] = {0};
+    char filename[256] = {0};
+
+    snprintf(dir_name, sizeof(dir_name), "/home/kumichae/DAL/microbench/barrier_files/run%d", run);
+    sprintf(filename, "/home/kumichae/DAL/microbench/barrier_files/run%d/%d", run, client);
+    if (mkdir(dir_name, 0777) != 0 && errno != EEXIST) {
+        _error("Failed to create directory");
+    }
+    FILE *file = fopen(filename, "w");
+    if (file == NULL) {
+        _error("Client %d failed to create barrier file\n", client);
+    }
+    fclose(file);
+
+    while (1) {
+        DIR *dir = opendir(dir_name);
+        if (dir == NULL) {
+            _error("Client %d failed to open %s\n", client, dir_name);
+        }
+        int count = 0;
+        while ((entry = readdir(dir)) != NULL) {
+
+            if (entry->d_name[0] == '.')
+                continue;
+
+            count++;
+        }
+        // fprintf(stderr, "COUNT IS: %d\n", count);
+        closedir(dir);
+        if (count == num_clients)
+            break;
+    }
+    DEBUG("Client %d passing barrier for run %d\n", client, run);
+}
+
 // void *cs_worker(void *arg) {
 //     task_t *task = (task_t *) arg;
 //     int task_id = task->id;
@@ -148,6 +191,7 @@ void *empty_cs_worker(void *arg) {
         pthread_barrier_wait(&local_barrier);
         if (task_id == 0)
             MPI_Barrier(MPI_COMM_WORLD);
+            // client_barrier(i);
         pthread_barrier_wait(&global_barrier);
         
         while (!*task->stop) {
@@ -249,6 +293,10 @@ void *mem_worker(void *arg) {
 // }
 
 int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
+    FILE *file = fopen(res_file, "a");
+    if (file == NULL) {
+        _error("Client %d failed to open result file %s, errno %d\n", client, res_file, errno);
+    }
     int snd_runs = mode == 2 ? NUM_MEM_RUNS : (mode == 1 ? NUM_LAT_RUNS : 1);
     float cycle_to_ms = (float) (CYCLES_MAX * 1e3);
     for (int j = 0; j < NUM_RUNS; j++) {
@@ -270,7 +318,7 @@ int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
                 size_t array_size = task.array_size[j][l];
                 total_lock_hold += lock_hold;
                 total_lock_acq += task.lock_acquires[j][l];
-                printf("%03d,%10llu,%8llu,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%10llu,%16lu,%03d,%03d\n",
+                fprintf(file, "%03d,%10llu,%8llu,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%10llu,%16lu,%03d,%03d\n",
                         task.id,
                         task.loop_in_cs[j][l],
                         task.lock_acquires[j][l],
@@ -292,12 +340,13 @@ int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
         fprintf(stderr, "Total lock hold time(ms): %f\n", total_lock_hold);
         fprintf(stderr, "Total lock acquisitions: %llu\n\n", total_lock_acq);
     }
+    fclose(file);
     return 0;
 }
 
 int main(int argc, char *argv[]) {
     // client = atoi(argv[6]);
-    fprintf(stderr, "HI\n");
+    // fprintf(stderr, "HI\n");
     int initialized;
     MPI_Initialized(&initialized);
     if (!initialized)
@@ -321,9 +370,10 @@ int main(int argc, char *argv[]) {
     nthreads = atoi(argv[1]);
     int duration = atoi(argv[2]);
     double cs = atoi(argv[3]);
-    char *server_ip = (argv[4]);
+    char *server_ip = argv[4];
     int mode = argc < 6 ? 0 : atoi(argv[5]);
     num_clients = atoi(argv[7]);
+    res_file = argv[8];
     task_t *tasks = malloc(sizeof(task_t) * nthreads);
 
     pthread_attr_t attr;
@@ -336,33 +386,27 @@ int main(int argc, char *argv[]) {
     rlock_meta* rlock = NULL;
     int tcp_fd = 0;
     // int stop_warmup __attribute__((aligned (CACHELINE_SIZE))) = 0;
+#ifdef RDMA
     for (int i = 0; i < num_clients;i++) {
-        if (i == rank) {
-            fprintf(stderr, "Client %d trying to connect\n", client);
-        #ifdef RDMA
+        if (i == client) {
             if (!(rlock = establish_rdma_connection(client, server_ip))) {
                 _error("Client %d failed to eastablish rdma connection\n", client);
             }
-        #endif
-        #ifdef TCP_SPINLOCK
-            if ((tcp_fd = establish_tcp_connection(client, server_ip)) == 0) {
-                _error("Client %d failed to establish TCP_SPINLOCK connection\n", client);
-            }
-        #endif
         }
         MPI_Barrier(MPI_COMM_WORLD);
+        // client_barrier(1000+i);
     }
+#endif
+    #ifdef TCP_SPINLOCK
+        if ((tcp_fd = establish_tcp_connection(client, server_ip)) == 0) {
+            _error("Client %d failed to establish TCP_SPINLOCK connection\n", client);
+        }
+    #endif
 
-    const char *lib_path = "/home/mihi/Desktop/DAL/lib/client/libspinlock_original_client.so";
-    void *handle = dlopen(lib_path, RTLD_LAZY);
-    if (!handle) {
-        fprintf(stderr, "Failed to preload library: %s\n", dlerror());
-        exit(EXIT_FAILURE);
-    }
-    printf("Library %s preloaded successfully\n", lib_path);
 
     for (int i = 0; i < nthreads; i++) {
         tasks[i] = (task_t) {0};
+        tasks[i].disa = 'y';
         tasks[i].stop = &stop;
         tasks[i].global_its = &global_its;
         tasks[i].cs = cs == 0 ? (i%2 == 0 ? short_cs : long_cs) : cs;
@@ -413,7 +457,6 @@ int main(int argc, char *argv[]) {
             sleep(duration);
             stop = 1;
             pthread_barrier_wait(&global_barrier);
-            // MPI_Barrier(MPI_COMM_WORLD);
             if (mode == 2) {
                 numa_free(array0, array_sz);
                 numa_free(array1, array_sz);
@@ -424,7 +467,13 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < nthreads; i++) {
         pthread_join(tasks[i].thread, NULL);
     }
-    cs_result_to_out(tasks, nthreads, mode);
+    for (int i = 0; i < num_clients; i++) {
+        if (i == client) {
+            cs_result_to_out(tasks, nthreads, mode);
+        }
+        // client_barrier(2000+i);
+        MPI_Barrier(MPI_COMM_WORLD);
+    } 
     MPI_Finalize();
     // WAIT SO SERVER CAN SHUTDOWN
     sleep(2);

@@ -428,6 +428,7 @@ static void *lp_start_routine(void *_arg) {
     init_tcp_client(task);
 #endif
 #ifdef RDMA
+    DEBUG("Launching thread with RDMA lp start routine\n");
     client_prep_cas(task->rlock_meta, client_id, task_id);
     // while (cur_thread_id != cur_turn) {
     //     CPU_PAUSE();
@@ -503,7 +504,7 @@ int pthread_mutex_lock(pthread_mutex_t *mutex) {
 #endif
     disa_mutex_t *disa_mutex = (disa_mutex_t *) mutex;
     if (disa_mutex->disa != 'y') {
-        // DEBUG("native mutex_lock\n");
+        DEBUG("native mutex_lock\n");
         return REAL(pthread_mutex_lock)(mutex);
     }
 #if !NO_INDIRECTION

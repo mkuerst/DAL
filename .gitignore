@@ -13,3 +13,4 @@ rdma-example
 microbench/server_logs
 microbench/client_logs
 microbench/mpi_test
+microbench/barrier_files/*
