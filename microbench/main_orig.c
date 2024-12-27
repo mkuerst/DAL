@@ -185,8 +185,8 @@ void *mem_worker(void *arg) {
             wait_acq = 0;
             wait_rel = 0;
             pthread_barrier_wait(&global_barrier);
-            while (!*task->stop) {
                 for (int x = 0; x < repeat; x++) {
+            while (!*task->stop) {
                     for (size_t k = 0; k < array_size; k += 1) {
                         int u = 0;
                         if(*task->stop)
@@ -241,9 +241,8 @@ int main(int argc, char *argv[]) {
     nthreads = atoi(argv[1]);
     int duration = atoi(argv[2]);
     double cs = atoi(argv[3]);
-    char *server_ip = (argv[4]);
-    int mode = argc < 6 ? 0 : atoi(argv[5]);
-    res_file = argv[6];
+    int mode = atoi(argv[4]);
+    res_file = argv[5];
     void* worker; 
     int num_mem_runs;
     switch (mode) {
@@ -279,6 +278,7 @@ int main(int argc, char *argv[]) {
             num_mem_runs = 1;
             break;
     }
+    fprintf(stderr, "use_nodes: %d\n", use_nodes);
     task_t *tasks = malloc(sizeof(task_t) * nthreads);
 
     pthread_attr_t attr;
@@ -296,7 +296,6 @@ int main(int argc, char *argv[]) {
         tasks[i].cs = cs == 0 ? (i%2 == 0 ? short_cs : long_cs) : cs;
         tasks[i].priority = 1;
         tasks[i].id = i;
-        tasks[i].server_ip = server_ip;
         // fprintf(stderr, "random cs: %f\n", tasks[i].cs);
         // int priority = atoi(argv[4+i*2]);
         // tasks[i].priority = priority;

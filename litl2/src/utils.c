@@ -45,8 +45,10 @@ inline void *alloc_cache_align(size_t n) {
 inline int get_snd_runs(int mode) {
     switch(mode) {
         case(0): return 1;
-        case(1): return NUM_LAT_RUNS;
-        case(2): return NUM_MEM_RUNS;
+        case(1): return 1;
+        case(2): return NUM_LAT_RUNS;
+        case(3): return NUM_MEM_RUNS;
+        case(4): return NUM_MEM_RUNS;
         default: return 1;
     }
 }
@@ -71,13 +73,13 @@ int pin_thread(unsigned int id, int nthreads, int use_nodes) {
     }
     else {
         if (id % 2 == 1) {
-            cpu_id = (nthreads / 2) + id - 1;
+            cpu_id = (CPU_NUMBER / 2) + id - 1;
         }
     }
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
     CPU_SET(cpu_id, &cpuset);
-    DEBUG("pinning thread %d to cpu %d\n", id, cpu_id);
+    fprintf(stderr, "pinning thread %d to cpu %d\n", id, cpu_id);
     int ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
     if (ret != 0) {
         _error("pthread_set_affinity_np failed for thread %d to cpu %d", id, cpu_id);
@@ -101,7 +103,7 @@ int cs_result_to_out(task_t* tasks, int nthreads, int mode, char* res_file) {
     if (file == NULL) {
         _error("Client %d failed to open result file %s, errno %d\n", client, res_file, errno);
     }
-    int snd_runs = (mode == 3 || mode == 4) ? NUM_MEM_RUNS : (mode == 2 ? NUM_LAT_RUNS : 1);
+    int snd_runs = get_snd_runs(mode);
     float cycle_to_ms = (float) (CYCLES_MAX * 1e3);
     for (int j = 0; j < NUM_RUNS; j++) {
         float total_lock_hold = 0;
