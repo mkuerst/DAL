@@ -53,33 +53,34 @@ inline int get_snd_runs(int mode) {
 
 // HARDCODED FOR OUR HW
 // CURRENT PINNING: always use 2 nodes
-inline int pin_thread(unsigned int id, int nthreads) {
+int pin_thread(unsigned int id, int nthreads, int use_nodes) {
     // int node = 0;
     int cpu_id = id;
     if (NUMA_NODES == 1) {
         return 0;
     }
-    else if (id < (nthreads / NUMA_NODES)) {
-        cpu_id = 2*id;
+    if (use_nodes == 2) {
+        if (id < (nthreads / NUMA_NODES)) {
+            cpu_id = 2*id;
+        }
+        else {
+            if (id % 2 == 0) {
+                cpu_id = id - (nthreads / 2) + 1;
+            }
+        }
     }
     else {
-        if (id % 2 == 0) {
-            cpu_id = id - (nthreads / 2) + 1;
+        if (id % 2 == 1) {
+            cpu_id = (nthreads / 2) + id - 1;
         }
     }
-    if (CPU_NUMBER != 0) {
-        cpu_set_t cpuset;
-        CPU_ZERO(&cpuset);
-        CPU_SET(cpu_id, &cpuset);
-        DEBUG("pinning thread %d to cpu %d\n", id, cpu_id);
-        int ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
-        if (ret != 0) {
-            _error("pthread_set_affinity_np failed for thread %d to cpu %d", id, cpu_id);
-        }
-        // if (numa_run_on_node(node) != 0) {
-        //     _error("numa_run_on_node %d failed", node);
-        // }
-        // fprintf(stderr, "pinning thread %d to numa node %d\n", id, node);
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(cpu_id, &cpuset);
+    DEBUG("pinning thread %d to cpu %d\n", id, cpu_id);
+    int ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+    if (ret != 0) {
+        _error("pthread_set_affinity_np failed for thread %d to cpu %d", id, cpu_id);
     }
     return 0;
 }
@@ -93,3 +94,56 @@ inline int current_numa_node() {
     return core % 2;
 }
 
+
+int cs_result_to_out(task_t* tasks, int nthreads, int mode, char* res_file) {
+    int client = tasks[0].client_id;
+    FILE *file = fopen(res_file, "a");
+    if (file == NULL) {
+        _error("Client %d failed to open result file %s, errno %d\n", client, res_file, errno);
+    }
+    int snd_runs = (mode == 3 || mode == 4) ? NUM_MEM_RUNS : (mode == 2 ? NUM_LAT_RUNS : 1);
+    float cycle_to_ms = (float) (CYCLES_MAX * 1e3);
+    for (int j = 0; j < NUM_RUNS; j++) {
+        float total_lock_hold = 0;
+        ull total_lock_acq = 0;
+        for (int i = 0; i < nthreads; i++) {
+            task_t task = (task_t) tasks[i];
+            for (int l = 0; l < snd_runs; l++) {
+                float lock_hold = task.lock_hold[j][l] / cycle_to_ms;
+                float wait_acq = task.wait_acq[j][l] / cycle_to_ms;
+                float wait_rel = task.wait_rel[j][l] / cycle_to_ms;
+                float lwait_acq = task.lwait_acq[j][l] / cycle_to_ms;
+                float lwait_rel = task.lwait_rel[j][l] / cycle_to_ms;
+                float gwait_acq = task.gwait_acq[j][l] / cycle_to_ms;
+                float gwait_rel = task.gwait_rel[j][l] / cycle_to_ms;
+
+
+                float total_duration = (float) task.duration[j][l];
+                size_t array_size = task.array_size[j][l];
+                total_lock_hold += lock_hold;
+                total_lock_acq += task.lock_acquires[j][l];
+                fprintf(file, "%03d,%10llu,%8llu,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%10llu,%16lu,%03d,%03d\n",
+                        task.id,
+                        task.loop_in_cs[j][l],
+                        task.lock_acquires[j][l],
+                        lock_hold,
+                        total_duration,
+                        wait_acq,
+                        wait_rel,
+                        lwait_acq,
+                        lwait_rel,
+                        gwait_acq,
+                        gwait_rel,
+                        task.glock_tries[j][l],
+                        array_size,
+                        task.client_id,
+                        j);
+            }
+        }
+        fprintf(stderr, "RUN %d\n", j);
+        fprintf(stderr, "Total lock hold time(ms): %f\n", total_lock_hold);
+        fprintf(stderr, "Total lock acquisitions: %llu\n\n", total_lock_acq);
+    }
+    fclose(file);
+    return 0;
+}

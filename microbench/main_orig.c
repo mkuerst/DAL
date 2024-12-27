@@ -23,6 +23,8 @@
 char *array0;
 char *array1;
 int nthreads;
+char *res_file;
+int use_nodes;
 
 lock_t lock;
 pthread_barrier_t global_barrier;
@@ -91,7 +93,7 @@ int set_prio(int prio) {
 void *lat_worker(void *arg) {
     task_t *task = (task_t *) arg;
     int task_id = task->id;
-    pin_thread(task_id, nthreads);
+    pin_thread(task_id, nthreads, use_nodes);
     ull now, start, end;
     ull lock_acquires;
 
@@ -119,7 +121,7 @@ void *empty_cs_worker(void *arg) {
     task_t *task = (task_t *) arg;
     int task_id = task->id;
     // fprintf(stderr,"RUNNING ON %d ndoes\n", NUMA_NODES);
-    pin_thread(task_id, nthreads);
+    pin_thread(task_id, nthreads, use_nodes);
     ull start;
     ull lock_acquires;
     ull lock_hold;
@@ -167,7 +169,7 @@ void *mem_worker(void *arg) {
     task_t *task = (task_t *) arg;
     int task_id = task->id;
 
-    pin_thread(task_id, nthreads);
+    pin_thread(task_id, nthreads, use_nodes);
     ull start, lock_start;
     ull lock_acquires, lock_hold, loop_in_cs;
     ull wait_acq, wait_rel;
@@ -202,7 +204,7 @@ void *mem_worker(void *arg) {
                         ull rel_start = rdtscp();
                         lock_release(&lock);
                         ull rel_end = rdtscp();
-                        lock_hold += rel_end - lock_start;
+                        lock_hold += rel_start - lock_start;
                         wait_rel += rel_end - rel_start;
                     }
                 }
@@ -233,52 +235,6 @@ void *mem_worker(void *arg) {
 //     return min + scale * (max - min);
 // }
 
-int cs_result_to_out(task_t* tasks, int nthreads, int mode) {
-    int snd_runs = mode == 2 ? NUM_MEM_RUNS : (mode == 1 ? NUM_LAT_RUNS : 1);
-    float cycle_to_ms = (float) (CYCLES_MAX * 1e3);
-    for (int j = 0; j < NUM_RUNS; j++) {
-        float total_lock_hold = 0;
-        ull total_lock_acq = 0;
-        for (int i = 0; i < nthreads; i++) {
-            task_t task = (task_t) tasks[i];
-            for (int l = 0; l < snd_runs; l++) {
-                float lock_hold = task.lock_hold[j][l] / cycle_to_ms;
-                float wait_acq = task.wait_acq[j][l] / cycle_to_ms;
-                float wait_rel = task.wait_rel[j][l] / cycle_to_ms;
-                float lwait_acq = task.lwait_acq[j][l] / cycle_to_ms;
-                float lwait_rel = task.lwait_rel[j][l] / cycle_to_ms;
-                float gwait_acq = task.gwait_acq[j][l] / cycle_to_ms;
-                float gwait_rel = task.gwait_rel[j][l] / cycle_to_ms;
-
-
-                float total_duration = (float) task.duration[j][l];
-                size_t array_size = task.array_size[j][l];
-                total_lock_hold += lock_hold;
-                total_lock_acq += task.lock_acquires[j][l];
-                printf("%03d,%10llu,%8llu,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%10llu,%16lu,%03d,%03d\n",
-                        task.id,
-                        task.loop_in_cs[j][l],
-                        task.lock_acquires[j][l],
-                        lock_hold,
-                        total_duration,
-                        wait_acq,
-                        wait_rel,
-                        lwait_acq,
-                        lwait_rel,
-                        gwait_acq,
-                        gwait_rel,
-                        task.glock_tries[j][l],
-                        array_size,
-                        task.client_id,
-                        j);
-            }
-        }
-        fprintf(stderr, "RUN %d\n", j);
-        fprintf(stderr, "Total lock hold time(ms): %f\n", total_lock_hold);
-        fprintf(stderr, "Total lock acquisitions: %llu\n\n", total_lock_acq);
-    }
-    return 0;
-}
 
 int main(int argc, char *argv[]) {
     srand(42);
@@ -287,6 +243,42 @@ int main(int argc, char *argv[]) {
     double cs = atoi(argv[3]);
     char *server_ip = (argv[4]);
     int mode = argc < 6 ? 0 : atoi(argv[5]);
+    res_file = argv[6];
+    void* worker; 
+    int num_mem_runs;
+    switch (mode) {
+        case 0:
+            use_nodes = 2;
+            worker = empty_cs_worker;
+            num_mem_runs = 1;
+            break;
+        case 1:
+            use_nodes = 1;
+            worker = empty_cs_worker;
+            num_mem_runs = 1;
+            break;
+        case 2:
+            use_nodes = 2;
+            worker = lat_worker;
+            num_mem_runs = 1;
+            duration = 0;
+            break;
+        case 3:
+            use_nodes = 2;
+            worker = mem_worker;
+            num_mem_runs = NUM_MEM_RUNS;
+            break;
+        case 4:
+            use_nodes = 1;
+            worker = mem_worker;
+            num_mem_runs = NUM_MEM_RUNS;
+            break;
+        default:
+            use_nodes = 2;
+            worker = empty_cs_worker;
+            num_mem_runs = 1;
+            break;
+    }
     task_t *tasks = malloc(sizeof(task_t) * nthreads);
 
     pthread_attr_t attr;
@@ -319,16 +311,13 @@ int main(int argc, char *argv[]) {
     pthread_barrier_init(&global_barrier, NULL, nthreads+1);
     pthread_barrier_init(&mem_barrier, NULL, nthreads);
 
-    void* worker; 
-    int num_mem_runs = mode == 2 ? NUM_MEM_RUNS : 1;
-    worker = mode == 0 ? empty_cs_worker : (mode == 1 ? lat_worker : mem_worker);
     for (int i = 0; i < nthreads; i++) {
         pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
     }
     for (int i = 0; i < NUM_RUNS; i++) {
         for (int k = 0; k < num_mem_runs; k++) {
             size_t array_sz = array_sizes[k];
-            if (mode == 2) {
+            if (mode == 3 || 4) {
                 array0 = (char *) numa_alloc_onnode(array_sz, 0);
                 array1 = (char *) numa_alloc_onnode(array_sz, 1);
                 if (!array0 || !array1) {
@@ -342,7 +331,7 @@ int main(int argc, char *argv[]) {
             sleep(duration);
             stop = 1;
             pthread_barrier_wait(&global_barrier);
-            if (mode == 2) {
+            if (mode == 3 || 4) {
                 numa_free(array0, array_sz);
                 numa_free(array1, array_sz);
             }
@@ -352,10 +341,7 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < nthreads; i++) {
         pthread_join(tasks[i].thread, NULL);
     }
-    cs_result_to_out(tasks, nthreads, mode);
-    // free(array);
-    // WAIT SO SERVER CAN SHUTDOWN
-    sleep(2);
+    cs_result_to_out(tasks, nthreads, mode, res_file);
     fprintf(stderr, "DONE\n");
     return 0;
 }

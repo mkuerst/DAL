@@ -1,3 +1,5 @@
+include ../litl2/Makefile.config
+
 # CYCLE_PER_US:=$(shell lscpu | grep "MHz" | awk 'NR==1 {printf "%dL\n", $$4}')
 CYCLE_PER_US:=$(shell cat "/proc/cpuinfo" | grep "MHz" | head -1 | awk '{printf "%dL\n", $$4}')
 CACHELINE_SIZE:=$(shell cat /sys/devices/system/cpu/cpu0/cache/index0/coherency_line_size)
@@ -15,11 +17,10 @@ GCCVERSIONGTEQ5 := $(shell expr `gcc -dumpversion | cut -f1 -d.` \>= 5)
 # else
 #     OFLAG=-O3
 # endif
-OFLAG=-O2
 
 FLAGS=-I../litl2/include/ -I../litl2/src/ -I/usr/include/rdma/ \
 -I/home/kumichae/my_libs/rdma-core/build/include/rdma \
--g -Wall ${OFLAG} -DCYCLE_PER_US=${CYCLE_PER_US} -DCACHELINE_SIZE=${CACHELINE_SIZE} \
+-g -Wall -${OFLAG} -DCYCLE_PER_US=${CYCLE_PER_US} -DCACHELINE_SIZE=${CACHELINE_SIZE} \
 -L/home/kumichae/my_libs/rdma-core/build/lib/ -lrdmacm -libverbs -lnuma
 
 .PHONY: all target
@@ -29,7 +30,7 @@ all: target
 target: ../litl2/src/utils.c ../litl2/src/rdma_common.o
 	@echo "USING CYCLE_PER_US = $(CYCLE_PER_US) MHz"
 	@echo "USING CACHELINE_SIZE = $(CACHELINE_SIZE) Bytes"
-	mpicc main_disa.c $^ -o main_disa ${FLAGS} -DMUTEX -DRDMA
+	mpicc main_disa.c $^ -o main_disa ${FLAGS} -DMUTEX -D$(DEBUG) -D$(COMM_PROT)
 	gcc main_orig.c $^ -o main_orig ${FLAGS} -DMUTEX
 	mpicc mpi_test.c $^ -o mpi_test ${FLAGS} -DMUTEX -DTCP_SPINLOCK
 # gcc main.c -o main_spin ${FLAGS} -DSPIN

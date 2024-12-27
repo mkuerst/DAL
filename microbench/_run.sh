@@ -104,6 +104,7 @@ server_file_header="tid,wait_acq(ms),wait_rel(ms),client_id,run"
 # MICROBENCH INPUTS
 duration=30
 critical=1000
+use_nodes=1
 
 rm -rf server_logs/
 rm -rf client_logs/
@@ -121,7 +122,7 @@ do
     impl=${impl%.so}
     client_so=${client_libs_dir}${impl}$client_suffix
     server_so=${server_libs_dir}${impl}$server_suffix
-    for j in 2
+    for j in 1
     do
         microb="${microbenches[$j]}"
         client_res_dir="$PWD/results/$comm_prot/client/$impl/$microb"
@@ -193,8 +194,6 @@ do
                 #     "ssh $REMOTE_USER@${REMOTE_CLIENTS[$c]} LD_PRELOAD=$client_so $disa_bench $i $duration $critical $server_ip $j $c $nclients $client_res_file \
                 #     2>> $client_log_dir/client${c}_${i}.log; \
                 #     tmux wait-for -S done_${impl}_${c}"
-                #     # LD_PRELOAD=$client_so $disa_bench $i $duration $critical $server_ip $j $c $nclients \
-                #     # >> $client_res_file 2>> $client_log_dir/client${c}_${i}.log 
 
                 # done
                 # for ((c=0; c<nclients; c++));

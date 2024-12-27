@@ -222,7 +222,9 @@ typedef struct rdma_thread {
 
 void *alloc_cache_align(size_t n);
 
-int pin_thread(unsigned int id, int nthreads);
+int pin_thread(unsigned int id, int nthreads, int use_nodes);
+
+int cs_result_to_out(task_t* tasks, int nthreads, int mode, char* res_file);
 
 int current_numa_node();
 
