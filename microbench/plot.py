@@ -44,7 +44,34 @@ SERVER_COLS = [
     "tid", "wait_acq", "wait_rel","client_id","run"
 ]
 
-MICROBENCHES = ["empty_cs", "lat", "mem_2nodes", "mem_1node"]
+IMPL = [
+"alockepfl_original",
+"backoff_original",
+"cbomcs_spin_then_park",
+"cbomcs_spinlock",
+"clh_spin_then_park",
+"clh_spinlock",
+"cna_spinlock",
+"concurrency_original",
+"cptltkt_original",
+"ctkttkt_original",
+"fns_spinlock",
+"fnm_spin_then_park",
+"hmcs_original",
+"htlockepfl_original",
+"hyshmcs_original",
+"malthusian_spin_then_park",
+"malthusian_spinlock",
+"mcs_spin_then_park",
+"mcs_spinlock",
+"partitioned_original",
+"pthreadinterpose_original",
+"spinlock_original",
+"ticket_original",
+"ttas_original",
+]
+
+MICROBENCHES = ["empty_cs1n", "empty_cs2n" "lat", "mem_1n", "mem_2n"]
 
 
 def jain_fairness_index(x):
@@ -52,43 +79,8 @@ def jain_fairness_index(x):
     denominator = len(x) * np.sum(x**2)
     return numerator / denominator if denominator != 0 else 0
 
-def to_pd(DATA, RES_DIRS, COLS):
-    for mb,dirs in RES_DIRS.items():
-        DATA[mb] = {}
-        for dir in dirs:
-            impl = Path(dir).parent.name.removeprefix("lib")
-            csv_dirs = glob.glob(dir+"nclients*_nthreads*.csv")
-            DATA[mb][impl] = {}
-            for csv_dir in csv_dirs:
-                match = re.search(r"nclients(\d+)_nthreads(\d+)\.csv", os.path.basename(csv_dir))
-                nclients = int(match.group(1))
-                nthreads = int(match.group(2))
-                if not DATA[mb][impl].get(nclients):
-                    DATA[mb][impl][nclients] = {}
-                cleaned_lines = []
-                with open(csv_dir, 'r') as file:
-                    for line in file:
-                        if line.startswith("---") or line.startswith("RUN") or line == "":
-                            continue
-                        cleaned_lines.append(line) 
 
-                cleaned_data = StringIO("".join(cleaned_lines))
-                DATA[mb][impl][nclients][nthreads] = pd.read_csv(cleaned_data, skiprows=1, names=COLS)
-    
-
-def read_data(DATA, RES_DIRS):
-    for comm_prot in COMM_PROTOCOLS:
-        CLIENT_COLS = CLIENT_TCP_COLS if comm_prot == "tcp" else CLIENT_RDMA_COLS
-        for remote_lock in REMOTE_LOCKS:
-            DATA[comm_prot] = {remote_lock: {"client": {}, "server": {}}}
-            to_pd(DATA[comm_prot][remote_lock]["client"], RES_DIRS[comm_prot][remote_lock]["client"], CLIENT_COLS)
-            to_pd(DATA[comm_prot][remote_lock]["server"], RES_DIRS[comm_prot][remote_lock]["server"], SERVER_COLS)
-
-    DATA["orig"] = {"none": {"client": {}}}
-    to_pd(DATA["orig"]["none"]["client"], RES_DIRS["orig"], ORIG_COLS)
-
-def plots_1C(DATA):
-    IMPL = DATA["rdma"]["spinlock"]["client"]["empty_cs"].keys()
+def plots_SC(DATA):
     fig_emptycs, ax_emptycs = plt.subplots(figsize=(10, 6))
     fig_lat, ax_lat = plt.subplots(figsize=(10, 6))
     fig_mem2n_lat, ax_mem2n_lat = plt.subplots(figsize=(10, 6))
@@ -117,28 +109,19 @@ def plots_1C(DATA):
                     markersize=2, linestyle="None",label=comm_prot)
 
             for remote_lock in DATA[comm_prot]:
-                DE = DATA[comm_prot][remote_lock]["client"]["empty_cs"]
+                # DE1N = DATA[comm_prot][remote_lock]["client"]["empty_cs1n"]
+                DE2N = DATA[comm_prot][remote_lock]["client"]["empty_cs2n"]
                 DCL = DATA[comm_prot][remote_lock]["client"]["lat"]
-                DCM = DATA[comm_prot][remote_lock]["client"]["mem_2nodes"]
+                # DCM1N = DATA[comm_prot][remote_lock]["client"]["mem_1n"]
+                DCM2N = DATA[comm_prot][remote_lock]["client"]["mem_2n"]
                 # DSL = DATA[comm_prot][remote_lock]["server"]["lat"]
-                if impl in DE.keys():
-                    for nclients in DE[impl]:
+                if impl in DE2N.keys():
+                    for nclients in DE2N[impl]:
                         if nclients == 1:
-                            ################################ EMPTY CS ############################################
-                            for nthreads, values in DE[impl][nclients].items():
+                            ################################ EMPTY CS 2N############################################
+                            for nthreads, values in DE2N[impl][nclients].items():
                                 duration = values["total_duration"][0] * 1e6
 
-                                # ax_whisk.plot(position, values["lock_acquires"].mean() / duration, label=comm_prot)
-                                # ax_whisk.boxplot(values["lock_acquires"] / duration, positions=[position], label=comm_prot, widths=0.6)
-                                # ax_whisk.text(position, np.average(values["lock_acquires"] / duration)+1e-6, f"{comm_prot[0]}.{nclients}.{nthreads}", ha="center", va="bottom")
-
-                                # ax_whisk.boxplot(
-                                #     values["lock_acquires"] / duration,
-                                #     positions=[position],
-                                #     widths=0.4,  # Make boxplots narrower
-                                #     patch_artist=True,  # Enable box color customization
-                                #     boxprops=dict(facecolor=comm_prot_colors.get(comm_prot, "gray")),
-                                # )
                                 marker = nthreads_markers.get(nthreads, "x")
                                 if nthreads not in legend_nthreads:
                                     legend_nthreads[nthreads] = mlines.Line2D([], [],color="black",marker=marker,
@@ -191,8 +174,8 @@ def plots_1C(DATA):
 
 
                             ###################################### MEM 2NODES ################################################
-                            if impl in DCM.keys():
-                                for nthreads, values in DCM[impl][nclients].items():
+                            if impl in DCM2N.keys():
+                                for nthreads, values in DCM2N[impl][nclients].items():
                                     if nthreads == 32:
                                         max_array_size = values["array_size"].max()
                                         FACTOR = 1e3
@@ -297,7 +280,7 @@ def plots_1C(DATA):
     ax_mem2n_tp.set_xlabel("Implementation")
     ax_mem2n_tp.set_ylabel("Throughput (lock acquisitions/us)")
     ax_mem2n_tp.set_yscale('log')
-    ax_mem2n_tp.set_title("Memory 2N TP 1 Client")
+    ax_mem2n_tp.set_title("Memory 1v2N TP 1 Client")
     ax_mem2n_tp.grid(linestyle="--", alpha=0.7)
     ax_mem2n_tp.legend(legend_commprot.values(), [entry.get_label() for entry in legend_commprot.values()],
               title="Communication Protocol", loc="upper left", bbox_to_anchor=(1.05, 1))
@@ -314,6 +297,189 @@ def plots_1C(DATA):
     # # ax_fair.legend(loc="upper right")
     # output_path = file_dir+f"/plots/fairness_{nthreads}{orig}.png"
     # fig_fair.savefig(output_path, dpi=300, bbox_inches='tight')
+
+    
+    
+def plots_1v2N(DATA):
+    fig_emptycs1v2n, ax_emptycs1v2n = plt.subplots(figsize=(10, 6))
+    fig_tpmem1v2n, ax_tpmem1v2n = plt.subplots(figsize=(10, 6))
+    fig_latmem1v2n, ax_latmem1v2n = plt.subplots(figsize=(10, 6))
+
+    mem_lat_bar_width = 0.4
+    offset = 0.4 / 2
+    position = 0
+    x_positions = []
+    x_labels = []
+    legend_empty = {}
+    legend_lat = {}
+
+    comm_prots = ["orig"]
+    lat_bar_colors = {"gwait_acq": "gray", "lwait_acq": "gold", "gwait_rel": "blue", "lwait_rel": "green", "lock_hold": "red"}
+    empty_colors = {"empty_cs1n": "gray", "empty_cs2n": "black"}
+    mem_colors = {"mem1n": "gray", "mem2n": "black"}
+    mem_offset = {"mem1n": -offset, "mem2n": offset}
+    empty_offset = {"empty_cs1n": -0.4, "empty_cs2n": 0.4}
+
+    empty_benches = ["empty_cs1n", "empty_cs2n"]
+    mem_becnhes = ["mem1n", "mem2n"]
+
+    for impl in IMPL:
+        position += 1
+        x_positions.append(position)
+        x_labels.append(impl)
+        for comm_prot in comm_prots:
+            ################################ EMPTY CS 1N vs 2N############################################
+            for empty_bench in empty_benches:
+                DE1N = DATA[comm_prot]["none"]["client"][empty_bench]
+                for nthreads, values in DE1N[impl][1].items():
+                    duration = values["total_duration"][0] * 1e6
+                    if nthreads == 16:
+                        ax_emptycs1v2n.boxplot(
+                            values["lock_acquires"] / duration,
+                            positions=[position-empty_offset[empty_bench]],
+                            widths=0.4, 
+                            patch_artist=True,
+                            boxprops=dict(facecolor=empty_colors.get(empty_bench, "gray")),
+                        )
+
+            ######################################################################################
+
+
+            ################################ MEM_TP | MEM_LAT 1N vs 2N############################################
+            for mem_bench in mem_becnhes:
+                DM1N = DATA[comm_prot]["none"]["client"][mem_bench]
+                for nthreads, values in DM1N[impl][1].items():
+                    if nthreads == 16:
+                        max_array_size = values["array_size"].max()
+                        FACTOR = 1e3
+                        values = values[values["array_size"] == max_array_size]
+                        lock_acquires = values["lock_acquires"]
+                        gwait_acq = ((values["gwait_acq"] / lock_acquires).mean() / FACTOR) if ("gwait_acq" in values) else 0
+                        ax_latmem1v2n.bar(position+mem_offset[mem_bench], gwait_acq, width=mem_lat_bar_width,
+                            color=lat_bar_colors["gwait_acq"], label=f"{comm_prot} (gwait_acq)" if position == 1 else "",
+                            edgecolor="black"
+                        )
+                        lwait_acq = (values["lwait_acq"] / lock_acquires).mean() / FACTOR
+                        ax_latmem1v2n.bar(position+mem_offset[mem_bench], lwait_acq, width=mem_lat_bar_width, bottom=gwait_acq,
+                            color=lat_bar_colors["lwait_acq"], label=f"{comm_prot} (lwait_acq)" if position == 1 else "",
+                            edgecolor="black"
+                        )
+                        gwait_rel = (values["gwait_rel"] / lock_acquires).mean() / FACTOR if ("gwait_rel" in values) else 0
+                        ax_latmem1v2n.bar(position+mem_offset[mem_bench], gwait_rel, width=mem_lat_bar_width, bottom=gwait_acq+lwait_acq,
+                            color=lat_bar_colors["gwait_rel"], label=f"{comm_prot} (gwait_rel)" if position == 1 else "",
+                            edgecolor="black"
+                        )
+                        lwait_rel = (values["lwait_rel"] / lock_acquires).mean() / FACTOR
+                        ax_latmem1v2n.bar(position+mem_offset[mem_bench], lwait_rel, width=mem_lat_bar_width, bottom=gwait_acq+lwait_acq+gwait_rel,
+                            color=lat_bar_colors["lwait_rel"], label=f"{comm_prot} (lwait_rel)" if position == 1 else "",
+                            edgecolor="black"
+                        )
+                        lock_hold = (values["lock_hold"] / lock_acquires).mean() / FACTOR
+                        ax_latmem1v2n.bar(position+mem_offset[mem_bench], lock_hold, width=mem_lat_bar_width, bottom=gwait_acq+lwait_acq+gwait_rel+lwait_rel,
+                            color=lat_bar_colors["lock_hold"], label=f"{comm_prot} (lock_hold)" if position == 1 else "",
+                            edgecolor="black"
+                        )
+
+                        
+
+                        duration = values["total_duration"].max() * 1e6
+                        ax_tpmem1v2n.boxplot(
+                            values["lock_acquires"] / duration,
+                            positions=[position+mem_offset[mem_bench]],
+                            widths=0.3,  # Make boxplots narrower
+                            patch_artist=True,  # Enable box color customization
+                            boxprops=dict(facecolor=mem_colors.get(mem_bench, "gray")),
+                        )
+            ######################################################################################
+
+
+    legend_empty[0] = mlines.Line2D([], [],color="gray",marker="o",
+        markersize=8, linestyle="None", label=f"1 Node")
+    legend_empty[1] = mlines.Line2D([], [],color="black",marker="o",
+        markersize=8, linestyle="None", label=f"2 Nodes")
+
+    ax_emptycs1v2n.set_xticks(x_positions)
+    ax_emptycs1v2n.set_xticklabels(x_labels, rotation=45, ha='right')
+    ax_emptycs1v2n.set_xlabel("Implementation")
+    ax_emptycs1v2n.set_ylabel("Throughput (lock acquisitions/us)")
+    ax_emptycs1v2n.set_yscale('log')
+    ax_emptycs1v2n.set_title("TP Empty CS 1v2N 16 Threads") 
+    ax_emptycs1v2n.grid(linestyle="--", alpha=0.7)
+    ax_emptycs1v2n.legend(legend_empty.values(), [entry.get_label() for entry in legend_empty.values()],
+              title="Node Pinning", loc="upper left", bbox_to_anchor=(1.05, 1))
+    output_path = file_dir+f"/plots/tp_empty_cs1v2n_1C_16T.png"
+    fig_emptycs1v2n.savefig(output_path, dpi=300, bbox_inches='tight')
+
+
+    ax_latmem1v2n.set_xticks(x_positions)
+    ax_latmem1v2n.set_xticklabels(x_labels, rotation=45, ha='right')
+    ax_latmem1v2n.set_xlabel("Implementation")
+    ax_latmem1v2n.set_ylabel("Latency Means (us)")
+    ax_latmem1v2n.set_yscale('log')
+    ax_latmem1v2n.set_title("Latency Memory 1v2N")
+    ax_latmem1v2n.grid(linestyle="--", alpha=0.7)
+    for metric,color in lat_bar_colors.items():
+        legend_lat[metric] = mlines.Line2D(
+                                [], [],
+                                color=color,
+                                marker="o",
+                                markersize=8,
+                                linestyle="None",
+                                label=metric)
+    ax_latmem1v2n.legend(legend_lat.values(), [entry.get_label() for entry in legend_lat.values()],
+              title="Latency", loc="upper left", bbox_to_anchor=(1.05, 1))
+    output_path = file_dir+f"/plots/avglat_mem2v1n_1C_16T.png"
+    fig_latmem1v2n.savefig(output_path, dpi=300, bbox_inches='tight')
+
+    ax_tpmem1v2n.set_xticks(x_positions)
+    ax_tpmem1v2n.set_xticklabels(x_labels, rotation=45, ha='right')
+    ax_tpmem1v2n.set_xlabel("Implementation")
+    ax_tpmem1v2n.set_ylabel("Throughput (lock acquisitions/us)")
+    ax_tpmem1v2n.set_yscale('log')
+    ax_tpmem1v2n.set_title("TP Memory 1v2N 1 Client 16 Threads")
+    ax_tpmem1v2n.grid(linestyle="--", alpha=0.7)
+    output_path = file_dir+f"/plots/tp_mem2n_1C_16T.png"
+    fig_tpmem1v2n.savefig(output_path, dpi=300, bbox_inches='tight')
+
+
+#################################################################################################################################
+#################################################################################################################################
+#################################################################################################################################
+
+def to_pd(DATA, RES_DIRS, COLS):
+    for mb,dirs in RES_DIRS.items():
+        DATA[mb] = {}
+        for dir in dirs:
+            impl = Path(dir).parent.name.removeprefix("lib")
+            csv_dirs = glob.glob(dir+"nclients*_nthreads*.csv")
+            DATA[mb][impl] = {}
+            for csv_dir in csv_dirs:
+                match = re.search(r"nclients(,d+)_nthreads(,d+),.csv", os.path.basename(csv_dir))
+                nclients = int(match.group(1))
+                nthreads = int(match.group(2))
+                if not DATA[mb][impl].get(nclients):
+                    DATA[mb][impl][nclients] = {}
+                cleaned_lines = []
+                with open(csv_dir, 'r') as file:
+                    for line in file:
+                        if line.startswith("---") or line.startswith("RUN") or line == "":
+                            continue
+                        cleaned_lines.append(line) 
+
+                cleaned_data = StringIO("".join(cleaned_lines))
+                DATA[mb][impl][nclients][nthreads] = pd.read_csv(cleaned_data, skiprows=1, names=COLS)
+    
+
+def read_data(DATA, RES_DIRS):
+    for comm_prot in COMM_PROTOCOLS:
+        CLIENT_COLS = CLIENT_TCP_COLS if comm_prot == "tcp" else CLIENT_RDMA_COLS
+        for remote_lock in REMOTE_LOCKS:
+            DATA[comm_prot] = {remote_lock: {"client": {}, "server": {}}}
+            to_pd(DATA[comm_prot][remote_lock]["client"], RES_DIRS[comm_prot][remote_lock]["client"], CLIENT_COLS)
+            to_pd(DATA[comm_prot][remote_lock]["server"], RES_DIRS[comm_prot][remote_lock]["server"], SERVER_COLS)
+
+    DATA["orig"] = {"none": {"client": {}}}
+    to_pd(DATA["orig"]["none"]["client"], RES_DIRS["orig"], ORIG_COLS)
 
 def prep_res_dirs(RES_DIRS):
     for comm_prot in COMM_PROTOCOLS:
@@ -343,4 +509,5 @@ DATA = {}
 
 prep_res_dirs(RES_DIRS)
 read_data(DATA, RES_DIRS)
-plots_1C(DATA)
+plots_SC(DATA)
+plots_1v2N(DATA)
