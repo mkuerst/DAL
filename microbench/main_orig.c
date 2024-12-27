@@ -278,7 +278,6 @@ int main(int argc, char *argv[]) {
             num_mem_runs = 1;
             break;
     }
-    fprintf(stderr, "use_nodes: %d\n", use_nodes);
     task_t *tasks = malloc(sizeof(task_t) * nthreads);
 
     pthread_attr_t attr;
