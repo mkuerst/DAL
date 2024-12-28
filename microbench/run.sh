@@ -24,13 +24,13 @@ do
     impl=$(basename $impl_dir)
     impl=${impl%.so}
     orig_so=${orig_libs_dir}${impl}.so
-    for j in 0 1 3 4
+    for j in 0
     do
         microb="${microbenches[$j]}"
         orig_res_dir="$PWD/results/orig/$impl/$microb"
         mkdir -p "$orig_res_dir" 
 
-        for i in 16
+        for i in 1
         do
             orig_res_file="$orig_res_dir/nclients1_nthreads$i.csv"
             echo $client_file_header > "$orig_res_file"
