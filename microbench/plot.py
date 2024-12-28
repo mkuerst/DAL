@@ -71,7 +71,7 @@ IMPL = [
 "ttas_original",
 ]
 
-MICROBENCHES = ["empty_cs1n", "empty_cs2n" "lat", "mem_1n", "mem_2n"]
+MICROBENCHES = ["empty_cs1n", "empty_cs2n", "lat", "mem1n", "mem2n"]
 
 
 def jain_fairness_index(x):
@@ -104,16 +104,13 @@ def plots_SC(DATA):
         x_labels.append(impl)
         for comm_prot in DATA:
             color = comm_prot_colors.get(comm_prot, "gray")
-            if comm_prot not in legend_commprot:
-                legend_commprot[comm_prot] = mlines.Line2D([], [], color=color, marker="o",
-                    markersize=2, linestyle="None",label=comm_prot)
 
             for remote_lock in DATA[comm_prot]:
                 # DE1N = DATA[comm_prot][remote_lock]["client"]["empty_cs1n"]
                 DE2N = DATA[comm_prot][remote_lock]["client"]["empty_cs2n"]
                 DCL = DATA[comm_prot][remote_lock]["client"]["lat"]
                 # DCM1N = DATA[comm_prot][remote_lock]["client"]["mem_1n"]
-                DCM2N = DATA[comm_prot][remote_lock]["client"]["mem_2n"]
+                DCM2N = DATA[comm_prot][remote_lock]["client"]["mem2n"]
                 # DSL = DATA[comm_prot][remote_lock]["server"]["lat"]
                 if impl in DE2N.keys():
                     for nclients in DE2N[impl]:
@@ -219,19 +216,21 @@ def plots_SC(DATA):
                                         )
 
                             ######################################################################################
+            if comm_prot not in legend_commprot:
+                legend_commprot[comm_prot] = mlines.Line2D([], [], color=color, marker="o",
+                    markersize=2, linestyle="None",label=comm_prot)
+                legend_nthreads[comm_prot] = mlines.Line2D([], [], color=color, marker="o",
+                    markersize=2, linestyle="None",label=comm_prot)
 
     ax_emptycs.set_xticks(x_positions)
     ax_emptycs.set_xticklabels(x_labels, rotation=45, ha='right')
     ax_emptycs.set_xlabel("Implementation")
     ax_emptycs.set_ylabel("Throughput (lock acquisitions/us)")
     ax_emptycs.set_yscale('log')
-    ax_emptycs.set_title("Empty CS Throughput with 1 Client and 2 Node Pinning")
+    ax_emptycs.set_title("EmptyCS TP 2N 1C")
     ax_emptycs.grid(linestyle="--", alpha=0.7)
-    #TODO: not visible
     ax_emptycs.legend(legend_nthreads.values(), [entry.get_label() for entry in legend_nthreads.values()],
-              title="Number of Threads", loc="upper right")
-    ax_emptycs.legend(legend_commprot.values(), [entry.get_label() for entry in legend_commprot.values()],
-              title="Communication Protocol", loc="upper left", bbox_to_anchor=(1.05, 1))
+              title="", loc="upper left", bbox_to_anchor=(1.05, 1))
     output_path = file_dir+f"/plots/tp_empty_cs.png"
     fig_emptycs.savefig(output_path, dpi=300, bbox_inches='tight')
 
@@ -252,7 +251,7 @@ def plots_SC(DATA):
                                 label=metric)
     ax_lat.legend(legend_lat.values(), [entry.get_label() for entry in legend_lat.values()],
               title="Latency", loc="upper left", bbox_to_anchor=(1.05, 1))
-    output_path = file_dir+f"/plots/lat.png"
+    output_path = file_dir+f"/plots/lat_emptycs_1C_32T.png"
     fig_lat.savefig(output_path, dpi=300, bbox_inches='tight')
 
     ax_mem2n_lat.set_xticks(x_positions)
@@ -260,7 +259,7 @@ def plots_SC(DATA):
     ax_mem2n_lat.set_xlabel("Implementation")
     ax_mem2n_lat.set_ylabel("Latency Means (us)")
     ax_mem2n_lat.set_yscale('log')
-    ax_mem2n_lat.set_title("Latency of Memory MB with 2 NUMA Nodes")
+    ax_mem2n_lat.set_title("Memory Latency 2N 1C 32T")
     ax_mem2n_lat.grid(linestyle="--", alpha=0.7)
     for metric,color in lat_bar_colors.items():
         legend_lat[metric] = mlines.Line2D(
@@ -272,7 +271,7 @@ def plots_SC(DATA):
                                 label=metric)
     ax_mem2n_lat.legend(legend_lat.values(), [entry.get_label() for entry in legend_lat.values()],
               title="Latency", loc="upper left", bbox_to_anchor=(1.05, 1))
-    output_path = file_dir+f"/plots/avglat_mem2n_{nclients}C.png"
+    output_path = file_dir+f"/plots/avglat_mem2n_1C_ 32T.png"
     fig_mem2n_lat.savefig(output_path, dpi=300, bbox_inches='tight')
 
     ax_mem2n_tp.set_xticks(x_positions)
@@ -280,11 +279,11 @@ def plots_SC(DATA):
     ax_mem2n_tp.set_xlabel("Implementation")
     ax_mem2n_tp.set_ylabel("Throughput (lock acquisitions/us)")
     ax_mem2n_tp.set_yscale('log')
-    ax_mem2n_tp.set_title("Memory 1v2N TP 1 Client")
+    ax_mem2n_tp.set_title("Memory TP 2N 1C 32T")
     ax_mem2n_tp.grid(linestyle="--", alpha=0.7)
     ax_mem2n_tp.legend(legend_commprot.values(), [entry.get_label() for entry in legend_commprot.values()],
               title="Communication Protocol", loc="upper left", bbox_to_anchor=(1.05, 1))
-    output_path = file_dir+f"/plots/tp_mem2n_{nclients}.png"
+    output_path = file_dir+f"/plots/tp_mem2n_1C_32T.png"
     fig_mem2n_tp.savefig(output_path, dpi=300, bbox_inches='tight')
 
 
@@ -305,8 +304,8 @@ def plots_1v2N(DATA):
     fig_tpmem1v2n, ax_tpmem1v2n = plt.subplots(figsize=(10, 6))
     fig_latmem1v2n, ax_latmem1v2n = plt.subplots(figsize=(10, 6))
 
-    mem_lat_bar_width = 0.4
-    offset = 0.4 / 2
+    bar_width = 0.4
+    offset = bar_width / 2
     position = 0
     x_positions = []
     x_labels = []
@@ -318,7 +317,7 @@ def plots_1v2N(DATA):
     empty_colors = {"empty_cs1n": "gray", "empty_cs2n": "black"}
     mem_colors = {"mem1n": "gray", "mem2n": "black"}
     mem_offset = {"mem1n": -offset, "mem2n": offset}
-    empty_offset = {"empty_cs1n": -0.4, "empty_cs2n": 0.4}
+    empty_offset = {"empty_cs1n": -offset, "empty_cs2n": offset}
 
     empty_benches = ["empty_cs1n", "empty_cs2n"]
     mem_becnhes = ["mem1n", "mem2n"]
@@ -328,7 +327,7 @@ def plots_1v2N(DATA):
         x_positions.append(position)
         x_labels.append(impl)
         for comm_prot in comm_prots:
-            ################################ EMPTY CS 1N vs 2N############################################
+            ################################ EMPTY CS 1N vs 2N ############################################
             for empty_bench in empty_benches:
                 DE1N = DATA[comm_prot]["none"]["client"][empty_bench]
                 for nthreads, values in DE1N[impl][1].items():
@@ -336,8 +335,8 @@ def plots_1v2N(DATA):
                     if nthreads == 16:
                         ax_emptycs1v2n.boxplot(
                             values["lock_acquires"] / duration,
-                            positions=[position-empty_offset[empty_bench]],
-                            widths=0.4, 
+                            positions=[position+empty_offset[empty_bench]],
+                            widths=bar_width, 
                             patch_artist=True,
                             boxprops=dict(facecolor=empty_colors.get(empty_bench, "gray")),
                         )
@@ -355,27 +354,27 @@ def plots_1v2N(DATA):
                         values = values[values["array_size"] == max_array_size]
                         lock_acquires = values["lock_acquires"]
                         gwait_acq = ((values["gwait_acq"] / lock_acquires).mean() / FACTOR) if ("gwait_acq" in values) else 0
-                        ax_latmem1v2n.bar(position+mem_offset[mem_bench], gwait_acq, width=mem_lat_bar_width,
+                        ax_latmem1v2n.bar(position+mem_offset[mem_bench], gwait_acq, width=bar_width,
                             color=lat_bar_colors["gwait_acq"], label=f"{comm_prot} (gwait_acq)" if position == 1 else "",
                             edgecolor="black"
                         )
                         lwait_acq = (values["lwait_acq"] / lock_acquires).mean() / FACTOR
-                        ax_latmem1v2n.bar(position+mem_offset[mem_bench], lwait_acq, width=mem_lat_bar_width, bottom=gwait_acq,
+                        ax_latmem1v2n.bar(position+mem_offset[mem_bench], lwait_acq, width=bar_width, bottom=gwait_acq,
                             color=lat_bar_colors["lwait_acq"], label=f"{comm_prot} (lwait_acq)" if position == 1 else "",
                             edgecolor="black"
                         )
                         gwait_rel = (values["gwait_rel"] / lock_acquires).mean() / FACTOR if ("gwait_rel" in values) else 0
-                        ax_latmem1v2n.bar(position+mem_offset[mem_bench], gwait_rel, width=mem_lat_bar_width, bottom=gwait_acq+lwait_acq,
+                        ax_latmem1v2n.bar(position+mem_offset[mem_bench], gwait_rel, width=bar_width, bottom=gwait_acq+lwait_acq,
                             color=lat_bar_colors["gwait_rel"], label=f"{comm_prot} (gwait_rel)" if position == 1 else "",
                             edgecolor="black"
                         )
                         lwait_rel = (values["lwait_rel"] / lock_acquires).mean() / FACTOR
-                        ax_latmem1v2n.bar(position+mem_offset[mem_bench], lwait_rel, width=mem_lat_bar_width, bottom=gwait_acq+lwait_acq+gwait_rel,
+                        ax_latmem1v2n.bar(position+mem_offset[mem_bench], lwait_rel, width=bar_width, bottom=gwait_acq+lwait_acq+gwait_rel,
                             color=lat_bar_colors["lwait_rel"], label=f"{comm_prot} (lwait_rel)" if position == 1 else "",
                             edgecolor="black"
                         )
                         lock_hold = (values["lock_hold"] / lock_acquires).mean() / FACTOR
-                        ax_latmem1v2n.bar(position+mem_offset[mem_bench], lock_hold, width=mem_lat_bar_width, bottom=gwait_acq+lwait_acq+gwait_rel+lwait_rel,
+                        ax_latmem1v2n.bar(position+mem_offset[mem_bench], lock_hold, width=bar_width, bottom=gwait_acq+lwait_acq+gwait_rel+lwait_rel,
                             color=lat_bar_colors["lock_hold"], label=f"{comm_prot} (lock_hold)" if position == 1 else "",
                             edgecolor="black"
                         )
@@ -428,7 +427,7 @@ def plots_1v2N(DATA):
                                 label=metric)
     ax_latmem1v2n.legend(legend_lat.values(), [entry.get_label() for entry in legend_lat.values()],
               title="Latency", loc="upper left", bbox_to_anchor=(1.05, 1))
-    output_path = file_dir+f"/plots/avglat_mem2v1n_1C_16T.png"
+    output_path = file_dir+f"/plots/avglat_mem1v2n_1C_16T.png"
     fig_latmem1v2n.savefig(output_path, dpi=300, bbox_inches='tight')
 
     ax_tpmem1v2n.set_xticks(x_positions)
@@ -438,7 +437,9 @@ def plots_1v2N(DATA):
     ax_tpmem1v2n.set_yscale('log')
     ax_tpmem1v2n.set_title("TP Memory 1v2N 1 Client 16 Threads")
     ax_tpmem1v2n.grid(linestyle="--", alpha=0.7)
-    output_path = file_dir+f"/plots/tp_mem2n_1C_16T.png"
+    ax_tpmem1v2n.legend(legend_empty.values(), [entry.get_label() for entry in legend_empty.values()],
+              title="Node Pinning", loc="upper left", bbox_to_anchor=(1.05, 1))
+    output_path = file_dir+f"/plots/tp_mem1v2n_1C_16T.png"
     fig_tpmem1v2n.savefig(output_path, dpi=300, bbox_inches='tight')
 
 
@@ -454,7 +455,7 @@ def to_pd(DATA, RES_DIRS, COLS):
             csv_dirs = glob.glob(dir+"nclients*_nthreads*.csv")
             DATA[mb][impl] = {}
             for csv_dir in csv_dirs:
-                match = re.search(r"nclients(,d+)_nthreads(,d+),.csv", os.path.basename(csv_dir))
+                match = re.search(r"nclients(\d+)_nthreads(\d+).csv", os.path.basename(csv_dir))
                 nclients = int(match.group(1))
                 nthreads = int(match.group(2))
                 if not DATA[mb][impl].get(nclients):
@@ -479,7 +480,7 @@ def read_data(DATA, RES_DIRS):
             to_pd(DATA[comm_prot][remote_lock]["server"], RES_DIRS[comm_prot][remote_lock]["server"], SERVER_COLS)
 
     DATA["orig"] = {"none": {"client": {}}}
-    to_pd(DATA["orig"]["none"]["client"], RES_DIRS["orig"], ORIG_COLS)
+    to_pd(DATA["orig"]["none"]["client"], RES_DIRS["orig"], CLIENT_RDMA_COLS)
 
 def prep_res_dirs(RES_DIRS):
     for comm_prot in COMM_PROTOCOLS:
