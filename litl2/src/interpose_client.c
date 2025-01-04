@@ -429,16 +429,7 @@ static void *lp_start_routine(void *_arg) {
 #endif
 #ifdef RDMA
     DEBUG("Launching thread with RDMA lp start routine\n");
-    client_prep_cas(task->rlock_meta, client_id, task_id);
-    // while (cur_thread_id != cur_turn) {
-    //     CPU_PAUSE();
-    // }
-    // int ret = establish_rdma_connection(task_id, task->server_ip);
-    // if(ret < 0) {
-    //     rdma_error("Thread %d failed at establishing rdma connection\n", cur_thread_id);
-    //     exit(-1);
-    // }
-    // cur_turn++;
+    set_rdma_client_meta(task->client_meta, client_id, task_id);
 #endif
     lock_thread_start();
     res = fct(arg);
@@ -515,7 +506,7 @@ int pthread_mutex_lock(pthread_mutex_t *mutex) {
 #endif
     ull end_lacq = rdtscp();
 #ifdef RDMA
-    tries = rdma_request_lock();
+    tries = rdma_request_lock(disa_mutex->id);
 #endif
 #ifdef TCP_SPINLOCK
     tcp_request_lock();

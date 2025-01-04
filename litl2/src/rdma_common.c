@@ -54,6 +54,7 @@ struct ibv_mr* rdma_buffer_alloc(struct ibv_pd *pd, uint32_t size,
 	mr = rdma_buffer_register(pd, buf, size, permission);
 	if(!mr){
 		free(buf);
+		rdma_error("failed to register mr for buf: %p, len: %u\n", buf, size);
 	}
 	return mr;
 }
@@ -64,25 +65,21 @@ struct ibv_mr *rdma_buffer_register(struct ibv_pd *pd,
 {
 	struct ibv_mr *mr = NULL;
 	if (!pd) {
-		rdma_error("Protection domain is NULL, ignoring \n");
+		DEBUG("Protection domain is NULL, ignoring \n");
 		return NULL;
 	}
 	mr = ibv_reg_mr(pd, addr, length, permission);
 	if (!mr) {
-		rdma_error("Failed to create mr on buffer, errno: %d \n", -errno);
+		DEBUG("Failed to register mr on buffer, errno: %d \n", -errno);
 		return NULL;
 	}
-	// debug("Registered: %p , len: %u , stag: 0x%x \n", 
-	// 		mr->addr, 
-	// 		(unsigned int) mr->length, 
-	// 		mr->lkey);
 	return mr;
 }
 
 void rdma_buffer_free(struct ibv_mr *mr) 
 {
 	if (!mr) {
-		rdma_error("Passed memory region is NULL, ignoring\n");
+		DEBUG("Passed memory region is NULL, ignoring\n");
 		return ;
 	}
 	void *to_free = mr->addr;
@@ -94,7 +91,7 @@ void rdma_buffer_free(struct ibv_mr *mr)
 void rdma_buffer_deregister(struct ibv_mr *mr) 
 {
 	if (!mr) { 
-		rdma_error("Passed memory region is NULL, ignoring\n");
+		DEBUG("Passed memory region is NULL, ignoring\n");
 		return;
 	}
 	debug("Deregistered: %p , len: %u , stag : 0x%x \n", 
@@ -108,7 +105,7 @@ int process_rdma_cm_event(struct rdma_event_channel *echannel,
 		enum rdma_cm_event_type expected_event,
 		struct rdma_cm_event **cm_event)
 {
-	debug("processing an rdma_cm_event\n");
+	// debug("processing an rdma_cm_event\n");
 	int ret = 1;
 	ret = rdma_get_cm_event(echannel, cm_event);
 	if (ret) {
@@ -134,7 +131,7 @@ int process_rdma_cm_event(struct rdma_event_channel *echannel,
 	}
 	// debug("A new %s type event is received \n", rdma_event_str((*cm_event)->event));
 	/* The caller must acknowledge the event */
-	debug("done processing rdma_cm_event\n");
+	// debug("done processing rdma_cm_event\n");
 	return ret;
 }
 

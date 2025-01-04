@@ -114,6 +114,7 @@ comm_prot="rdma"
 microbenches=("empty_cs" "lat" "mem_2nodes")
 client_ids=(0 1 2 3 4 5 6 7 8 9)
 n_clients=(2 3)
+nlocks=1
 # num_clients=${#client_ids[@]}
 
 for impl_dir in "$BASE"/original/*
@@ -168,7 +169,7 @@ do
                 --mca oob_tcp_dynamic_ipv4_ports 8000,8080 \
                 --mca btl_tcp_port_min_v4 8000 --mca btl_tcp_port_range_v4 10 \
                 --mca btl_base_debug 1 --mca oob_tcp_debug 1 --mca plm_base_verbose 5 --mca orte_base_help_aggregate 0 \
-                $disa_bench $i $duration $critical $server_ip $j 0 $nclients $client_res_file \
+                $disa_bench $i $duration $critical $server_ip $j 0 $nclients $client_res_file $nlocks \
                 2>> $client_log_dir/nclients$n_clients"_nthreads"$i.log
 
 

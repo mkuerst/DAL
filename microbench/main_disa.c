@@ -37,6 +37,7 @@ char* res_file;
 int use_nodes;
 
 disa_lock_t lock;
+disa_lock_t *locks;
 pthread_barrier_t global_barrier;
 pthread_barrier_t local_barrier;
 
@@ -191,7 +192,7 @@ void *empty_cs_worker(void *arg) {
 
         pthread_barrier_wait(&local_barrier);
         if (task_id == 0)
-            MPI_Barrier(MPI_COMM_WORLD);
+            // MPI_Barrier(MPI_COMM_WORLD);
             // client_barrier(i);
         pthread_barrier_wait(&global_barrier);
         
@@ -295,25 +296,19 @@ void *mem_worker(void *arg) {
 
 
 int main(int argc, char *argv[]) {
-    // client = atoi(argv[6]);
-    // fprintf(stderr, "HI\n");
-    int initialized;
-    MPI_Initialized(&initialized);
-    if (!initialized)
-        MPI_Init(NULL, NULL);
-    // int provided;
-    // MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-    // if (provided < MPI_THREAD_MULTIPLE) {
-    //     fprintf(stderr, "Error: MPI does not provide required threading support\n");
-    //     MPI_Abort(MPI_COMM_WORLD, 1);
-    // }
+    client = atoi(argv[6]);
+    // int initialized;
+    // MPI_Initialized(&initialized);
+    // if (!initialized)
+    //     MPI_Init(NULL, NULL);
 
 
-    DEBUG("MPI INIT DONE\n");
-    int rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    client = rank;
+    // DEBUG("MPI INIT DONE\n");
+    // int rank, size;
+    // MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    // MPI_Comm_size(MPI_COMM_WORLD, &size);
+    // client = rank;
+
     DEBUG("HI from client %d\n", client);
 
     srand(42);
@@ -324,6 +319,7 @@ int main(int argc, char *argv[]) {
     int mode = argc < 6 ? 0 : atoi(argv[5]);
     num_clients = atoi(argv[7]);
     res_file = argv[8];
+    int nlocks = atoi(argv[9]);
     void* worker; 
     int num_mem_runs;
     switch (mode) {
@@ -368,17 +364,17 @@ int main(int argc, char *argv[]) {
     volatile ull global_its __attribute__((aligned (CACHELINE_SIZE))) = 0;
     double short_cs = duration * 1e6 / 100000.; //range in (us)
     double long_cs = duration * 1e6 / 100.;
-    rlock_meta* rlock = NULL;
+    rdma_client_meta* client_meta = NULL;
     int tcp_fd = 0;
     // int stop_warmup __attribute__((aligned (CACHELINE_SIZE))) = 0;
 #ifdef RDMA
     for (int i = 0; i < num_clients;i++) {
         if (i == client) {
-            if (!(rlock = establish_rdma_connection(client, server_ip))) {
+            if (!(client_meta = establish_rdma_connection(client, server_ip, nthreads, nlocks))) {
                 _error("Client %d failed to eastablish rdma connection\n", client);
             }
         }
-        MPI_Barrier(MPI_COMM_WORLD);
+        // MPI_Barrier(MPI_COMM_WORLD);
         // client_barrier(1000+i);
     }
 #endif
@@ -398,7 +394,7 @@ int main(int argc, char *argv[]) {
         tasks[i].priority = 1;
         tasks[i].id = i;
         tasks[i].server_ip = server_ip;
-        tasks[i].rlock_meta = rlock;
+        tasks[i].client_meta = client_meta;
         tasks[i].sockfd = tcp_fd;
         tasks[i].client_id = client;
         tasks[i].run = 0;
@@ -412,11 +408,17 @@ int main(int argc, char *argv[]) {
         // int priority = atoi(argv[4+i*2]);
         // tasks[i].priority = priority;
     }
-    lock.disa = 'y';
-    lock_init((pthread_mutex_t *) &lock);
+
+    locks = malloc(nlocks * sizeof(disa_mutex_t));
+    for (int l = 0; l < nlocks; l++) {
+        locks[l].disa = 'y';
+        locks[l].id = l;
+        lock_init((pthread_mutex_t *) &locks[l]);
+    }
+    lock = locks[0];
+
     pthread_barrier_init(&global_barrier, NULL, nthreads+1);
     pthread_barrier_init(&local_barrier, NULL, nthreads);
-
 
     for (int i = 0; i < nthreads; i++) {
         pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
@@ -453,7 +455,7 @@ int main(int argc, char *argv[]) {
             cs_result_to_out(tasks, nthreads, mode, res_file);
         }
         // client_barrier(2000+i);
-        MPI_Barrier(MPI_COMM_WORLD);
+        // MPI_Barrier(MPI_COMM_WORLD);
     } 
     MPI_Finalize();
     // WAIT SO SERVER CAN SHUTDOWN

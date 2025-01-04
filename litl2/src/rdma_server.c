@@ -1,53 +1,52 @@
-/*
- * This is a RDMA server side code. 
- *
- * Author: Animesh Trivedi 
- *         atrivedi@apache.org 
- *
- * TODO: Cleanup previously allocated resources in case of an error condition
- */
-
 #include "rdma_common.h"
 #include <stdbool.h>
 #include <string.h>
 #include <signal.h>
+#include <unistd.h>
+#include <stdlib.h>
 
 volatile bool server_running = true;
-rdma_thread clients[MAX_CLIENTS];
+rdma_server_meta *clients;
 pthread_mutex_t mutex;
 int num_connections = 0;
-char* meta_data;
 int nclients = 0;
+int nthreads = 0;
+int nlocks = 0;
 
+uint64_t *rlocks;
+char* data;
 
-int* cas_lock;
-
+struct ibv_pd *pd = NULL;
 struct rdma_event_channel *cm_event_channel = NULL;
 struct rdma_cm_event *cm_event = NULL;
 struct rdma_cm_id *cm_server_id = NULL;
 struct ibv_wc wc;
+struct ibv_mr *rlock_mr, *data_mr;
 
 void _shutdown() {
-	const char *command = "killall rdma_server";
-	if (system(command)) {
-			rdma_error("Failed to kill rdma listener. Please execute killall rdma_server manually on server-side machine.\n");
-	} 
+	// const char *command = "killall rdma_server";
+	// if (system(command)) {
+	// 		rdma_error("Failed to kill rdma listener. Please execute killall rdma_server manually on server-side machine.\n");
+	// } 
 	for (int i = 0; i < nclients; i++) {
-		rdma_thread client = clients[i]; 
-		rdma_connection conn = client.connection;
-		if (conn.cm_client_id) {
-			rdma_disconnect(conn.cm_client_id);
-			ibv_destroy_qp(conn.qp);
-			ibv_destroy_comp_channel(conn.io_comp_chan);
-			ibv_dealloc_pd(conn.pd);
-			ibv_dereg_mr(conn.client_mr);
-			ibv_dereg_mr(conn.server_mr);
-			rdma_destroy_id(conn.cm_client_id);
-			rdma_destroy_id(cm_server_id);
-			rdma_destroy_event_channel(cm_event_channel);
-			free(meta_data);
+		rdma_server_meta client = clients[i]; 
+		for (int j = 0; j < nthreads; j++) {
+			rdma_connection conn = client.connections[j];
+			if (conn.cm_client_id) {
+				rdma_disconnect(conn.cm_client_id);
+				ibv_destroy_qp(conn.qp);
+				ibv_destroy_comp_channel(conn.io_comp_chan);
+				ibv_dealloc_pd(conn.pd);
+				ibv_dereg_mr(conn.rlock_mr);
+				ibv_dereg_mr(conn.server_mr);
+				rdma_destroy_id(conn.cm_client_id);
+				rdma_destroy_id(cm_server_id);
+				rdma_destroy_event_channel(cm_event_channel);
+			}
 		}
+		free(client.connections);
 	}
+	free(clients);
 	fprintf(stderr, "Finished server shutdown\n");
 	server_running = false;
 }
@@ -67,7 +66,45 @@ void register_sigint_handler() {
 	sigaction(SIGKILL, &sa, NULL);
 }
 
-static int start_rdma_server(struct sockaddr_in *server_addr, int nclients) 
+int write_metadata_to_file() {
+	char *cwd = NULL;
+	cwd = getcwd(cwd, 128);
+	char addresses_file[64] = "/microbench/metadata/addrs";
+	strcat(cwd, addresses_file);
+	FILE* file = fopen(cwd, "w");
+	if (!file) {
+		rdma_error("Failed to open file %s", cwd);
+		return -errno;
+	}
+	fprintf(file, "%lu %u\n", (uint64_t) data_mr->addr, data_mr->rkey);
+	fprintf(file, "%lu %u\n", (uint64_t) rlock_mr->addr, rlock_mr->rkey);
+	fclose(file);
+	DEBUG("%lu %u\n", (uint64_t) data_mr->addr, data_mr->rkey);
+	DEBUG("%lu %u\n", (uint64_t) rlock_mr->addr, rlock_mr->rkey);
+	return 0;
+
+}
+
+int prep_rdma_conn(rdma_connection* conn, char* data, int nlocks)
+{
+	conn->data_sge.addr = (uint64_t) data_mr->addr;
+	conn->data_sge.length = data_mr->length;
+	conn->data_sge.lkey = data_mr->lkey;
+	bzero(&conn->data_wr, sizeof(conn->data_wr));
+	conn->data_wr.sg_list = &conn->data_sge;
+	conn->data_wr.num_sge = 4;
+
+	conn->rlock_sge.addr = (uint64_t) rlock_mr->addr;
+	conn->rlock_sge.length = rlock_mr->length;
+	conn->rlock_sge.lkey = rlock_mr->lkey;
+	bzero(&conn->rlock_wr, sizeof(conn->rlock_wr));
+	conn->rlock_wr.sg_list = &conn->rlock_sge;
+	conn->rlock_wr.num_sge = 4;
+
+	return 0;
+}
+
+static int start_rdma_server(struct sockaddr_in *server_addr, int nclients, int nthreads, int nlocks) 
 {
 	cm_event_channel = rdma_create_event_channel();
 	if (!cm_event_channel) {
@@ -95,12 +132,20 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients)
 			inet_ntoa(server_addr->sin_addr),
 			ntohs(server_addr->sin_port));
 
-	char *global_lock = malloc(MESSAGE_SIZE);
-	memset(global_lock, 0, MESSAGE_SIZE);
+	clients = malloc(nclients * sizeof(rdma_server_meta));
+	clients->connections = malloc(nthreads * sizeof(rdma_connection));
+
+	rlocks = (uint64_t *) calloc(nlocks, sizeof(uint64_t));
+	data = (char *) calloc(1, MAX_ARRAY_SIZE);
+
 
 	for (int i = 0; i < nclients; i++) {
-		struct rdma_connection* conn = &clients[i].connection;
-		debug("Waiting for conn establishment %d\n", i);
+		debug("Waiting for conn establishments of client %d\n", i);
+		rdma_server_meta *client = &clients[i];
+		rdma_connection *conn = &client->connections[0];
+		// for (int j = 0; j < nthreads; j++) {
+			// rdma_connection *conn = &client[j];
+			// struct rdma_connection* conn = &clients[i].connection;
 		if (process_rdma_cm_event(cm_event_channel, 
 				RDMA_CM_EVENT_CONNECT_REQUEST,
 				&cm_event)) {
@@ -108,7 +153,7 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients)
 			return -errno;
 		}
 		conn->cm_client_id = cm_event->id;
-		struct ibv_pd *pd = NULL;
+		// struct ibv_pd *pd = NULL;
 		struct ibv_comp_channel *io_completion_channel = NULL;
 		struct ibv_cq *cq = NULL;
 		struct ibv_qp_init_attr qp_init_attr;
@@ -116,14 +161,31 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients)
 		struct rdma_cm_id* cm_client_id = conn->cm_client_id;
 		unsigned int task_id = *(unsigned int *) (cm_event->param.conn.private_data);
 
+		if (i == 0) {
+			pd = ibv_alloc_pd(cm_client_id->verbs);
+			if (!pd) {
+				rdma_error("Failed to allocate a protection domain errno: %d\n", -errno);
+				return -errno;
+			}
+			rlock_mr = rdma_buffer_register(
+				pd, rlocks, nlocks*sizeof(uint64_t),
+				IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_REMOTE_ATOMIC
+			);
+			data_mr = rdma_buffer_register(
+				pd, data, MAX_ARRAY_SIZE,
+				IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_REMOTE_READ
+			);
+			if (!rlock_mr || !data_mr) {
+				rdma_error("Failed to register mr, -errno %d\n", -errno);
+				return -errno;
+			}
+			write_metadata_to_file();
+		}
+		debug("conn establishment request from task %d\n", task_id)
+
 		if(!cm_client_id){
 			rdma_error("Client id is still NULL \n");
 			return -EINVAL;
-		}
-		pd = ibv_alloc_pd(cm_client_id->verbs);
-		if (!pd) {
-			rdma_error("Failed to allocate a protection domain errno: %d\n", -errno);
-			return -errno;
 		}
 		io_completion_channel = ibv_create_comp_channel(cm_client_id->verbs);
 		if (!io_completion_channel) {
@@ -169,22 +231,8 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients)
 			return -EINVAL;
 		}
 
-		conn->client_mr = rdma_buffer_register(
-			pd, global_lock, MESSAGE_SIZE,
-			IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_REMOTE_ATOMIC
-		);
-		if (!conn->client_mr) {
-			rdma_error("Failed to register mr for lock, -errno %d\n", -errno);
-			return -errno;
-		}
+		prep_rdma_conn(conn, data, nlocks);
 
-		conn->client_recv_sge.addr = (uint64_t) conn->client_mr->addr;
-		conn->client_recv_sge.length = conn->client_mr->length;
-		conn->client_recv_sge.lkey = conn->client_mr->lkey;
-		bzero(&conn->client_recv_wr, sizeof(conn->client_recv_wr));
-		conn->client_recv_wr.sg_list = &conn->client_recv_sge;
-		conn->client_recv_wr.num_sge = 4;
-		
 		memset(&conn_param, 0, sizeof(conn_param));
 		conn_param.initiator_depth = 3;
 		conn_param.responder_resources = 3;
@@ -193,7 +241,7 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients)
 			return -errno;
 		}
 			if (process_rdma_cm_event(cm_event_channel, RDMA_CM_EVENT_ESTABLISHED, &cm_event)) {
-			rdma_error("Failed to get the cm event, errnp: %d \n", -errno);
+			rdma_error("Failed to get the cm event, errno: %d \n", -errno);
 			return -errno;
 		}
 		if (rdma_ack_cm_event(cm_event)) {
@@ -201,54 +249,7 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients)
 			return -errno;
 		}
 		fprintf(stderr, "A new connection is accepted from task %d \n", task_id);
-
-		meta_data = aligned_alloc(sizeof(uint64_t), META_SIZE);
-		struct ibv_mr *server_mr = conn->server_mr;
-		server_mr = rdma_buffer_register(pd,
-				meta_data,
-				META_SIZE,
-				(IBV_ACCESS_LOCAL_WRITE|
-				IBV_ACCESS_REMOTE_READ|
-				IBV_ACCESS_REMOTE_WRITE|
-				IBV_ACCESS_REMOTE_ATOMIC));
-		if(!server_mr){
-			rdma_error("Server failed to register the server_mr buffer, -errno = %d \n", -errno);
-			return -errno;
-		}
-
-		struct ibv_wc wc;
-		// struct ibv_mr *client_mr = conn->client_mr;
-		// struct ibv_recv_wr client_recv_wr = conn->client_recv_wr;
-		// struct ibv_recv_wr *bad_client_recv_wr = conn->bad_client_recv_wr;
-		struct ibv_send_wr server_send_wr = conn->server_send_wr; 
-		struct ibv_send_wr *bad_server_send_wr = conn->bad_server_send_wr;
-		// struct ibv_sge client_recv_sge = conn->client_recv_sge;
-		struct ibv_sge server_send_sge = conn->server_send_sge;
-		server_send_sge.addr = (uint64_t) server_mr->addr;
-		server_send_sge.length = (uint32_t) server_mr->length;
-		server_send_sge.lkey = server_mr->lkey;
-		bzero(&server_send_wr, sizeof(server_send_wr));
-		server_send_wr.sg_list = &server_send_sge;
-		server_send_wr.num_sge = 1; 
-		server_send_wr.opcode = IBV_WR_SEND; 
-		server_send_wr.send_flags = IBV_SEND_SIGNALED; 
-
-
-		uintptr_t remote_addr = (uintptr_t)conn->client_mr->addr;
-		uint32_t rkey = conn->client_mr->rkey; 
-		memset(meta_data, 0, META_SIZE);
-		sprintf(meta_data, "remote_addr: %lu\nrkey: %u\n", remote_addr, rkey);
-
-		if (ibv_post_send(conn->qp, &server_send_wr, &bad_server_send_wr)) {
-			rdma_error("Server failed to send key and mr, -errno = %d\n" -errno);
-			return -errno;
-		}
-		if (process_work_completion_events(conn->io_comp_chan, &wc, 1) != 1) {
-			rdma_error("Server failed to process key,mr send req, -errno = %d \n", -errno);
-			return -errno;
-		}
-		fprintf(stderr, "Sent server metadata remote_addr: 0x%lx rkey: %u\n", remote_addr, rkey);
-		memset(meta_data, 0, META_SIZE);
+		// }
 	}
 	return 0;
 }
@@ -256,7 +257,7 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients)
 void usage() 
 {
 	printf("Usage:\n");
-	printf("rdma_server: [-a <server_addr>] [-p <server_port>] [-c <nclients>]\n");
+	printf("rdma_server: [-a <server_addr>] [-p <server_port>] [-c <nclients>] [-t <nthreads>] [-l <nlocks>]\n");
 	printf("(default port is %d)\n", DEFAULT_RDMA_PORT);
 	exit(1);
 }
@@ -269,7 +270,7 @@ int main(int argc, char **argv)
 	bzero(&server_sockaddr, sizeof server_sockaddr);
 	server_sockaddr.sin_family = AF_INET;
 	server_sockaddr.sin_addr.s_addr = htonl(INADDR_ANY); 
-	while ((option = getopt(argc, argv, "a:p:c:")) != -1) {
+	while ((option = getopt(argc, argv, "a:p:c:t:l:")) != -1) {
 		switch (option) {
 			case 'a':
 				if (get_addr(optarg, (struct sockaddr*) &server_sockaddr)) {
@@ -283,6 +284,12 @@ int main(int argc, char **argv)
 			case 'c':
 				nclients = atoi(optarg);
 				break;
+			case 't':
+				nthreads = atoi(optarg);
+				break;
+			case 'l':
+				nlocks = atoi(optarg);
+				break;
 			default:
 				usage();
 				break;
@@ -291,21 +298,17 @@ int main(int argc, char **argv)
 	if(!server_sockaddr.sin_port) {
 		server_sockaddr.sin_port = htons(DEFAULT_RDMA_PORT); 
 	}
-	if(!nclients) {
+	if(!nclients || !nthreads || !nlocks) {
 		usage();
 		return -1;
 	}
-	if (start_rdma_server(&server_sockaddr, nclients)) {
+	if (start_rdma_server(&server_sockaddr, nclients, nthreads, nlocks)) {
 		rdma_error("RDMA server failed to start, -errno = %d \n", -errno);
 		_shutdown();
 		return -errno;
 	}
 
 	while (server_running) {
-		// if (*cas_lock == -1) {
-		// 	_shutdown();
-		// 	break;
-		// }
 		sleep(0.5);
 	}
 	_shutdown();

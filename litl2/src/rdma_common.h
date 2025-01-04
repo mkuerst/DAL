@@ -29,14 +29,13 @@
 
 #define rdma_error(msg, args...) do {\
 	fprintf(stderr, "\033[1;31m%s : %d : ERROR : \033[0m"msg, __FILE__, __LINE__, ## args);\
-	fprintf(stderr, "\n");\
-	exit(EXIT_FAILURE);\
+	perror("errno");\
 }while(0);
 
 #define CQ_CAPACITY (16)
 #define MAX_SGE (2)
-#define MAX_WR (8)
 #define DEFAULT_RDMA_PORT (20051)
+#define MAX_WR (8)
 // #define DEFAULT_RDMA_PORT (20049)
 // #define DEFAULT_RDMA_PORT (20886)
 // #define DEFAULT_RDMA_PORT (18515)
@@ -110,4 +109,4 @@ void show_rdma_cmid(struct rdma_cm_id *id);
 
 #endif /* RDMA_COMMON_H */
 
-void* establish_rdma_connection(int tid, char* addr);
+void* establish_rdma_connection(int tid, char* addr, int nthreads, int nlocks);

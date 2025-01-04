@@ -65,9 +65,11 @@
 
 #ifdef DEBUG
 #undef DEBUG
-#define DEBUG(...)                        fprintf(stderr, ## __VA_ARGS__)
+#define DEBUG(msg, args...) do {\
+	fprintf(stderr, "%s : %d : DEBUG : "msg, __FILE__, __LINE__, ## args);\
+}while(0);
 #define debug(msg, args...) do {\
-    fprintf(stderr, "debug: "msg, ## args);\
+	fprintf(stderr, "%s : %d : debug : "msg, __FILE__, __LINE__, ## args);\
 }while(0);
 #else
 #define DEBUG(...)
@@ -105,6 +107,8 @@
 #define CYCLES_12 2400L
 #define CYCLES_MAX 3200L
 
+#define MAX_LOCK_NUM MAX_ARRAY_SIZE / CACHELINE_SIZE
+#define THREADS_PER_CLIENT 32
 extern size_t array_sizes[NUM_MEM_RUNS];
 /**************************************************************************************/
 
@@ -113,17 +117,54 @@ extern size_t array_sizes[NUM_MEM_RUNS];
 typedef unsigned long long ull;
 typedef long int li;
 
+typedef struct rdma_connection {
+	struct rdma_cm_id *cm_client_id;
+    struct ibv_qp *qp;
+    struct ibv_cq *cq;
+    struct ibv_pd *pd;
+    struct ibv_wc wc[2];
+    struct ibv_comp_channel *io_comp_chan;
+
+    struct ibv_mr *rlock_mr;
+    struct ibv_mr *data_mr;
+    struct ibv_mr *server_mr;
+
+    struct ibv_recv_wr rlock_wr;
+    struct ibv_recv_wr data_wr;
+    // struct ibv_send_wr server_send_wr; 
+
+    // struct ibv_recv_wr **bad_client_recv_wr;
+    // struct ibv_send_wr **bad_server_send_wr;
+
+    struct ibv_sge rlock_sge; 
+    struct ibv_sge data_sge; 
+    // struct ibv_sge server_send_sge;
+
+    // struct rdma_buffer_attr client_metadata_attr;
+    // struct rdma_buffer_attr server_metadata_attr;
+} rdma_connection;
+
 typedef struct {
 	uint64_t rlock_addr;
-	uint32_t rkey;
+	uint32_t rlock_rkey;
+	uint64_t data_addr;
+	uint32_t data_rkey;
     uint64_t *cas_result;
     uint64_t *unlock_val;
-    struct ibv_qp *qp;
-    struct ibv_comp_channel *io_comp_chan;
+    char* data;
+
+    struct ibv_qp **qp;
+    struct ibv_comp_channel **io_comp_chan;
     struct ibv_wc *wc;
-	struct ibv_send_wr cas_wr, *bad_wr, w_wr;
-    struct ibv_sge cas_sge, w_sge;
-} rlock_meta;
+	struct ibv_send_wr *cas_wr, **bad_wr, *w_wr;
+    struct ibv_sge *cas_sge, *w_sge;
+} rdma_client_meta;
+
+typedef struct rdma_server_meta {
+    int id;
+    ull lock_impl_time[NUM_RUNS];
+    rdma_connection *connections;
+} rdma_server_meta;
 
 typedef struct {
     volatile int *stop;
@@ -136,7 +177,7 @@ typedef struct {
     int sockfd;
     int client_id;
     char disa;
-    rlock_meta* rlock_meta;
+    rdma_client_meta* client_meta;
     // MEASUREMENTS 
     ull duration[NUM_RUNS][NUM_SND_RUNS];
     ull loop_in_cs[NUM_RUNS][NUM_SND_RUNS];
@@ -176,6 +217,7 @@ typedef struct client_data {
 typedef struct {
     pthread_mutex_t mutex;
     char disa;
+    int id;
 } disa_mutex_t;
 
 /* 
@@ -195,30 +237,7 @@ struct __attribute((packed)) rdma_buffer_attr {
   }stag;
 };
 
-typedef struct rdma_connection {
-	struct rdma_cm_id *cm_client_id;
-    struct ibv_qp *qp;
-    struct ibv_cq *cq;
-    struct ibv_pd *pd;
-    struct ibv_wc wc[2];
-    struct ibv_comp_channel *io_comp_chan;
-    struct ibv_mr *client_mr;
-    struct ibv_mr *server_mr;
-    struct rdma_buffer_attr client_metadata_attr;
-    struct rdma_buffer_attr server_metadata_attr;
-    struct ibv_recv_wr client_recv_wr;
-    struct ibv_recv_wr *bad_client_recv_wr;
-    struct ibv_send_wr server_send_wr; 
-    struct ibv_send_wr *bad_server_send_wr;
-    struct ibv_sge client_recv_sge; 
-    struct ibv_sge server_send_sge;
-} rdma_connection;
 
-typedef struct rdma_thread {
-    int id;
-    ull lock_impl_time[NUM_RUNS];
-    rdma_connection connection;
-} rdma_thread;
 
 void *alloc_cache_align(size_t n);
 
