@@ -506,7 +506,7 @@ int pthread_mutex_lock(pthread_mutex_t *mutex) {
 #endif
     ull end_lacq = rdtscp();
 #ifdef RDMA
-    tries = rdma_request_lock(disa_mutex->id);
+    tries = rdma_request_lock(disa_mutex->id, disa_mutex->offset);
 #endif
 #ifdef TCP_SPINLOCK
     tcp_request_lock();

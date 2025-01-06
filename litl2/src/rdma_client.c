@@ -18,22 +18,25 @@ static struct ibv_qp *client_qp[THREADS_PER_CLIENT];
 /******************** MEMORY REGIONS *******************************/
 /*******************************************************************/
 static struct ibv_mr 
-				// *client_src_mr = NULL, 
-				*local_cas_mr = NULL,
-				// *data_mr = NULL,
-				// **server_metadata_mr = NULL;
-				*local_unlock_mr = NULL;
+*local_cas_mr = NULL,
+*local_data_mr = NULL,
+*local_unlock_mr = NULL;
 
 /*******************************************************************/
 /******************** WORK REQUESTS & SGEs *************************/
 /*******************************************************************/
 static struct ibv_send_wr *bad_client_send_wr[THREADS_PER_CLIENT];
-// static struct ibv_recv_wr server_recv_wr[THREADS_PER_CLIENT];
-// bad_server_recv_wr[THREADS_PER_CLIENT];
-struct ibv_send_wr cas_wr[THREADS_PER_CLIENT], *bad_wr[THREADS_PER_CLIENT], w_wr[THREADS_PER_CLIENT];
+struct ibv_send_wr 
+cas_wr[THREADS_PER_CLIENT], 
+w_wr[THREADS_PER_CLIENT],
+data_wr[THREADS_PER_CLIENT],
+*bad_wr[THREADS_PER_CLIENT];
 
-// static struct ibv_sge server_recv_sge[THREADS_PER_CLIENT];
-struct ibv_sge cas_sge[THREADS_PER_CLIENT], w_sge[THREADS_PER_CLIENT];
+
+struct ibv_sge 
+cas_sge[THREADS_PER_CLIENT],
+w_sge[THREADS_PER_CLIENT], 
+data_sge[THREADS_PER_CLIENT];
 
 /*******************************************************************/
 /******************** TASK INFO ************************************/
@@ -46,7 +49,7 @@ uint64_t data_addr;
 uint32_t data_rkey;
 uint64_t *cas_result;
 uint64_t *unlock_val;
-// TODO: keep it thread local or global?
+// TODO: keep it thread local or global? What about pinning?
 char *data;
 
 /*******************************************************************/
@@ -56,11 +59,11 @@ __thread int rdma_task_id;
 __thread struct ibv_qp *thread_qp;
 __thread struct ibv_wc thread_wc;
 __thread struct ibv_comp_channel *thread_io_comp_chan;
-__thread struct ibv_send_wr thread_cas_wr, *thread_bad_wr, thread_w_wr;
-__thread struct ibv_sge thread_cas_sge, thread_w_sge;
+__thread struct ibv_send_wr thread_cas_wr, *thread_bad_wr, thread_w_wr, thread_data_wr;
+__thread struct ibv_sge thread_cas_sge, thread_w_sge, thread_data_sge;
 __thread int curr_rlock;
+__thread int curr_offset;
 
-// TODO:
 void set_rdma_client_meta(rdma_client_meta* client_meta, int cid, int tid)
 {
 	rdma_task_id = tid;
@@ -70,6 +73,8 @@ void set_rdma_client_meta(rdma_client_meta* client_meta, int cid, int tid)
 	thread_cas_sge = client_meta->cas_sge[tid];
 	thread_w_wr = client_meta->w_wr[tid];
 	thread_w_sge = client_meta->w_sge[tid];
+	thread_data_wr = client_meta->data_wr[tid];
+	thread_data_sge = client_meta->data_sge[tid];
 	thread_bad_wr = client_meta->bad_wr[tid];
 	thread_io_comp_chan = client_meta->io_comp_chan[tid];
 	thread_wc = client_meta->wc[tid];
@@ -84,6 +89,7 @@ void set_rdma_client_meta(rdma_client_meta* client_meta, int cid, int tid)
 }
 
 // TODO: are multiple sges required?
+// TODO: lengh of data_sge!!
 void *create_rdma_client_meta(int nthreads, int nlocks) {
 	rdma_client_meta* client_meta = (rdma_client_meta *) malloc(sizeof(rdma_client_meta));
 	for (int i = 0; i < nthreads; i++) {
@@ -93,6 +99,9 @@ void *create_rdma_client_meta(int nthreads, int nlocks) {
 		w_sge[i].addr   = (uintptr_t) local_unlock_mr->addr;
 		w_sge[i].length = sizeof(uint64_t);
 		w_sge[i].lkey   = local_unlock_mr->lkey;
+		data_sge[i].addr   = (uintptr_t) local_data_mr->addr;
+		data_sge[i].length = MAX_ARRAY_SIZE;
+		data_sge[i].lkey   = local_data_mr->lkey;
 
 		cas_wr[i].wr_id          = i;
 		cas_wr[i].sg_list        = &cas_sge[i];
@@ -116,12 +125,21 @@ void *create_rdma_client_meta(int nthreads, int nlocks) {
 		w_wr[i].wr.rdma.remote_addr = rlock_addr;
 		w_wr[i].wr.rdma.rkey        = rlock_rkey;
 
+		data_wr[i].wr_id          = i;
+		data_wr[i].sg_list        = &data_sge[i];
+		data_wr[i].num_sge        = 1;
+		data_wr[i].opcode         = IBV_WR_RDMA_READ;
+		data_wr[i].send_flags     = IBV_SEND_SIGNALED;
+		data_wr[i].wr.rdma.remote_addr = data_addr;
+		data_wr[i].wr.rdma.rkey        = data_rkey;
 	}
 	client_meta->qp = client_qp;
 	client_meta->cas_wr = cas_wr;
 	client_meta->cas_sge = cas_sge;
 	client_meta->w_wr = w_wr;
 	client_meta->w_sge = w_sge;
+	client_meta->data_wr = data_wr;
+	client_meta->data_sge = data_sge;
 	client_meta->io_comp_chan = io_completion_channel;
 	client_meta->wc = wc;
 	client_meta->bad_wr = bad_client_send_wr;
@@ -169,6 +187,7 @@ int read_from_metadata_file()
 
 int client_prepare_connection(struct sockaddr_in *s_addr, int nthreads)
 {
+	data = (char *) malloc(MAX_ARRAY_SIZE);
 	for (int i = 0; i < nthreads; i++) {
 		cm_event_channel[i] = rdma_create_event_channel();
 		if (!cm_event_channel[i]) {
@@ -258,6 +277,7 @@ void* client_connect_to_server(int cid, int nthreads, int nlocks)
 	memset(cas_result, 0, nlocks * sizeof(uint64_t));
 	unlock_val = aligned_alloc(sizeof(uint64_t), sizeof(uint64_t));
 	*unlock_val = 0;
+	data = calloc(1, MAX_ARRAY_SIZE);
 
 	local_unlock_mr = rdma_buffer_register(pd,
 			unlock_val,
@@ -279,6 +299,16 @@ void* client_connect_to_server(int cid, int nthreads, int nlocks)
 			IBV_ACCESS_REMOTE_ATOMIC));
 	if(!local_cas_mr){
 		rdma_error("Client %d failed to register local_cas_mr, -errno = %d \n", cid, -errno);
+		return NULL;
+	}
+	local_data_mr = rdma_buffer_register(pd,
+			data,
+			MAX_ARRAY_SIZE,
+			(IBV_ACCESS_LOCAL_WRITE|
+			IBV_ACCESS_REMOTE_READ|
+			IBV_ACCESS_REMOTE_WRITE));
+	if(!local_data_mr){
+		rdma_error("Client %d failed to register local_data_mr, -errno = %d \n", cid, -errno);
 		return NULL;
 	}
 
@@ -308,30 +338,52 @@ void* client_connect_to_server(int cid, int nthreads, int nlocks)
 	return create_rdma_client_meta(nthreads, nlocks);
 }
 
-ull rdma_request_lock(int rlock_id)
+int perform_rdma_op(struct ibv_send_wr *wr)
+{
+	if (ibv_post_send(thread_qp, wr, &thread_bad_wr)) {
+		rdma_error("[%d.%d] Failed to post wr to remote_addr: %lu rkey: %u, -errno %d\n",
+		rdma_client_id, rdma_task_id, wr->wr.rdma.remote_addr, wr->wr.rdma.rkey, -errno);
+		exit(EXIT_FAILURE);
+	}
+	if (process_work_completion_events(thread_io_comp_chan, &thread_wc, 1) != 1) {
+		rdma_error("[%d.%d] Failed to poll wr completion, -errno %d\n",
+		rdma_client_id, rdma_task_id, -errno);
+		exit(EXIT_FAILURE);
+	}
+	return 0;
+}
+
+// TODO: Specify len of data read & write
+ull rdma_request_lock(int rlock_id, int offset)
 {
     DEBUG("[%d.%d] rdma_request_lock [%d]\n", rdma_client_id, rdma_task_id, rlock_id);
 	int tries = 0;
 	curr_rlock = rlock_id;
+	curr_offset = offset;
 	thread_cas_wr.wr.atomic.remote_addr = rlock_addr + rlock_id * 8;
 	do {
 		tries++;
-		if (ibv_post_send(thread_qp, &thread_cas_wr, &thread_bad_wr)) {
-			rdma_error("Failed to post CAS-LOCK wr to remote_addr: %lu rkey: %u, -errno %d\n",
-			thread_cas_wr.wr.atomic.remote_addr,thread_cas_wr.wr.atomic.rkey, -errno);
-			exit(EXIT_FAILURE);
-		}
-		// DEBUG("[%d.%d] POSTED CAS_LOCK %lu %u\n",
-		// rdma_client_id, rdma_task_id, thread_cas_wr.wr.atomic.remote_addr, thread_cas_wr.wr.atomic.rkey);
-
-		if (process_work_completion_events(thread_io_comp_chan, &thread_wc, 1) != 1) {
-			rdma_error("Failed to poll CAS-LOCK completion, -errno %d\n", -errno);
-			exit(EXIT_FAILURE);
-		}
+		// if (ibv_post_send(thread_qp, &thread_cas_wr, &thread_bad_wr)) {
+		// 	rdma_error("Failed to post CAS-LOCK wr to remote_addr: %lu rkey: %u, -errno %d\n",
+		// 	thread_cas_wr.wr.atomic.remote_addr,thread_cas_wr.wr.atomic.rkey, -errno);
+		// 	exit(EXIT_FAILURE);
+		// }
+		// if (process_work_completion_events(thread_io_comp_chan, &thread_wc, 1) != 1) {
+		// 	rdma_error("Failed to poll CAS-LOCK completion, -errno %d\n", -errno);
+		// 	exit(EXIT_FAILURE);
+		// }
+		perform_rdma_op(&thread_cas_wr);
 		DEBUG("CAS_RESULT: %lu\n", cas_result[rlock_id]);
 	} while(cas_result[rlock_id]);
 	DEBUG("[%d.%d] got rlock [%d] from server after %d tries\n",
 	rdma_client_id, rdma_task_id, rlock_id, tries);
+
+	if (offset >= 0) {
+		thread_data_wr.wr.rdma.remote_addr = data_addr * offset;
+		thread_data_wr.opcode = IBV_WR_RDMA_READ;
+		perform_rdma_op(&thread_data_wr);
+		DEBUG("[%d.%d] got data from server\n", rdma_client_id, rdma_task_id);
+	}
 	return tries;
 }
 
@@ -339,17 +391,20 @@ int rdma_release_lock()
 {
     DEBUG("[%d.%d] rdma_release_lock %d\n", rdma_client_id, rdma_task_id, curr_rlock);
 	thread_w_wr.wr.rdma.remote_addr = rlock_addr + curr_rlock * 8;
-	if (ibv_post_send(thread_qp, &thread_w_wr, &thread_bad_wr)) {
-		rdma_error("Failed to post CAS-RELEASE wr to remote_addr: 0x%lx rkey: %u, -errno %d\n",
-		thread_cas_wr.wr.atomic.remote_addr, thread_cas_wr.wr.atomic.rkey, -errno);
-		exit(EXIT_FAILURE);
-	}
+	thread_data_wr.wr.rdma.remote_addr = data_addr + curr_offset * 8;
+	// if (ibv_post_send(thread_qp, &thread_w_wr, &thread_bad_wr)) {
+	// 	rdma_error("Failed to post CAS-RELEASE wr to remote_addr: 0x%lx rkey: %u, -errno %d\n",
+	// 	thread_cas_wr.wr.atomic.remote_addr, thread_cas_wr.wr.atomic.rkey, -errno);
+	// 	exit(EXIT_FAILURE);
+	// }
 
-	if (process_work_completion_events(thread_io_comp_chan, &thread_wc, 1) != 1) {
-		rdma_error("Failed to poll CAS-RELEASE completion, -errno %d\n", -errno);
-		exit(EXIT_FAILURE);
-	}
-
+	// if (process_work_completion_events(thread_io_comp_chan, &thread_wc, 1) != 1) {
+	// 	rdma_error("Failed to poll CAS-RELEASE completion, -errno %d\n", -errno);
+	// 	exit(EXIT_FAILURE);
+	// }
+	perform_rdma_op(&thread_data_wr);
+	DEBUG("[%d.%d] Written back data\n", rdma_client_id, rdma_task_id);
+	perform_rdma_op(&thread_w_wr);
 	DEBUG("[%d.%d] released rlock [%d] on server\n", rdma_client_id, rdma_task_id, curr_rlock);
 	return 0;
 }

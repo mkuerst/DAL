@@ -156,8 +156,8 @@ typedef struct {
     struct ibv_qp **qp;
     struct ibv_comp_channel **io_comp_chan;
     struct ibv_wc *wc;
-	struct ibv_send_wr *cas_wr, **bad_wr, *w_wr;
-    struct ibv_sge *cas_sge, *w_sge;
+	struct ibv_send_wr *cas_wr, **bad_wr, *w_wr, *data_wr;
+    struct ibv_sge *cas_sge, *w_sge, *data_sge;
 } rdma_client_meta;
 
 typedef struct rdma_server_meta {
@@ -215,6 +215,7 @@ typedef struct {
     pthread_mutex_t mutex;
     char disa;
     int id;
+    int offset;
 } disa_mutex_t;
 
 /* 

@@ -75,7 +75,6 @@ int write_metadata_to_file() {
 	FILE* file = fopen(cwd, "w");
 	if (!file) {
 		rdma_error("Failed to open file %s\n", cwd);
-		// return -errno;
 		char *abs_path = realpath(__FILE__, NULL);
 		if (! abs_path) {
 			rdma_error("Resolving abs_path failed %s\n", __FILE__);
