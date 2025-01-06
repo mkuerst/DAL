@@ -170,12 +170,9 @@ typedef struct {
     volatile int *stop;
     volatile ull *global_its;
     pthread_t thread;
-    int priority;
-    int id;
+    int priority, id, sockfd, client_id, nlocks;
     double cs;
     char* server_ip;
-    int sockfd;
-    int client_id;
     char disa;
     rdma_client_meta* client_meta;
     // MEASUREMENTS 

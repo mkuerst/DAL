@@ -116,7 +116,7 @@ bench_idxs=(0)
 client_ids=(0 1 2 3 4 5 6 7 8 9)
 n_clients=(2)
 n_threads=(16)
-nlocks=1
+nlocks=2
 # num_clients=${#client_ids[@]}
 
 for impl_dir in "$BASE"/original/*

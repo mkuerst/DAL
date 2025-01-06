@@ -282,6 +282,69 @@ void *mem_worker(void *arg) {
     return 0;
 }
 
+void *multilocks_worker(void *arg) {
+    task_t *task = (task_t *) arg;
+    int task_id = task->id;
+    int nlocks = task->nlocks;
+
+    pin_thread(task_id, nthreads, use_nodes);
+    ull start, lock_start;
+    ull lock_acquires, lock_hold, loop_in_cs;
+    ull wait_acq, wait_rel;
+
+    for (int i = 0; i < NUM_RUNS; i++) {
+        task->run = i;
+        for (int j = 0; j < NUM_MEM_RUNS; j++)  {
+            task->snd_run = j;
+            volatile char sum = 'a'; // Prevent compiler optimizations
+            size_t repeat = array_sizes[NUM_MEM_RUNS-1] / array_sizes[j];
+            ull array_size = array_sizes[j];
+            lock_acquires = 0;
+            lock_hold = 0;
+            loop_in_cs = 0;
+            wait_acq = 0;
+            wait_rel = 0;
+
+            pthread_barrier_wait(&local_barrier);
+            if (task_id == 0)
+                MPI_Barrier(MPI_COMM_WORLD);
+            pthread_barrier_wait(&global_barrier);
+
+            while (!*task->stop) {
+                for (int x = 0; x < repeat; x++) {
+                    for (size_t k = 0; k < array_size; k += 1) {
+                        int u = 0;
+                        if(*task->stop)
+                            break;
+                        start = rdtscp();
+                        lock_acquire((pthread_mutex_t *)&lock);
+                        lock_start = rdtscp();
+                        wait_acq += lock_start-start;
+                        lock_acquires++;
+                        while (u < CACHELINE_SIZE) {
+                            array0[k] += sum;
+                            u++;
+                            loop_in_cs++;
+                        }
+                        ull rel_start = rdtscp();
+                        lock_release((pthread_mutex_t *)&lock);
+                        ull rel_end = rdtscp();
+                        lock_hold += rel_start - lock_start;
+                        wait_rel += rel_end - rel_start;
+                    }
+                }
+            }
+            task->lock_acquires[i][j] = lock_acquires;
+            task->loop_in_cs[i][j] = loop_in_cs;
+            task->lock_hold[i][j] = lock_hold;
+            task->array_size[i][j] = array_size;
+            task->wait_acq[i][j] = wait_acq;
+            task->wait_rel[i][j] = wait_rel;
+            pthread_barrier_wait(&global_barrier);
+        }
+    }
+    return 0;
+}
 // double random_double(double min, double max) {
 //     if (min > max) {
 //         fprintf(stderr, "Invalid range: min must be <= max\n");
@@ -387,6 +450,7 @@ int main(int argc, char *argv[]) {
 
     for (int i = 0; i < nthreads; i++) {
         tasks[i] = (task_t) {0};
+        tasks[i].nlcoks = nlocks;
         tasks[i].disa = 'y';
         tasks[i].stop = &stop;
         tasks[i].global_its = &global_its;
