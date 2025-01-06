@@ -459,7 +459,7 @@ int pthread_mutex_init(pthread_mutex_t *mutex,
     DEBUG_PTHREAD("[p] pthread_mutex_init\n");
     disa_mutex_t *disa_mutex = (disa_mutex_t *) mutex;
     if (disa_mutex->disa != 'y') {
-        // DEBUG("native mutex_init\n");
+        DEBUG("native mutex_init\n");
         REAL(pthread_mutex_init)(mutex, attr);
     }
 #if !NO_INDIRECTION

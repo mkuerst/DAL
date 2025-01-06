@@ -3,8 +3,9 @@
 /*******************************************************************/
 /******************** EVENTS & CHANNELS ****************************/
 /*******************************************************************/
-static struct rdma_event_channel *cm_event_channel = NULL;
-static struct rdma_cm_id *cm_client_id = NULL;
+static struct rdma_event_channel *cm_event_channel[THREADS_PER_CLIENT];
+static struct rdma_cm_id *cm_client_id[THREADS_PER_CLIENT];
+static struct rdma_cm_event *cm_event[THREADS_PER_CLIENT];
 static struct ibv_pd *pd = NULL;
 
 static struct ibv_comp_channel *io_completion_channel[THREADS_PER_CLIENT];
@@ -12,7 +13,6 @@ static struct ibv_wc wc[THREADS_PER_CLIENT];
 
 static struct ibv_cq *client_cq[THREADS_PER_CLIENT];
 static struct ibv_qp *client_qp[THREADS_PER_CLIENT];
-static struct ibv_qp_init_attr qp_init_attr;
 
 /*******************************************************************/
 /******************** MEMORY REGIONS *******************************/
@@ -84,17 +84,17 @@ void set_rdma_client_meta(rdma_client_meta* client_meta, int cid, int tid)
 }
 
 // TODO: are multiple sges required?
-void *create_rdma_client_meta(int nthreads) {
+void *create_rdma_client_meta(int nthreads, int nlocks) {
 	rdma_client_meta* client_meta = (rdma_client_meta *) malloc(sizeof(rdma_client_meta));
 	for (int i = 0; i < nthreads; i++) {
-		cas_sge[i].addr   = (uintptr_t)local_cas_mr->addr;
-		cas_sge[i].length = sizeof(uint64_t);
-		w_sge[i].addr   = (uintptr_t)local_unlock_mr->addr;
+		cas_sge[i].addr   = (uintptr_t) local_cas_mr->addr;
+		cas_sge[i].length = nlocks * sizeof(uint64_t);
 		cas_sge[i].lkey   = local_cas_mr->lkey;
+		w_sge[i].addr   = (uintptr_t) local_unlock_mr->addr;
 		w_sge[i].length = sizeof(uint64_t);
 		w_sge[i].lkey   = local_unlock_mr->lkey;
 
-		cas_wr[i].wr_id          = 0;
+		cas_wr[i].wr_id          = i;
 		cas_wr[i].sg_list        = &cas_sge[i];
 		cas_wr[i].num_sge        = 1;
 		cas_wr[i].opcode         = IBV_WR_ATOMIC_CMP_AND_SWP;
@@ -106,7 +106,7 @@ void *create_rdma_client_meta(int nthreads) {
 		cas_wr[i].wr.atomic.compare_add = 0;
 		cas_wr[i].wr.atomic.swap        = 1;
 
-		w_wr[i].wr_id          = 0;
+		w_wr[i].wr_id          = i;
 		w_wr[i].sg_list        = &w_sge[i];
 		w_wr[i].num_sge        = 1;
 		w_wr[i].opcode         = IBV_WR_RDMA_WRITE;
@@ -116,99 +116,22 @@ void *create_rdma_client_meta(int nthreads) {
 		w_wr[i].wr.rdma.remote_addr = rlock_addr;
 		w_wr[i].wr.rdma.rkey        = rlock_rkey;
 
-		client_meta->qp = client_qp;
-		client_meta->cas_wr = cas_wr;
-		client_meta->cas_sge = cas_sge;
-		client_meta->w_wr = w_wr;
-		client_meta->w_sge = w_sge;
-		client_meta->io_comp_chan = io_completion_channel;
-		client_meta->wc = wc;
-		client_meta->bad_wr = bad_client_send_wr;
-		client_meta->cas_result = cas_result;
-		client_meta->data = data;
-		client_meta->rlock_addr = rlock_addr;
-		client_meta->rlock_rkey = rlock_rkey;
-		client_meta->data_addr = data_addr;
-		client_meta->data_rkey = data_rkey;
 	}
+	client_meta->qp = client_qp;
+	client_meta->cas_wr = cas_wr;
+	client_meta->cas_sge = cas_sge;
+	client_meta->w_wr = w_wr;
+	client_meta->w_sge = w_sge;
+	client_meta->io_comp_chan = io_completion_channel;
+	client_meta->wc = wc;
+	client_meta->bad_wr = bad_client_send_wr;
+	client_meta->cas_result = cas_result;
+	client_meta->data = data;
+	client_meta->rlock_addr = rlock_addr;
+	client_meta->rlock_rkey = rlock_rkey;
+	client_meta->data_addr = data_addr;
+	client_meta->data_rkey = data_rkey;
 	return client_meta;
-}
-
-int client_prepare_connection(struct sockaddr_in *s_addr, int nthreads)
-{
-	for (int i = 0; i < nthreads; i++) {
-		struct rdma_cm_event *cm_event = NULL;
-		cm_event_channel = rdma_create_event_channel();
-		if (!cm_event_channel) {
-			rdma_error("Creating cm event channel failed, errno: %d \n", -errno);
-			return -errno;
-		}
-		if (rdma_create_id(cm_event_channel, &cm_client_id, NULL, RDMA_PS_TCP)) {
-			rdma_error("Creating cm id failed with errno: %d \n", -errno); 
-			return -errno;
-		}
-		if (rdma_resolve_addr(cm_client_id, NULL, (struct sockaddr*) s_addr, 2000)) {
-			rdma_error("Failed to resolve address, errno: %d \n", -errno);
-			return -errno;
-		}
-		if (process_rdma_cm_event(cm_event_channel, RDMA_CM_EVENT_ADDR_RESOLVED, &cm_event)) {
-			rdma_error("Failed to receive a valid event, -errno = %d \n", -errno);
-			return -errno;
-		}
-		if (rdma_ack_cm_event(cm_event)) {
-			rdma_error("Failed to acknowledge the CM event, errno: %d\n", -errno);
-			return -errno;
-		}
-		if (rdma_resolve_route(cm_client_id, 2000)) {
-			rdma_error("Failed to resolve route, erno: %d \n", -errno);
-			return -errno;
-		}
-		if (process_rdma_cm_event(cm_event_channel, RDMA_CM_EVENT_ROUTE_RESOLVED, &cm_event)) {
-			rdma_error("Failed to receive a valid event, -errno = %d \n", -errno);
-			return -errno;
-		}
-		if (rdma_ack_cm_event(cm_event)) {
-			rdma_error("Failed to acknowledge the CM event, errno: %d \n", -errno);
-			return -errno;
-		}
-		pd = ibv_alloc_pd(cm_client_id->verbs);
-		if (!pd) {
-			rdma_error("Failed to alloc pd, errno: %d \n", -errno);
-			return -errno;
-		}
-		io_completion_channel[i] = ibv_create_comp_channel(cm_client_id->verbs);
-		if (!io_completion_channel[i]) {
-			rdma_error("Failed to create IO completion event channel for task %d, errno: %d\n", i, -errno);
-			return -errno;
-		}
-		client_cq[i] = ibv_create_cq(cm_client_id->verbs, CQ_CAPACITY, NULL, io_completion_channel[i], 0);
-		if (!client_cq[i]) {
-			rdma_error("Failed to create CQ for task %d, errno: %d \n", i, -errno);
-			return -errno;
-		}
-		if (ibv_req_notify_cq(client_cq[i], 0)) {
-			rdma_error("Failed to request notifications for task %d, errno: %d\n", i, -errno);
-			return -errno;
-		}
-
-		bzero(&qp_init_attr, sizeof qp_init_attr);
-		qp_init_attr.cap.max_recv_sge = MAX_SGE; /* Maximum SGE per receive posting */
-		qp_init_attr.cap.max_recv_wr = MAX_WR; /* Maximum receive posting capacity */
-		qp_init_attr.cap.max_send_sge = MAX_SGE; /* Maximum SGE per send posting */
-		qp_init_attr.cap.max_send_wr = MAX_WR; /* Maximum send posting capacity */
-		qp_init_attr.qp_type = IBV_QPT_RC; /* QP type, RC = Reliable connection */
-		qp_init_attr.recv_cq = client_cq[i]; /* Where should I notify for receive completion operations */
-		qp_init_attr.send_cq = client_cq[i]; /* Where should I notify for send completion operations */
-
-		if (rdma_create_qp(cm_client_id, pd, &qp_init_attr)) {
-			rdma_error("Failed to create QP for task %d, errno: %d \n", i, -errno);
-			return -errno;
-		}
-		client_qp[i] = cm_client_id->qp;
-	}
-
-	debug("Connection prep done\n");
-	return 0;
 }
 
 int read_from_metadata_file()
@@ -220,7 +143,7 @@ int read_from_metadata_file()
 	// }
 	char *cwd = NULL;
 	cwd = getcwd(cwd, 128);
-	char *filename = "/microbench/metadata/addrs";
+	char *filename = "/metadata/addrs";
 	strcat(cwd, filename);
 	FILE *file = fopen(cwd, "r");
 	if (!file) {
@@ -238,24 +161,101 @@ int read_from_metadata_file()
 		}
 		i++;
 	}
-	DEBUG("remote data addr: %lu, key: %u\nrlock_addr: %lu, key: %u\n", 
-	data_addr, data_rkey, rlock_addr, rlock_rkey);
+	fprintf(stderr, "remote data_addr: %lu, key: %u\n", data_addr, data_rkey);
+	fprintf(stderr, "rlock_addr: %lu, key: %u\n", rlock_addr, rlock_rkey);
 	return 0;
 
 }
 
+int client_prepare_connection(struct sockaddr_in *s_addr, int nthreads)
+{
+	for (int i = 0; i < nthreads; i++) {
+		cm_event_channel[i] = rdma_create_event_channel();
+		if (!cm_event_channel[i]) {
+			rdma_error("Creating cm event channel failed, errno: %d \n", -errno);
+			return -errno;
+		}
+		if (rdma_create_id(cm_event_channel[i], &cm_client_id[i], NULL, RDMA_PS_TCP)) {
+			rdma_error("Creating cm id failed with errno: %d \n", -errno); 
+			return -errno;
+		}
+		if (rdma_resolve_addr(cm_client_id[i], NULL, (struct sockaddr*) s_addr, 2000)) {
+			rdma_error("Failed to resolve address, errno: %d \n", -errno);
+			return -errno;
+		}
+		if (process_rdma_cm_event(cm_event_channel[i], RDMA_CM_EVENT_ADDR_RESOLVED, &cm_event[i])) {
+			rdma_error("Failed to receive a valid event, -errno = %d \n", -errno);
+			return -errno;
+		}
+		if (rdma_ack_cm_event(cm_event[i])) {
+			rdma_error("Failed to acknowledge the CM event, errno: %d\n", -errno);
+			return -errno;
+		}
+		if (rdma_resolve_route(cm_client_id[i], 2000)) {
+			rdma_error("Failed to resolve route, erno: %d \n", -errno);
+			return -errno;
+		}
+		if (process_rdma_cm_event(cm_event_channel[i], RDMA_CM_EVENT_ROUTE_RESOLVED, &cm_event[i])) {
+			rdma_error("Failed to receive a valid event, -errno = %d \n", -errno);
+			return -errno;
+		}
+		if (rdma_ack_cm_event(cm_event[i])) {
+			rdma_error("Failed to acknowledge the CM event, errno: %d \n", -errno);
+			return -errno;
+		}
+		if (i == 0) {
+			pd = ibv_alloc_pd(cm_client_id[i]->verbs);
+			if (!pd) {
+				rdma_error("Failed to alloc pd, errno: %d \n", -errno);
+				return -errno;
+			}
+		}
+		io_completion_channel[i] = ibv_create_comp_channel(cm_client_id[i]->verbs);
+		if (!io_completion_channel[i]) {
+			rdma_error("Failed to create IO completion event channel for task %d, errno: %d\n", i, -errno);
+			return -errno;
+		}
+		client_cq[i] = ibv_create_cq(cm_client_id[i]->verbs, CQ_CAPACITY, NULL, io_completion_channel[i], 0);
+		if (!client_cq[i]) {
+			rdma_error("Failed to create CQ for task %d, errno: %d \n", i, -errno);
+			return -errno;
+		}
+		if (ibv_req_notify_cq(client_cq[i], 0)) {
+			rdma_error("Failed to request notifications for task %d, errno: %d\n", i, -errno);
+			return -errno;
+		}
+
+		struct ibv_qp_init_attr qp_init_attr;
+		bzero(&qp_init_attr, sizeof(qp_init_attr));
+		qp_init_attr.cap.max_recv_sge = MAX_SGE; /* Maximum SGE per receive posting */
+		qp_init_attr.cap.max_recv_wr = MAX_WR; /* Maximum receive posting capacity */
+		qp_init_attr.cap.max_send_sge = MAX_SGE; /* Maximum SGE per send posting */
+		qp_init_attr.cap.max_send_wr = MAX_WR; /* Maximum send posting capacity */
+		qp_init_attr.qp_type = IBV_QPT_RC; /* QP type, RC = Reliable connection */
+		qp_init_attr.recv_cq = client_cq[i]; /* Where should I notify for receive completion operations */
+		qp_init_attr.send_cq = client_cq[i]; /* Where should I notify for send completion operations */
+
+		if (rdma_create_qp(cm_client_id[i], pd, &qp_init_attr)) {
+			rdma_error("Failed to create QP for task %d, errno: %d \n", i, -errno);
+			return -errno;
+		}
+		client_qp[i] = cm_client_id[i]->qp;
+	}
+	debug("Connection prep done\n");
+	return 0;
+}
+
+
 void* client_connect_to_server(int cid, int nthreads, int nlocks) 
 {
 	struct rdma_conn_param conn_param;
-	struct rdma_cm_event *cm_event = NULL;
+	// struct rdma_cm_event *cm_event = NULL;
 	bzero(&conn_param, sizeof(conn_param));
 	conn_param.initiator_depth = 3;
 	conn_param.responder_resources = 3;
 	conn_param.retry_count = 3;
 	cas_result = aligned_alloc(sizeof(uint64_t), nlocks * sizeof(uint64_t));
 	memset(cas_result, 0, nlocks * sizeof(uint64_t));
-	local_cas_mr = aligned_alloc(sizeof(uint64_t), nlocks * sizeof(struct ibv_mr *));
-	memset(local_cas_mr, 0, nlocks * sizeof(struct ibv_mr*));
 	unlock_val = aligned_alloc(sizeof(uint64_t), sizeof(uint64_t));
 	*unlock_val = 0;
 
@@ -282,29 +282,35 @@ void* client_connect_to_server(int cid, int nthreads, int nlocks)
 		return NULL;
 	}
 
-	conn_param.private_data = &cid;
-	conn_param.private_data_len = sizeof(cid);
-	cm_client_id->context = (void *)(long) cid;
-	if (rdma_connect(cm_client_id, &conn_param)) {
-		rdma_error("Client %d failed to connect to remote host , errno: %d\n", cid, -errno);
-		return NULL;
-	}
-	if (process_rdma_cm_event(cm_event_channel, RDMA_CM_EVENT_ESTABLISHED, &cm_event)) {
-		rdma_error("Client %d failed to get cm event, -errno = %d \n", cid, -errno);
-		return NULL;
-	}
-	if (rdma_ack_cm_event(cm_event)) {
-		rdma_error("Client %d failed to acknowledge cm event, errno: %d\n", cid, -errno);
-		return NULL;
+	for (int i = 0; i < nthreads; i++) {
+		// struct rdma_cm_event *cm_event = NULL;
+		cm_event[i] = NULL;
+		conn_param.private_data = &i;
+		conn_param.private_data_len = sizeof(i);
+		cm_client_id[i]->context = (void *)(long) i;
+		DEBUG("[%d.%d] tries to connect\n", cid, i);
+		if (rdma_connect(cm_client_id[i], &conn_param)) {
+			rdma_error("Client %d failed to connect to remote host , errno: %d\n", cid, -errno);
+			return NULL;
+		}
+		if (process_rdma_cm_event(cm_event_channel[i], RDMA_CM_EVENT_ESTABLISHED, &cm_event[i])) {
+			rdma_error("Client %d failed to get cm event, -errno = %d \n", cid, -errno);
+			return NULL;
+		}
+		if (rdma_ack_cm_event(cm_event[i])) {
+			rdma_error("Client %d failed to acknowledge cm event, errno: %d\n", cid, -errno);
+			return NULL;
+		}
 	}
 
 	read_from_metadata_file();
-	fprintf(stderr, "Client %d connected to RDMA server\n", cid);
-	return create_rdma_client_meta(nthreads);
+	fprintf(stderr, "Client [%d] connected to RDMA server\n", cid);
+	return create_rdma_client_meta(nthreads, nlocks);
 }
 
 ull rdma_request_lock(int rlock_id)
 {
+    DEBUG("[%d.%d] rdma_request_lock [%d]\n", rdma_client_id, rdma_task_id, rlock_id);
 	int tries = 0;
 	curr_rlock = rlock_id;
 	thread_cas_wr.wr.atomic.remote_addr = rlock_addr + rlock_id * 8;
@@ -315,19 +321,23 @@ ull rdma_request_lock(int rlock_id)
 			thread_cas_wr.wr.atomic.remote_addr,thread_cas_wr.wr.atomic.rkey, -errno);
 			exit(EXIT_FAILURE);
 		}
+		// DEBUG("[%d.%d] POSTED CAS_LOCK %lu %u\n",
+		// rdma_client_id, rdma_task_id, thread_cas_wr.wr.atomic.remote_addr, thread_cas_wr.wr.atomic.rkey);
 
 		if (process_work_completion_events(thread_io_comp_chan, &thread_wc, 1) != 1) {
 			rdma_error("Failed to poll CAS-LOCK completion, -errno %d\n", -errno);
 			exit(EXIT_FAILURE);
 		}
+		DEBUG("CAS_RESULT: %lu\n", cas_result[rlock_id]);
 	} while(cas_result[rlock_id]);
-	debug("Client.Task %d.%d got rlock %d from server after %d tries\n",
+	DEBUG("[%d.%d] got rlock [%d] from server after %d tries\n",
 	rdma_client_id, rdma_task_id, rlock_id, tries);
 	return tries;
 }
 
 int rdma_release_lock()
 {
+    DEBUG("[%d.%d] rdma_release_lock %d\n", rdma_client_id, rdma_task_id, curr_rlock);
 	thread_w_wr.wr.rdma.remote_addr = rlock_addr + curr_rlock * 8;
 	if (ibv_post_send(thread_qp, &thread_w_wr, &thread_bad_wr)) {
 		rdma_error("Failed to post CAS-RELEASE wr to remote_addr: 0x%lx rkey: %u, -errno %d\n",
@@ -340,7 +350,7 @@ int rdma_release_lock()
 		exit(EXIT_FAILURE);
 	}
 
-	debug("Client.Task %d.%d released rlock on server\n", rdma_client_id, rdma_task_id);
+	DEBUG("[%d.%d] released rlock [%d] on server\n", rdma_client_id, rdma_task_id, curr_rlock);
 	return 0;
 }
 

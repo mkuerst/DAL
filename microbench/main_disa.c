@@ -192,7 +192,7 @@ void *empty_cs_worker(void *arg) {
 
         pthread_barrier_wait(&local_barrier);
         if (task_id == 0)
-            // MPI_Barrier(MPI_COMM_WORLD);
+            MPI_Barrier(MPI_COMM_WORLD);
             // client_barrier(i);
         pthread_barrier_wait(&global_barrier);
         
@@ -297,19 +297,19 @@ void *mem_worker(void *arg) {
 
 int main(int argc, char *argv[]) {
     client = atoi(argv[6]);
-    // int initialized;
-    // MPI_Initialized(&initialized);
-    // if (!initialized)
-    //     MPI_Init(NULL, NULL);
+    int initialized;
+    MPI_Initialized(&initialized);
+    if (!initialized)
+        MPI_Init(NULL, NULL);
 
 
-    // DEBUG("MPI INIT DONE\n");
-    // int rank, size;
-    // MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    // MPI_Comm_size(MPI_COMM_WORLD, &size);
-    // client = rank;
+    DEBUG("MPI INIT DONE\n");
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    client = rank;
 
-    DEBUG("HI from client %d\n", client);
+    DEBUG("HI from client [%d]\n", client);
 
     srand(42);
     nthreads = atoi(argv[1]);
@@ -374,7 +374,7 @@ int main(int argc, char *argv[]) {
                 _error("Client %d failed to eastablish rdma connection\n", client);
             }
         }
-        // MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Barrier(MPI_COMM_WORLD);
         // client_barrier(1000+i);
     }
 #endif
@@ -409,11 +409,11 @@ int main(int argc, char *argv[]) {
         // tasks[i].priority = priority;
     }
 
-    locks = malloc(nlocks * sizeof(disa_mutex_t));
+    locks = (disa_mutex_t *) malloc(nlocks * sizeof(disa_mutex_t));
     for (int l = 0; l < nlocks; l++) {
         locks[l].disa = 'y';
         locks[l].id = l;
-        lock_init((pthread_mutex_t *) &locks[l]);
+        lock_init(&locks[l]);
     }
     lock = locks[0];
 
@@ -455,7 +455,7 @@ int main(int argc, char *argv[]) {
             cs_result_to_out(tasks, nthreads, mode, res_file);
         }
         // client_barrier(2000+i);
-        // MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Barrier(MPI_COMM_WORLD);
     } 
     MPI_Finalize();
     // WAIT SO SERVER CAN SHUTDOWN

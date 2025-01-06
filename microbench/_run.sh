@@ -69,20 +69,21 @@ REMOTE_SERVER="r630-06"
 server_ip=10.233.0.15
 rdma_ip=0.0.0.0
 
-REMOTE_CLIENTS=("r630-01" "r630-02" "r630-05" "r630-06" "r630-09")
-REMOTE_CLIENT="r630-01"
+REMOTE_CLIENTS=("r630-01" "r630-02" "r630-05")
+REMOTE_CLIENT="r630-11"
 
 eval "$(ssh-agent -s)"
 # ssh_key="/home/mihi/.ssh/id_ed25519_localhost"
 # ssh-add $ssh_key  
-for remote_client in ${REMOTE_CLIENTS[@]}
-do
-    ssh-copy-id "$REMOTE_USER@$remote_client"
-done
-for remote_client in ${REMOTE_CLIENTS[@]}
-do
-    ssh-copy-id "$REMOTE_USER@$remote_client"
-done
+
+# for remote_client in ${REMOTE_CLIENTS[@]}
+# do
+#     ssh-copy-id "$REMOTE_USER@$remote_client"
+# done
+# for remote_client in ${REMOTE_CLIENTS[@]}
+# do
+#     ssh-copy-id "$REMOTE_USER@$remote_client"
+# done
 
 # PATHS
 BASE="$PWD/../litl2/lib"
@@ -104,16 +105,17 @@ server_file_header="tid,wait_acq(ms),wait_rel(ms),client_id,run"
 # MICROBENCH INPUTS
 duration=30
 critical=1000
-use_nodes=1
 
 rm -rf server_logs/
 rm -rf client_logs/
 rm -rf barrier_files/*
 
 comm_prot="rdma"
-microbenches=("empty_cs" "lat" "mem_2nodes")
+microbenches=("empty_cs2n" "empty_cs1n" "lat" "mem2n" "mem1n")
+bench_idxs=(0)
 client_ids=(0 1 2 3 4 5 6 7 8 9)
-n_clients=(2 3)
+n_clients=(2)
+n_threads=(16)
 nlocks=1
 # num_clients=${#client_ids[@]}
 
@@ -123,7 +125,7 @@ do
     impl=${impl%.so}
     client_so=${client_libs_dir}${impl}$client_suffix
     server_so=${server_libs_dir}${impl}$server_suffix
-    for j in 1
+    for j in ${bench_idxs[@]}
     do
         microb="${microbenches[$j]}"
         client_res_dir="$PWD/results/$comm_prot/client/$impl/$microb"
@@ -137,7 +139,7 @@ do
 
         for nclients in ${n_clients[@]}
         do
-            for i in 16
+            for i in ${n_threads[@]}
             do
                 client_res_file="$client_res_dir"/nclients$nclients"_nthreads"$i.csv
                 server_res_file="$server_res_dir"/nclients$nclients"_nthreads"$i.csv
@@ -148,7 +150,7 @@ do
                 server_session="server_$i"
                 echo "START $impl SERVER FOR $i THREADS PER CLIENT & $nclients CLIENTS"
 
-                tmux new-session -d -s "$server_session" "ssh $REMOTE_USER@$REMOTE_SERVER $rdma_server_app -c $nclients -a $server_ip >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
+                tmux new-session -d -s "$server_session" "ssh $REMOTE_USER@$REMOTE_SERVER $rdma_server_app -c $nclients -a $server_ip -t $i -l 1 >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
 
                 # tmux new-session -d -s "$server_session" \
                 # "ssh $REMOTE_USER@$REMOTE_SERVER LD_PRELOAD=$spinlock_so $tcp_server_app $i $j $nclients >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
