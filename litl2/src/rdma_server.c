@@ -146,7 +146,6 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients, int 
 			ntohs(server_addr->sin_port));
 
 	clients = malloc(nclients * sizeof(rdma_server_meta));
-	clients->connections = malloc(nthreads * sizeof(rdma_connection));
 
 	rlocks = (uint64_t *) calloc(nlocks, sizeof(uint64_t));
 	data = (char *) calloc(1, MAX_ARRAY_SIZE);
@@ -155,6 +154,7 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients, int 
 	for (int i = 0; i < nclients; i++) {
 		debug("Waiting for conn establishments of client %d\n", i);
 		rdma_server_meta *client = &clients[i];
+		client->connections = malloc(nthreads * sizeof(rdma_connection));
 		// rdma_connection *conn = &client->connections[0];
 		for (int j = 0; j < nthreads; j++) {
 			rdma_connection *conn = &client->connections[j];
