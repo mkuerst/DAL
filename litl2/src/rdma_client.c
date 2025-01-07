@@ -55,14 +55,13 @@ char *data;
 /*******************************************************************/
 /******************** THREAD LOCAL ************************************/
 /*******************************************************************/
-__thread int rdma_task_id;
+__thread int rdma_task_id, curr_rlock, curr_offset, curr_data_len;
 __thread struct ibv_qp *thread_qp;
 __thread struct ibv_wc thread_wc;
 __thread struct ibv_comp_channel *thread_io_comp_chan;
 __thread struct ibv_send_wr thread_cas_wr, *thread_bad_wr, thread_w_wr, thread_data_wr;
 __thread struct ibv_sge thread_cas_sge, thread_w_sge, thread_data_sge;
-__thread int curr_rlock;
-__thread int curr_offset;
+
 
 void set_rdma_client_meta(rdma_client_meta* client_meta, int cid, int tid)
 {
@@ -94,7 +93,7 @@ void *create_rdma_client_meta(int nthreads, int nlocks) {
 	rdma_client_meta* client_meta = (rdma_client_meta *) malloc(sizeof(rdma_client_meta));
 	for (int i = 0; i < nthreads; i++) {
 		cas_sge[i].addr   = (uintptr_t) local_cas_mr->addr;
-		cas_sge[i].length = nlocks * sizeof(uint64_t);
+		cas_sge[i].length = sizeof(uint64_t);
 		cas_sge[i].lkey   = local_cas_mr->lkey;
 		w_sge[i].addr   = (uintptr_t) local_unlock_mr->addr;
 		w_sge[i].length = sizeof(uint64_t);
@@ -277,7 +276,8 @@ void* client_connect_to_server(int cid, int nthreads, int nlocks)
 	memset(cas_result, 0, nlocks * sizeof(uint64_t));
 	unlock_val = aligned_alloc(sizeof(uint64_t), sizeof(uint64_t));
 	*unlock_val = 0;
-	data = calloc(1, MAX_ARRAY_SIZE);
+	data = (char *) numa_alloc_onnode(MAX_ARRAY_SIZE, 0);
+	memset(data, 0, MAX_ARRAY_SIZE);
 
 	local_unlock_mr = rdma_buffer_register(pd,
 			unlock_val,
@@ -353,57 +353,44 @@ int perform_rdma_op(struct ibv_send_wr *wr)
 	return 0;
 }
 
-// TODO: Specify len of data read & write
-ull rdma_request_lock(int rlock_id, int offset)
+// TODO: Specify size of one data elem
+ull rdma_request_lock(int rlock_id, int offset, size_t data_len)
 {
     DEBUG("[%d.%d] rdma_request_lock [%d]\n", rdma_client_id, rdma_task_id, rlock_id);
 	int tries = 0;
 	curr_rlock = rlock_id;
 	curr_offset = offset;
-	thread_cas_wr.wr.atomic.remote_addr = rlock_addr + rlock_id * 8;
+	curr_data_len = data_len;
+	thread_cas_wr.wr.atomic.remote_addr = rlock_addr + rlock_id * RLOCK_SIZE;
 	do {
 		tries++;
-		// if (ibv_post_send(thread_qp, &thread_cas_wr, &thread_bad_wr)) {
-		// 	rdma_error("Failed to post CAS-LOCK wr to remote_addr: %lu rkey: %u, -errno %d\n",
-		// 	thread_cas_wr.wr.atomic.remote_addr,thread_cas_wr.wr.atomic.rkey, -errno);
-		// 	exit(EXIT_FAILURE);
-		// }
-		// if (process_work_completion_events(thread_io_comp_chan, &thread_wc, 1) != 1) {
-		// 	rdma_error("Failed to poll CAS-LOCK completion, -errno %d\n", -errno);
-		// 	exit(EXIT_FAILURE);
-		// }
 		perform_rdma_op(&thread_cas_wr);
-		DEBUG("CAS_RESULT: %lu\n", cas_result[rlock_id]);
+		// DEBUG("CAS_RESULT: %lu\n", cas_result[rlock_id]);
 	} while(cas_result[rlock_id]);
 	DEBUG("[%d.%d] got rlock [%d] from server after %d tries\n",
 	rdma_client_id, rdma_task_id, rlock_id, tries);
 
 	if (offset >= 0) {
-		thread_data_wr.wr.rdma.remote_addr = data_addr * offset;
+		thread_data_wr.wr.rdma.remote_addr = data_addr + curr_offset;
+		thread_data_sge.length = curr_data_len;
 		thread_data_wr.opcode = IBV_WR_RDMA_READ;
 		perform_rdma_op(&thread_data_wr);
-		DEBUG("[%d.%d] got data from server\n", rdma_client_id, rdma_task_id);
+		DEBUG("[%d.%d] read data from server\n", rdma_client_id, rdma_task_id);
 	}
 	return tries;
 }
 
 int rdma_release_lock()
 {
-    DEBUG("[%d.%d] rdma_release_lock %d\n", rdma_client_id, rdma_task_id, curr_rlock);
-	thread_w_wr.wr.rdma.remote_addr = rlock_addr + curr_rlock * 8;
-	thread_data_wr.wr.rdma.remote_addr = data_addr + curr_offset * 8;
-	// if (ibv_post_send(thread_qp, &thread_w_wr, &thread_bad_wr)) {
-	// 	rdma_error("Failed to post CAS-RELEASE wr to remote_addr: 0x%lx rkey: %u, -errno %d\n",
-	// 	thread_cas_wr.wr.atomic.remote_addr, thread_cas_wr.wr.atomic.rkey, -errno);
-	// 	exit(EXIT_FAILURE);
-	// }
+    DEBUG("[%d.%d] rdma_release_lock [%d]\n", rdma_client_id, rdma_task_id, curr_rlock);
+	if (curr_offset >= 0) {
+		// thread_data_wr.wr.rdma.remote_addr = data_addr + curr_offset;
+		thread_data_wr.opcode = IBV_WR_RDMA_WRITE;
+		perform_rdma_op(&thread_data_wr);
+		DEBUG("[%d.%d] Written back data\n", rdma_client_id, rdma_task_id);
+	}
 
-	// if (process_work_completion_events(thread_io_comp_chan, &thread_wc, 1) != 1) {
-	// 	rdma_error("Failed to poll CAS-RELEASE completion, -errno %d\n", -errno);
-	// 	exit(EXIT_FAILURE);
-	// }
-	perform_rdma_op(&thread_data_wr);
-	DEBUG("[%d.%d] Written back data\n", rdma_client_id, rdma_task_id);
+	// thread_w_wr.wr.rdma.remote_addr = rlock_addr + curr_rlock * RLOCK_SIZE;
 	perform_rdma_op(&thread_w_wr);
 	DEBUG("[%d.%d] released rlock [%d] on server\n", rdma_client_id, rdma_task_id, curr_rlock);
 	return 0;

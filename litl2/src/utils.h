@@ -31,6 +31,7 @@
 #include <sys/time.h>
 #include <infiniband/verbs.h>
 #include <rdma_cma.h>
+#include <stdbool.h>
 
 #include <sched.h>
 #include <numa.h>
@@ -87,7 +88,6 @@
 
 // MICROBENCH PARAMS
 /**************************************************************************************/
-#define NUM_RUNS 3
 #ifndef CACHELINE_SIZE
 #define CACHELINE_SIZE 64
 #endif
@@ -98,6 +98,8 @@
 // CACHE: L1: 512 KiB (x16 instances) | L2: 4 MiB (x16 instances) | L3: 40 MiB (x2 instances)
 // 256 KiB -*8> 2 MiB -*8> 16 -*4>
 #define MAX_ARRAY_SIZE MB(128)
+
+#define NUM_RUNS 3
 #define NUM_MEM_RUNS 3 
 #define NUM_LAT_RUNS 1 
 #define NUM_SND_RUNS (NUM_LAT_RUNS > NUM_MEM_RUNS ? NUM_LAT_RUNS : NUM_MEM_RUNS)
@@ -107,6 +109,7 @@
 #define CYCLES_12 2400L
 #define CYCLES_MAX 3200L
 
+#define RLOCK_SIZE 8;
 #define MAX_LOCK_NUM MAX_ARRAY_SIZE / CACHELINE_SIZE
 #define THREADS_PER_CLIENT 32
 extern size_t array_sizes[NUM_MEM_RUNS];
@@ -216,6 +219,7 @@ typedef struct {
     char disa;
     int id;
     int offset;
+    size_t len;
 } disa_mutex_t;
 
 /* 
@@ -246,6 +250,8 @@ int cs_result_to_out(task_t* tasks, int nthreads, int mode, char* res_file);
 int current_numa_node();
 
 int get_snd_runs(int mode);
+
+bool is_power_of_2(int n);
 
 static inline void *xchg_64(void *ptr, void *x) {
     __asm__ __volatile__("xchgq %0,%1"

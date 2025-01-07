@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include "utils.h"
 
 // r630-11: 8 MB, 16 MB, 128 MB
@@ -49,8 +50,14 @@ inline int get_snd_runs(int mode) {
         case(2): return NUM_LAT_RUNS;
         case(3): return NUM_MEM_RUNS;
         case(4): return NUM_MEM_RUNS;
+        case(5): return NUM_MEM_RUNS;
+        case(6): return NUM_MEM_RUNS;
         default: return 1;
     }
+}
+
+bool is_power_of_2(int n) {
+    return (n > 0) && ((n & (n - 1)) == 0);
 }
 
 // HARDCODED FOR OUR HW
@@ -104,7 +111,7 @@ int cs_result_to_out(task_t* tasks, int nthreads, int mode, char* res_file) {
         _error("Client %d failed to open result file %s, errno %d\n", client, res_file, errno);
     }
     int snd_runs = get_snd_runs(mode);
-    float cycle_to_ms = (float) (CYCLES_MAX * 1e3);
+    float cycle_to_ms = (float) (CYCLES_12 * 1e3);
     for (int j = 0; j < NUM_RUNS; j++) {
         float total_lock_hold = 0;
         ull total_lock_acq = 0;

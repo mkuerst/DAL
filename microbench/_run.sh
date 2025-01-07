@@ -65,11 +65,11 @@ trap cleanup_exit SIGHUP
 REMOTE_USER="kumichae"
 REMOTE_SERVER="r630-12"
 server_ip=10.233.0.21
-REMOTE_SERVER="r630-06"
-server_ip=10.233.0.15
+# REMOTE_SERVER="r630-06"
+# server_ip=10.233.0.15
 rdma_ip=0.0.0.0
 
-REMOTE_CLIENTS=("r630-01" "r630-02" "r630-05")
+REMOTE_CLIENTS=("r630-11" "r630-07")
 REMOTE_CLIENT="r630-11"
 
 eval "$(ssh-agent -s)"
@@ -103,7 +103,7 @@ client_file_header="tid,loop_in_cs,lock_acquires,lock_hold(ms),total_duration(s)
 server_file_header="tid,wait_acq(ms),wait_rel(ms),client_id,run"
 
 # MICROBENCH INPUTS
-duration=30
+duration=3
 critical=1000
 
 rm -rf server_logs/
@@ -111,11 +111,11 @@ rm -rf client_logs/
 rm -rf barrier_files/*
 
 comm_prot="rdma"
-microbenches=("empty_cs2n" "empty_cs1n" "lat" "mem2n" "mem1n")
-bench_idxs=(0)
+microbenches=("empty_cs2n" "empty_cs1n" "lat" "mem2n" "mem1n" "mlocks2n" "mlocks1n")
+bench_idxs=(5)
 client_ids=(0 1 2 3 4 5 6 7 8 9)
-n_clients=(2)
-n_threads=(16)
+n_clients=(1)
+n_threads=(1)
 nlocks=2
 # num_clients=${#client_ids[@]}
 

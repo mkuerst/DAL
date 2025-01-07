@@ -17,6 +17,7 @@
 #include <rdma_client.c>
 #include <mpi.h>
 #include <dirent.h>
+#include <assert.h>
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -30,11 +31,12 @@
 
 char *array0;
 char *array1;
+char *res_file;
 int nthreads;
 int client;
 int num_clients;
-char* res_file;
 int use_nodes;
+int scope;
 
 disa_lock_t lock;
 disa_lock_t *locks;
@@ -191,9 +193,11 @@ void *empty_cs_worker(void *arg) {
         wait_rel = 0;
 
         pthread_barrier_wait(&local_barrier);
+        #ifdef MPI
         if (task_id == 0)
-            // MPI_Barrier(MPI_COMM_WORLD);
+            MPI_Barrier(MPI_COMM_WORLD);
             // client_barrier(i);
+        #endif
         pthread_barrier_wait(&global_barrier);
         
         while (!*task->stop) {
@@ -282,10 +286,10 @@ void *mem_worker(void *arg) {
     return 0;
 }
 
-void *multilocks_worker(void *arg) {
+void *mlocks_worker(void *arg) {
     task_t *task = (task_t *) arg;
     int task_id = task->id;
-    int nlocks = task->nlocks;
+    char* data = task->client_meta->data;
 
     pin_thread(task_id, nthreads, use_nodes);
     ull start, lock_start;
@@ -306,28 +310,31 @@ void *multilocks_worker(void *arg) {
             wait_rel = 0;
 
             pthread_barrier_wait(&local_barrier);
+        #ifdef MPI
             if (task_id == 0)
                 MPI_Barrier(MPI_COMM_WORLD);
+        #endif
             pthread_barrier_wait(&global_barrier);
 
             while (!*task->stop) {
                 for (int x = 0; x < repeat; x++) {
                     for (size_t k = 0; k < array_size; k += 1) {
                         int u = 0;
+                        int lock_idx = k / scope;
                         if(*task->stop)
                             break;
                         start = rdtscp();
-                        lock_acquire((pthread_mutex_t *)&lock);
+                        lock_acquire((pthread_mutex_t *)&locks[lock_idx]);
                         lock_start = rdtscp();
                         wait_acq += lock_start-start;
                         lock_acquires++;
                         while (u < CACHELINE_SIZE) {
-                            array0[k] += sum;
+                            data[k] += sum;
                             u++;
                             loop_in_cs++;
                         }
                         ull rel_start = rdtscp();
-                        lock_release((pthread_mutex_t *)&lock);
+                        lock_release((pthread_mutex_t *)&locks[lock_idx]);
                         ull rel_end = rdtscp();
                         lock_hold += rel_start - lock_start;
                         wait_rel += rel_end - rel_start;
@@ -360,17 +367,19 @@ void *multilocks_worker(void *arg) {
 
 int main(int argc, char *argv[]) {
     client = atoi(argv[6]);
-    // int initialized;
-    // MPI_Initialized(&initialized);
-    // if (!initialized)
-    //     MPI_Init(NULL, NULL);
+#ifdef MPI
+    int initialized;
+    MPI_Initialized(&initialized);
+    if (!initialized)
+        MPI_Init(NULL, NULL);
 
 
-    // DEBUG("MPI INIT DONE\n");
-    // int rank, size;
-    // MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    // MPI_Comm_size(MPI_COMM_WORLD, &size);
-    // client = rank;
+    DEBUG("MPI INIT DONE\n");
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    client = rank;
+#endif
 
     DEBUG("HI from client [%d]\n", client);
 
@@ -383,6 +392,7 @@ int main(int argc, char *argv[]) {
     num_clients = atoi(argv[7]);
     res_file = argv[8];
     int nlocks = atoi(argv[9]);
+    scope = MAX_ARRAY_SIZE;
     void* worker; 
     int num_mem_runs;
     switch (mode) {
@@ -412,6 +422,14 @@ int main(int argc, char *argv[]) {
             worker = mem_worker;
             num_mem_runs = NUM_MEM_RUNS;
             break;
+        case 5:
+            use_nodes = 2;
+            worker = mlocks_worker;
+            num_mem_runs = NUM_MEM_RUNS;
+        case 6:
+            use_nodes = 1;
+            worker = mlocks_worker;
+            num_mem_runs = NUM_MEM_RUNS;
         default:
             use_nodes = 2;
             worker = empty_cs_worker;
@@ -437,8 +455,9 @@ int main(int argc, char *argv[]) {
                 _error("Client %d failed to eastablish rdma connection\n", client);
             }
         }
-        // MPI_Barrier(MPI_COMM_WORLD);
-        // client_barrier(1000+i);
+    #ifdef MPI
+        MPI_Barrier(MPI_COMM_WORLD);
+    #endif
     }
 #endif
     #ifdef TCP_SPINLOCK
@@ -446,7 +465,6 @@ int main(int argc, char *argv[]) {
             _error("Client %d failed to establish TCP_SPINLOCK connection\n", client);
         }
     #endif
-
 
     for (int i = 0; i < nthreads; i++) {
         tasks[i] = (task_t) {0};
@@ -477,7 +495,8 @@ int main(int argc, char *argv[]) {
     for (int l = 0; l < nlocks; l++) {
         locks[l].disa = 'y';
         locks[l].id = l;
-        locks[l].offset = 0;
+        locks[l].offset = -1;
+        locks[l].len = 0;
         lock_init(&locks[l]);
     }
     lock = locks[0];
@@ -497,7 +516,15 @@ int main(int argc, char *argv[]) {
                 if (!array0 || !array1) {
                     _error("Failed to allocate memory for size %lu bytes\n", array_sizes[k]);
                 }
-                // memset(array, 0, array_sizes[k]); // Touch all pages to ensure allocation
+            }
+            if (mode > 4) {
+                assert(array_sz / CACHELINE_SIZE >= nlocks);
+                assert(array_sz % nlocks == 0);
+                scope = array_sz / nlocks;
+                for (int l = 0; l < nlocks; l++) {
+                    locks[l].offset = l*scope;
+                    locks[l].len = scope;
+                }
             }
             stop = 0;
             fprintf(stderr, "CLIENT %d MEASUREMENTS RUN %d_%d\n", client, i, k);
@@ -519,10 +546,13 @@ int main(int argc, char *argv[]) {
         if (i == client) {
             cs_result_to_out(tasks, nthreads, mode, res_file);
         }
-        // client_barrier(2000+i);
-        // MPI_Barrier(MPI_COMM_WORLD);
+    #ifdef MPI
+        MPI_Barrier(MPI_COMM_WORLD);
+    #endif
     } 
+#ifdef MPI
     MPI_Finalize();
+#endif
     // WAIT SO SERVER CAN SHUTDOWN
     sleep(2);
     fprintf(stderr, "CLIENT %d DONE\n", client);
