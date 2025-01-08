@@ -33,7 +33,7 @@
 }while(0);
 
 #define CQ_CAPACITY (16)
-#define MAX_SGE (2)
+#define MAX_SGE (4)
 #define DEFAULT_RDMA_PORT (20051)
 #define MAX_WR (8)
 // #define DEFAULT_RDMA_PORT (20049)

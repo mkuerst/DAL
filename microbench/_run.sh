@@ -103,7 +103,7 @@ client_file_header="tid,loop_in_cs,lock_acquires,lock_hold(ms),total_duration(s)
 server_file_header="tid,wait_acq(ms),wait_rel(ms),client_id,run"
 
 # MICROBENCH INPUTS
-duration=3
+duration=1
 critical=1000
 
 rm -rf server_logs/
@@ -150,7 +150,7 @@ do
                 server_session="server_$i"
                 echo "START $impl SERVER FOR $i THREADS PER CLIENT & $nclients CLIENTS"
 
-                tmux new-session -d -s "$server_session" "ssh $REMOTE_USER@$REMOTE_SERVER $rdma_server_app -c $nclients -a $server_ip -t $i -l 1 >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
+                tmux new-session -d -s "$server_session" "ssh $REMOTE_USER@$REMOTE_SERVER $rdma_server_app -c $nclients -a $server_ip -t $i -l $nlocks >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
 
                 # tmux new-session -d -s "$server_session" \
                 # "ssh $REMOTE_USER@$REMOTE_SERVER LD_PRELOAD=$spinlock_so $tcp_server_app $i $j $nclients >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!

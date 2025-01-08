@@ -87,8 +87,6 @@ void set_rdma_client_meta(rdma_client_meta* client_meta, int cid, int tid)
 	data = client_meta->data;
 }
 
-// TODO: are multiple sges required?
-// TODO: lengh of data_sge!!
 void *create_rdma_client_meta(int nthreads, int nlocks) {
 	rdma_client_meta* client_meta = (rdma_client_meta *) malloc(sizeof(rdma_client_meta));
 	for (int i = 0; i < nthreads; i++) {
@@ -275,10 +273,12 @@ void* client_connect_to_server(int cid, int nthreads, int nlocks)
 	conn_param.responder_resources = 3;
 	conn_param.retry_count = 3;
 	cas_result = aligned_alloc(sizeof(uint64_t), nlocks * sizeof(uint64_t));
+	// cas_result = malloc(nlocks * sizeof(uint64_t));
 	memset(cas_result, 0, nlocks * sizeof(uint64_t));
 	unlock_val = aligned_alloc(sizeof(uint64_t), sizeof(uint64_t));
 	*unlock_val = 0;
-	data = (char *) numa_alloc_onnode(MAX_ARRAY_SIZE, 0);
+	// data = (char *) numa_alloc_onnode(MAX_ARRAY_SIZE, 0);
+	data = (char *) aligned_alloc(sizeof(uint64_t), MAX_ARRAY_SIZE);
 	memset(data, 0, MAX_ARRAY_SIZE);
 
 	local_unlock_mr = rdma_buffer_register(pd,
@@ -363,15 +363,17 @@ ull rdma_request_lock(int rlock_id, int offset, size_t data_len)
     DEBUG("[%d.%d] rdma_request_lock [%d]\n", rdma_client_id, rdma_task_id, rlock_id);
 	int tries = 0;
 	curr_rlock = rlock_id;
-	curr_offset = offset;
+	curr_offset = 0;
 	curr_data_len = data_len;
 	thread_cas_wr.wr.atomic.remote_addr = rlock_addr + rlock_id * RLOCK_SIZE;
-	thread_cas_sge.addr = (uintptr_t) &cas_result[rlock_id];
+	// thread_cas_sge.addr = (uintptr_t) &cas_result[rlock_id];
+	thread_cas_sge.addr = (uintptr_t)(&cas_result[0] + rlock_id);
 	do {
 		tries++;
 		perform_rdma_op(&thread_cas_wr);
+		DEBUG("CAS_RESULT: %lu\n", cas_result[0]);
 		DEBUG("CAS_RESULT: %lu\n", cas_result[rlock_id]);
-	} while(cas_result[rlock_id] != 1);
+	} while(cas_result[0] != 1);
 	DEBUG("[%d.%d] got rlock [%d] from server after %d tries\n",
 	rdma_client_id, rdma_task_id, rlock_id, tries);
 

@@ -109,7 +109,7 @@
 #define CYCLES_12 2400L
 #define CYCLES_MAX 3200L
 
-#define RLOCK_SIZE 8;
+#define RLOCK_SIZE 8
 #define MAX_LOCK_NUM MAX_ARRAY_SIZE / CACHELINE_SIZE
 #define THREADS_PER_CLIENT 32
 extern size_t array_sizes[NUM_MEM_RUNS];
