@@ -60,7 +60,7 @@ __thread struct ibv_qp *thread_qp;
 __thread struct ibv_wc thread_wc;
 __thread struct ibv_comp_channel *thread_io_comp_chan;
 __thread struct ibv_send_wr thread_cas_wr, *thread_bad_wr, thread_w_wr, thread_data_wr;
-__thread struct ibv_sge thread_cas_sge, thread_w_sge, thread_data_sge;
+__thread struct ibv_sge *thread_cas_sge, *thread_w_sge, *thread_data_sge;
 
 
 void set_rdma_client_meta(rdma_client_meta* client_meta, int cid, int tid)
@@ -69,11 +69,11 @@ void set_rdma_client_meta(rdma_client_meta* client_meta, int cid, int tid)
 	rdma_client_id = cid;
 	thread_qp = client_meta->qp[tid];
 	thread_cas_wr = client_meta->cas_wr[tid];
-	thread_cas_sge = client_meta->cas_sge[tid];
+	thread_cas_sge = &client_meta->cas_sge[tid];
 	thread_w_wr = client_meta->w_wr[tid];
-	thread_w_sge = client_meta->w_sge[tid];
+	thread_w_sge = &client_meta->w_sge[tid];
 	thread_data_wr = client_meta->data_wr[tid];
-	thread_data_sge = client_meta->data_sge[tid];
+	thread_data_sge = &client_meta->data_sge[tid];
 	thread_bad_wr = client_meta->bad_wr[tid];
 	thread_io_comp_chan = client_meta->io_comp_chan[tid];
 	thread_wc = client_meta->wc[tid];
@@ -363,27 +363,27 @@ ull rdma_request_lock(int rlock_id, int offset, size_t data_len)
     DEBUG("[%d.%d] rdma_request_lock [%d]\n", rdma_client_id, rdma_task_id, rlock_id);
 	int tries = 0;
 	curr_rlock = rlock_id;
-	curr_offset = 0;
+	curr_offset = offset;
 	curr_data_len = data_len;
 	thread_cas_wr.wr.atomic.remote_addr = rlock_addr + rlock_id * RLOCK_SIZE;
+	thread_w_wr.wr.rdma.remote_addr = rlock_addr + rlock_id * RLOCK_SIZE;
 	// thread_cas_sge.addr = (uintptr_t) &cas_result[rlock_id];
-	thread_cas_sge.addr = (uintptr_t)(&cas_result[0] + rlock_id);
+	thread_cas_sge->addr = (uintptr_t)(cas_result + rlock_id);
 	do {
 		tries++;
 		perform_rdma_op(&thread_cas_wr);
-		DEBUG("CAS_RESULT: %lu\n", cas_result[0]);
-		DEBUG("CAS_RESULT: %lu\n", cas_result[rlock_id]);
-	} while(cas_result[0] != 1);
+		DEBUG("CAS_RESULT[%d]: %lu\n", rlock_id, cas_result[rlock_id]);
+	} while(cas_result[rlock_id]);
 	DEBUG("[%d.%d] got rlock [%d] from server after %d tries\n",
 	rdma_client_id, rdma_task_id, rlock_id, tries);
 
 	if (offset >= 0) {
 		thread_data_wr.wr.rdma.remote_addr = data_addr + curr_offset;
-		thread_data_sge.addr = (uintptr_t) (data + curr_offset);
-		thread_data_sge.length = curr_data_len;
+		thread_data_sge->addr = (uintptr_t) (data + curr_offset);
+		thread_data_sge->length = curr_data_len;
 		thread_data_wr.opcode = IBV_WR_RDMA_READ;
 		perform_rdma_op(&thread_data_wr);
-		DEBUG("[%d.%d] read data from server\n", rdma_client_id, rdma_task_id);
+		DEBUG("[%d.%d] read data from server [%c]\n", rdma_client_id, rdma_task_id, data[0]);
 	}
 	return tries;
 }
@@ -392,7 +392,7 @@ int rdma_release_lock()
 {
     DEBUG("[%d.%d] rdma_release_lock [%d]\n", rdma_client_id, rdma_task_id, curr_rlock);
 	if (curr_offset >= 0) {
-		// thread_data_wr.wr.rdma.remote_addr = data_addr + curr_offset;
+		thread_data_wr.wr.rdma.remote_addr = data_addr + curr_offset;
 		thread_data_wr.opcode = IBV_WR_RDMA_WRITE;
 		perform_rdma_op(&thread_data_wr);
 		DEBUG("[%d.%d] Written back data\n", rdma_client_id, rdma_task_id);

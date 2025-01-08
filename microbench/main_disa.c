@@ -290,6 +290,7 @@ void *mlocks_worker(void *arg) {
     task_t *task = (task_t *) arg;
     int task_id = task->id;
     char* data = task->client_meta->data;
+    int nlocks = task->nlocks;
 
     pin_thread(task_id, nthreads, use_nodes);
     ull start, lock_start;
@@ -319,8 +320,7 @@ void *mlocks_worker(void *arg) {
             while (!*task->stop) {
                 for (size_t k = 0; k < array_size; k += 1024) {
                     int u = 0;
-                    // int lock_idx = k / scope;
-                    int lock_idx = 1;
+                    int lock_idx = uniform_rand_int(nlocks);
                     if(*task->stop)
                         break;
                     start = rdtscp();
@@ -329,7 +329,7 @@ void *mlocks_worker(void *arg) {
                     wait_acq += lock_start-start;
                     lock_acquires++;
                     while (u < CACHELINE_SIZE) {
-                        data[k] += sum;
+                        data[k] = sum;
                         u++;
                         loop_in_cs++;
                     }

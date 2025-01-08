@@ -104,7 +104,7 @@ inline int current_numa_node() {
 }
 
 int uniform_rand_int(int x) {
-    return rand() % (x + 1);
+    return rand() % x;
 }
 
 
