@@ -103,6 +103,10 @@ inline int current_numa_node() {
     return core % 2;
 }
 
+int uniform_rand_int(int x) {
+    return rand() % (x + 1);
+}
+
 
 int cs_result_to_out(task_t* tasks, int nthreads, int mode, char* res_file) {
     int client = tasks[0].client_id;

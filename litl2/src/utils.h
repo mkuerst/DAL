@@ -251,6 +251,8 @@ int current_numa_node();
 
 int get_snd_runs(int mode);
 
+int uniform_rand_int(int x);
+
 bool is_power_of_2(int n);
 
 static inline void *xchg_64(void *ptr, void *x) {

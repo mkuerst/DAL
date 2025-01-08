@@ -74,17 +74,13 @@ int write_metadata_to_file() {
 	strcat(cwd, addresses_file);
 	FILE* file = fopen(cwd, "w");
 	if (!file) {
-		rdma_error("Failed to open file %s\n", cwd);
-		char *abs_path = realpath(__FILE__, NULL);
-		if (! abs_path) {
-			rdma_error("Resolving abs_path failed %s\n", __FILE__);
-			return -errno;
-		}
-		char suffix[64] = "/../../microbench/metadata/addrs";
-		strcat(abs_path, suffix);
-		FILE* file = fopen(abs_path, "w");
+		DEBUG("Failed to open file %s\nTrying again with different dir\n", cwd);
+		cwd = getcwd(cwd, 128);
+		char addresses_file[64] = "/microbench/metadata/addrs";
+		strcat(cwd, addresses_file);
+		file = fopen(cwd, "w");
 		if (!file) {
-			rdma_error("Also failed at opening file from abs_path %s\n", abs_path);
+			rdma_error("Failed at opening file from %s\n", cwd);
 			return -errno;
 		}
 	}
@@ -154,7 +150,6 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients, int 
 		debug("Waiting for conn establishments of client %d\n", i);
 		rdma_server_meta *client = &clients[i];
 		client->connections = malloc(nthreads * sizeof(rdma_connection));
-		// rdma_connection *conn = &client->connections[0];
 		for (int j = 0; j < nthreads; j++) {
 			rdma_connection *conn = &client->connections[j];
 			DEBUG("Waiting for [%d.%d] to request connection\n", i, j);
@@ -189,7 +184,7 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients, int 
 					IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_REMOTE_READ
 				);
 				if (!rlock_mr || !data_mr) {
-					rdma_error("Failed to register mr, -errno %d\n", -errno);
+					rdma_error("Failed to register mrs, -errno %d\n", -errno);
 					return -errno;
 				}
 				write_metadata_to_file();

@@ -317,28 +317,27 @@ void *mlocks_worker(void *arg) {
             pthread_barrier_wait(&global_barrier);
 
             while (!*task->stop) {
-                for (int x = 0; x < repeat; x++) {
-                    for (size_t k = 0; k < array_size; k += 1) {
-                        int u = 0;
-                        int lock_idx = k / scope;
-                        if(*task->stop)
-                            break;
-                        start = rdtscp();
-                        lock_acquire((pthread_mutex_t *)&locks[lock_idx]);
-                        lock_start = rdtscp();
-                        wait_acq += lock_start-start;
-                        lock_acquires++;
-                        while (u < CACHELINE_SIZE) {
-                            data[k] += sum;
-                            u++;
-                            loop_in_cs++;
-                        }
-                        ull rel_start = rdtscp();
-                        lock_release((pthread_mutex_t *)&locks[lock_idx]);
-                        ull rel_end = rdtscp();
-                        lock_hold += rel_start - lock_start;
-                        wait_rel += rel_end - rel_start;
+                for (size_t k = 0; k < array_size; k += 1024) {
+                    int u = 0;
+                    // int lock_idx = k / scope;
+                    int lock_idx = 1;
+                    if(*task->stop)
+                        break;
+                    start = rdtscp();
+                    lock_acquire((pthread_mutex_t *)&locks[lock_idx]);
+                    lock_start = rdtscp();
+                    wait_acq += lock_start-start;
+                    lock_acquires++;
+                    while (u < CACHELINE_SIZE) {
+                        data[k] += sum;
+                        u++;
+                        loop_in_cs++;
                     }
+                    ull rel_start = rdtscp();
+                    lock_release((pthread_mutex_t *)&locks[lock_idx]);
+                    ull rel_end = rdtscp();
+                    lock_hold += rel_start - lock_start;
+                    wait_rel += rel_end - rel_start;
                 }
             }
             task->lock_acquires[i][j] = lock_acquires;
@@ -426,10 +425,12 @@ int main(int argc, char *argv[]) {
             use_nodes = 2;
             worker = mlocks_worker;
             num_mem_runs = NUM_MEM_RUNS;
+            break;
         case 6:
             use_nodes = 1;
             worker = mlocks_worker;
             num_mem_runs = NUM_MEM_RUNS;
+            break;
         default:
             use_nodes = 2;
             worker = empty_cs_worker;

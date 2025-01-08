@@ -153,19 +153,21 @@ void *create_rdma_client_meta(int nthreads, int nlocks) {
 
 int read_from_metadata_file()
 {
-	// char *filepath = realpath(__FILE__, NULL);
-	// if (!filepath) {
-	// 	rdma_error("Failed at getting absoulte file path %s\n", __FILE__);
-	// 	return -1;
-	// }
 	char *cwd = NULL;
 	cwd = getcwd(cwd, 128);
 	char *filename = "/metadata/addrs";
 	strcat(cwd, filename);
 	FILE *file = fopen(cwd, "r");
 	if (!file) {
-		rdma_error("Failed at opening metadata file %s\n", cwd);
-		return -1;
+		DEBUG("Failed at opening metadata file %s\nTrying again with different dir\n", cwd);
+		cwd = getcwd(cwd, 128);
+		char *filename = "/microbench/metadata/addrs";
+		strcat(cwd, filename);
+		file = fopen(cwd, "r");
+		if (!file) {
+			rdma_error("Failed at opening metadata file %s\n", cwd);
+			return -1;
+		}
 	}
 	char line[256];
 	int i = 0;
@@ -341,8 +343,10 @@ void* client_connect_to_server(int cid, int nthreads, int nlocks)
 int perform_rdma_op(struct ibv_send_wr *wr)
 {
 	if (ibv_post_send(thread_qp, wr, &thread_bad_wr)) {
-		rdma_error("[%d.%d] Failed to post wr to remote_addr: %lu rkey: %u, -errno %d\n",
+		rdma_error("[%d.%d] Failed to post wr to\nremote_addr: %lu rkey: %u, -errno %d\n",
 		rdma_client_id, rdma_task_id, wr->wr.rdma.remote_addr, wr->wr.rdma.rkey, -errno);
+		rdma_error("atomic remote_addr: %lu rkey: %u, -errno %d\n",
+		wr->wr.atomic.remote_addr, wr->wr.atomic.rkey, -errno);
 		exit(EXIT_FAILURE);
 	}
 	if (process_work_completion_events(thread_io_comp_chan, &thread_wc, 1) != 1) {
@@ -362,16 +366,18 @@ ull rdma_request_lock(int rlock_id, int offset, size_t data_len)
 	curr_offset = offset;
 	curr_data_len = data_len;
 	thread_cas_wr.wr.atomic.remote_addr = rlock_addr + rlock_id * RLOCK_SIZE;
+	thread_cas_sge.addr = (uintptr_t) &cas_result[rlock_id];
 	do {
 		tries++;
 		perform_rdma_op(&thread_cas_wr);
-		// DEBUG("CAS_RESULT: %lu\n", cas_result[rlock_id]);
-	} while(cas_result[rlock_id]);
+		DEBUG("CAS_RESULT: %lu\n", cas_result[rlock_id]);
+	} while(cas_result[rlock_id] != 1);
 	DEBUG("[%d.%d] got rlock [%d] from server after %d tries\n",
 	rdma_client_id, rdma_task_id, rlock_id, tries);
 
 	if (offset >= 0) {
 		thread_data_wr.wr.rdma.remote_addr = data_addr + curr_offset;
+		thread_data_sge.addr = (uintptr_t) (data + curr_offset);
 		thread_data_sge.length = curr_data_len;
 		thread_data_wr.opcode = IBV_WR_RDMA_READ;
 		perform_rdma_op(&thread_data_wr);
