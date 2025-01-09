@@ -213,28 +213,13 @@ void *mem_worker(void *arg) {
             task->loop_in_cs[i][j] = loop_in_cs;
             task->lock_hold[i][j] = lock_hold;
             task->array_size[i][j] = array_size;
-            // task->duration[i][j] = duration;
             task->wait_acq[i][j] = wait_acq;
             task->wait_rel[i][j] = wait_rel;
             pthread_barrier_wait(&global_barrier);
         }
     }
-    // fprintf(stderr,"FINISHED tid %d\n", task->id);
     return 0;
 }
-
-// double random_double(double min, double max) {
-//     if (min > max) {
-//         fprintf(stderr, "Invalid range: min must be <= max\n");
-//         exit(EXIT_FAILURE);
-//     }
-//     // Generate a random double in [0, 1)
-//     double scale = rand() / (double) RAND_MAX;
-
-//     // Scale and shift to [min, max)
-//     return min + scale * (max - min);
-// }
-
 
 int main(int argc, char *argv[]) {
     srand(42);
@@ -317,7 +302,6 @@ int main(int argc, char *argv[]) {
                 if (!array0 || !array1) {
                     _error("Failed to allocate memory for size %lu bytes\n", array_sizes[k]);
                 }
-                // memset(array, 0, array_sizes[k]); // Touch all pages to ensure allocation
             }
             stop = 0;
             fprintf(stderr, "MEASUREMENTS RUN %d_%d\n", i, k);

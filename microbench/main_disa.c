@@ -258,19 +258,26 @@ void *mem_worker(void *arg) {
             wait_rel = 0;
 
             pthread_barrier_wait(&local_barrier);
+        #ifdef MPI
             if (task_id == 0)
                 MPI_Barrier(MPI_COMM_WORLD);
+        #endif
             pthread_barrier_wait(&global_barrier);
 
+            task->cnt = 0;
+            task->idx = 0;
             while (!*task->stop) {
                 for (int x = 0; x < repeat; x++) {
                     for (size_t k = 0; k < array_size; k += 1) {
                         int u = 0;
                         if(*task->stop)
                             break;
+
                         start = rdtscp();
                         lock_acquire((pthread_mutex_t *)&lock);
                         lock_start = rdtscp();
+
+                        task->swait_acq[task->idx] = lock_start-start;
                         wait_acq += lock_start-start;
                         lock_acquires++;
                         while (u < CACHELINE_SIZE) {
@@ -278,9 +285,16 @@ void *mem_worker(void *arg) {
                             u++;
                             loop_in_cs++;
                         }
+
                         ull rel_start = rdtscp();
                         lock_release((pthread_mutex_t *)&lock);
                         ull rel_end = rdtscp();
+
+                        task->slock_hold[task->idx] = rel_start - lock_start;
+                        task->swait_rel[task->idx] = rel_end - rel_start;
+                        task->idx = (task->idx + 1) % MAX_MEASUREMENTS;
+                        task->cnt++;
+
                         lock_hold += rel_start - lock_start;
                         wait_rel += rel_end - rel_start;
                     }
@@ -359,7 +373,6 @@ void *mlocks_worker(void *arg) {
 
             lock_hold += rel_start - lock_start;
             wait_rel += rel_end - rel_start;
-            log_single(task, 1);
         }
         task->lock_acquires[i][j] = lock_acquires;
         task->loop_in_cs[i][j] = loop_in_cs;

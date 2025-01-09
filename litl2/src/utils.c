@@ -165,7 +165,6 @@ ull percentile(unsigned long long *latencies, size_t size, double p) {
 }
 
 void log_single(task_t * task, int num_runs) {
-#ifdef DEBUG
     size_t array_size = task->array_size[0][0];
     fprintf(stderr, "tid, slock_hold, swait_acq, swait_rel, slwait_acq, slwait_rel, sgwait_acq, sgwait_rel, sdata_read, sdata_write, sglock_tries, array_sz, cid\n");
     fprintf(stderr, "---------------------------------------------------------------------\n");
@@ -183,7 +182,6 @@ void log_single(task_t * task, int num_runs) {
         }
         fprintf(stderr, "%16lu,%03d\n", array_size, task->client_id);
     }
-#endif
 }
 
 int write_res_cum(task_t* tasks, int nthreads, int mode, char* res_file) {

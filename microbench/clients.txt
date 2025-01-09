@@ -1,2 +1,2 @@
 kumichae@r630-11 slots=1
-kumichae@r630-07 slots=1
+kumichae@r630-09 slots=1
