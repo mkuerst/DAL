@@ -31,7 +31,7 @@
 
 char *array0;
 char *array1;
-char *res_file;
+char *res_file_cum, *res_file_single;
 int nthreads;
 int client;
 int num_clients;
@@ -200,17 +200,29 @@ void *empty_cs_worker(void *arg) {
         #endif
         pthread_barrier_wait(&global_barrier);
         
+        task->cnt = 0;
+        task->idx = 0;
         while (!*task->stop) {
             start = rdtscp();
             lock_acquire((pthread_mutex_t *)&lock);
             ull s = rdtscp();
+
             wait_acq += s - start;
+            task->swait_acq[task->idx] = s - start;
             lock_acquires++;
             loop_in_cs++;
+
             start = rdtscp();
             lock_release((pthread_mutex_t *)&lock);
-            wait_rel += rdtscp() - start;
+            ull end_rel = rdtscp();
+
+            wait_rel += end_rel - start;
             lock_hold += start - s;
+
+            task->slock_hold[task->idx] = start - s;
+            task->swait_rel[task->idx] = end_rel - start;
+            task->idx = (task->idx + 1) % MAX_MEASUREMENTS;
+            task->cnt++;
         }
 
         task->lock_acquires[i][0] = lock_acquires;
@@ -297,72 +309,68 @@ void *mlocks_worker(void *arg) {
     ull lock_acquires, lock_hold, loop_in_cs;
     ull wait_acq, wait_rel;
 
+    int j = 0;
+
     for (int i = 0; i < NUM_RUNS; i++) {
         task->run = i;
-        for (int j = 0; j < NUM_MEM_RUNS; j++)  {
-            task->snd_run = j;
-            volatile char sum = 'a'; // Prevent compiler optimizations
-            size_t repeat = array_sizes[NUM_MEM_RUNS-1] / array_sizes[j];
-            ull array_size = array_sizes[j];
-            lock_acquires = 0;
-            lock_hold = 0;
-            loop_in_cs = 0;
-            wait_acq = 0;
-            wait_rel = 0;
+        volatile char sum = 'a'; // Prevent compiler optimizations
+        ull array_size = MAX_ARRAY_SIZE;
+        lock_acquires = 0;
+        lock_hold = 0;
+        loop_in_cs = 0;
+        wait_acq = 0;
+        wait_rel = 0;
 
-            pthread_barrier_wait(&local_barrier);
-        #ifdef MPI
-            if (task_id == 0)
-                MPI_Barrier(MPI_COMM_WORLD);
-        #endif
-            pthread_barrier_wait(&global_barrier);
+        pthread_barrier_wait(&local_barrier);
+    #ifdef MPI
+        if (task_id == 0)
+            MPI_Barrier(MPI_COMM_WORLD);
+    #endif
+        pthread_barrier_wait(&global_barrier);
 
-            while (!*task->stop) {
-                for (size_t k = 0; k < array_size; k += 1024) {
-                    int u = 0;
-                    int lock_idx = uniform_rand_int(nlocks);
-                    if(*task->stop)
-                        break;
-                    start = rdtscp();
-                    lock_acquire((pthread_mutex_t *)&locks[lock_idx]);
-                    lock_start = rdtscp();
-                    wait_acq += lock_start-start;
-                    lock_acquires++;
-                    while (u < CACHELINE_SIZE) {
-                        data[k] = sum;
-                        u++;
-                        loop_in_cs++;
-                    }
-                    ull rel_start = rdtscp();
-                    lock_release((pthread_mutex_t *)&locks[lock_idx]);
-                    ull rel_end = rdtscp();
-                    lock_hold += rel_start - lock_start;
-                    wait_rel += rel_end - rel_start;
-                }
+        task->cnt = 0;
+        task->idx = 0;
+        while (!*task->stop) {
+            int lock_idx = uniform_rand_int(nlocks);
+            int data_len = locks[lock_idx].len;
+            int base_idx = locks[lock_idx].offset;
+
+            start = rdtscp();
+            lock_acquire((pthread_mutex_t *)&locks[lock_idx]);
+            lock_start = rdtscp();
+
+            task->swait_acq[task->idx] = lock_start-start;
+            wait_acq += lock_start-start;
+            lock_acquires++;
+            for (int i = 0; i < data_len; i++) {
+                if(*task->stop)
+                    break;
+                loop_in_cs++;
+                data[base_idx+i] += sum;
             }
-            task->lock_acquires[i][j] = lock_acquires;
-            task->loop_in_cs[i][j] = loop_in_cs;
-            task->lock_hold[i][j] = lock_hold;
-            task->array_size[i][j] = array_size;
-            task->wait_acq[i][j] = wait_acq;
-            task->wait_rel[i][j] = wait_rel;
-            pthread_barrier_wait(&global_barrier);
+            ull rel_start = rdtscp();
+            lock_release((pthread_mutex_t *)&locks[lock_idx]);
+            ull rel_end = rdtscp();
+
+            task->slock_hold[task->idx] = rel_start - lock_start;
+            task->swait_rel[task->idx] = rel_end - rel_start;
+            task->idx = (task->idx + 1) % MAX_MEASUREMENTS;
+            task->cnt++;
+
+            lock_hold += rel_start - lock_start;
+            wait_rel += rel_end - rel_start;
+            log_single(task, 1);
         }
+        task->lock_acquires[i][j] = lock_acquires;
+        task->loop_in_cs[i][j] = loop_in_cs;
+        task->lock_hold[i][j] = lock_hold;
+        task->array_size[i][j] = array_size;
+        task->wait_acq[i][j] = wait_acq;
+        task->wait_rel[i][j] = wait_rel;
+        pthread_barrier_wait(&global_barrier);
     }
     return 0;
 }
-// double random_double(double min, double max) {
-//     if (min > max) {
-//         fprintf(stderr, "Invalid range: min must be <= max\n");
-//         exit(EXIT_FAILURE);
-//     }
-//     // Generate a random double in [0, 1)
-//     double scale = rand() / (double) RAND_MAX;
-
-//     // Scale and shift to [min, max)
-//     return min + scale * (max - min);
-// }
-
 
 int main(int argc, char *argv[]) {
     client = atoi(argv[6]);
@@ -389,8 +397,9 @@ int main(int argc, char *argv[]) {
     char *server_ip = argv[4];
     int mode = argc < 6 ? 0 : atoi(argv[5]);
     num_clients = atoi(argv[7]);
-    res_file = argv[8];
-    int nlocks = atoi(argv[9]);
+    res_file_cum = argv[8];
+    res_file_single = argv[9];
+    int nlocks = atoi(argv[10]);
     scope = MAX_ARRAY_SIZE;
     void* worker; 
     int num_mem_runs;
@@ -404,7 +413,6 @@ int main(int argc, char *argv[]) {
             use_nodes = 1;
             worker = empty_cs_worker;
             num_mem_runs = 1;
-            duration = 0;
             break;
         case 2:
             use_nodes = 2;
@@ -469,27 +477,19 @@ int main(int argc, char *argv[]) {
 
     for (int i = 0; i < nthreads; i++) {
         tasks[i] = (task_t) {0};
-        tasks[i].nlocks = nlocks;
-        tasks[i].disa = 'y';
-        tasks[i].stop = &stop;
         tasks[i].global_its = &global_its;
         tasks[i].cs = cs == 0 ? (i%2 == 0 ? short_cs : long_cs) : cs;
         tasks[i].priority = 1;
+        tasks[i].sockfd = tcp_fd;
+
+        tasks[i].client_id = client;
         tasks[i].id = i;
+        tasks[i].nlocks = nlocks;
+        tasks[i].disa = 'y';
+        tasks[i].stop = &stop;;
         tasks[i].server_ip = server_ip;
         tasks[i].client_meta = client_meta;
-        tasks[i].sockfd = tcp_fd;
-        tasks[i].client_id = client;
-        tasks[i].run = 0;
-        tasks[i].snd_run = 0;
-        for (int j = 0; j < NUM_RUNS; j++) {
-            for (int k = 0; k < NUM_SND_RUNS; k++) {
-                tasks[i].duration[j][k] = duration;
-            }
-        }
-        // fprintf(stderr, "random cs: %f\n", tasks[i].cs);
-        // int priority = atoi(argv[4+i*2]);
-        // tasks[i].priority = priority;
+        tasks[i].duration = duration;
     }
 
     locks = (disa_mutex_t *) malloc(nlocks * sizeof(disa_mutex_t));
@@ -510,7 +510,7 @@ int main(int argc, char *argv[]) {
     }
     for (int i = 0; i < NUM_RUNS; i++) {
         for (int k = 0; k < num_mem_runs; k++) {
-            size_t array_sz = array_sizes[k];
+            size_t array_sz = MAX_ARRAY_SIZE;
             if (mode == 3 || mode == 4) {
                 array0 = (char *) numa_alloc_onnode(array_sz, 0);
                 array1 = (char *) numa_alloc_onnode(array_sz, 1);
@@ -537,6 +537,14 @@ int main(int argc, char *argv[]) {
                 numa_free(array0, array_sz);
                 numa_free(array1, array_sz);
             }
+            for (int i = 0; i < num_clients; i++) {
+                if (i == client) {
+                    write_res_single(tasks, nthreads, mode, res_file_single);
+                }
+            #ifdef MPI
+                MPI_Barrier(MPI_COMM_WORLD);
+            #endif
+            } 
         }
     }
 
@@ -545,7 +553,7 @@ int main(int argc, char *argv[]) {
     }
     for (int i = 0; i < num_clients; i++) {
         if (i == client) {
-            cs_result_to_out(tasks, nthreads, mode, res_file);
+            write_res_cum(tasks, nthreads, mode, res_file_cum);
         }
     #ifdef MPI
         MPI_Barrier(MPI_COMM_WORLD);

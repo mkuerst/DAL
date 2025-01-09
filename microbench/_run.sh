@@ -99,7 +99,19 @@ spinlock_so="$server_libs_dir/libspinlock_original_server.so"
 disa_bench="$PWD/main_disa"
 
 
-client_file_header="tid,loop_in_cs,lock_acquires,lock_hold(ms),total_duration(s),wait_acq(ms),wait_rel(ms),lwait_acq, lwait_rel,gwait_acq,gwait_rel,glock_tries,array_size(B),client_id,run"
+client_filecum_header="tid,loop_in_cs,lock_acquires,lock_hold(ms),total_duration(s),wait_acq(ms),wait_rel(ms),lwait_acq, lwait_rel,gwait_acq,gwait_rel,glock_tries,data_read,data_write,array_size(B),client_id,run"
+client_filesingle_header="tid,total_duration(s),\
+min_slock_hold,med,max,\
+min_swait_acq,med,max,\
+min_swait_rel,med,max,\
+min_slwait_acq,med,max,\
+min_slwait_rel,med,max,\
+min_sgwait_acq,med,max,\
+min_sgwait_rel,med,max,\
+min_sdata_read,med,max,\
+min_sdata_write,med,max,\
+min_sglock_tries,med,max,\
+array_size(B),client_id"
 server_file_header="tid,wait_acq(ms),wait_rel(ms),client_id,run"
 
 # MICROBENCH INPUTS
@@ -128,11 +140,13 @@ do
     for j in ${bench_idxs[@]}
     do
         microb="${microbenches[$j]}"
-        client_res_dir="$PWD/results/$comm_prot/client/$impl/$microb"
+        client_rescum_dir="$PWD/results/$comm_prot/client/$impl/$microb/cum"
+        client_ressingle_dir="$PWD/results/$comm_prot/client/$impl/$microb/single"
         server_res_dir="./results/$comm_prot/server/$impl/$microb"
         server_log_dir="$server_logpath/$impl/$microb"
         client_log_dir="$client_logpath/$impl/$microb"
-        mkdir -p "$client_res_dir" 
+        mkdir -p "$client_rescum_dir" 
+        mkdir -p "$client_ressingle_dir" 
         mkdir -p "$server_res_dir" 
         mkdir -p "$server_log_dir"
         mkdir -p "$client_log_dir"
@@ -141,7 +155,8 @@ do
         do
             for i in ${n_threads[@]}
             do
-                client_res_file="$client_res_dir"/nclients$nclients"_nthreads"$i.csv
+                client_rescum_file="$client_rescum_dir"/nclients$nclients"_nthreads"$i.csv
+                client_ressingle_file="$client_ressingle_dir"/nclients$nclients"_nthreads"$i.csv
                 server_res_file="$server_res_dir"/nclients$nclients"_nthreads"$i.csv
                 orig_res_file="$orig_res_dir/nthread_$i.csv"
                 echo $client_file_header > "$client_res_file"
@@ -171,7 +186,7 @@ do
                 --mca oob_tcp_dynamic_ipv4_ports 8000,8080 \
                 --mca btl_tcp_port_min_v4 8000 --mca btl_tcp_port_range_v4 10 \
                 --mca btl_base_debug 1 --mca oob_tcp_debug 1 --mca plm_base_verbose 5 --mca orte_base_help_aggregate 0 \
-                $disa_bench $i $duration $critical $server_ip $j 0 $nclients $client_res_file $nlocks \
+                $disa_bench $i $duration $critical $server_ip $j 0 $nclients $client_rescum_file $client_ressingle_file $nlocks \
                 2>> $client_log_dir/nclients$n_clients"_nthreads"$i.log
 
 

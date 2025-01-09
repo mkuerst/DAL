@@ -23,7 +23,7 @@
 char *array0;
 char *array1;
 int nthreads;
-char *res_file;
+char *res_file_cum, *res_file_single;
 int use_nodes;
 
 lock_t lock;
@@ -242,7 +242,8 @@ int main(int argc, char *argv[]) {
     int duration = atoi(argv[2]);
     double cs = atoi(argv[3]);
     int mode = atoi(argv[4]);
-    res_file = argv[5];
+    res_file_cum = argv[5];
+    res_file_single = argv[6];
     void* worker; 
     int num_mem_runs;
     switch (mode) {
@@ -295,15 +296,10 @@ int main(int argc, char *argv[]) {
         tasks[i].cs = cs == 0 ? (i%2 == 0 ? short_cs : long_cs) : cs;
         tasks[i].priority = 1;
         tasks[i].id = i;
+        tasks[i].duration = duration;
         // fprintf(stderr, "random cs: %f\n", tasks[i].cs);
         // int priority = atoi(argv[4+i*2]);
         // tasks[i].priority = priority;
-
-        for (int j = 0 ; j < NUM_RUNS; j++) {
-            for (int k = 0; k < NUM_MEM_RUNS; k++) {
-                tasks[i].duration[j][k] = duration;
-            }
-        }
     }
     lock_init(&lock);
     pthread_barrier_init(&global_barrier, NULL, nthreads+1);
@@ -333,13 +329,14 @@ int main(int argc, char *argv[]) {
                 numa_free(array0, array_sz);
                 numa_free(array1, array_sz);
             }
+            write_res_single(tasks, nthreads, mode, res_file_single);
         }
     }
 
     for (int i = 0; i < nthreads; i++) {
         pthread_join(tasks[i].thread, NULL);
     }
-    cs_result_to_out(tasks, nthreads, mode, res_file);
+    write_res_cum(tasks, nthreads, mode, res_file_cum);
     fprintf(stderr, "DONE\n");
     return 0;
 }

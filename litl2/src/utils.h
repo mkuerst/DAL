@@ -41,8 +41,6 @@
 #include <topology.h>
 
 
-#define MAX_THREADS 128
-#define MAX_CLIENTS 64 
 #define CPU_PAUSE() asm volatile("pause\n" : : : "memory")
 #define COMPILER_BARRIER() asm volatile("" : : : "memory")
 #define MEMORY_BARRIER() __sync_synchronize()
@@ -99,8 +97,14 @@
 // 256 KiB -*8> 2 MiB -*8> 16 -*4>
 #define MAX_ARRAY_SIZE MB(128)
 
+#define MAX_THREADS 128
+#define MAX_CLIENTS 64 
+#define MAX_MEASUREMENTS 10000
+#define NUM_MEASUREMENTS 10
+#define IDX_NONCYCLE_MEASURES 9
+#define NUM_STATS 3
 #define NUM_RUNS 3
-#define NUM_MEM_RUNS 3 
+#define NUM_MEM_RUNS 1 
 #define NUM_LAT_RUNS 1 
 #define NUM_SND_RUNS (NUM_LAT_RUNS > NUM_MEM_RUNS ? NUM_LAT_RUNS : NUM_MEM_RUNS)
 
@@ -114,8 +118,6 @@
 #define THREADS_PER_CLIENT 32
 extern size_t array_sizes[NUM_MEM_RUNS];
 /**************************************************************************************/
-
-
 
 typedef unsigned long long ull;
 typedef long int li;
@@ -163,12 +165,6 @@ typedef struct {
     struct ibv_sge *cas_sge, *w_sge, *data_sge;
 } rdma_client_meta;
 
-typedef struct rdma_server_meta {
-    int id;
-    ull lock_impl_time[NUM_RUNS];
-    rdma_connection *connections;
-} rdma_server_meta;
-
 typedef struct {
     volatile int *stop;
     volatile ull *global_its;
@@ -178,8 +174,8 @@ typedef struct {
     char* server_ip;
     char disa;
     rdma_client_meta* client_meta;
-    // MEASUREMENTS 
-    ull duration[NUM_RUNS][NUM_SND_RUNS];
+
+    // MEASUREMENTS CUM
     ull loop_in_cs[NUM_RUNS][NUM_SND_RUNS];
     ull lock_acquires[NUM_RUNS][NUM_SND_RUNS];
     ull lock_hold[NUM_RUNS][NUM_SND_RUNS];
@@ -190,9 +186,35 @@ typedef struct {
     ull gwait_acq[NUM_RUNS][NUM_SND_RUNS];
     ull gwait_rel[NUM_RUNS][NUM_SND_RUNS];
     ull glock_tries[NUM_RUNS][NUM_SND_RUNS];
+    ull data_read[NUM_RUNS][NUM_SND_RUNS];
+    ull data_write[NUM_RUNS][NUM_SND_RUNS];
     size_t array_size[NUM_RUNS][NUM_SND_RUNS];
-    int run, snd_run;
+    ull duration, cnt;
+
+    // MEASUREMENTS SINGLE 
+    ull slock_hold[MAX_MEASUREMENTS];
+    ull swait_acq[MAX_MEASUREMENTS];
+    ull swait_rel[MAX_MEASUREMENTS];
+    ull slwait_acq[MAX_MEASUREMENTS];
+    ull slwait_rel[MAX_MEASUREMENTS];
+    ull sgwait_acq[MAX_MEASUREMENTS];
+    ull sgwait_rel[MAX_MEASUREMENTS];
+    ull sdata_read[MAX_MEASUREMENTS];
+    ull sdata_write[MAX_MEASUREMENTS];
+    ull sglock_tries[MAX_MEASUREMENTS];
+    ull sloop_in_cs[MAX_MEASUREMENTS];
+
+    // MISC
+    int run, snd_run, idx;
 } task_t __attribute__ ((aligned (CACHELINE_SIZE)));
+
+
+typedef struct rdma_server_meta {
+    int id;
+    ull lock_impl_time[NUM_RUNS];
+    rdma_connection *connections;
+} rdma_server_meta;
+
 
 typedef struct thread_data {
     pthread_t thread;
@@ -245,7 +267,9 @@ void *alloc_cache_align(size_t n);
 
 int pin_thread(unsigned int id, int nthreads, int use_nodes);
 
-int cs_result_to_out(task_t* tasks, int nthreads, int mode, char* res_file);
+int write_res_cum(task_t* tasks, int nthreads, int mode, char* res_file);
+
+int write_res_single(task_t* tasks, int nthreads, int mode, char* res_file);
 
 int current_numa_node();
 
@@ -254,6 +278,10 @@ int get_snd_runs(int mode);
 int uniform_rand_int(int x);
 
 bool is_power_of_2(int n);
+
+void flush_cache(void *ptr, size_t size);
+
+void log_single(task_t * task, int num_runs);
 
 static inline void *xchg_64(void *ptr, void *x) {
     __asm__ __volatile__("xchgq %0,%1"

@@ -429,7 +429,7 @@ static void *lp_start_routine(void *_arg) {
 #endif
 #ifdef RDMA
     DEBUG("Launching thread with RDMA lp start routine\n");
-    set_rdma_client_meta(task->client_meta, client_id, task_id);
+    set_rdma_client_meta(task, task->client_meta, client_id, task_id);
 #endif
     lock_thread_start();
     res = fct(arg);
@@ -515,6 +515,8 @@ int pthread_mutex_lock(pthread_mutex_t *mutex) {
     task->gwait_acq[task->run][task->snd_run] += end - end_lacq; 
     task->lwait_acq[task->run][task->snd_run] += end_lacq - start;
     task->glock_tries[task->run][task->snd_run] += tries;
+
+    task->slwait_acq[task->idx] = end_lacq - start;
     return 0;
 }
 
@@ -557,8 +559,11 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex) {
 #else
     lock_mutex_unlock(mutex, NULL);
 #endif
-    task->lwait_rel[task->run][task->snd_run] += rdtscp() - end_grel;
+    ull end = rdtscp();
+    task->lwait_rel[task->run][task->snd_run] += end - end_grel;
     task->gwait_rel[task->run][task->snd_run] += end_grel - start;
+
+    task->slwait_rel[task->idx] = end - end_grel;
     return 0;
 }
 
