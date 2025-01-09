@@ -388,11 +388,17 @@ void *mlocks_worker(void *arg) {
 int main(int argc, char *argv[]) {
     client = atoi(argv[6]);
 #ifdef MPI
-    int initialized;
-    MPI_Initialized(&initialized);
-    if (!initialized)
-        MPI_Init(NULL, NULL);
+    // int initialized;
+    // MPI_Initialized(&initialized);
+    // if (!initialized)
+    //     MPI_Init(NULL, NULL);
 
+    int provided;
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
+    if (provided < MPI_THREAD_MULTIPLE) {
+        printf("MPI does not provide required threading support\n");
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
 
     DEBUG("MPI INIT DONE\n");
     int rank, size;

@@ -118,7 +118,7 @@ array_size(B),client_id"
 server_file_header="tid,wait_acq(ms),wait_rel(ms),client_id,run"
 
 # MICROBENCH INPUTS
-duration=3
+duration=5
 critical=1000
 
 rm -rf server_logs/
@@ -127,10 +127,10 @@ rm -rf barrier_files/*
 
 comm_prot="rdma"
 microbenches=("empty_cs2n" "empty_cs1n" "lat" "mem2n" "mem1n" "mlocks2n" "mlocks1n")
-bench_idxs=(0 1 3 4 5 6)
+bench_idxs=(5)
 client_ids=(0 1 2 3 4 5 6 7 8 9)
 n_clients=(2)
-n_threads=(1 8 16)
+n_threads=(8)
 nlocks=1
 # num_clients=${#client_ids[@]}
 
