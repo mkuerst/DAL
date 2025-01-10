@@ -47,10 +47,10 @@
 
 //#define VRUNTIME_FAIRNESS
 
-enum bool {
-    false,
-    true
-};
+// enum bool {
+//     false,
+//     true
+// };
 
 /* debugging */
 #ifdef WAITER_DEBUG

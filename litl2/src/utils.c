@@ -139,13 +139,13 @@ int compare_desc(const unsigned long long *a, const unsigned long long *b) {
 }
 // SORTS IN DESCENDING ORDER
 void sort_desc(unsigned long long *latencies, size_t size) {
-    assert(size > 0);
+    assert(size >= 0);
     qsort(latencies, size, sizeof(unsigned long long),
         (int (*)(const void *, const void *))compare_desc);
 }
 
 ull _median(unsigned long long *sorted_array, size_t size) {
-    assert(size > 0);
+    assert(size >= 0);
 
     if (size % 2 == 1) {
         return sorted_array[size / 2];
@@ -156,7 +156,7 @@ ull _median(unsigned long long *sorted_array, size_t size) {
 
 // TAKES COMPLEMENT % PERCENTILE
 ull percentile(unsigned long long *latencies, size_t size, double p) {
-    assert(size > 0);
+    assert(size >= 0);
     assert(p >= 0);
     assert(p <= 1);
     p = 1-p;
@@ -250,7 +250,8 @@ int write_res_single(task_t* tasks, int nthreads, int mode, char* res_file) {
     float duration = (float) tasks[0].duration;
     for (int i = 0; i < nthreads; i++) {
         task_t task = tasks[i];
-        size_t sz = task.cnt >= MAX_MEASUREMENTS ? MAX_MEASUREMENTS : task.cnt-1;
+        size_t sz = task.cnt == 0 ? 1 : (task.cnt >= MAX_MEASUREMENTS ? MAX_MEASUREMENTS : task.cnt);
+
         fprintf(file, "%03d,%3.1f,", task.id, duration);
 
         ull *base_ptr = task.slock_hold;
@@ -271,5 +272,7 @@ int write_res_single(task_t* tasks, int nthreads, int mode, char* res_file) {
         fprintf(file, "%16lu,%03d\n", array_size, task.client_id);
     }
     fclose(file);
+    // MPI Clients don't sync on buffer file IO
+    sleep(1);
     return 0;
 }

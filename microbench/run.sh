@@ -42,8 +42,8 @@ do
     for j in 0
     do
         microb="${microbenches[$j]}"
-        orig_rescum_dir="$PWD/results/orig/$impl/$microb/cum"
-        orig_ressingle_dir="$PWD/results/orig/$impl/$microb/single"
+        orig_rescum_dir="$PWD/results/orig/$impl/cum/$microb"
+        orig_ressingle_dir="$PWD/results/orig/$impl/single/$microb"
         mkdir -p "$orig_rescum_dir" 
         mkdir -p "$orig_ressingle_dir" 
 

@@ -69,7 +69,7 @@ server_ip=10.233.0.21
 # server_ip=10.233.0.15
 rdma_ip=0.0.0.0
 
-REMOTE_CLIENTS=("r630-11" "r630-07" "r630-09")
+REMOTE_CLIENTS=("r630-11" "r630-05" "r630-09" "r630-06")
 REMOTE_CLIENT="r630-11"
 
 eval "$(ssh-agent -s)"
@@ -118,7 +118,7 @@ array_size(B),client_id"
 server_file_header="tid,wait_acq(ms),wait_rel(ms),client_id,run"
 
 # MICROBENCH INPUTS
-duration=5
+duration=10
 critical=1000
 
 rm -rf server_logs/
@@ -127,12 +127,12 @@ rm -rf barrier_files/*
 
 comm_prot="rdma"
 microbenches=("empty_cs2n" "empty_cs1n" "lat" "mem2n" "mem1n" "mlocks2n" "mlocks1n")
-bench_idxs=(5)
 client_ids=(0 1 2 3 4 5 6 7 8 9)
-n_clients=(2)
-n_threads=(8)
+
+n_clients=(4)
+n_threads=(1 8 16)
+bench_idxs=(0 1)
 nlocks=1
-# num_clients=${#client_ids[@]}
 
 for impl_dir in "$BASE"/original/*
 do
@@ -143,9 +143,9 @@ do
     for j in ${bench_idxs[@]}
     do
         microb="${microbenches[$j]}"
-        client_rescum_dir="$PWD/results/$comm_prot/client/$impl/$microb/cum"
-        client_ressingle_dir="$PWD/results/$comm_prot/client/$impl/$microb/single"
-        server_res_dir="./results/$comm_prot/server/$impl/$microb"
+        client_rescum_dir="$PWD/results/$comm_prot/client/cum/$impl/$microb"
+        client_ressingle_dir="$PWD/results/$comm_prot/client/single/$impl/$microb"
+        server_res_dir="./results/$comm_prot/server/cum/$impl/$microb"
         server_log_dir="$server_logpath/$impl/$microb"
         client_log_dir="$client_logpath/$impl/$microb"
         mkdir -p "$client_rescum_dir" 
@@ -169,7 +169,8 @@ do
                 server_session="server_$i"
                 echo "START $impl SERVER FOR $i THREADS PER CLIENT & $nclients CLIENTS"
 
-                tmux new-session -d -s "$server_session" "ssh $REMOTE_USER@$REMOTE_SERVER $rdma_server_app -c $nclients -a $server_ip -t $i -l $nlocks >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
+                tmux new-session -d -s "$server_session" \
+                "ssh $REMOTE_USER@$REMOTE_SERVER $rdma_server_app -c $nclients -a $server_ip -t $i -l $nlocks >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
 
                 # tmux new-session -d -s "$server_session" \
                 # "ssh $REMOTE_USER@$REMOTE_SERVER LD_PRELOAD=$spinlock_so $tcp_server_app $i $j $nclients >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!

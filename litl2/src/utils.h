@@ -95,11 +95,11 @@
 #define GB(x) (MB(x) * 1024L)
 // CACHE: L1: 512 KiB (x16 instances) | L2: 4 MiB (x16 instances) | L3: 40 MiB (x2 instances)
 // 256 KiB -*8> 2 MiB -*8> 16 -*4>
-#define MAX_ARRAY_SIZE MB(128)
+#define MAX_ARRAY_SIZE MB(96)
 
 #define MAX_THREADS 128
-#define MAX_CLIENTS 64 
-#define MAX_MEASUREMENTS 10000
+#define MAX_CLIENTS 12
+#define MAX_MEASUREMENTS 40000
 #define NUM_MEASUREMENTS 10
 #define IDX_NONCYCLE_MEASURES 9
 #define NUM_STATS 3
