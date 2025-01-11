@@ -69,12 +69,12 @@ server_ip=10.233.0.21
 # server_ip=10.233.0.15
 rdma_ip=0.0.0.0
 
-REMOTE_CLIENTS=("r630-11" "r630-05" "r630-09" "r630-06")
+REMOTE_CLIENTS=("r630-11" "r630-03" "r630-04" "r630-06")
 REMOTE_CLIENT="r630-11"
 
 eval "$(ssh-agent -s)"
-# ssh_key="/home/mihi/.ssh/id_ed25519_localhost"
-# ssh-add $ssh_key  
+ssh_key="/home/mihi/.ssh/id_ed25519_localhost"
+ssh-add $ssh_key  
 
 # for remote_client in ${REMOTE_CLIENTS[@]}
 # do
@@ -129,9 +129,9 @@ comm_prot="rdma"
 microbenches=("empty_cs2n" "empty_cs1n" "lat" "mem2n" "mem1n" "mlocks2n" "mlocks1n")
 client_ids=(0 1 2 3 4 5 6 7 8 9)
 
-n_clients=(4)
-n_threads=(1 8 16)
-bench_idxs=(0 1)
+n_clients=(1 2 4)
+n_threads=(8 16)
+bench_idxs=(3 4)
 nlocks=1
 
 for impl_dir in "$BASE"/original/*
