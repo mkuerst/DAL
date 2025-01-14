@@ -65,10 +65,10 @@
 #ifdef DEBUG
 #undef DEBUG
 #define DEBUG(msg, args...) do {\
-	fprintf(stderr, "%s : %d : DEBUG : "msg, __FILE__, __LINE__, ## args);\
+	fprintf(stderr, "%s : %d : "msg, __FILE__, __LINE__, ## args);\
 }while(0);
 #define debug(msg, args...) do {\
-	fprintf(stderr, "%s : %d : debug : "msg, __FILE__, __LINE__, ## args);\
+	fprintf(stderr, "%s : %d : "msg, __FILE__, __LINE__, ## args);\
 }while(0);
 #else
 #define DEBUG(...)

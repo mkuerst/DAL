@@ -400,7 +400,6 @@ ull rdma_request_lock(disa_mutex_t* disa_mutex)
 
 	thread_cas_wr.wr.atomic.remote_addr = rlock_addr + curr_rlock_id * RLOCK_SIZE;
 	thread_cas_sge->addr = (uintptr_t) curr_cas_result;
-	// thread_cas_sge->addr = (uintptr_t)(cas_result + rlock_id);
 	thread_w_wr.wr.rdma.remote_addr = rlock_addr + curr_rlock_id * RLOCK_SIZE;
 
 	do {
@@ -440,10 +439,10 @@ int rdma_release_lock()
 		DEBUG("[%d.%d] Written back data\n", rdma_client_id, rdma_task_id);
 	}
 	ull end_of_data_write = rdtscp();
-	thread_task->sdata_write[thread_task->idx] = end_of_data_write - start;
-	thread_task->data_write[thread_task->run][thread_task->snd_run] += end_of_data_write - start;
 	perform_rdma_op(&thread_w_wr);
 	thread_task->sgwait_rel[thread_task->idx] = rdtscp() - end_of_data_write;
+	thread_task->sdata_write[thread_task->idx] = end_of_data_write - start;
+	thread_task->data_write[thread_task->run][thread_task->snd_run] += end_of_data_write - start;
 	DEBUG("[%d.%d] released rlock [%d] on server\n", rdma_client_id, rdma_task_id, curr_rlock_id);
 	return 0;
 }
@@ -484,7 +483,8 @@ ull rdma_request_lock_lease1(disa_mutex_t *disa_mutex)
 		thread_data_sge->length = curr_data_len;
 		thread_data_wr.opcode = IBV_WR_RDMA_READ;
 		perform_rdma_op(&thread_data_wr);
-		DEBUG("[%d.%d] read data from server [%c]\n", rdma_client_id, rdma_task_id, data[curr_offset]);
+		DEBUG("[%d.%d] read data [%d] from server [%d]\n",
+		rdma_client_id, rdma_task_id, curr_rlock_id, (int) data[curr_offset]);
 	}
 	ull end_of_read = rdtscp();
 	thread_task->sdata_read[thread_task->idx] = end_of_read - end_of_cas;
@@ -505,11 +505,14 @@ int rdma_release_lock_lease1(disa_mutex_t *disa_mutex)
 	if (curr_offset >= 0) {
 		thread_data_wr.wr.rdma.remote_addr = data_addr + curr_offset;
 		thread_data_wr.opcode = IBV_WR_RDMA_WRITE;
+		thread_data_sge->addr = (uintptr_t) (data + curr_offset);
+		thread_data_sge->length = curr_data_len;
 		perform_rdma_op(&thread_data_wr);
 		DEBUG("[%d.%d] Written back data\n", rdma_client_id, rdma_task_id);
 	}
 
 	ull end_of_data_write = rdtscp();
+	thread_w_wr.wr.rdma.remote_addr = rlock_addr + curr_rlock_id * RLOCK_SIZE;
 	perform_rdma_op(&thread_w_wr);
 
 	thread_task->sgwait_rel[thread_task->idx] = rdtscp() - end_of_data_write;
