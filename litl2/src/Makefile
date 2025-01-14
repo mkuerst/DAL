@@ -59,7 +59,7 @@ all: $(SERVER_TARGETS)
 	$(CC) -shared -o $@ $^ $(LDFLAGS) 
 
 .SECONDEXPANSION:
-../lib/client/lib%_client.so: ../obj/%/interpose_client.o ../obj/%/utils.o ../obj/%/rdma_common.o $$(subst algo,%,../obj/algo/algo.o)
+../lib/client/lib%_client_spinlock.so: ../obj/%/interpose_client_spinlock.o ../obj/%/utils.o ../obj/%/rdma_common.o $$(subst algo,%,../obj/algo/algo.o)
 	$(CC) -shared -o $@ $^ $(LDFLAGS)
 
 .SECONDEXPANSION:

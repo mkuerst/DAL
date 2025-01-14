@@ -64,7 +64,7 @@ alockepfl_mutex_t *alockepfl_mutex_create(const pthread_mutexattr_t *attr) {
 
 #if COND_VAR
     REAL(pthread_mutex_init)(&impl->posix_lock, /*&errattr */ attr);
-    DEBUG("Mutex init lock=%p posix_lock=%p\n", impl, &impl->posix_lock);
+    // DEBUG("Mutex init lock=%p posix_lock=%p\n", impl, &impl->posix_lock);
 #endif
 
     return impl;

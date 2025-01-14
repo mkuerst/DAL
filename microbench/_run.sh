@@ -118,7 +118,7 @@ array_size(B),client_id"
 server_file_header="tid,wait_acq(ms),wait_rel(ms),client_id,run"
 
 # MICROBENCH INPUTS
-duration=10
+duration=3
 critical=1000
 
 rm -rf server_logs/
@@ -127,105 +127,86 @@ rm -rf barrier_files/*
 
 comm_prot="rdma"
 microbenches=("empty_cs2n" "empty_cs1n" "lat" "mem2n" "mem1n" "mlocks2n" "mlocks1n")
+opts=("lease1")
 client_ids=(0 1 2 3 4 5 6 7 8 9)
 
-n_clients=(1 2 4)
-n_threads=(8 16)
-bench_idxs=(3 4)
-nlocks=1
+n_clients=(2)
+n_threads=(16)
+bench_idxs=(5)
+num_locks=(2)
 
 for impl_dir in "$BASE"/original/*
 do
-    impl=$(basename $impl_dir)
-    impl=${impl%.so}
-    client_so=${client_libs_dir}${impl}$client_suffix
-    server_so=${server_libs_dir}${impl}$server_suffix
-    for j in ${bench_idxs[@]}
+    for opt in ${opts[@]}
     do
-        microb="${microbenches[$j]}"
-        client_rescum_dir="$PWD/results/$comm_prot/client/cum/$impl/$microb"
-        client_ressingle_dir="$PWD/results/$comm_prot/client/single/$impl/$microb"
-        server_res_dir="./results/$comm_prot/server/cum/$impl/$microb"
-        server_log_dir="$server_logpath/$impl/$microb"
-        client_log_dir="$client_logpath/$impl/$microb"
-        mkdir -p "$client_rescum_dir" 
-        mkdir -p "$client_ressingle_dir" 
-        mkdir -p "$server_res_dir" 
-        mkdir -p "$server_log_dir"
-        mkdir -p "$client_log_dir"
-
-        for nclients in ${n_clients[@]}
+        impl=$(basename $impl_dir)
+        impl=${impl%.so}
+        client_opt_suffix=_client_$opt.so
+        client_so=${client_libs_dir}${impl}$client_opt_suffix
+        server_so=${server_libs_dir}${impl}$server_suffix
+        for j in ${bench_idxs[@]}
         do
-            for i in ${n_threads[@]}
+            microb="${microbenches[$j]}"
+            client_rescum_dir="$PWD/results/$comm_prot/$opt/client/cum/$impl/$microb"
+            client_ressingle_dir="$PWD/results/$comm_prot/$opt/client/single/$impl/$microb"
+            server_res_dir="./results/$comm_prot/$opt/server/cum/$impl/$microb"
+            server_log_dir="$server_logpath/$impl/$opt/$microb"
+            client_log_dir="$client_logpath/$impl/$opt/$microb"
+            mkdir -p "$client_rescum_dir" 
+            mkdir -p "$client_ressingle_dir" 
+            mkdir -p "$server_res_dir" 
+            mkdir -p "$server_log_dir"
+            mkdir -p "$client_log_dir"
+
+            for nclients in ${n_clients[@]}
             do
-                client_rescum_file="$client_rescum_dir"/nclients$nclients"_nthreads"$i.csv
-                client_ressingle_file="$client_ressingle_dir"/nclients$nclients"_nthreads"$i.csv
-                server_res_file="$server_res_dir"/nclients$nclients"_nthreads"$i.csv
-                orig_res_file="$orig_res_dir/nthread_$i.csv"
-                echo $client_filecum_header > "$client_rescum_file"
-                echo $client_filesingle_header > "$client_ressingle_file"
-                echo $server_file_header > "$server_res_file"
+                for i in ${n_threads[@]}
+                do
+                    for nlocks in ${num_locks[@]}
+                    do
+                        client_rescum_file="$client_rescum_dir"/nclients$nclients"_nthreads"$i.csv
+                        client_ressingle_file="$client_ressingle_dir"/nclients$nclients"_nthreads"$i.csv
+                        server_res_file="$server_res_dir"/nclients$nclients"_nthreads"$i.csv
+                        orig_res_file="$orig_res_dir/nthread_$i.csv"
+                        echo $client_filecum_header > "$client_rescum_file"
+                        echo $client_filesingle_header > "$client_ressingle_file"
+                        echo $server_file_header > "$server_res_file"
 
-                server_session="server_$i"
-                echo "START $impl SERVER FOR $i THREADS PER CLIENT & $nclients CLIENTS"
+                        server_session="server_$i"
+                        echo "START $impl $opt SERVER FOR $i THREADS PER CLIENT & $nclients CLIENTS"
 
-                tmux new-session -d -s "$server_session" \
-                "ssh $REMOTE_USER@$REMOTE_SERVER $rdma_server_app -c $nclients -a $server_ip -t $i -l $nlocks >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
+                        tmux new-session -d -s "$server_session" \
+                        "ssh $REMOTE_USER@$REMOTE_SERVER $rdma_server_app -c $nclients -a $server_ip -t $i -l $nlocks >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
 
-                # tmux new-session -d -s "$server_session" \
-                # "ssh $REMOTE_USER@$REMOTE_SERVER LD_PRELOAD=$spinlock_so $tcp_server_app $i $j $nclients >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
+                        # tmux new-session -d -s "$server_session" \
+                        # "ssh $REMOTE_USER@$REMOTE_SERVER LD_PRELOAD=$spinlock_so $tcp_server_app $i $j $nclients >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
 
-                # LD_PRELOAD=$spinlock_so $tcp_server_app $i $j $num_clients & >> $server_res_file 2>> $server_log_dir/server_${n_clients}_$i.log
-                # SERVER_PID=$!
-                # $rdma_server_app -t $i -a $server_ip >> $server_res_file 2>> $server_log_dir/server_$i.log
+                        sleep 3
 
-                sleep 3
+                        # ============= MPIRUN ========================================================
+                        echo "START MICROBENCH $microb WITH $nclients $opt MPI-CLIENTS AND $i THREADS PER MPI-CLIENT"
+                        mpirun --hostfile ./clients.txt -np $nclients \
+                        --x LD_PRELOAD=$client_so \
+                        --mca btl_tcp_if_exclude lo,eno3,eno1,eno4,eno2,docker0 \
+                        --mca oob_tcp_dynamic_ipv4_ports 8000,8080 \
+                        --mca btl_tcp_port_min_v4 8000 --mca btl_tcp_port_range_v4 10 \
+                        --mca btl_base_debug 1 --mca oob_tcp_debug 1 --mca plm_base_verbose 5 --mca orte_base_help_aggregate 0 \
+                        $disa_bench $i $duration $critical $server_ip $j 0 $nclients $client_rescum_file $client_ressingle_file $nlocks \
+                        2>> $client_log_dir/nclients$n_clients"_nthreads"$i.log
 
-                # strace -e trace=connect -o mpi.log -f 
-
-                # ============= MPIRUN ========================================================
-                echo "START MICROBENCH $microb WITH $nclients MPI-CLIENTS AND $i THREADS PER MPI-CLIENT"
-                mpirun --hostfile ./clients.txt -np $nclients \
-                --x LD_PRELOAD=$client_so \
-                --mca btl_tcp_if_exclude lo,eno3,eno1,eno4,eno2,docker0 \
-                --mca oob_tcp_dynamic_ipv4_ports 8000,8080 \
-                --mca btl_tcp_port_min_v4 8000 --mca btl_tcp_port_range_v4 10 \
-                --mca btl_base_debug 1 --mca oob_tcp_debug 1 --mca plm_base_verbose 5 --mca orte_base_help_aggregate 0 \
-                $disa_bench $i $duration $critical $server_ip $j 0 $nclients $client_rescum_file $client_ressingle_file $nlocks \
-                2>> $client_log_dir/nclients$n_clients"_nthreads"$i.log
-
-
-
-                # -mca btl openib,self \
-                # --mca btl_tcp_inf_include 10.233.0.10/24,10.233.0.11/24,10.233.0.20/24,10.233.0.14/24,10.233.0.15/24 \
-                # --mca btl_openib_allow_ib true \
-                # --mca btl_openib_cpc_include udcm \
-                # --mca btl_openib_cpc_exclude udcm \
-                # --mca mpi_debug 1 \
-                # --mca oob_tcp_if_include enp3s0 \
-                # --report-bindings --mca mpi_add_procs_verbose 1 --mca mpi_btl_base_verbose 1 \
-                # mpirun -np $nclients -x LD_PRELOAD=$client_so \
-                # ============= MPIRUN ========================================================
-
-
-
-                # for ((c=0; c<nclients; c++));
-                # do
-                #     echo "START MICROBENCH $microb CLIENT $c WITH $i THREADS"
-                #     # client_session="client_$impl"
-                #     tmux new-session -d -s "${client_session}_${c}" \
-                #     "ssh $REMOTE_USER@${REMOTE_CLIENTS[$c]} LD_PRELOAD=$client_so $disa_bench $i $duration $critical $server_ip $j $c $nclients $client_res_file \
-                #     2>> $client_log_dir/client${c}_${i}.log; \
-                #     tmux wait-for -S done_${impl}_${c}"
-
-                # done
-                # for ((c=0; c<nclients; c++));
-                # do
-                #     tmux wait-for done_${impl}_${c}
-                # done
-
-                cleanup
-
+                        # -mca btl openib,self \
+                        # --mca btl_tcp_inf_include 10.233.0.10/24,10.233.0.11/24,10.233.0.20/24,10.233.0.14/24,10.233.0.15/24 \
+                        # --mca btl_openib_allow_ib true \
+                        # --mca btl_openib_cpc_include udcm \
+                        # --mca btl_openib_cpc_exclude udcm \
+                        # --mca mpi_debug 1 \
+                        # --mca oob_tcp_if_include enp3s0 \
+                        # --report-bindings --mca mpi_add_procs_verbose 1 --mca mpi_btl_base_verbose 1 \
+                        # mpirun -np $nclients -x LD_PRELOAD=$client_so \
+                        # ============= MPIRUN ========================================================
+                        cleanup
+                    done
+                done
             done
         done
     done

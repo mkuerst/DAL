@@ -454,7 +454,7 @@ int rdma_release_lock()
 /************************************/
 ull rdma_request_lock_lease1(disa_mutex_t *disa_mutex)
 {
-    DEBUG("[%d.%d] rdma_request_lock [%d]\n", rdma_client_id, rdma_task_id, curr_rlock_id);
+    DEBUG("[%d.%d] rdma_request_lock [%d]\n", rdma_client_id, rdma_task_id, disa_mutex->id);
 	ull start = rdtscp();
 
 	int tries = 0;
@@ -493,21 +493,28 @@ ull rdma_request_lock_lease1(disa_mutex_t *disa_mutex)
 	return tries;
 }
 
-int rdma_release_lock_lease1()
+int rdma_release_lock_lease1(disa_mutex_t *disa_mutex)
 {
-    DEBUG("[%d.%d] rdma_release_lock [%d]\n", rdma_client_id, rdma_task_id, curr_rlock_id);
+    DEBUG("[%d.%d] rdma_release_lock [%d]\n", rdma_client_id, rdma_task_id, disa_mutex->id);
 	ull start = rdtscp();
+	curr_cas_result = disa_mutex->cas_result;
+	curr_rlock_id = disa_mutex->id;
+	curr_offset = disa_mutex->offset;
+	curr_data_len = disa_mutex->data_len;
+
 	if (curr_offset >= 0) {
 		thread_data_wr.wr.rdma.remote_addr = data_addr + curr_offset;
 		thread_data_wr.opcode = IBV_WR_RDMA_WRITE;
 		perform_rdma_op(&thread_data_wr);
 		DEBUG("[%d.%d] Written back data\n", rdma_client_id, rdma_task_id);
 	}
+
 	ull end_of_data_write = rdtscp();
+	perform_rdma_op(&thread_w_wr);
+
+	thread_task->sgwait_rel[thread_task->idx] = rdtscp() - end_of_data_write;
 	thread_task->sdata_write[thread_task->idx] = end_of_data_write - start;
 	thread_task->data_write[thread_task->run][thread_task->snd_run] += end_of_data_write - start;
-	perform_rdma_op(&thread_w_wr);
-	thread_task->sgwait_rel[thread_task->idx] = rdtscp() - end_of_data_write;
 	DEBUG("[%d.%d] released rlock [%d] on server\n", rdma_client_id, rdma_task_id, curr_rlock_id);
 	return 0;
 }

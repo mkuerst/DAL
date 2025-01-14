@@ -376,6 +376,10 @@ void *mlocks_worker(void *arg) {
                 lock_hold += rel_start - lock_start;
                 wait_rel += rel_end - rel_start;
                 lock_acquires++;
+                loop_in_cs++;
+                if (*task->stop) {
+                    break;
+                }
             }
         }
         task->lock_acquires[i][j] = lock_acquires;
@@ -492,11 +496,11 @@ int main(int argc, char *argv[]) {
     #endif
     }
 #endif
-    #ifdef TCP_SPINLOCK
-        if ((tcp_fd = establish_tcp_connection(client, server_ip)) == 0) {
-            _error("Client %d failed to establish TCP_SPINLOCK connection\n", client);
-        }
-    #endif
+#ifdef TCP_SPINLOCK
+    if ((tcp_fd = establish_tcp_connection(client, server_ip)) == 0) {
+        _error("Client %d failed to establish TCP_SPINLOCK connection\n", client);
+    }
+#endif
 
     /*TASK INIT*/
     int *global_turn = malloc(sizeof(int));
@@ -527,7 +531,7 @@ int main(int argc, char *argv[]) {
         locks[l].id = l;
         locks[l].offset = -1;
         locks[l].data_len = 0;
-        locks[l].turns = nthreads;
+        locks[l].turns = 0;
         locks[l].cas_result = &client_meta->cas_result[l];
         lock_init(&locks[l]);
     }
@@ -561,6 +565,7 @@ int main(int argc, char *argv[]) {
                     locks[l].offset = l*scope;
                     locks[l].data_len = scope;
                     locks[l].other = 0;
+                    locks[l].turns = 0;
                 }
             }
             stop = 0;

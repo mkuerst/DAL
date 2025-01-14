@@ -491,12 +491,10 @@ int pthread_mutex_lock(pthread_mutex_t *mutex) {
 #else
     lock_mutex_lock(mutex, NULL);
 #endif
-// TODO: Need to handle case on first acquisition
-// TODO: how do other clients set the r_waiting variable?
-// TODO: All these things should be associated with the lock object!
+    __sync_fetch_and_add(&disa_mutex->other, -1);
     ull end_lacq = rdtscp();
     if (disa_mutex->turns == 0) {
-        tries = rdma_request_lock_lease2(disa_mutex);
+        tries = rdma_request_lock_lease1(disa_mutex);
         disa_mutex->turns = nthreads;
         ull end = rdtscp();
         task->gwait_acq[task->run][task->snd_run] += end - end_lacq; 
@@ -532,9 +530,8 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex) {
         return REAL(pthread_mutex_unlock)(mutex);
     }
     disa_mutex->turns--;
-    disa_mutex->other--;
     if (disa_mutex->turns == 0 || disa_mutex->other == 0){
-        rdma_release_lock_lease1();
+        rdma_release_lock_lease1(disa_mutex);
     }
     ull end_grel = rdtscp();
 #if !NO_INDIRECTION
