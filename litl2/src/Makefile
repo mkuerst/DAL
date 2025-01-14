@@ -18,7 +18,6 @@ SLDFLAGS=-lrdmacm -libverbs -lnuma -pthread -ldl
 SERVER_SOURCES = $(wildcard *_server.c)
 SERVER_TARGETS = $(addprefix ../, $(basename $(SERVER_SOURCES)))
 
-# CYCLE_PER_US:=$(shell lscpu | grep "MHz" | awk 'NR==1 {printf "%dL\n", $$4}')
 CYCLE_PER_US:=$(shell cat "/proc/cpuinfo" | grep "MHz" | head -1 | awk '{printf "%dL\n", $$4}')
 # CYCLE_PER_US=2400L
 ifndef CYCLE_PER_US
@@ -40,8 +39,13 @@ all: $(SERVER_TARGETS)
 ../interpose_server: interpose_server.c
 	echo "Ignoring interpose_server rule"
 
+# .SECONDEXPANSION:
+# ../obj/%.o: $$(lastword $$(subst /, ,%)).c $$(lastword $$(subst /, ,%)).h
+# 	$(eval $@_TMP := $(shell echo $@ | cut -d/ -f3 | cut -d_ -f1))
+# 	$(CC) $(CFLAGS) -D$$(echo $@ | cut -d/ -f3 | cut -d_ -f1 | tr '[a-z]' '[A-Z]') -DCOND_VAR=$(COND_VAR) -DFCT_LINK_SUFFIX=$($@_TMP) -DWAITING_$$(echo $@ | cut -d/ -f3 | cut -d_ -f2- | tr '[a-z]' '[A-Z]') -o $@ -c $<
+
 .SECONDEXPANSION:
-../obj/%.o: $$(lastword $$(subst /, ,%)).c $$(lastword $$(subst /, ,%)).h
+../obj/%.o: $$(lastword $$(subst /, ,%)).c interpose.h
 	$(eval $@_TMP := $(shell echo $@ | cut -d/ -f3 | cut -d_ -f1))
 	$(CC) $(CFLAGS) -D$$(echo $@ | cut -d/ -f3 | cut -d_ -f1 | tr '[a-z]' '[A-Z]') -DCOND_VAR=$(COND_VAR) -DFCT_LINK_SUFFIX=$($@_TMP) -DWAITING_$$(echo $@ | cut -d/ -f3 | cut -d_ -f2- | tr '[a-z]' '[A-Z]') -o $@ -c $<
 
@@ -56,6 +60,10 @@ all: $(SERVER_TARGETS)
 
 .SECONDEXPANSION:
 ../lib/client/lib%_client.so: ../obj/%/interpose_client.o ../obj/%/utils.o ../obj/%/rdma_common.o $$(subst algo,%,../obj/algo/algo.o)
+	$(CC) -shared -o $@ $^ $(LDFLAGS)
+
+.SECONDEXPANSION:
+../lib/client/lib%_client_lease1.so: ../obj/%/interpose_client_lease1.o ../obj/%/utils.o ../obj/%/rdma_common.o $$(subst algo,%,../obj/algo/algo.o)
 	$(CC) -shared -o $@ $^ $(LDFLAGS)
 
 .SECONDEXPANSION:

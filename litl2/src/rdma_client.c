@@ -49,13 +49,14 @@ uint64_t data_addr;
 uint32_t data_rkey;
 uint64_t *cas_result;
 uint64_t *unlock_val;
-// TODO: keep it thread local or global? What about pinning?
 char *data;
 
 /*******************************************************************/
 /******************** THREAD LOCAL ************************************/
 /*******************************************************************/
-__thread int rdma_task_id, curr_rlock, curr_offset, curr_data_len;
+__thread int rdma_task_id, curr_rlock_id, curr_offset, curr_data_len;
+__thread uint8_t ticket = 1;
+__thread uint64_t *curr_cas_result;
 __thread struct ibv_qp *thread_qp;
 __thread struct ibv_wc thread_wc;
 __thread struct ibv_comp_channel *thread_io_comp_chan;
@@ -89,7 +90,7 @@ void set_rdma_client_meta(task_t* task, rdma_client_meta* client_meta, int cid, 
 	data = client_meta->data;
 }
 
-void *create_rdma_client_meta(int nthreads, int nlocks) {
+void *create_rdma_client_meta(int cid, int nthreads, int nlocks) {
 	rdma_client_meta* client_meta = (rdma_client_meta *) malloc(sizeof(rdma_client_meta));
 	for (int i = 0; i < nthreads; i++) {
 		cas_sge[i].addr   = (uintptr_t) local_cas_mr->addr;
@@ -337,81 +338,7 @@ void* client_connect_to_server(int cid, int nthreads, int nlocks)
 
 	read_from_metadata_file();
 	fprintf(stderr, "Client [%d] connected to RDMA server\n", cid);
-	return create_rdma_client_meta(nthreads, nlocks);
-}
-
-int perform_rdma_op(struct ibv_send_wr *wr)
-{
-	if (ibv_post_send(thread_qp, wr, &thread_bad_wr)) {
-		rdma_error("[%d.%d] Failed to post wr to\nremote_addr: %lu rkey: %u, -errno %d\n",
-		rdma_client_id, rdma_task_id, wr->wr.rdma.remote_addr, wr->wr.rdma.rkey, -errno);
-		rdma_error("atomic remote_addr: %lu rkey: %u, -errno %d\n",
-		wr->wr.atomic.remote_addr, wr->wr.atomic.rkey, -errno);
-		exit(EXIT_FAILURE);
-	}
-	if (process_work_completion_events(thread_io_comp_chan, &thread_wc, 1) != 1) {
-		rdma_error("[%d.%d] Failed to poll wr completion, -errno %d\n",
-		rdma_client_id, rdma_task_id, -errno);
-		exit(EXIT_FAILURE);
-	}
-	return 0;
-}
-
-// TODO: Specify size of one data elem
-ull rdma_request_lock(int rlock_id, int offset, size_t data_len)
-{
-    DEBUG("[%d.%d] rdma_request_lock [%d]\n", rdma_client_id, rdma_task_id, rlock_id);
-	ull start = rdtscp();
-	int tries = 0;
-	curr_rlock = rlock_id;
-	curr_offset = offset;
-	curr_data_len = data_len;
-	thread_cas_wr.wr.atomic.remote_addr = rlock_addr + rlock_id * RLOCK_SIZE;
-	thread_w_wr.wr.rdma.remote_addr = rlock_addr + rlock_id * RLOCK_SIZE;
-	thread_cas_sge->addr = (uintptr_t)(cas_result + rlock_id);
-	do {
-		tries++;
-		perform_rdma_op(&thread_cas_wr);
-		// DEBUG("[%d.%d] CAS_RESULT[%d]: %lu\n",
-		// rdma_client_id, rdma_task_id, rlock_id, cas_result[rlock_id]);
-	} while(cas_result[rlock_id]);
-	DEBUG("[%d.%d] got rlock [%d] from server after %d tries\n",
-	rdma_client_id, rdma_task_id, rlock_id, tries);
-	ull end_of_cas = rdtscp();
-	thread_task->sgwait_acq[thread_task->idx] = end_of_cas - start;
-
-	if (offset >= 0) {
-		thread_data_wr.wr.rdma.remote_addr = data_addr + curr_offset;
-		thread_data_sge->addr = (uintptr_t) (data + curr_offset);
-		thread_data_sge->length = curr_data_len;
-		thread_data_wr.opcode = IBV_WR_RDMA_READ;
-		perform_rdma_op(&thread_data_wr);
-		DEBUG("[%d.%d] read data from server [%c]\n", rdma_client_id, rdma_task_id, data[curr_offset]);
-	}
-	ull end_of_read = rdtscp();
-	thread_task->sdata_read[thread_task->idx] = end_of_read - end_of_cas;
-	thread_task->sglock_tries[thread_task->idx] = tries;
-	thread_task->data_read[thread_task->run][thread_task->snd_run] += end_of_read - end_of_cas;
-	return tries;
-}
-
-int rdma_release_lock()
-{
-    DEBUG("[%d.%d] rdma_release_lock [%d]\n", rdma_client_id, rdma_task_id, curr_rlock);
-	ull start = rdtscp();
-	if (curr_offset >= 0) {
-		thread_data_wr.wr.rdma.remote_addr = data_addr + curr_offset;
-		thread_data_wr.opcode = IBV_WR_RDMA_WRITE;
-		perform_rdma_op(&thread_data_wr);
-		DEBUG("[%d.%d] Written back data\n", rdma_client_id, rdma_task_id);
-	}
-	ull end_of_data_write = rdtscp();
-	thread_task->sdata_write[thread_task->idx] = end_of_data_write - start;
-	thread_task->data_write[thread_task->run][thread_task->snd_run] += end_of_data_write - start;
-	perform_rdma_op(&thread_w_wr);
-	thread_task->sgwait_rel[thread_task->idx] = rdtscp() - end_of_data_write;
-	DEBUG("[%d.%d] released rlock [%d] on server\n", rdma_client_id, rdma_task_id, curr_rlock);
-	return 0;
+	return create_rdma_client_meta(cid, nthreads, nlocks);
 }
 
 void* establish_rdma_connection(int cid, char* addr, int nthreads, int nlocks)
@@ -438,6 +365,229 @@ void* establish_rdma_connection(int cid, char* addr, int nthreads, int nlocks)
 		return NULL;
 	}
 	return client_meta;
+}
+
+int perform_rdma_op(struct ibv_send_wr *wr)
+{
+	if (ibv_post_send(thread_qp, wr, &thread_bad_wr)) {
+		rdma_error("[%d.%d] Failed to post wr to\nremote_addr: %lu rkey: %u, -errno %d\n",
+		rdma_client_id, rdma_task_id, wr->wr.rdma.remote_addr, wr->wr.rdma.rkey, -errno);
+		rdma_error("atomic remote_addr: %lu rkey: %u, -errno %d\n",
+		wr->wr.atomic.remote_addr, wr->wr.atomic.rkey, -errno);
+		exit(EXIT_FAILURE);
+	}
+	if (process_work_completion_events(thread_io_comp_chan, &thread_wc, 1) != 1) {
+		rdma_error("[%d.%d] Failed to poll wr completion, -errno %d\n",
+		rdma_client_id, rdma_task_id, -errno);
+		exit(EXIT_FAILURE);
+	}
+	return 0;
+}
+
+/************************************/
+/*************SPINLOCK***************/
+/************************************/
+// TODO: Specify size of one data elem
+ull rdma_request_lock(disa_mutex_t* disa_mutex)
+{
+    DEBUG("[%d.%d] rdma_request_lock [%d]\n", rdma_client_id, rdma_task_id, curr_rlock_id);
+	ull start = rdtscp();
+	int tries = 0;
+	curr_rlock_id = disa_mutex->id;
+	curr_offset = disa_mutex->offset;
+	curr_data_len = disa_mutex->data_len;
+	curr_cas_result = disa_mutex->cas_result;
+
+	thread_cas_wr.wr.atomic.remote_addr = rlock_addr + curr_rlock_id * RLOCK_SIZE;
+	thread_cas_sge->addr = (uintptr_t) curr_cas_result;
+	// thread_cas_sge->addr = (uintptr_t)(cas_result + rlock_id);
+	thread_w_wr.wr.rdma.remote_addr = rlock_addr + curr_rlock_id * RLOCK_SIZE;
+
+	do {
+		tries++;
+		perform_rdma_op(&thread_cas_wr);
+		// DEBUG("[%d.%d] CAS_RESULT[%d]: %lu\n",
+		// rdma_client_id, rdma_task_id, rlock_id, cas_result[rlock_id]);
+	} while(*curr_cas_result);
+	DEBUG("[%d.%d] got rlock [%d] from server after %d tries\n",
+	rdma_client_id, rdma_task_id, curr_rlock_id, tries);
+	ull end_of_cas = rdtscp();
+	thread_task->sgwait_acq[thread_task->idx] = end_of_cas - start;
+
+	if (curr_offset >= 0) {
+		thread_data_wr.wr.rdma.remote_addr = data_addr + curr_offset;
+		thread_data_sge->addr = (uintptr_t) (data + curr_offset);
+		thread_data_sge->length = curr_data_len;
+		thread_data_wr.opcode = IBV_WR_RDMA_READ;
+		perform_rdma_op(&thread_data_wr);
+		DEBUG("[%d.%d] read data from server [%c]\n", rdma_client_id, rdma_task_id, data[curr_offset]);
+	}
+	ull end_of_read = rdtscp();
+	thread_task->sdata_read[thread_task->idx] = end_of_read - end_of_cas;
+	thread_task->sglock_tries[thread_task->idx] = tries;
+	thread_task->data_read[thread_task->run][thread_task->snd_run] += end_of_read - end_of_cas;
+	return tries;
+}
+
+int rdma_release_lock()
+{
+    DEBUG("[%d.%d] rdma_release_lock [%d]\n", rdma_client_id, rdma_task_id, curr_rlock_id);
+	ull start = rdtscp();
+	if (curr_offset >= 0) {
+		thread_data_wr.wr.rdma.remote_addr = data_addr + curr_offset;
+		thread_data_wr.opcode = IBV_WR_RDMA_WRITE;
+		perform_rdma_op(&thread_data_wr);
+		DEBUG("[%d.%d] Written back data\n", rdma_client_id, rdma_task_id);
+	}
+	ull end_of_data_write = rdtscp();
+	thread_task->sdata_write[thread_task->idx] = end_of_data_write - start;
+	thread_task->data_write[thread_task->run][thread_task->snd_run] += end_of_data_write - start;
+	perform_rdma_op(&thread_w_wr);
+	thread_task->sgwait_rel[thread_task->idx] = rdtscp() - end_of_data_write;
+	DEBUG("[%d.%d] released rlock [%d] on server\n", rdma_client_id, rdma_task_id, curr_rlock_id);
+	return 0;
+}
+
+// TODO: No awareness of other remote clients
+/************************************/
+/*************LEASE1**************/
+/************************************/
+ull rdma_request_lock_lease1(disa_mutex_t *disa_mutex)
+{
+    DEBUG("[%d.%d] rdma_request_lock [%d]\n", rdma_client_id, rdma_task_id, curr_rlock_id);
+	ull start = rdtscp();
+
+	int tries = 0;
+	curr_cas_result = disa_mutex->cas_result;
+	curr_rlock_id = disa_mutex->id;
+	curr_offset = disa_mutex->offset;
+	curr_data_len = disa_mutex->data_len;
+
+	thread_cas_wr.wr.atomic.remote_addr = rlock_addr + curr_rlock_id * RLOCK_SIZE;
+	thread_cas_sge->addr = (uintptr_t) curr_cas_result;
+
+	do {
+		tries++;
+		perform_rdma_op(&thread_cas_wr);
+		// DEBUG("[%d.%d] CAS_RESULT[%d]: %lu\n",
+		// rdma_client_id, rdma_task_id, rlock_id, cas_result[rlock_id]);
+	} while(*curr_cas_result);
+
+	DEBUG("[%d.%d] got rlock [%d] from server after %d tries\n",
+	rdma_client_id, rdma_task_id, curr_rlock_id, tries);
+	ull end_of_cas = rdtscp();
+	thread_task->sgwait_acq[thread_task->idx] = end_of_cas - start;
+
+	if (curr_offset >= 0) {
+		thread_data_wr.wr.rdma.remote_addr = data_addr + curr_offset;
+		thread_data_sge->addr = (uintptr_t) (data + curr_offset);
+		thread_data_sge->length = curr_data_len;
+		thread_data_wr.opcode = IBV_WR_RDMA_READ;
+		perform_rdma_op(&thread_data_wr);
+		DEBUG("[%d.%d] read data from server [%c]\n", rdma_client_id, rdma_task_id, data[curr_offset]);
+	}
+	ull end_of_read = rdtscp();
+	thread_task->sdata_read[thread_task->idx] = end_of_read - end_of_cas;
+	thread_task->sglock_tries[thread_task->idx] = tries;
+	thread_task->data_read[thread_task->run][thread_task->snd_run] += end_of_read - end_of_cas;
+	return tries;
+}
+
+int rdma_release_lock_lease1()
+{
+    DEBUG("[%d.%d] rdma_release_lock [%d]\n", rdma_client_id, rdma_task_id, curr_rlock_id);
+	ull start = rdtscp();
+	if (curr_offset >= 0) {
+		thread_data_wr.wr.rdma.remote_addr = data_addr + curr_offset;
+		thread_data_wr.opcode = IBV_WR_RDMA_WRITE;
+		perform_rdma_op(&thread_data_wr);
+		DEBUG("[%d.%d] Written back data\n", rdma_client_id, rdma_task_id);
+	}
+	ull end_of_data_write = rdtscp();
+	thread_task->sdata_write[thread_task->idx] = end_of_data_write - start;
+	thread_task->data_write[thread_task->run][thread_task->snd_run] += end_of_data_write - start;
+	perform_rdma_op(&thread_w_wr);
+	thread_task->sgwait_rel[thread_task->idx] = rdtscp() - end_of_data_write;
+	DEBUG("[%d.%d] released rlock [%d] on server\n", rdma_client_id, rdma_task_id, curr_rlock_id);
+	return 0;
+}
+
+/************************************/
+/*************LEASE2**************/
+/************************************/
+// TODO: Rename thread_stuff to smth more control specific
+ull rdma_request_lock_lease2(disa_mutex_t *disa_mutex)
+{
+    DEBUG("[%d.%d] rdma_request_lock [%d]\n", rdma_client_id, rdma_task_id, curr_rlock_id);
+	ull start = rdtscp();
+
+	int tries = 0;
+	curr_cas_result = disa_mutex->cas_result;
+	curr_rlock_id = disa_mutex->id;
+	curr_offset = disa_mutex->offset;
+	curr_data_len = disa_mutex->data_len;
+
+	thread_cas_wr.opcode = IBV_WR_ATOMIC_CMP_AND_SWP;
+	thread_cas_wr.wr.atomic.compare_add = ticket-1;
+	thread_cas_wr.wr.atomic.swap = ticket-1;
+	thread_cas_wr.wr.atomic.remote_addr = rlock_addr + curr_rlock_id * RLOCK_SIZE;
+	thread_cas_sge->addr = (uintptr_t) curr_cas_result;
+
+	// thread_w_wr.opcode = IBV_WR_RDMA_READ;
+	// thread_w_wr.wr.rdma.remote_addr = rlock_addr + curr_rlock_id * RLOCK_SIZE;
+	// thread_w_sge->addr = curr_cas_result;
+
+	// thread_cas_sge->addr = (uintptr_t)(cas_result + curr_rlock_id);
+
+	perform_rdma_op(&thread_cas_wr);
+	tries++;
+	if (*curr_cas_result  != ticket-1) {
+		ticket = *curr_cas_result + 1;
+		do {
+			tries++;
+			perform_rdma_op(&thread_w_wr);
+			// DEBUG("[%d.%d] CAS_RESULT[%d]: %lu\n",
+			// rdma_client_id, rdma_task_id, rlock_id, cas_result[rlock_id]);
+		} while((*curr_cas_result & 0xFF) != ticket);
+	}
+
+	DEBUG("[%d.%d] got rlock [%d] from server after %d tries\n",
+	rdma_client_id, rdma_task_id, curr_rlock_id, tries);
+	ull end_of_cas = rdtscp();
+	thread_task->sgwait_acq[thread_task->idx] = end_of_cas - start;
+
+	if (curr_offset >= 0) {
+		thread_data_wr.wr.rdma.remote_addr = data_addr + curr_offset;
+		thread_data_sge->addr = (uintptr_t) (data + curr_offset);
+		thread_data_sge->length = curr_data_len;
+		thread_data_wr.opcode = IBV_WR_RDMA_READ;
+		perform_rdma_op(&thread_data_wr);
+		DEBUG("[%d.%d] read data from server [%c]\n", rdma_client_id, rdma_task_id, data[curr_offset]);
+	}
+	ull end_of_read = rdtscp();
+	thread_task->sdata_read[thread_task->idx] = end_of_read - end_of_cas;
+	thread_task->sglock_tries[thread_task->idx] = tries;
+	thread_task->data_read[thread_task->run][thread_task->snd_run] += end_of_read - end_of_cas;
+	return tries;
+}
+
+int rdma_release_lock_lease2()
+{
+    DEBUG("[%d.%d] rdma_release_lock [%d]\n", rdma_client_id, rdma_task_id, curr_rlock_id);
+	ull start = rdtscp();
+	if (curr_offset >= 0) {
+		thread_data_wr.wr.rdma.remote_addr = data_addr + curr_offset;
+		thread_data_wr.opcode = IBV_WR_RDMA_WRITE;
+		perform_rdma_op(&thread_data_wr);
+		DEBUG("[%d.%d] Written back data\n", rdma_client_id, rdma_task_id);
+	}
+	ull end_of_data_write = rdtscp();
+	thread_task->sdata_write[thread_task->idx] = end_of_data_write - start;
+	thread_task->data_write[thread_task->run][thread_task->snd_run] += end_of_data_write - start;
+	perform_rdma_op(&thread_w_wr);
+	thread_task->sgwait_rel[thread_task->idx] = rdtscp() - end_of_data_write;
+	DEBUG("[%d.%d] released rlock [%d] on server\n", rdma_client_id, rdma_task_id, curr_rlock_id);
+	return 0;
 }
 
 // TODO: cleanup per thread

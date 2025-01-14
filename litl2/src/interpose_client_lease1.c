@@ -1,4 +1,3 @@
-
 /*
  * The MIT License (MIT)
  *
@@ -112,7 +111,9 @@ __thread unsigned int cur_thread_id;
 __thread int sockfd;
 __thread int client_id;
 __thread int task_id;
+__thread int nthreads;
 __thread task_t *task;
+
 
 unsigned int last_thread_id;
 int cur_turn = 1;
@@ -406,7 +407,7 @@ static void *lp_start_routine(void *_arg) {
     task = (task_t*) r->arg; 
     client_id = task->client_id;
     task_id = task->id;
-    
+    nthreads = task->nthreads;
     free(r);
 
     cur_thread_id = __sync_fetch_and_add(&last_thread_id, 1);
@@ -416,21 +417,9 @@ static void *lp_start_routine(void *_arg) {
                 MAX_THREADS);
         exit(-1);
     } 
-#ifdef TCP_PROXY
-    sockfd = establish_tcp_connection(task_id, task->server_ip);
-    if(sockfd < 0) {
-        tcp_error("Thread %d failed at establishing tcp connection", cur_thread_id);
-    }
-    task->sockfd = sockfd;
-#endif
-#ifdef TCP_SPINLOCK
-    sockfd = task->sockfd;
-    init_tcp_client(task);
-#endif
-#ifdef RDMA
     DEBUG("Launching thread with RDMA lp start routine\n");
     set_rdma_client_meta(task, task->client_meta, client_id, task_id);
-#endif
+
     lock_thread_start();
     res = fct(arg);
     lock_thread_exit();
@@ -490,32 +479,31 @@ int pthread_mutex_lock(pthread_mutex_t *mutex) {
     DEBUG_PTHREAD("[p] pthread_mutex_lock\n");
     ull tries = 0;
     ull start = rdtscp();
-#ifdef TCP_PROXY
-    return tcp_request_lock();
-#endif
     disa_mutex_t *disa_mutex = (disa_mutex_t *) mutex;
     if (disa_mutex->disa != 'y') {
         // DEBUG("native mutex_lock\n");
         return REAL(pthread_mutex_lock)(mutex);
     }
+    __sync_fetch_and_add(&disa_mutex->other, 1);
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get(mutex);
     lock_mutex_lock(impl->lock_lock, get_node(impl));
 #else
     lock_mutex_lock(mutex, NULL);
 #endif
+// TODO: Need to handle case on first acquisition
+// TODO: how do other clients set the r_waiting variable?
+// TODO: All these things should be associated with the lock object!
     ull end_lacq = rdtscp();
-#ifdef RDMA
-    tries = rdma_request_lock(disa_mutex);
-#endif
-#ifdef TCP_SPINLOCK
-    tcp_request_lock();
-#endif
-    ull end = rdtscp();
-    task->gwait_acq[task->run][task->snd_run] += end - end_lacq; 
-    task->lwait_acq[task->run][task->snd_run] += end_lacq - start;
-    task->glock_tries[task->run][task->snd_run] += tries;
+    if (disa_mutex->turns == 0) {
+        tries = rdma_request_lock_lease2(disa_mutex);
+        disa_mutex->turns = nthreads;
+        ull end = rdtscp();
+        task->gwait_acq[task->run][task->snd_run] += end - end_lacq; 
+        task->glock_tries[task->run][task->snd_run] += tries;
+    }
 
+    task->lwait_acq[task->run][task->snd_run] += end_lacq - start;
     task->slwait_acq[task->idx] = end_lacq - start;
     return 0;
 }
@@ -538,20 +526,16 @@ int pthread_mutex_trylock(pthread_mutex_t *mutex) {
 int pthread_mutex_unlock(pthread_mutex_t *mutex) {
     DEBUG_PTHREAD("[p] pthread_mutex_unlock\n");
     ull start = rdtscp();
-#ifdef TCP_PROXY
-    return tcp_release_lock();
-#endif
     disa_mutex_t *disa_mutex = (disa_mutex_t *) mutex;
     if (disa_mutex->disa != 'y') {
         // DEBUG("native mutex_unlock\n");
         return REAL(pthread_mutex_unlock)(mutex);
     }
-#ifdef RDMA
-    rdma_release_lock();
-#endif
-#ifdef TCP_SPINLOCK
-    tcp_release_lock();
-#endif
+    disa_mutex->turns--;
+    disa_mutex->other--;
+    if (disa_mutex->turns == 0 || disa_mutex->other == 0){
+        rdma_release_lock_lease1();
+    }
     ull end_grel = rdtscp();
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get(mutex);
@@ -562,8 +546,8 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex) {
     ull end = rdtscp();
     task->lwait_rel[task->run][task->snd_run] += end - end_grel;
     task->gwait_rel[task->run][task->snd_run] += end_grel - start;
-
     task->slwait_rel[task->idx] = end - end_grel;
+
     return 0;
 }
 

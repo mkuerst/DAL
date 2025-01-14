@@ -37,11 +37,11 @@ void _shutdown() {
 				ibv_destroy_qp(conn.qp);
 				ibv_destroy_comp_channel(conn.io_comp_chan);
 				ibv_dealloc_pd(conn.pd);
-				ibv_dereg_mr(conn.rlock_mr);
-				ibv_dereg_mr(conn.server_mr);
 				rdma_destroy_id(conn.cm_client_id);
 				rdma_destroy_id(cm_server_id);
 				rdma_destroy_event_channel(cm_event_channel);
+				rdma_buffer_free(rlock_mr);
+				rdma_buffer_free(data_mr);
 			}
 		}
 		free(client.connections);

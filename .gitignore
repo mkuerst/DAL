@@ -15,3 +15,4 @@ microbench/client_logs
 microbench/mpi_test
 microbench/barrier_files/*
 microbench/metadata/*
+litl2/make.log

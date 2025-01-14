@@ -95,7 +95,8 @@
 #define GB(x) (MB(x) * 1024L)
 // CACHE: L1: 512 KiB (x16 instances) | L2: 4 MiB (x16 instances) | L3: 40 MiB (x2 instances)
 // 256 KiB -*8> 2 MiB -*8> 16 -*4>
-#define MAX_ARRAY_SIZE MB(96)
+#define MAX_ARRAY_SIZE MB(32)
+#define PRIVATE_ARRAY_SZ KB(512) 
 
 #define MAX_THREADS 128
 #define MAX_CLIENTS 12
@@ -169,7 +170,7 @@ typedef struct {
     volatile int *stop;
     volatile ull *global_its;
     pthread_t thread;
-    int priority, id, sockfd, client_id, nlocks;
+    int priority, id, sockfd, client_id, nlocks, nthreads;
     double cs;
     char* server_ip;
     char disa;
@@ -191,6 +192,10 @@ typedef struct {
     size_t array_size[NUM_RUNS][NUM_SND_RUNS];
     ull duration, cnt;
 
+    // MISC
+    int run, snd_run, idx;
+    int private_int_array[PRIVATE_ARRAY_SZ / sizeof(int)];
+
     // MEASUREMENTS SINGLE 
     ull slock_hold[MAX_MEASUREMENTS];
     ull swait_acq[MAX_MEASUREMENTS];
@@ -204,8 +209,6 @@ typedef struct {
     ull sglock_tries[MAX_MEASUREMENTS];
     ull sloop_in_cs[MAX_MEASUREMENTS];
 
-    // MISC
-    int run, snd_run, idx;
 } task_t __attribute__ ((aligned (CACHELINE_SIZE)));
 
 
@@ -241,7 +244,11 @@ typedef struct {
     char disa;
     int id;
     int offset;
-    size_t len;
+    size_t data_len;
+    //TODO: will eventually turn into lease_time
+    int turns;
+    uint64_t *cas_result;
+    unsigned int other;
 } disa_mutex_t;
 
 /* 

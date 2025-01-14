@@ -315,8 +315,10 @@ void *mem_worker(void *arg) {
 void *mlocks_worker(void *arg) {
     task_t *task = (task_t *) arg;
     int task_id = task->id;
-    char* data = task->client_meta->data;
+    int* data = (int *) task->client_meta->data;
     int nlocks = task->nlocks;
+    int *private_int_array = task->private_int_array;
+    int data_len = MAX_ARRAY_SIZE / sizeof(int) / nlocks;
 
     pin_thread(task_id, nthreads, use_nodes);
     ull start, lock_start;
@@ -327,7 +329,7 @@ void *mlocks_worker(void *arg) {
 
     for (int i = 0; i < NUM_RUNS; i++) {
         task->run = i;
-        volatile char sum = 'a'; // Prevent compiler optimizations
+        volatile int sum = 1; // Prevent compiler optimizations
         ull array_size = MAX_ARRAY_SIZE;
         lock_acquires = 0;
         lock_hold = 0;
@@ -345,34 +347,36 @@ void *mlocks_worker(void *arg) {
         task->cnt = 0;
         task->idx = 0;
         while (!*task->stop) {
-            int lock_idx = uniform_rand_int(nlocks);
-            int data_len = locks[lock_idx].len;
-            int base_idx = locks[lock_idx].offset;
-
-            start = rdtscp();
-            lock_acquire((pthread_mutex_t *)&locks[lock_idx]);
-            lock_start = rdtscp();
-
-            task->swait_acq[task->idx] = lock_start-start;
-            wait_acq += lock_start-start;
-            lock_acquires++;
-            for (int i = 0; i < data_len; i++) {
-                if(*task->stop)
-                    break;
-                loop_in_cs++;
-                data[base_idx+i] += sum;
+            for (int i = 0; i < 400; i++) {
+                int idx = uniform_rand_int(PRIVATE_ARRAY_SZ / sizeof(int));
+                private_int_array[idx] += sum;
             }
-            ull rel_start = rdtscp();
-            lock_release((pthread_mutex_t *)&locks[lock_idx]);
-            ull rel_end = rdtscp();
 
-            task->slock_hold[task->idx] = rel_start - lock_start;
-            task->swait_rel[task->idx] = rel_end - rel_start;
-            task->idx = (task->idx + 1) % MAX_MEASUREMENTS;
-            task->cnt++;
+            for (int i = 0; i < 100; i++) {
+                int idx = uniform_rand_int(MAX_ARRAY_SIZE / sizeof(int));
+                int lock_idx = idx / data_len;
 
-            lock_hold += rel_start - lock_start;
-            wait_rel += rel_end - rel_start;
+                start = rdtscp();
+                lock_acquire((pthread_mutex_t *)&locks[lock_idx]);
+                lock_start = rdtscp();
+
+                data[idx] += sum;
+
+                ull rel_start = rdtscp();
+                lock_release((pthread_mutex_t *)&locks[lock_idx]);
+                ull rel_end = rdtscp();
+
+                task->swait_acq[task->idx] = lock_start-start;
+                task->slock_hold[task->idx] = rel_start - lock_start;
+                task->swait_rel[task->idx] = rel_end - rel_start;
+                task->idx = (task->idx + 1) % MAX_MEASUREMENTS;
+                task->cnt++;
+
+                wait_acq += lock_start-start;
+                lock_hold += rel_start - lock_start;
+                wait_rel += rel_end - rel_start;
+                lock_acquires++;
+            }
         }
         task->lock_acquires[i][j] = lock_acquires;
         task->loop_in_cs[i][j] = loop_in_cs;
@@ -414,7 +418,7 @@ int main(int argc, char *argv[]) {
     int duration = atoi(argv[2]);
     double cs = atoi(argv[3]);
     char *server_ip = argv[4];
-    int mode = argc < 6 ? 0 : atoi(argv[5]);
+    int mode = atoi(argv[5]);
     num_clients = atoi(argv[7]);
     res_file_cum = argv[8];
     res_file_single = argv[9];
@@ -494,6 +498,11 @@ int main(int argc, char *argv[]) {
         }
     #endif
 
+    /*TASK INIT*/
+    int *global_turn = malloc(sizeof(int));
+    int *r_waiting = malloc(sizeof(int));
+    *global_turn = nthreads;
+    *r_waiting = 0;
     for (int i = 0; i < nthreads; i++) {
         tasks[i] = (task_t) {0};
         tasks[i].global_its = &global_its;
@@ -509,6 +518,7 @@ int main(int argc, char *argv[]) {
         tasks[i].server_ip = server_ip;
         tasks[i].client_meta = client_meta;
         tasks[i].duration = duration;
+        tasks[i].nthreads = nthreads;
     }
 
     locks = (disa_mutex_t *) malloc(nlocks * sizeof(disa_mutex_t));
@@ -516,7 +526,9 @@ int main(int argc, char *argv[]) {
         locks[l].disa = 'y';
         locks[l].id = l;
         locks[l].offset = -1;
-        locks[l].len = 0;
+        locks[l].data_len = 0;
+        locks[l].turns = nthreads;
+        locks[l].cas_result = &client_meta->cas_result[l];
         lock_init(&locks[l]);
     }
     lock = locks[0];
@@ -527,9 +539,13 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < nthreads; i++) {
         pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
     }
+    /*RUNS*/
     for (int i = 0; i < NUM_RUNS; i++) {
         for (int k = 0; k < num_mem_runs; k++) {
             size_t array_sz = MAX_ARRAY_SIZE;
+            for (int l = 0; l < nlocks; l++) {
+                locks[l].turns = nthreads;
+            }
             if (mode == 3 || mode == 4) {
                 array0 = (char *) numa_alloc_onnode(array_sz, 0);
                 array1 = (char *) numa_alloc_onnode(array_sz, 1);
@@ -543,7 +559,8 @@ int main(int argc, char *argv[]) {
                 scope = array_sz / nlocks;
                 for (int l = 0; l < nlocks; l++) {
                     locks[l].offset = l*scope;
-                    locks[l].len = scope;
+                    locks[l].data_len = scope;
+                    locks[l].other = 0;
                 }
             }
             stop = 0;
