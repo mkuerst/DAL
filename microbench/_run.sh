@@ -127,13 +127,13 @@ rm -rf barrier_files/*
 
 comm_prot="rdma"
 microbenches=("empty_cs2n" "empty_cs1n" "lat" "mem2n" "mem1n" "mlocks2n" "mlocks1n")
-opts=("lease1")
+opts=("spinlock" "lease1")
 client_ids=(0 1 2 3 4 5 6 7 8 9)
 
-n_clients=(2)
+n_clients=(1 4)
 n_threads=(16)
-bench_idxs=(5)
-num_locks=(2)
+bench_idxs=(0 3)
+num_locks=(1)
 
 for impl_dir in "$BASE"/original/*
 do
@@ -173,7 +173,7 @@ do
                         echo $server_file_header > "$server_res_file"
 
                         server_session="server_$i"
-                        echo "START $impl $opt SERVER FOR $i THREADS PER CLIENT & $nclients CLIENTS"
+                        echo "START $impl $opt SERVER FOR $i THREADS PER CLIENT & $nclients CLIENTS & $nlocks LOCKS"
 
                         tmux new-session -d -s "$server_session" \
                         "ssh $REMOTE_USER@$REMOTE_SERVER $rdma_server_app -c $nclients -a $server_ip -t $i -l $nlocks >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
@@ -184,7 +184,7 @@ do
                         sleep 3
 
                         # ============= MPIRUN ========================================================
-                        echo "START MICROBENCH $microb WITH $nclients $opt MPI-CLIENTS AND $i THREADS PER MPI-CLIENT"
+                        echo "START MICROBENCH $microb WITH $nclients $opt MPI-CLIENTS AND $i THREADS PER MPI-CLIENT & $nlocks LOCKS"
                         mpirun --hostfile ./clients.txt -np $nclients \
                         --x LD_PRELOAD=$client_so \
                         --mca btl_tcp_if_exclude lo,eno3,eno1,eno4,eno2,docker0 \

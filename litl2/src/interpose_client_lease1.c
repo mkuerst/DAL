@@ -530,7 +530,10 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex) {
         return REAL(pthread_mutex_unlock)(mutex);
     }
     disa_mutex->turns--;
-    if (disa_mutex->turns == 0 || disa_mutex->other == 0){
+    __sync_synchronize(); 
+    int other = disa_mutex->other;
+    __sync_synchronize();
+    if (disa_mutex->turns == 0 || other == 0){
         rdma_release_lock_lease1(disa_mutex);
     }
     ull end_grel = rdtscp();

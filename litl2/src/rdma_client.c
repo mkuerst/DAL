@@ -390,7 +390,7 @@ int perform_rdma_op(struct ibv_send_wr *wr)
 // TODO: Specify size of one data elem
 ull rdma_request_lock(disa_mutex_t* disa_mutex)
 {
-    DEBUG("[%d.%d] rdma_request_lock [%d]\n", rdma_client_id, rdma_task_id, curr_rlock_id);
+    DEBUG("[%d.%d] rdma_request_lock [%d]\n", rdma_client_id, rdma_task_id, disa_mutex->id);
 	ull start = rdtscp();
 	int tries = 0;
 	curr_rlock_id = disa_mutex->id;

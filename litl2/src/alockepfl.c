@@ -51,6 +51,7 @@
 #include "utils.h"
 
 extern __thread unsigned int cur_thread_id;
+extern __thread int client_id;
 
 alockepfl_mutex_t *alockepfl_mutex_create(const pthread_mutexattr_t *attr) {
     alockepfl_mutex_t *impl =
@@ -102,7 +103,7 @@ int alockepfl_mutex_lock(alockepfl_mutex_t *impl, alockepfl_context_t *me) {
         assert(REAL(pthread_mutex_lock)(&impl->posix_lock) == 0);
     }
 #endif
-    DEBUG("[%d] Lock acquired posix=%p\n", cur_thread_id, &impl->posix_lock);
+    DEBUG("[%d.%d] Lock acquired posix=%p\n", client_id, cur_thread_id-1, &impl->posix_lock);
     return ret;
 }
 
