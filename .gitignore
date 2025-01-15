@@ -1,4 +1,4 @@
-microbench/results
+microbench/results*
 litl/impl/*
 .vscode
 *.o
