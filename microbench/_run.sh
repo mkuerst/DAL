@@ -102,7 +102,8 @@ disa_bench="$PWD/main_disa"
 client_filecum_header="tid,loop_in_cs,lock_acquires,lock_hold(ms),total_duration(s),\
 wait_acq(ms),wait_rel(ms),lwait_acq,lwait_rel,\
 gwait_acq,gwait_rel,data_read,data_write,\
-glock_tries,array_size(B),client_id,run"
+glock_tries,array_size(B),client_id,run,nlocks"
+
 client_filesingle_header="tid,total_duration(s),\
 min_slock_hold,med,max,\
 min_swait_acq,med,max,\
@@ -114,7 +115,9 @@ min_sgwait_rel,med,max,\
 min_sdata_read,med,max,\
 min_sdata_write,med,max,\
 min_sglock_tries,med,max,\
-array_size(B),client_id"
+array_size(B),client_id,\
+nlocks"
+
 server_file_header="tid,wait_acq(ms),wait_rel(ms),client_id,run"
 
 # MICROBENCH INPUTS
@@ -132,8 +135,8 @@ client_ids=(0 1 2 3 4 5 6 7 8 9)
 
 n_clients=(1 4)
 n_threads=(16)
-bench_idxs=(0 3)
-num_locks=(1)
+bench_idxs=(5)
+num_locks=(1 32 256 1024)
 
 for impl_dir in "$BASE"/original/*
 do
@@ -162,15 +165,16 @@ do
             do
                 for i in ${n_threads[@]}
                 do
+                    client_rescum_file="$client_rescum_dir"/nclients$nclients"_nthreads"$i.csv
+                    client_ressingle_file="$client_ressingle_dir"/nclients$nclients"_nthreads"$i.csv
+                    server_res_file="$server_res_dir"/nclients$nclients"_nthreads"$i.csv
+                    orig_res_file="$orig_res_dir/nthread_$i.csv"
+                    echo $client_filecum_header > "$client_rescum_file"
+                    echo $client_filesingle_header > "$client_ressingle_file"
+                    echo $server_file_header > "$server_res_file"
+
                     for nlocks in ${num_locks[@]}
                     do
-                        client_rescum_file="$client_rescum_dir"/nclients$nclients"_nthreads"$i.csv
-                        client_ressingle_file="$client_ressingle_dir"/nclients$nclients"_nthreads"$i.csv
-                        server_res_file="$server_res_dir"/nclients$nclients"_nthreads"$i.csv
-                        orig_res_file="$orig_res_dir/nthread_$i.csv"
-                        echo $client_filecum_header > "$client_rescum_file"
-                        echo $client_filesingle_header > "$client_ressingle_file"
-                        echo $server_file_header > "$server_res_file"
 
                         server_session="server_$i"
                         echo "START $impl $opt SERVER FOR $i THREADS PER CLIENT & $nclients CLIENTS & $nlocks LOCKS"

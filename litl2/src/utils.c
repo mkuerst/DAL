@@ -211,7 +211,7 @@ int write_res_cum(task_t* tasks, int nthreads, int mode, char* res_file) {
                 size_t array_size = task.array_size[j][l];
                 total_lock_hold += lock_hold;
                 total_lock_acq += task.lock_acquires[j][l];
-                fprintf(file, "%03d,%10llu,%8llu,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%10llu,%16lu,%03d,%03d\n",
+                fprintf(file, "%03d,%10llu,%8llu,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%10llu,%16lu,%03d,%03d,%06d\n",
                         task.id,
                         task.loop_in_cs[j][l],
                         task.lock_acquires[j][l],
@@ -228,7 +228,8 @@ int write_res_cum(task_t* tasks, int nthreads, int mode, char* res_file) {
                         task.glock_tries[j][l],
                         array_size,
                         task.client_id,
-                        j);
+                        j,
+                        task.nlocks);
             }
         }
         fprintf(stderr, "RUN %d\n", j);
@@ -269,7 +270,7 @@ int write_res_single(task_t* tasks, int nthreads, int mode, char* res_file) {
         for (int l = 0; l < NUM_MEASUREMENTS*NUM_STATS; l++) {
             fprintf(file, "%12.9f,", x[l]);
         }
-        fprintf(file, "%16lu,%03d\n", array_size, task.client_id);
+        fprintf(file, "%16lu,%03d,%06d\n", array_size, task.client_id, task.nlocks);
     }
     fclose(file);
     // MPI Clients don't sync on buffer file IO
