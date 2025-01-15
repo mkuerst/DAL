@@ -118,7 +118,7 @@ array_size(B),client_id"
 server_file_header="tid,wait_acq(ms),wait_rel(ms),client_id,run"
 
 # MICROBENCH INPUTS
-duration=3
+duration=10
 critical=1000
 
 rm -rf server_logs/
