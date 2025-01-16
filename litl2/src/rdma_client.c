@@ -47,6 +47,7 @@ uint64_t rlock_addr;
 uint32_t rlock_rkey;
 uint64_t data_addr;
 uint32_t data_rkey;
+size_t total_bytes;
 uint64_t *cas_result;
 uint64_t *unlock_val;
 char *data;
@@ -89,6 +90,7 @@ void set_rdma_client_meta(task_t* task, rdma_client_meta* client_meta, int cid, 
 	cas_result = client_meta->cas_result;
 	unlock_val = client_meta->unlock_val;
 	data = client_meta->data;
+	total_bytes = client_meta->total_bytes;
 }
 
 void *create_rdma_client_meta(int cid, int nthreads, int nlocks) {
@@ -416,7 +418,7 @@ ull rdma_request_lock(disa_mutex_t* disa_mutex)
 
 	if (curr_byte_offset >= 0) {
 		thread_data_wr.wr.rdma.remote_addr = data_addr + curr_byte_offset;
-		thread_data_sge->addr = (uintptr_t) (data + curr_elem_offset);
+		thread_data_sge->addr = (uintptr_t) (data + curr_byte_offset);
 		thread_data_sge->length = curr_byte_data_len;
 		thread_data_wr.opcode = IBV_WR_RDMA_READ;
 		perform_rdma_op(&thread_data_wr);
@@ -436,7 +438,7 @@ int rdma_release_lock()
     DEBUG("[%d.%d] rdma_release_lock [%d]\n", rdma_client_id, rdma_task_id, curr_rlock_id);
 	ull start = rdtscp();
 	if (curr_byte_offset >= 0) {
-		thread_data_wr.wr.rdma.remote_addr = data_addr + curr_elem_offset;
+		thread_data_wr.wr.rdma.remote_addr = data_addr + curr_byte_offset;
 		thread_data_wr.opcode = IBV_WR_RDMA_WRITE;
 		perform_rdma_op(&thread_data_wr);
 		DEBUG("[%d.%d] written data[%d] =  [%d], lock_idx: [%d]\n",
@@ -547,3 +549,23 @@ int rdma_release_lock_lease1(disa_mutex_t *disa_mutex)
 //     rdma_destroy_event_channel(cm_client_id->channel);
 // 	return 0;
 // }
+
+int rdma_test_correctness(char* correctness, rdma_client_meta* client_meta) {
+	int c = 0;
+	thread_data_wr = client_meta->data_wr[0];
+	thread_data_wr.opcode = IBV_WC_RDMA_READ;
+	thread_data_sge = &client_meta->data_sge[0];
+	thread_data_wr.wr.rdma.remote_addr = data_addr;
+	thread_data_sge->addr = (uintptr_t) data;
+	thread_data_sge->length = client_meta->total_bytes;
+	perform_rdma_op(&thread_data_wr);
+	int *corr = (int *) correctness;
+	int *d = (int *) data;
+	for (int i = 0; i < total_bytes / sizeof(int); i+=1) {
+		if (corr[i] != d[i]) {
+			rdma_error("correctness[%d] = %d\ndata[%d] = %d\n", i, corr[i], i, d[i]);
+			c = -1;
+		}
+	}
+	return c;
+}

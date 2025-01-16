@@ -40,7 +40,7 @@ CLIENT_RDMA_COLS = [
 "data_read", "data_write",
 "glock_tries",
 "array_size", "client_id",
-"run"
+"run", "nlocks",
 ]
 
 SERVER_COLS = [

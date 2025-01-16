@@ -37,6 +37,7 @@ int client;
 int num_clients;
 int use_nodes;
 int scope;
+char correctness[MAX_ARRAY_SIZE];
 
 disa_lock_t lock;
 disa_lock_t *locks;
@@ -91,55 +92,6 @@ void client_barrier(int run) {
     DEBUG("Client %d passing barrier for run %d\n", client, run);
 }
 
-// void *cs_worker(void *arg) {
-//     task_t *task = (task_t *) arg;
-//     int task_id = task->id;
-//     pin_thread(task_id);
-//     ull now, start, then;
-//     ull lock_acquires;
-//     ull lock_hold;
-//     ull loop_in_cs;
-
-//     const ull delta = CYCLES_11 * task->cs;
-
-//     for (int i = 0; i < NUM_RUNS; i++) {
-//         lock_acquires = 0;
-//         lock_hold = 0;
-//         loop_in_cs = 0;
-//         pthread_barrier_wait(&global_barrier);
-//         while (!*task->stop) {
-//         // while (*task->global_its < 1000) {
-//             // fprintf(stderr, "thread %d acquiring lock\n", task->id);
-
-//             lock_acquire(&lock);
-//             // fprintf(stderr, "thread %d acquired lock\n", task->id);
-//             now = rdtscp();
-
-//             lock_acquires++;
-//             (*task->global_its)++;
-//             start = now;
-//             then = now + delta;
-
-//             do {
-//                 loop_in_cs++;
-//             } while (((now = rdtscp()) < then) && !task->stop);
-
-//             lock_hold += now - start;
-
-//             // fprintf(stderr, "thread %d releasing lock\n", task->id);
-//             lock_release(&lock);
-//             // fprintf(stderr, "thread %d released lock\n", task->id);
-//         }
-
-//         task->lock_acquires[i][0] = lock_acquires;
-//         task->loop_in_cs[i][0] = loop_in_cs;
-//         task->lock_hold[i][0] = lock_hold;
-//         pthread_barrier_wait(&global_barrier);
-//     }
-
-//     // fprintf(stderr,"FINISHED tid %d\n", task->id);
-//     return 0;
-// }
 void *lat_worker(void *arg) {
     task_t *task = (task_t *) arg;
     int task_id = task->id;
@@ -361,7 +313,10 @@ void *mlocks_worker(void *arg) {
                 lock_start = rdtscp();
 
                 data[idx] += sum;
-                fprintf(stderr, "data[%d] = %d, lock_idx = %d\n", idx, data[idx], lock_idx);
+            #ifdef CORRECTNESS
+                correctness[idx*sizeof(int)] += 1;
+            #endif
+                DEBUG("data[%d] = %d, lock_idx = %d\n", idx, data[idx], lock_idx);
 
                 ull rel_start = rdtscp();
                 lock_release((pthread_mutex_t *)&locks[lock_idx]);
@@ -504,10 +459,6 @@ int main(int argc, char *argv[]) {
 #endif
 
     /*TASK INIT*/
-    int *global_turn = malloc(sizeof(int));
-    int *r_waiting = malloc(sizeof(int));
-    *global_turn = nthreads;
-    *r_waiting = 0;
     for (int i = 0; i < nthreads; i++) {
         tasks[i] = (task_t) {0};
         tasks[i].global_its = &global_its;
@@ -526,7 +477,7 @@ int main(int argc, char *argv[]) {
         tasks[i].nthreads = nthreads;
     }
 
-    locks = (disa_mutex_t *) malloc(nlocks * sizeof(disa_mutex_t));
+    locks = (disa_mutex_t *) numa_alloc_onnode(nlocks * sizeof(disa_mutex_t), 0);
     for (int l = 0; l < nlocks; l++) {
         locks[l].disa = 'y';
         locks[l].id = l;
@@ -606,7 +557,15 @@ int main(int argc, char *argv[]) {
     MPI_Finalize();
 #endif
     // WAIT SO SERVER CAN SHUTDOWN
+    numa_free(locks, nlocks*sizeof(disa_mutex_t));
     sleep(2);
+#ifdef CORRECTNESS
+    int correct = rdma_test_correctness(correctness, client_meta);
+    if (correct == -1) {
+        _error("DATA IS WRONG\n");
+    }
+    fprintf(stderr, "CORRECTNESS PASSED\n");
+#endif
     fprintf(stderr, "CLIENT %d DONE\n", client);
     return 0;
 }

@@ -157,6 +157,7 @@ typedef struct {
 	uint32_t data_rkey;
     uint64_t *cas_result;
     uint64_t *unlock_val;
+    size_t total_bytes;
     char* data;
 
     struct ibv_qp **qp;
