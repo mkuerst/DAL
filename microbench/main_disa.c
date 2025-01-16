@@ -37,7 +37,6 @@ int client;
 int num_clients;
 int use_nodes;
 int scope;
-char correctness[MAX_ARRAY_SIZE];
 
 disa_lock_t lock;
 disa_lock_t *locks;
@@ -92,39 +91,6 @@ void client_barrier(int run) {
     DEBUG("Client %d passing barrier for run %d\n", client, run);
 }
 
-void *lat_worker(void *arg) {
-    task_t *task = (task_t *) arg;
-    int task_id = task->id;
-    pin_thread(task_id, nthreads, use_nodes);
-    ull now, start, end;
-    ull lock_acquires;
-
-    for (int i = 0; i < NUM_RUNS; i++) {
-        task->run = i;
-        lock_acquires = 0;
-
-        pthread_barrier_wait(&local_barrier);
-        if (task_id == 0)
-            MPI_Barrier(MPI_COMM_WORLD);
-        pthread_barrier_wait(&global_barrier);
-
-        for (int j = 0; j < NUM_LAT_RUNS; j++) {
-                task->snd_run = j;
-                start = rdtscp();
-                lock_acquire((pthread_mutex_t *)&lock);
-                now = rdtscp();
-                task->wait_acq[i][j] = now - start;
-                lock_acquires++;
-                end = rdtscp();
-                task->lock_hold[i][j] = end - now;
-                lock_release((pthread_mutex_t *)&lock);
-                task->wait_rel[i][j] = rdtscp() - end;
-        }
-        pthread_barrier_wait(&global_barrier);
-    }
-    return 0;
-}
-
 void *empty_cs_worker(void *arg) {
     task_t *task = (task_t *) arg;
     int task_id = task->id;
@@ -145,11 +111,11 @@ void *empty_cs_worker(void *arg) {
         wait_rel = 0;
 
         pthread_barrier_wait(&local_barrier);
-        #ifdef MPI
+    #ifdef MPI
         if (task_id == 0)
             MPI_Barrier(MPI_COMM_WORLD);
-            // client_barrier(i);
-        #endif
+    #endif
+
         pthread_barrier_wait(&global_barrier);
         
         task->cnt = 0;
@@ -259,8 +225,8 @@ void *mem_worker(void *arg) {
             task->wait_acq[i][j] = wait_acq;
             task->wait_rel[i][j] = wait_rel;
             pthread_barrier_wait(&global_barrier);
-        }
     }
+        }
     return 0;
 }
 
@@ -278,10 +244,10 @@ void *mlocks_worker(void *arg) {
     ull wait_acq, wait_rel;
 
     int j = 0;
+    volatile int sum = 1; // Prevent compiler optimizations
 
     for (int i = 0; i < NUM_RUNS; i++) {
         task->run = i;
-        volatile int sum = 1; // Prevent compiler optimizations
         ull array_size = MAX_ARRAY_SIZE;
         lock_acquires = 0;
         lock_hold = 0;
@@ -305,17 +271,18 @@ void *mlocks_worker(void *arg) {
             }
 
             for (int j = 0; j < 100; j++) {
-                int idx = uniform_rand_int(MAX_ARRAY_SIZE / sizeof(int));
-                int lock_idx = idx / data_len;
+                // int idx = uniform_rand_int(MAX_ARRAY_SIZE / sizeof(int));
+                // int lock_idx = idx / data_len;
+                int lock_idx = uniform_rand_int(nlocks);
 
                 start = rdtscp();
                 lock_acquire((pthread_mutex_t *)&locks[lock_idx]);
                 lock_start = rdtscp();
 
-                data[idx] += sum;
-            #ifdef CORRECTNESS
-                correctness[idx*sizeof(int)] += 1;
-            #endif
+                for (int idx = lock_idx*data_len; idx < lock_idx*data_len+data_len; idx++) {
+                    data[idx] += sum;
+                    loop_in_cs++;
+                }
                 DEBUG("data[%d] = %d, lock_idx = %d\n", idx, data[idx], lock_idx);
 
                 ull rel_start = rdtscp();
@@ -332,7 +299,6 @@ void *mlocks_worker(void *arg) {
                 lock_hold += rel_start - lock_start;
                 wait_rel += rel_end - rel_start;
                 lock_acquires++;
-                loop_in_cs++;
                 if (*task->stop) {
                     break;
                 }
@@ -352,18 +318,12 @@ void *mlocks_worker(void *arg) {
 int main(int argc, char *argv[]) {
     client = atoi(argv[6]);
 #ifdef MPI
-    // int initialized;
-    // MPI_Initialized(&initialized);
-    // if (!initialized)
-    //     MPI_Init(NULL, NULL);
-
     int provided;
     MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
     if (provided < MPI_THREAD_MULTIPLE) {
         printf("MPI does not provide required threading support\n");
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
-
     DEBUG("MPI INIT DONE\n");
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -395,11 +355,6 @@ int main(int argc, char *argv[]) {
         case 1:
             use_nodes = 1;
             worker = empty_cs_worker;
-            num_mem_runs = 1;
-            break;
-        case 2:
-            use_nodes = 2;
-            worker = lat_worker;
             num_mem_runs = 1;
             break;
         case 3:
@@ -556,19 +511,9 @@ int main(int argc, char *argv[]) {
 #ifdef MPI
     MPI_Finalize();
 #endif
-    // WAIT SO SERVER CAN SHUTDOWN
     numa_free(locks, nlocks*sizeof(disa_mutex_t));
+    // WAIT SO SERVER CAN SHUTDOWN
     sleep(2);
-#ifdef CORRECTNESS
-    int correct = rdma_test_correctness(correctness, client_meta);
-    if (correct == -1) {
-        _error("DATA IS WRONG\n");
-    }
-    fprintf(stderr, "CORRECTNESS PASSED\n");
-#endif
     fprintf(stderr, "CLIENT %d DONE\n", client);
     return 0;
 }
-
-// LD_PRELOAD=/home/mihi/Desktop/DAL/litl2/lib/original/libcbomcs_spinlock.so ./main 2 3 1000 8 
-// LD_PRELOAD=/home/kumichae/DAL/litl2/lib/original/libcbomcs_spinlock.so ./main 2 3 1000 8 
