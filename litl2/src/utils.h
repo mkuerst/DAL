@@ -95,7 +95,7 @@
 #define GB(x) (MB(x) * 1024L)
 // CACHE: L1: 512 KiB (x16 instances) | L2: 4 MiB (x16 instances) | L3: 40 MiB (x2 instances)
 // 256 KiB -*8> 2 MiB -*8> 16 -*4>
-#define MAX_ARRAY_SIZE MB(32)
+#define MAX_ARRAY_SIZE 2048
 #define PRIVATE_ARRAY_SZ KB(512) 
 
 #define MAX_THREADS 128
@@ -245,6 +245,7 @@ typedef struct {
     int id;
     int offset;
     size_t data_len;
+    size_t elem_sz;
     //TODO: will eventually turn into lease_time
     int turns;
     uint64_t *cas_result;

@@ -347,12 +347,12 @@ void *mlocks_worker(void *arg) {
         task->cnt = 0;
         task->idx = 0;
         while (!*task->stop) {
-            for (int i = 0; i < 400; i++) {
+            for (int j = 0; j < 400; j++) {
                 int idx = uniform_rand_int(PRIVATE_ARRAY_SZ / sizeof(int));
                 private_int_array[idx] += sum;
             }
 
-            for (int i = 0; i < 100; i++) {
+            for (int j = 0; j < 100; j++) {
                 int idx = uniform_rand_int(MAX_ARRAY_SIZE / sizeof(int));
                 int lock_idx = idx / data_len;
 
@@ -361,6 +361,7 @@ void *mlocks_worker(void *arg) {
                 lock_start = rdtscp();
 
                 data[idx] += sum;
+                fprintf(stderr, "data[%d] = %d, lock_idx = %d\n", idx, data[idx], lock_idx);
 
                 ull rel_start = rdtscp();
                 lock_release((pthread_mutex_t *)&locks[lock_idx]);
@@ -564,6 +565,7 @@ int main(int argc, char *argv[]) {
                 for (int l = 0; l < nlocks; l++) {
                     locks[l].offset = l*scope;
                     locks[l].data_len = scope;
+                    locks[l].elem_sz = sizeof(int);
                     locks[l].other = 0;
                     locks[l].turns = 0;
                 }

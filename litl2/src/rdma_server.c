@@ -14,7 +14,7 @@ int nthreads = 0;
 int nlocks = 0;
 
 uint64_t *rlocks;
-char* data;
+int data[MAX_ARRAY_SIZE / sizeof(int)];
 
 struct ibv_pd *pd = NULL;
 struct rdma_event_channel *cm_event_channel = NULL;
@@ -93,7 +93,7 @@ int write_metadata_to_file() {
 
 }
 
-int prep_rdma_conn(rdma_connection* conn, char* data, int nlocks)
+int prep_rdma_conn(rdma_connection* conn, int* data, int nlocks)
 {
 	conn->data_sge.addr = (uint64_t) data_mr->addr;
 	conn->data_sge.length = data_mr->length;
@@ -143,8 +143,8 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients, int 
 	clients = malloc(nclients * sizeof(rdma_server_meta));
 	rlocks = (uint64_t *) aligned_alloc(sizeof(uint64_t), nlocks*RLOCK_SIZE);
 	memset(rlocks, 0, nlocks*RLOCK_SIZE);
-	data = (char *) aligned_alloc(sizeof(uint64_t), MAX_ARRAY_SIZE);
-	memset(data, 0, MAX_ARRAY_SIZE);
+	// data = (int *) aligned_alloc(sizeof(uint64_t), MAX_ARRAY_SIZE);
+	// memset(data, 0, MAX_ARRAY_SIZE);
 
 	for (int i = 0; i < nclients; i++) {
 		debug("Waiting for conn establishments of client %d\n", i);
