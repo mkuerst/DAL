@@ -279,11 +279,13 @@ void *mlocks_worker(void *arg) {
                 lock_acquire((pthread_mutex_t *)&locks[lock_idx]);
                 lock_start = rdtscp();
 
-                for (int idx = lock_idx*data_len; idx < lock_idx*data_len+data_len; idx++) {
-                    data[idx] += sum;
-                    loop_in_cs++;
-                }
-                DEBUG("data[%d] = %d, lock_idx = %d\n", idx, data[idx], lock_idx);
+                // for (int idx = lock_idx*data_len; idx < lock_idx*data_len+data_len; idx++) {
+                //     data[idx] += sum;
+                //     loop_in_cs++;
+                // }
+                data[lock_idx*data_len] += sum;
+                loop_in_cs++;
+                // DEBUG("data[%d] = %d, lock_idx = %d\n", idx, data[idx], lock_idx);
 
                 ull rel_start = rdtscp();
                 lock_release((pthread_mutex_t *)&locks[lock_idx]);

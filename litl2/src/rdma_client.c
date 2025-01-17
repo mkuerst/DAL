@@ -50,6 +50,7 @@ uint32_t data_rkey;
 uint64_t *cas_result;
 uint64_t *unlock_val;
 char *data;
+int *int_data;
 
 /*******************************************************************/
 /******************** THREAD LOCAL ************************************/
@@ -90,6 +91,7 @@ void set_rdma_client_meta(task_t* task, rdma_client_meta* client_meta, int cid, 
 	cas_result = client_meta->cas_result;
 	unlock_val = client_meta->unlock_val;
 	data = client_meta->data;
+	int_data = (int *) client_meta->data;
 	total_bytes = MAX_ARRAY_SIZE;
 }
 
@@ -433,7 +435,7 @@ ull rdma_request_lock(disa_mutex_t* disa_mutex)
 		}
 		DEBUG("[%d.%d] read data[%d] =  [%d], lock_idx: [%d]\n",
 		rdma_client_id, rdma_task_id, curr_elem_offset,
-		(int) data[curr_byte_offset], curr_rlock_id);
+		int_data[curr_elem_offset], curr_rlock_id);
 	}
 	ull end_of_read = rdtscp();
 	thread_task->sdata_read[thread_task->idx] = end_of_read - end_of_cas;
@@ -455,7 +457,7 @@ int rdma_release_lock()
 		}
 		DEBUG("[%d.%d] written data[%d] =  [%d], lock_idx: [%d]\n",
 		rdma_client_id, rdma_task_id, curr_elem_offset,
-		(int) data[curr_byte_offset], curr_rlock_id);
+		int_data[curr_elem_offset], curr_rlock_id);
 	}
 	ull end_of_data_write = rdtscp();
 	if(perform_rdma_op(&thread_w_wr)) {
@@ -514,7 +516,7 @@ ull rdma_request_lock_lease1(disa_mutex_t *disa_mutex)
 		}
 		DEBUG("[%d.%d] read data[%d] =  [%d], lock_idx: [%d]\n",
 		rdma_client_id, rdma_task_id, curr_elem_offset,
-		(int) data[curr_byte_offset], curr_rlock_id);
+		int_data[curr_elem_offset], curr_rlock_id);
 	}
 	ull end_of_read = rdtscp();
 	thread_task->sdata_read[thread_task->idx] = end_of_read - end_of_cas;
@@ -544,7 +546,7 @@ int rdma_release_lock_lease1(disa_mutex_t *disa_mutex)
 		}
 		DEBUG("[%d.%d] written data[%d] =  [%d], lock_idx: [%d]\n",
 		rdma_client_id, rdma_task_id, curr_elem_offset,
-		(int) data[curr_byte_offset], curr_rlock_id);
+		int_data[curr_elem_offset], curr_rlock_id);
 	}
 
 	ull end_of_data_write = rdtscp();

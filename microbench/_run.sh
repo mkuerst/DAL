@@ -121,7 +121,7 @@ nlocks"
 server_file_header="tid,wait_acq(ms),wait_rel(ms),client_id,run"
 
 # MICROBENCH INPUTS
-duration=3
+duration=1
 critical=1000
 
 rm -rf server_logs/
@@ -136,7 +136,7 @@ client_ids=(0 1 2 3 4 5 6 7 8 9)
 n_clients=(4)
 n_threads=(16)
 bench_idxs=(5)
-num_locks=(32)
+num_locks=(2)
 
 for impl_dir in "$BASE"/original/*
 do
