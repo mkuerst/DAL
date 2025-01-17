@@ -18,8 +18,8 @@ static struct ibv_qp *client_qp[THREADS_PER_CLIENT];
 /******************** MEMORY REGIONS *******************************/
 /*******************************************************************/
 static struct ibv_mr 
-*local_cas_mr = NULL,
-*local_data_mr = NULL,
+*local_cas_mr[THREADS_PER_CLIENT],
+*local_data_mr[THREADS_PER_CLIENT],
 *local_unlock_mr = NULL;
 
 /*******************************************************************/
@@ -47,26 +47,27 @@ uint64_t rlock_addr;
 uint32_t rlock_rkey;
 uint64_t data_addr;
 uint32_t data_rkey;
-uint64_t *cas_result;
+uint64_t *cas_result[THREADS_PER_CLIENT];
+char *data[THREADS_PER_CLIENT];
+int *int_data[THREADS_PER_CLIENT];
 uint64_t *unlock_val;
-char *data;
-int *int_data;
 
 /*******************************************************************/
 /******************** THREAD LOCAL ************************************/
 /*******************************************************************/
 __thread int rdma_task_id, curr_rlock_id,
 curr_byte_offset, curr_byte_data_len, curr_elem_offset;
-__thread size_t total_bytes;
-__thread uint8_t ticket = 1;
-__thread uint64_t *curr_cas_result;
+
 __thread struct ibv_qp *thread_qp;
 __thread struct ibv_wc thread_wc;
 __thread struct ibv_comp_channel *thread_io_comp_chan;
 __thread struct ibv_send_wr thread_cas_wr, *thread_bad_wr, thread_w_wr, thread_data_wr;
 __thread struct ibv_sge *thread_cas_sge, *thread_w_sge, *thread_data_sge;
-__thread task_t *thread_task;
 
+__thread task_t *thread_task;
+__thread uint64_t *thread_cas_result;
+__thread char* thread_byte_data;
+__thread int* thread_int_data;
 
 void set_rdma_client_meta(task_t* task, rdma_client_meta* client_meta, int cid, int tid)
 {
@@ -84,29 +85,31 @@ void set_rdma_client_meta(task_t* task, rdma_client_meta* client_meta, int cid, 
 	thread_wc = client_meta->wc[tid];
 	thread_task = task;
 
+	thread_byte_data = client_meta->data[tid];
+	thread_int_data = (int *) client_meta->data[tid];
+	thread_cas_result = client_meta->cas_result[tid];
+
 	rlock_addr = client_meta->rlock_addr;
 	rlock_rkey = client_meta->rlock_rkey;
 	data_addr = client_meta->data_addr;
 	data_rkey = client_meta->data_rkey;
-	cas_result = client_meta->cas_result;
 	unlock_val = client_meta->unlock_val;
-	data = client_meta->data;
-	int_data = (int *) client_meta->data;
-	total_bytes = MAX_ARRAY_SIZE;
 }
 
 void *create_rdma_client_meta(int cid, int nthreads, int nlocks) {
 	rdma_client_meta* client_meta = (rdma_client_meta *) malloc(sizeof(rdma_client_meta));
 	for (int i = 0; i < nthreads; i++) {
-		cas_sge[i].addr   = (uintptr_t) local_cas_mr->addr;
+		cas_sge[i].addr   = (uintptr_t) local_cas_mr[i]->addr;
 		cas_sge[i].length = sizeof(uint64_t);
-		cas_sge[i].lkey   = local_cas_mr->lkey;
+		cas_sge[i].lkey   = local_cas_mr[i]->lkey;
+
 		w_sge[i].addr   = (uintptr_t) local_unlock_mr->addr;
 		w_sge[i].length = sizeof(uint64_t);
 		w_sge[i].lkey   = local_unlock_mr->lkey;
-		data_sge[i].addr   = (uintptr_t) local_data_mr->addr;
+
+		data_sge[i].addr   = (uintptr_t) local_data_mr[i]->addr;
 		data_sge[i].length = MAX_ARRAY_SIZE;
-		data_sge[i].lkey   = local_data_mr->lkey;
+		data_sge[i].lkey   = local_data_mr[i]->lkey;
 
 		cas_wr[i].wr_id          = i;
 		cas_wr[i].sg_list        = &cas_sge[i];
@@ -137,8 +140,10 @@ void *create_rdma_client_meta(int cid, int nthreads, int nlocks) {
 		data_wr[i].send_flags     = IBV_SEND_SIGNALED;
 		data_wr[i].wr.rdma.remote_addr = data_addr;
 		data_wr[i].wr.rdma.rkey        = data_rkey;
+
+		client_meta->cas_result[i] = cas_result[i];
+		client_meta->data[i] = data[i];
 	}
-	total_bytes = MAX_ARRAY_SIZE;
 
 	client_meta->qp = client_qp;
 	client_meta->cas_wr = cas_wr;
@@ -150,13 +155,10 @@ void *create_rdma_client_meta(int cid, int nthreads, int nlocks) {
 	client_meta->io_comp_chan = io_completion_channel;
 	client_meta->wc = wc;
 	client_meta->bad_wr = bad_client_send_wr;
-	client_meta->cas_result = cas_result;
-	client_meta->data = (char *) data;
 	client_meta->rlock_addr = rlock_addr;
 	client_meta->rlock_rkey = rlock_rkey;
 	client_meta->data_addr = data_addr;
 	client_meta->data_rkey = data_rkey;
-	client_meta->total_bytes = total_bytes;
 	return client_meta;
 }
 
@@ -274,21 +276,53 @@ int client_prepare_connection(struct sockaddr_in *s_addr, int nthreads)
 }
 
 
-void* client_connect_to_server(int cid, int nthreads, int nlocks) 
+void* client_connect_to_server(int cid, int nthreads, int nlocks, int use_nodes) 
 {
 	struct rdma_conn_param conn_param;
 	bzero(&conn_param, sizeof(conn_param));
 	conn_param.initiator_depth = 3;
 	conn_param.responder_resources = 3;
 	conn_param.retry_count = 3;
-	cas_result = aligned_alloc(sizeof(uint64_t), nlocks * sizeof(uint64_t));
-	memset(cas_result, 0, nlocks * sizeof(uint64_t));
-	unlock_val = aligned_alloc(sizeof(uint64_t), sizeof(uint64_t));
-	*unlock_val = 0;
-	data = numa_alloc_onnode(MAX_ARRAY_SIZE, 0);
+
+	// cas_result = aligned_alloc(sizeof(uint64_t), nlocks * sizeof(uint64_t));
+	// memset(cas_result, 0, nlocks * sizeof(uint64_t));
 	// data = (char *) aligned_alloc(sizeof(uint64_t), MAX_ARRAY_SIZE);
 	// memset(data, 0, MAX_ARRAY_SIZE);
 
+	int node = 0;
+	for (int i = 0; i < nthreads; i++) {
+		if (use_nodes == 2) {
+			node = i < nthreads / 2 ? 0 : 1;
+		}
+		cas_result[i] = numa_alloc_onnode(sizeof(uint64_t), node);
+		*cas_result[i] = 0;
+		data[i] = numa_alloc_onnode(MAX_ARRAY_SIZE, node);
+
+		local_cas_mr[i] = rdma_buffer_register(pd,
+				cas_result[i],
+				sizeof(uint64_t),
+				(IBV_ACCESS_LOCAL_WRITE|
+				IBV_ACCESS_REMOTE_READ|
+				IBV_ACCESS_REMOTE_WRITE|
+				IBV_ACCESS_REMOTE_ATOMIC));
+		if(!local_cas_mr[i]){
+			rdma_error("Client %d failed to register local_cas_mr, -errno = %d \n", cid, -errno);
+			return NULL;
+		}
+		local_data_mr[i] = rdma_buffer_register(pd,
+				data[i],
+				MAX_ARRAY_SIZE,
+				(IBV_ACCESS_LOCAL_WRITE|
+				IBV_ACCESS_REMOTE_READ|
+				IBV_ACCESS_REMOTE_WRITE));
+		if(!local_data_mr[i]){
+			rdma_error("Client %d failed to register local_data_mr, -errno = %d \n", cid, -errno);
+			return NULL;
+		}
+	}
+
+	unlock_val = aligned_alloc(sizeof(uint64_t), sizeof(uint64_t));
+	*unlock_val = 0;
 	local_unlock_mr = rdma_buffer_register(pd,
 			unlock_val,
 			sizeof(uint64_t),
@@ -298,27 +332,6 @@ void* client_connect_to_server(int cid, int nthreads, int nlocks)
 			IBV_ACCESS_REMOTE_ATOMIC));
 	if(!local_unlock_mr){
 		rdma_error("Client %d failed to register the local_unlock_mr buffer, -errno = %d \n", cid, -errno);
-		return NULL;
-	}
-	local_cas_mr = rdma_buffer_register(pd,
-			cas_result,
-			nlocks*sizeof(uint64_t),
-			(IBV_ACCESS_LOCAL_WRITE|
-			IBV_ACCESS_REMOTE_READ|
-			IBV_ACCESS_REMOTE_WRITE|
-			IBV_ACCESS_REMOTE_ATOMIC));
-	if(!local_cas_mr){
-		rdma_error("Client %d failed to register local_cas_mr, -errno = %d \n", cid, -errno);
-		return NULL;
-	}
-	local_data_mr = rdma_buffer_register(pd,
-			data,
-			MAX_ARRAY_SIZE,
-			(IBV_ACCESS_LOCAL_WRITE|
-			IBV_ACCESS_REMOTE_READ|
-			IBV_ACCESS_REMOTE_WRITE));
-	if(!local_data_mr){
-		rdma_error("Client %d failed to register local_data_mr, -errno = %d \n", cid, -errno);
 		return NULL;
 	}
 
@@ -348,7 +361,7 @@ void* client_connect_to_server(int cid, int nthreads, int nlocks)
 	return create_rdma_client_meta(cid, nthreads, nlocks);
 }
 
-void* establish_rdma_connection(int cid, char* addr, int nthreads, int nlocks)
+void* establish_rdma_connection(int cid, char* addr, int nthreads, int nlocks, int use_nodes)
 {
 	struct sockaddr_in server_sockaddr;
 	rdma_client_meta* client_meta;
@@ -367,7 +380,7 @@ void* establish_rdma_connection(int cid, char* addr, int nthreads, int nlocks)
 		rdma_error("Failed to setup client connection , -errno = %d \n", -errno);
 		return NULL;
 	}
-	if (!(client_meta = client_connect_to_server(cid, nthreads, nlocks))) { 
+	if (!(client_meta = client_connect_to_server(cid, nthreads, nlocks, use_nodes))) { 
 		rdma_error("Failed to setup client connection , -errno = %d \n", -errno);
 		return NULL;
 	}
@@ -403,12 +416,12 @@ ull rdma_request_lock(disa_mutex_t* disa_mutex)
 	curr_rlock_id = disa_mutex->id;
 	curr_byte_offset = disa_mutex->offset;
 	curr_byte_data_len = disa_mutex->data_len;
-	curr_cas_result = disa_mutex->cas_result;
+	// curr_cas_result = disa_mutex->cas_result;
 	curr_elem_offset = curr_byte_offset / disa_mutex->elem_sz;
 
-	thread_cas_wr.wr.atomic.remote_addr = rlock_addr + curr_rlock_id * RLOCK_SIZE;
-	thread_cas_sge->addr = (uintptr_t) curr_cas_result;
-	thread_w_wr.wr.rdma.remote_addr = rlock_addr + curr_rlock_id * RLOCK_SIZE;
+	thread_cas_wr.wr.atomic.remote_addr = disa_mutex->rlock_addr;
+	thread_w_wr.wr.rdma.remote_addr = disa_mutex->rlock_addr;
+	// thread_cas_sge->addr = (uintptr_t) curr_cas_result;
 
 	do {
 		tries++;
@@ -418,24 +431,28 @@ ull rdma_request_lock(disa_mutex_t* disa_mutex)
 		}
 		// DEBUG("[%d.%d] CAS_RESULT[%d]: %lu\n",
 		// rdma_client_id, rdma_task_id, rlock_id, cas_result[rlock_id]);
-	} while(*curr_cas_result);
+	} while(*thread_cas_result);
 	DEBUG("[%d.%d] got rlock [%d] from server after %d tries\n",
 	rdma_client_id, rdma_task_id, curr_rlock_id, tries);
 	ull end_of_cas = rdtscp();
 	thread_task->sgwait_acq[thread_task->idx] = end_of_cas - start;
 
 	if (curr_byte_offset >= 0) {
-		thread_data_wr.wr.rdma.remote_addr = data_addr + curr_byte_offset;
-		thread_data_sge->addr = (uintptr_t) (data + curr_byte_offset);
+		// thread_data_wr.wr.rdma.remote_addr = data_addr + curr_byte_offset;
+		thread_data_wr.wr.rdma.remote_addr = disa_mutex->data_addr;
+		// thread_data_sge->addr = (uintptr_t) (data + curr_byte_offset);
 		thread_data_sge->length = curr_byte_data_len;
 		thread_data_wr.opcode = IBV_WR_RDMA_READ;
 		if(perform_rdma_op(&thread_data_wr)) {
 			rdma_error("rdma_op failed\n");
 			exit(EXIT_FAILURE);
 		}
+		disa_mutex->byte_data = thread_byte_data;
+		disa_mutex->int_data = thread_int_data;
+
 		DEBUG("[%d.%d] read data[%d] =  [%d], lock_idx: [%d]\n",
 		rdma_client_id, rdma_task_id, curr_elem_offset,
-		int_data[curr_elem_offset], curr_rlock_id);
+		thread_int_data[curr_elem_offset - curr_byte_data_len/sizeof(int)*curr_rlock_id], curr_rlock_id);
 	}
 	ull end_of_read = rdtscp();
 	thread_task->sdata_read[thread_task->idx] = end_of_read - end_of_cas;
@@ -444,12 +461,12 @@ ull rdma_request_lock(disa_mutex_t* disa_mutex)
 	return tries;
 }
 
-int rdma_release_lock()
+int rdma_release_lock(disa_mutex_t *disa_mutex)
 {
     DEBUG("[%d.%d] rdma_release_lock [%d]\n", rdma_client_id, rdma_task_id, curr_rlock_id);
 	ull start = rdtscp();
 	if (curr_byte_offset >= 0) {
-		thread_data_wr.wr.rdma.remote_addr = data_addr + curr_byte_offset;
+		thread_data_wr.wr.rdma.remote_addr = disa_mutex->data_addr;
 		thread_data_wr.opcode = IBV_WR_RDMA_WRITE;
 		if(perform_rdma_op(&thread_data_wr)) {
 			rdma_error("rdma_op failed\n");
@@ -457,7 +474,7 @@ int rdma_release_lock()
 		}
 		DEBUG("[%d.%d] written data[%d] =  [%d], lock_idx: [%d]\n",
 		rdma_client_id, rdma_task_id, curr_elem_offset,
-		int_data[curr_elem_offset], curr_rlock_id);
+		thread_int_data[curr_elem_offset - curr_byte_data_len/sizeof(int)*curr_rlock_id], curr_rlock_id);
 	}
 	ull end_of_data_write = rdtscp();
 	if(perform_rdma_op(&thread_w_wr)) {
@@ -477,18 +494,18 @@ int rdma_release_lock()
 /************************************/
 ull rdma_request_lock_lease1(disa_mutex_t *disa_mutex)
 {
-    DEBUG("[%d.%d] rdma_request_lock [%d]\n", rdma_client_id, rdma_task_id, disa_mutex->id);
+    DEBUG("[%d.%d] rdma_request_lock_lease1 [%d]\n", rdma_client_id, rdma_task_id, disa_mutex->id);
 	ull start = rdtscp();
 
 	int tries = 0;
 	curr_rlock_id = disa_mutex->id;
 	curr_byte_offset = disa_mutex->offset;
 	curr_byte_data_len = disa_mutex->data_len;
-	curr_cas_result = disa_mutex->cas_result;
+	// curr_cas_result = disa_mutex->cas_result;
 	curr_elem_offset = curr_byte_offset / disa_mutex->elem_sz;
 
-	thread_cas_wr.wr.atomic.remote_addr = rlock_addr + curr_rlock_id * RLOCK_SIZE;
-	thread_cas_sge->addr = (uintptr_t) curr_cas_result;
+	thread_cas_wr.wr.atomic.remote_addr = disa_mutex->rlock_addr;
+	// thread_cas_sge->addr = (uintptr_t) curr_cas_result;
 
 	do {
 		tries++;
@@ -498,7 +515,7 @@ ull rdma_request_lock_lease1(disa_mutex_t *disa_mutex)
 		}
 		// DEBUG("[%d.%d] CAS_RESULT[%d]: %lu\n",
 		// rdma_client_id, rdma_task_id, rlock_id, cas_result[rlock_id]);
-	} while(*curr_cas_result);
+	} while(*thread_cas_result);
 
 	DEBUG("[%d.%d] got rlock [%d] from server after %d tries\n",
 	rdma_client_id, rdma_task_id, curr_rlock_id, tries);
@@ -506,17 +523,21 @@ ull rdma_request_lock_lease1(disa_mutex_t *disa_mutex)
 	thread_task->sgwait_acq[thread_task->idx] = end_of_cas - start;
 
 	if (curr_byte_offset >= 0) {
-		thread_data_wr.wr.rdma.remote_addr = data_addr + curr_byte_offset;
-		thread_data_sge->addr = (uintptr_t) (data + curr_byte_offset);
+		// thread_data_wr.wr.rdma.remote_addr = data_addr + curr_byte_offset;
+		thread_data_wr.wr.rdma.remote_addr = disa_mutex->data_addr;
+		// thread_data_sge->addr = (uintptr_t) (data + curr_byte_offset);
 		thread_data_sge->length = curr_byte_data_len;
 		thread_data_wr.opcode = IBV_WR_RDMA_READ;
 		if(perform_rdma_op(&thread_data_wr)) {
 			rdma_error("rdma_op failed\n");
 			exit(EXIT_FAILURE);
 		}
+		disa_mutex->byte_data = thread_byte_data;
+		disa_mutex->int_data = thread_int_data;
+
 		DEBUG("[%d.%d] read data[%d] =  [%d], lock_idx: [%d]\n",
 		rdma_client_id, rdma_task_id, curr_elem_offset,
-		int_data[curr_elem_offset], curr_rlock_id);
+		thread_int_data[curr_elem_offset - curr_byte_data_len*curr_rlock_id], curr_rlock_id);
 	}
 	ull end_of_read = rdtscp();
 	thread_task->sdata_read[thread_task->idx] = end_of_read - end_of_cas;
@@ -532,13 +553,13 @@ int rdma_release_lock_lease1(disa_mutex_t *disa_mutex)
 	curr_rlock_id = disa_mutex->id;
 	curr_byte_offset = disa_mutex->offset;
 	curr_byte_data_len = disa_mutex->data_len;
-	curr_cas_result = disa_mutex->cas_result;
+	// curr_cas_result = disa_mutex->cas_result;
 	curr_elem_offset = curr_byte_offset / disa_mutex->elem_sz;
 
 	if (curr_byte_offset >= 0) {
-		thread_data_wr.wr.rdma.remote_addr = data_addr + curr_byte_offset;
+		thread_data_wr.wr.rdma.remote_addr = disa_mutex->data_addr;
 		thread_data_wr.opcode = IBV_WR_RDMA_WRITE;
-		thread_data_sge->addr = (uintptr_t) (data + curr_byte_offset);
+		// thread_data_sge->addr = (uintptr_t) (data + curr_byte_offset);
 		thread_data_sge->length = curr_byte_data_len;
 		if(perform_rdma_op(&thread_data_wr)) {
 			rdma_error("rdma_op failed\n");
@@ -546,11 +567,11 @@ int rdma_release_lock_lease1(disa_mutex_t *disa_mutex)
 		}
 		DEBUG("[%d.%d] written data[%d] =  [%d], lock_idx: [%d]\n",
 		rdma_client_id, rdma_task_id, curr_elem_offset,
-		int_data[curr_elem_offset], curr_rlock_id);
+		thread_int_data[curr_elem_offset - curr_byte_data_len*curr_rlock_id], curr_rlock_id);
 	}
 
 	ull end_of_data_write = rdtscp();
-	thread_w_wr.wr.rdma.remote_addr = rlock_addr + curr_rlock_id * RLOCK_SIZE;
+	thread_w_wr.wr.rdma.remote_addr = disa_mutex->rlock_addr;
 	if(perform_rdma_op(&thread_w_wr)) {
 		rdma_error("rdma_op failed\n");
 		exit(EXIT_FAILURE);

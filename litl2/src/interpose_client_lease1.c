@@ -476,7 +476,7 @@ int pthread_mutex_destroy(pthread_mutex_t *mutex) {
 }
 
 int pthread_mutex_lock(pthread_mutex_t *mutex) {
-    DEBUG_PTHREAD("[p] pthread_mutex_lock\n");
+    DEBUG_PTHREAD("[p] pthread_mutex_lock_lease1\n");
     ull tries = 0;
     ull start = rdtscp();
     disa_mutex_t *disa_mutex = (disa_mutex_t *) mutex;
@@ -532,7 +532,6 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex) {
     disa_mutex->turns--;
     __sync_synchronize(); 
     int other = disa_mutex->other;
-    __sync_synchronize();
     if (disa_mutex->turns == 0 || other == 0){
         rdma_release_lock_lease1(disa_mutex);
     }

@@ -109,4 +109,4 @@ void show_rdma_cmid(struct rdma_cm_id *id);
 
 #endif /* RDMA_COMMON_H */
 
-void* establish_rdma_connection(int tid, char* addr, int nthreads, int nlocks);
+void* establish_rdma_connection(int tid, char* addr, int nthreads, int nlocks, int use_nodes);

@@ -233,10 +233,9 @@ void *mem_worker(void *arg) {
 void *mlocks_worker(void *arg) {
     task_t *task = (task_t *) arg;
     int task_id = task->id;
-    int* data = (int *) task->client_meta->data;
     int nlocks = task->nlocks;
     int *private_int_array = task->private_int_array;
-    int data_len = MAX_ARRAY_SIZE / sizeof(int) / nlocks;
+    int data_len = MAX_ARRAY_SIZE / sizeof(int);
 
     pin_thread(task_id, nthreads, use_nodes);
     ull start, lock_start;
@@ -244,7 +243,7 @@ void *mlocks_worker(void *arg) {
     ull wait_acq, wait_rel;
 
     int j = 0;
-    volatile int sum = 1; // Prevent compiler optimizations
+    volatile int sum = 1;
 
     for (int i = 0; i < NUM_RUNS; i++) {
         task->run = i;
@@ -271,24 +270,23 @@ void *mlocks_worker(void *arg) {
             }
 
             for (int j = 0; j < 100; j++) {
-                // int idx = uniform_rand_int(MAX_ARRAY_SIZE / sizeof(int));
-                // int lock_idx = idx / data_len;
                 int lock_idx = uniform_rand_int(nlocks);
+                // int lock_idx = 1;
+                disa_mutex_t l = locks[lock_idx];
 
                 start = rdtscp();
-                lock_acquire((pthread_mutex_t *)&locks[lock_idx]);
+                lock_acquire((pthread_mutex_t *)&l);
                 lock_start = rdtscp();
 
-                // for (int idx = lock_idx*data_len; idx < lock_idx*data_len+data_len; idx++) {
-                //     data[idx] += sum;
-                //     loop_in_cs++;
-                // }
-                data[lock_idx*data_len] += sum;
-                loop_in_cs++;
-                // DEBUG("data[%d] = %d, lock_idx = %d\n", idx, data[idx], lock_idx);
+                for (int idx = 0; idx < data_len; idx++) {
+                    l.int_data[idx] += sum;
+                    loop_in_cs++;
+                }
+                // data[lock_idx*data_len] += sum;
+                // loop_in_cs++;
 
                 ull rel_start = rdtscp();
-                lock_release((pthread_mutex_t *)&locks[lock_idx]);
+                lock_release((pthread_mutex_t *)&l);
                 ull rel_end = rdtscp();
 
                 task->swait_acq[task->idx] = lock_start-start;
@@ -400,7 +398,7 @@ int main(int argc, char *argv[]) {
 #ifdef RDMA
     for (int i = 0; i < num_clients;i++) {
         if (i == client) {
-            if (!(client_meta = establish_rdma_connection(client, server_ip, nthreads, nlocks))) {
+            if (!(client_meta = establish_rdma_connection(client, server_ip, nthreads, nlocks, use_nodes))) {
                 _error("Client %d failed to eastablish rdma connection\n", client);
             }
         }
@@ -434,6 +432,7 @@ int main(int argc, char *argv[]) {
         tasks[i].nthreads = nthreads;
     }
 
+    /*LOCK INIT*/
     locks = (disa_mutex_t *) numa_alloc_onnode(nlocks * sizeof(disa_mutex_t), 0);
     for (int l = 0; l < nlocks; l++) {
         locks[l].disa = 'y';
@@ -441,7 +440,8 @@ int main(int argc, char *argv[]) {
         locks[l].offset = -1;
         locks[l].data_len = 0;
         locks[l].turns = 0;
-        locks[l].cas_result = &client_meta->cas_result[l];
+        locks[l].rlock_addr = client_meta->rlock_addr + l*RLOCK_SIZE;
+        locks[l].data_addr = client_meta->data_addr + l*MAX_ARRAY_SIZE;
         lock_init(&locks[l]);
     }
     lock = locks[0];
@@ -467,12 +467,11 @@ int main(int argc, char *argv[]) {
                 }
             }
             if (mode > 4) {
-                assert(array_sz / CACHELINE_SIZE >= nlocks);
+                // assert(array_sz / CACHELINE_SIZE >= nlocks);
                 assert(array_sz % nlocks == 0);
-                scope = array_sz / nlocks;
                 for (int l = 0; l < nlocks; l++) {
-                    locks[l].offset = l*scope;
-                    locks[l].data_len = scope;
+                    locks[l].offset = l*array_sz;
+                    locks[l].data_len = array_sz;
                     locks[l].elem_sz = sizeof(int);
                     locks[l].other = 0;
                     locks[l].turns = 0;

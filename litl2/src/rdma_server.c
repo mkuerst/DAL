@@ -14,7 +14,8 @@ int nthreads = 0;
 int nlocks = 0;
 
 uint64_t *rlocks;
-int data[MAX_ARRAY_SIZE / sizeof(int)];
+int *int_data;
+char *byte_data;
 
 struct ibv_pd *pd = NULL;
 struct rdma_event_channel *cm_event_channel = NULL;
@@ -93,7 +94,7 @@ int write_metadata_to_file() {
 
 }
 
-int prep_rdma_conn(rdma_connection* conn, int* data, int nlocks)
+int prep_rdma_conn(rdma_connection* conn, int nlocks)
 {
 	conn->data_sge.addr = (uint64_t) data_mr->addr;
 	conn->data_sge.length = data_mr->length;
@@ -142,7 +143,10 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients, int 
 
 	clients = malloc(nclients * sizeof(rdma_server_meta));
 	rlocks = (uint64_t *) aligned_alloc(sizeof(uint64_t), nlocks*RLOCK_SIZE);
+	byte_data = malloc(nlocks*MAX_ARRAY_SIZE);
+	int_data = (int *) byte_data;
 	memset(rlocks, 0, nlocks*RLOCK_SIZE);
+	memset(byte_data, 0, nlocks*MAX_ARRAY_SIZE);
 	// data = (int *) aligned_alloc(sizeof(uint64_t), MAX_ARRAY_SIZE);
 	// memset(data, 0, MAX_ARRAY_SIZE);
 
@@ -180,7 +184,7 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients, int 
 					IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_REMOTE_ATOMIC
 				);
 				data_mr = rdma_buffer_register(
-					pd, data, MAX_ARRAY_SIZE,
+					pd, byte_data, nlocks*MAX_ARRAY_SIZE,
 					IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_REMOTE_READ
 				);
 				if (!rlock_mr || !data_mr) {
@@ -238,7 +242,7 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients, int 
 				return -EINVAL;
 			}
 
-			prep_rdma_conn(conn, data, nlocks);
+			prep_rdma_conn(conn, nlocks);
 
 			memset(&conn_param, 0, sizeof(conn_param));
 			conn_param.initiator_depth = 3;

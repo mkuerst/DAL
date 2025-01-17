@@ -547,7 +547,7 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex) {
         return REAL(pthread_mutex_unlock)(mutex);
     }
 #ifdef RDMA
-    rdma_release_lock();
+    rdma_release_lock(disa_mutex);
 #endif
 #ifdef TCP_SPINLOCK
     tcp_release_lock();
