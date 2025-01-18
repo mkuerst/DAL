@@ -268,6 +268,9 @@ void *mlocks_worker(void *arg) {
                 int idx = uniform_rand_int(PRIVATE_ARRAY_SZ / sizeof(int));
                 private_int_array[idx] += sum;
             }
+            if (*task->stop) {
+                break;
+            }
 
             for (int j = 0; j < 100; j++) {
                 int lock_idx = uniform_rand_int(nlocks);

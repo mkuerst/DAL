@@ -121,7 +121,7 @@ nlocks"
 server_file_header="tid,wait_acq(ms),wait_rel(ms),client_id,run"
 
 # MICROBENCH INPUTS
-duration=1
+duration=20
 critical=1000
 
 rm -rf server_logs/
@@ -130,13 +130,13 @@ rm -rf barrier_files/*
 
 comm_prot="rdma"
 microbenches=("empty_cs2n" "empty_cs1n" "lat" "mem2n" "mem1n" "mlocks2n" "mlocks1n")
-opts=("lease1")
+opts=("spinlock" "lease1")
 client_ids=(0 1 2 3 4 5 6 7 8 9)
 
 n_clients=(4)
 n_threads=(16)
 bench_idxs=(5)
-num_locks=(2)
+num_locks=(1 128 512)
 
 for impl_dir in "$BASE"/original/*
 do
@@ -177,7 +177,7 @@ do
                     do
 
                         server_session="server_$i"
-                        echo "START $impl $opt SERVER FOR $i THREADS PER CLIENT & $nclients CLIENTS & $nlocks LOCKS"
+                        echo "START SERVER $i T & $nclients C & $nlocks L"
 
                         tmux new-session -d -s "$server_session" \
                         "ssh $REMOTE_USER@$REMOTE_SERVER $rdma_server_app -c $nclients -a $server_ip -t $i -l $nlocks >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
@@ -188,16 +188,16 @@ do
                         sleep 3
 
                         # ============= MPIRUN ========================================================
-                        echo "START MICROBENCH $microb WITH $nclients $opt MPI-CLIENTS AND $i THREADS PER MPI-CLIENT & $nlocks LOCKS"
+                        echo "START MICROBENCH $microb $opt $nclients MPI-C $i T & $nlocks L"
                         mpirun --hostfile ./clients.txt -np $nclients \
                         --x LD_PRELOAD=$client_so \
                         --mca btl_tcp_if_exclude lo,eno3,eno1,eno4,eno2,docker0 \
                         --mca oob_tcp_dynamic_ipv4_ports 8000,8080 \
                         --mca btl_tcp_port_min_v4 8000 --mca btl_tcp_port_range_v4 10 \
-                        --mca btl_base_debug 1 --mca oob_tcp_debug 1 --mca plm_base_verbose 5 --mca orte_base_help_aggregate 0 \
                         $disa_bench $i $duration $critical $server_ip $j 0 $nclients $client_rescum_file $client_ressingle_file $nlocks \
-                        2>> $client_log_dir/nclients$n_clients"_nthreads"$i.log
+                        # 2>> $client_log_dir/nclients$n_clients"_nthreads"$i.log
 
+                        # --mca btl_base_debug 1 --mca oob_tcp_debug 1 --mca plm_base_verbose 5 --mca orte_base_help_aggregate 0 \
                         # -mca btl openib,self \
                         # --mca btl_tcp_inf_include 10.233.0.10/24,10.233.0.11/24,10.233.0.20/24,10.233.0.14/24,10.233.0.15/24 \
                         # --mca btl_openib_allow_ib true \

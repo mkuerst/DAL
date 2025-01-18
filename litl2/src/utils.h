@@ -95,12 +95,15 @@
 #define GB(x) (MB(x) * 1024L)
 // CACHE: L1: 512 KiB (x16 instances) | L2: 4 MiB (x16 instances) | L3: 40 MiB (x2 instances)
 // 256 KiB -*8> 2 MiB -*8> 16 -*4>
-#define MAX_ARRAY_SIZE MB(16) 
+#define MAX_ARRAY_SIZE MB (1) 
 #define PRIVATE_ARRAY_SZ KB(512) 
+
+#define BACKOFF (1 << 9)
+#define MAX_BACKOFF ((1 << 20) - 1)
 
 #define MAX_THREADS 128
 #define MAX_CLIENTS 12
-#define MAX_MEASUREMENTS 40000
+#define MAX_MEASUREMENTS 10
 #define NUM_MEASUREMENTS 10
 #define IDX_NONCYCLE_MEASURES 9
 #define NUM_STATS 3
@@ -137,17 +140,9 @@ typedef struct rdma_connection {
 
     struct ibv_recv_wr rlock_wr;
     struct ibv_recv_wr data_wr;
-    // struct ibv_send_wr server_send_wr; 
-
-    // struct ibv_recv_wr **bad_client_recv_wr;
-    // struct ibv_send_wr **bad_server_send_wr;
 
     struct ibv_sge rlock_sge; 
     struct ibv_sge data_sge; 
-    // struct ibv_sge server_send_sge;
-
-    // struct rdma_buffer_attr client_metadata_attr;
-    // struct rdma_buffer_attr server_metadata_attr;
 } rdma_connection;
 
 typedef struct {
@@ -243,16 +238,16 @@ typedef struct client_data {
 
 typedef struct {
     pthread_mutex_t mutex;
-    uint64_t rlock_addr, data_addr;
-    int *int_data;
-    char *byte_data;
     char disa;
+    uint64_t rlock_addr, data_addr;
     int id;
     int offset;
     size_t elem_sz;
     size_t data_len;
     int turns;
     unsigned int other;
+    int *int_data;
+    char *byte_data;
 } disa_mutex_t;
 
 /* 
