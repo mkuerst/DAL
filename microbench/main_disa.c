@@ -35,6 +35,8 @@ char *res_file_cum, *res_file_single;
 int nthreads;
 int client;
 int num_clients;
+int num_runs;
+int num_mem_runs;
 int use_nodes;
 int scope;
 
@@ -102,7 +104,7 @@ void *empty_cs_worker(void *arg) {
     ull wait_rel;
 
     ull wait_acq;
-    for (int i = 0; i < NUM_RUNS; i++) {
+    for (int i = 0; i < num_runs; i++) {
         task->run = i;
         lock_acquires = 0;
         lock_hold = 0;
@@ -162,12 +164,12 @@ void *mem_worker(void *arg) {
     ull lock_acquires, lock_hold, loop_in_cs;
     ull wait_acq, wait_rel;
 
-    for (int i = 0; i < NUM_RUNS; i++) {
+    for (int i = 0; i < num_runs; i++) {
         task->run = i;
-        for (int j = 0; j < NUM_MEM_RUNS; j++)  {
+        for (int j = 0; j < num_mem_runs; j++)  {
             task->snd_run = j;
             volatile char sum = 'a'; // Prevent compiler optimizations
-            size_t repeat = array_sizes[NUM_MEM_RUNS-1] / array_sizes[j];
+            size_t repeat = array_sizes[num_mem_runs-1] / array_sizes[j];
             ull array_size = array_sizes[j];
             lock_acquires = 0;
             lock_hold = 0;
@@ -245,7 +247,7 @@ void *mlocks_worker(void *arg) {
     int j = 0;
     volatile int sum = 1;
 
-    for (int i = 0; i < NUM_RUNS; i++) {
+    for (int i = 0; i < num_runs; i++) {
         task->run = i;
         ull array_size = MAX_ARRAY_SIZE;
         lock_acquires = 0;
@@ -348,42 +350,36 @@ int main(int argc, char *argv[]) {
     int nlocks = atoi(argv[10]);
     scope = MAX_ARRAY_SIZE;
     void* worker; 
-    int num_mem_runs;
+    num_runs = atoi(argv[11]);
+    num_mem_runs = atoi(argv[12]);
     switch (mode) {
         case 0:
             use_nodes = 2;
             worker = empty_cs_worker;
-            num_mem_runs = 1;
             break;
         case 1:
             use_nodes = 1;
             worker = empty_cs_worker;
-            num_mem_runs = 1;
             break;
         case 3:
             use_nodes = 2;
             worker = mem_worker;
-            num_mem_runs = NUM_MEM_RUNS;
             break;
         case 4:
             use_nodes = 1;
             worker = mem_worker;
-            num_mem_runs = NUM_MEM_RUNS;
             break;
         case 5:
             use_nodes = 2;
             worker = mlocks_worker;
-            num_mem_runs = NUM_MEM_RUNS;
             break;
         case 6:
             use_nodes = 1;
             worker = mlocks_worker;
-            num_mem_runs = NUM_MEM_RUNS;
             break;
         default:
             use_nodes = 2;
             worker = empty_cs_worker;
-            num_mem_runs = 1;
             break;
     }
     task_t *tasks = malloc(sizeof(task_t) * nthreads);
@@ -456,7 +452,7 @@ int main(int argc, char *argv[]) {
         pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
     }
     /*RUNS*/
-    for (int i = 0; i < NUM_RUNS; i++) {
+    for (int i = 0; i < num_runs; i++) {
         for (int k = 0; k < num_mem_runs; k++) {
             size_t array_sz = MAX_ARRAY_SIZE;
             for (int l = 0; l < nlocks; l++) {

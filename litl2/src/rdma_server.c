@@ -171,7 +171,7 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients, int 
 			struct ibv_qp_init_attr qp_init_attr;
 			struct ibv_qp *client_qp = NULL;
 			struct rdma_cm_id* cm_client_id = conn->cm_client_id;
-			// unsigned int task_id = *(unsigned int *) (cm_event->param.conn.private_data);
+			///unsigned int task_id = *(unsigned int *) (cm_event->param.conn.private_data);
 
 			if (j == 0 && i == 0) {
 				pd = ibv_alloc_pd(cm_client_id->verbs);

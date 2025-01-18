@@ -32,10 +32,10 @@
 	perror("errno");\
 }while(0);
 
-#define CQ_CAPACITY (128)
-#define MAX_SGE (4)
+#define CQ_CAPACITY (8192)
+#define MAX_SGE (16)
 #define DEFAULT_RDMA_PORT (20051)
-#define MAX_WR (128)
+#define MAX_WR (4096)
 
 /* resolves a given destination name to sin_addr */
 int get_addr(char *dst, struct sockaddr *addr);

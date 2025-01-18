@@ -133,7 +133,7 @@ microbenches=("empty_cs2n" "empty_cs1n" "lat" "mem2n" "mem1n" "mlocks2n" "mlocks
 opts=("spinlock" "lease1")
 client_ids=(0 1 2 3 4 5 6 7 8 9)
 
-n_clients=(4)
+n_clients=(1 4)
 n_threads=(16)
 bench_idxs=(5)
 num_locks=(1 128 512)
@@ -188,7 +188,7 @@ do
                         sleep 3
 
                         # ============= MPIRUN ========================================================
-                        echo "START MICROBENCH $microb $opt $nclients MPI-C $i T & $nlocks L"
+                        echo "START MICROBENCH $impl $microb $opt $nclients MPI-C $i T & $nlocks L"
                         mpirun --hostfile ./clients.txt -np $nclients \
                         --x LD_PRELOAD=$client_so \
                         --mca btl_tcp_if_exclude lo,eno3,eno1,eno4,eno2,docker0 \
