@@ -23,6 +23,7 @@
 char *array0;
 char *array1;
 int nthreads;
+int num_runs, num_mem_runs;
 char *res_file_cum, *res_file_single;
 int use_nodes;
 
@@ -41,82 +42,6 @@ int set_prio(int prio) {
     return ret;
 }
 
-// void *cs_worker(void *arg) {
-//     task_t *task = (task_t *) arg;
-//     int task_id = task->id;
-//     pin_thread(task_id);
-//     ull now, start, then;
-//     ull lock_acquires;
-//     ull lock_hold;
-//     ull loop_in_cs;
-
-//     const ull delta = CYCLE_PER_US * task->cs;
-
-//     for (int i = 0; i < NUM_RUNS; i++) {
-//         lock_acquires = 0;
-//         lock_hold = 0;
-//         loop_in_cs = 0;
-//         pthread_barrier_wait(&global_barrier);
-//         while (!*task->stop) {
-//         // while (*task->global_its < 1000) {
-//             // fprintf(stderr, "thread %d acquiring lock\n", task->id);
-
-//             lock_acquire(&lock);
-//             // fprintf(stderr, "thread %d acquired lock\n", task->id);
-//             now = rdtscp();
-
-//             lock_acquires++;
-//             (*task->global_its)++;
-//             start = now;
-//             then = now + delta;
-
-//             do {
-//                 loop_in_cs++;
-//             } while (((now = rdtscp()) < then) && !task->stop);
-
-//             lock_hold += now - start;
-
-//             // fprintf(stderr, "thread %d releasing lock\n", task->id);
-//             lock_release(&lock);
-//             // fprintf(stderr, "thread %d released lock\n", task->id);
-//         }
-
-//         task->lock_acquires[i][0] = lock_acquires;
-//         task->loop_in_cs[i][0] = loop_in_cs;
-//         task->lock_hold[i][0] = lock_hold;
-//         pthread_barrier_wait(&global_barrier);
-//     }
-
-//     // fprintf(stderr,"FINISHED tid %d\n", task->id);
-//     return 0;
-// }
-void *lat_worker(void *arg) {
-    task_t *task = (task_t *) arg;
-    int task_id = task->id;
-    pin_thread(task_id, nthreads, use_nodes);
-    ull now, start, end;
-    ull lock_acquires;
-
-    for (int i = 0; i < NUM_RUNS; i++) {
-        pthread_barrier_wait(&global_barrier);
-        lock_acquires = 0;
-
-        for (int j = 0; j < NUM_LAT_RUNS; j++) {
-                start = rdtscp();
-                lock_acquire(&lock);
-                now = rdtscp();
-                task->wait_acq[i][j] = now - start;
-                lock_acquires++;
-                end = rdtscp();
-                task->lock_hold[i][j] = end - now;
-                lock_release(&lock);
-                task->wait_rel[i][j] = rdtscp() - end;
-        }
-        pthread_barrier_wait(&global_barrier);
-    }
-    return 0;
-}
-
 void *empty_cs_worker(void *arg) {
     task_t *task = (task_t *) arg;
     int task_id = task->id;
@@ -129,7 +54,7 @@ void *empty_cs_worker(void *arg) {
     ull wait_rel;
     ull wait_acq;
 
-    for (int i = 0; i < NUM_RUNS; i++) {
+    for (int i = 0; i < num_runs; i++) {
         lock_acquires = 0;
         lock_hold = 0;
         loop_in_cs = 0;
@@ -137,27 +62,23 @@ void *empty_cs_worker(void *arg) {
         wait_rel = 0;
         pthread_barrier_wait(&global_barrier);
         while (!*task->stop) {
-            // fprintf(stderr, "thread %d acquiring lock\n", task->id);
             start = rdtscp();
             lock_acquire(&lock);
             ull s = rdtscp();
             wait_acq += s - start;
-            // fprintf(stderr, "thread %d acquired lock\n", task->id);
             lock_acquires++;
             loop_in_cs++;
             start = rdtscp();
-            // fprintf(stderr, "thread %d releasing lock\n", task->id);
             lock_hold += start - s;
             lock_release(&lock);
             wait_rel += rdtscp() - start;
-            // fprintf(stderr, "thread %d released lock\n", task->id);
         }
 
-        task->lock_acquires[i][0] = lock_acquires;
-        task->loop_in_cs[i][0] = loop_in_cs;
-        task->lock_hold[i][0] = lock_hold;
-        task->wait_acq[i][0] = wait_acq;
-        task->wait_rel[i][0] = wait_rel;
+        task->lock_acquires[i] = lock_acquires;
+        task->loop_in_cs[i] = loop_in_cs;
+        task->lock_hold[i] = lock_hold;
+        task->wait_acq[i] = wait_acq;
+        task->wait_rel[i] = wait_rel;
         pthread_barrier_wait(&global_barrier);
     }
 
@@ -174,8 +95,8 @@ void *mem_worker(void *arg) {
     ull lock_acquires, lock_hold, loop_in_cs;
     ull wait_acq, wait_rel;
 
-    for (int i = 0; i < NUM_RUNS; i++) {
-        for (int j = 0; j < NUM_MEM_RUNS; j++) {
+    for (int i = 0; i < num_runs; i++) {
+        for (int j = 0; j < num_mem_runs; j++) {
             volatile char sum = 'a'; // Prevent compiler optimizations
             size_t repeat = array_sizes[NUM_MEM_RUNS-1] / array_sizes[j];
             ull array_size = array_sizes[j];
@@ -209,12 +130,13 @@ void *mem_worker(void *arg) {
                     }
                 }
             }
-            task->lock_acquires[i][j] = lock_acquires;
-            task->loop_in_cs[i][j] = loop_in_cs;
-            task->lock_hold[i][j] = lock_hold;
-            task->array_size[i][j] = array_size;
-            task->wait_acq[i][j] = wait_acq;
-            task->wait_rel[i][j] = wait_rel;
+            int _idx = i * num_mem_runs + j;
+            task->lock_acquires[_idx] = lock_acquires;
+            task->loop_in_cs[_idx] = loop_in_cs;
+            task->lock_hold[_idx] = lock_hold;
+            task->array_size[_idx] = array_size;
+            task->wait_acq[_idx] = wait_acq;
+            task->wait_rel[_idx] = wait_rel;
             pthread_barrier_wait(&global_barrier);
         }
     }
@@ -229,39 +151,30 @@ int main(int argc, char *argv[]) {
     int mode = atoi(argv[4]);
     res_file_cum = argv[5];
     res_file_single = argv[6];
+    num_runs = atoi(argv[7]);
+    num_mem_runs = atoi(argv[8]);
     void* worker; 
-    int num_mem_runs;
     switch (mode) {
         case 0:
             use_nodes = 2;
             worker = empty_cs_worker;
-            num_mem_runs = 1;
             break;
         case 1:
             use_nodes = 1;
             worker = empty_cs_worker;
             num_mem_runs = 1;
             break;
-        case 2:
-            use_nodes = 2;
-            worker = lat_worker;
-            num_mem_runs = 1;
-            duration = 0;
-            break;
         case 3:
             use_nodes = 2;
             worker = mem_worker;
-            num_mem_runs = NUM_MEM_RUNS;
             break;
         case 4:
             use_nodes = 1;
             worker = mem_worker;
-            num_mem_runs = NUM_MEM_RUNS;
             break;
         default:
             use_nodes = 2;
             worker = empty_cs_worker;
-            num_mem_runs = 1;
             break;
     }
     task_t *tasks = malloc(sizeof(task_t) * nthreads);
@@ -286,6 +199,7 @@ int main(int argc, char *argv[]) {
         // int priority = atoi(argv[4+i*2]);
         // tasks[i].priority = priority;
     }
+    allocate_task_mem(tasks, num_runs, num_mem_runs, nthreads);
     lock_init(&lock);
     pthread_barrier_init(&global_barrier, NULL, nthreads+1);
     pthread_barrier_init(&mem_barrier, NULL, nthreads);
@@ -293,7 +207,7 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < nthreads; i++) {
         pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
     }
-    for (int i = 0; i < NUM_RUNS; i++) {
+    for (int i = 0; i < num_runs; i++) {
         for (int k = 0; k < num_mem_runs; k++) {
             size_t array_sz = array_sizes[k];
             if (mode == 3 || 4) {
@@ -320,10 +234,7 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < nthreads; i++) {
         pthread_join(tasks[i].thread, NULL);
     }
-    write_res_cum(tasks, nthreads, mode, res_file_cum);
+    write_res_cum(tasks, nthreads, mode, res_file_cum, num_runs, num_mem_runs);
     fprintf(stderr, "DONE\n");
     return 0;
 }
-
-// LD_PRELOAD=/home/mihi/Desktop/DAL/litl2/lib/original/libcbomcs_spinlock.so ./main 2 3 1000 8 
-// LD_PRELOAD=/home/kumichae/DAL/litl2/lib/original/libcbomcs_spinlock.so ./main 2 3 1000 8 

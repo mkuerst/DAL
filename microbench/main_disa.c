@@ -145,11 +145,11 @@ void *empty_cs_worker(void *arg) {
             task->cnt++;
         }
 
-        task->lock_acquires[i][0] = lock_acquires;
-        task->loop_in_cs[i][0] = loop_in_cs;
-        task->lock_hold[i][0] = lock_hold;
-        task->wait_acq[i][0] = wait_acq;
-        task->wait_rel[i][0] = wait_rel;
+        task->lock_acquires[i] = lock_acquires;
+        task->loop_in_cs[i] = loop_in_cs;
+        task->lock_hold[i] = lock_hold;
+        task->wait_acq[i] = wait_acq;
+        task->wait_rel[i] = wait_rel;
         pthread_barrier_wait(&global_barrier);
     }
     return 0;
@@ -165,9 +165,8 @@ void *mem_worker(void *arg) {
     ull wait_acq, wait_rel;
 
     for (int i = 0; i < num_runs; i++) {
-        task->run = i;
         for (int j = 0; j < num_mem_runs; j++)  {
-            task->snd_run = j;
+            task->run = i*num_mem_runs + j;
             volatile char sum = 'a'; // Prevent compiler optimizations
             size_t repeat = array_sizes[num_mem_runs-1] / array_sizes[j];
             ull array_size = array_sizes[j];
@@ -220,12 +219,13 @@ void *mem_worker(void *arg) {
                     }
                 }
             }
-            task->lock_acquires[i][j] = lock_acquires;
-            task->loop_in_cs[i][j] = loop_in_cs;
-            task->lock_hold[i][j] = lock_hold;
-            task->array_size[i][j] = array_size;
-            task->wait_acq[i][j] = wait_acq;
-            task->wait_rel[i][j] = wait_rel;
+            int _idx = i*num_mem_runs + j;
+            task->lock_acquires[_idx] = lock_acquires;
+            task->loop_in_cs[_idx] = loop_in_cs;
+            task->lock_hold[_idx] = lock_hold;
+            task->array_size[_idx] = array_size;
+            task->wait_acq[_idx] = wait_acq;
+            task->wait_rel[_idx] = wait_rel;
             pthread_barrier_wait(&global_barrier);
     }
         }
@@ -244,7 +244,6 @@ void *mlocks_worker(void *arg) {
     ull lock_acquires, lock_hold, loop_in_cs;
     ull wait_acq, wait_rel;
 
-    int j = 0;
     volatile int sum = 1;
 
     for (int i = 0; i < num_runs; i++) {
@@ -309,12 +308,12 @@ void *mlocks_worker(void *arg) {
                 }
             }
         }
-        task->lock_acquires[i][j] = lock_acquires;
-        task->loop_in_cs[i][j] = loop_in_cs;
-        task->lock_hold[i][j] = lock_hold;
-        task->array_size[i][j] = array_size;
-        task->wait_acq[i][j] = wait_acq;
-        task->wait_rel[i][j] = wait_rel;
+        task->lock_acquires[i] = lock_acquires;
+        task->loop_in_cs[i] = loop_in_cs;
+        task->lock_hold[i] = lock_hold;
+        task->array_size[i] = array_size;
+        task->wait_acq[i] = wait_acq;
+        task->wait_rel[i] = wait_rel;
         pthread_barrier_wait(&global_barrier);
     }
     return 0;
@@ -430,6 +429,7 @@ int main(int argc, char *argv[]) {
         tasks[i].duration = duration;
         tasks[i].nthreads = nthreads;
     }
+    allocate_task_mem(tasks, num_runs, num_mem_runs, nthreads);
 
     /*LOCK INIT*/
     locks = (disa_mutex_t *) numa_alloc_onnode(nlocks * sizeof(disa_mutex_t), 0);
@@ -502,7 +502,7 @@ int main(int argc, char *argv[]) {
     }
     for (int i = 0; i < num_clients; i++) {
         if (i == client) {
-            write_res_cum(tasks, nthreads, mode, res_file_cum);
+            write_res_cum(tasks, nthreads, mode, res_file_cum, num_runs, num_mem_runs);
         }
     #ifdef MPI
         MPI_Barrier(MPI_COMM_WORLD);

@@ -107,10 +107,8 @@
 #define NUM_MEASUREMENTS 10
 #define IDX_NONCYCLE_MEASURES 9
 #define NUM_STATS 3
-#define NUM_RUNS 3
-#define NUM_MEM_RUNS 1 
-#define NUM_LAT_RUNS 1 
-#define NUM_SND_RUNS (NUM_LAT_RUNS > NUM_MEM_RUNS ? NUM_LAT_RUNS : NUM_MEM_RUNS)
+
+#define NUM_MEM_RUNS 1
 
 #define LOCKS_PER_MEMRUN MAX_ARRAY_SIZE
 #define CYCLES_11 1200L
@@ -174,23 +172,23 @@ typedef struct {
     rdma_client_meta* client_meta;
 
     // MEASUREMENTS CUM
-    ull loop_in_cs[NUM_RUNS][NUM_SND_RUNS];
-    ull lock_acquires[NUM_RUNS][NUM_SND_RUNS];
-    ull lock_hold[NUM_RUNS][NUM_SND_RUNS];
-    ull wait_acq[NUM_RUNS][NUM_SND_RUNS];
-    ull wait_rel[NUM_RUNS][NUM_SND_RUNS];
-    ull lwait_acq[NUM_RUNS][NUM_SND_RUNS];
-    ull lwait_rel[NUM_RUNS][NUM_SND_RUNS];
-    ull gwait_acq[NUM_RUNS][NUM_SND_RUNS];
-    ull gwait_rel[NUM_RUNS][NUM_SND_RUNS];
-    ull glock_tries[NUM_RUNS][NUM_SND_RUNS];
-    ull data_read[NUM_RUNS][NUM_SND_RUNS];
-    ull data_write[NUM_RUNS][NUM_SND_RUNS];
-    size_t array_size[NUM_RUNS][NUM_SND_RUNS];
+    ull *loop_in_cs;
+    ull *lock_acquires;
+    ull *lock_hold;
+    ull *wait_acq;
+    ull *wait_rel;
+    ull *lwait_acq;
+    ull *lwait_rel;
+    ull *gwait_acq;
+    ull *gwait_rel;
+    ull *glock_tries;
+    ull *data_read;
+    ull *data_write;
+    size_t *array_size;
     ull duration, cnt;
 
     // MISC
-    int run, snd_run, idx;
+    int run, idx;
     int private_int_array[PRIVATE_ARRAY_SZ / sizeof(int)];
 
     // MEASUREMENTS SINGLE 
@@ -211,11 +209,12 @@ typedef struct {
 
 typedef struct rdma_server_meta {
     int id;
-    ull lock_impl_time[NUM_RUNS];
+    ull *lock_impl_time;
     rdma_connection *connections;
 } rdma_server_meta;
 
 
+// TODO: ADAPT to removal of num_runs / num_snd_runs
 typedef struct thread_data {
     pthread_t thread;
     unsigned int server_tid;
@@ -223,17 +222,18 @@ typedef struct thread_data {
     int task_id;
     int sockfd;
     int mode;
-    ull wait_acq[NUM_RUNS][NUM_SND_RUNS];
-    ull wait_rel[NUM_RUNS][NUM_SND_RUNS];
+    ull *wait_acq;
+    ull *wait_rel;
 } thread_data;
 
+// TODO: same
 typedef struct client_data {
     pthread_t thread;
     int id;
     int sockfd;
     int mode;
-    ull wait_acq[MAX_THREADS][NUM_RUNS][NUM_SND_RUNS];
-    ull wait_rel[MAX_THREADS][NUM_RUNS][NUM_SND_RUNS];
+    ull wait_acq[MAX_THREADS];
+    ull wait_rel[MAX_THREADS];
 } client_data;
 
 typedef struct {
@@ -273,13 +273,11 @@ void *alloc_cache_align(size_t n);
 
 int pin_thread(unsigned int id, int nthreads, int use_nodes);
 
-int write_res_cum(task_t* tasks, int nthreads, int mode, char* res_file);
+int write_res_cum(task_t* tasks, int nthreads, int mode, char* res_file, int num_runs, int snd_runs);
 
 int write_res_single(task_t* tasks, int nthreads, int mode, char* res_file);
 
 int current_numa_node();
-
-int get_snd_runs(int mode);
 
 int uniform_rand_int(int x);
 
@@ -288,6 +286,8 @@ bool is_power_of_2(int n);
 void flush_cache(void *ptr, size_t size);
 
 void log_single(task_t * task, int num_runs);
+
+void allocate_task_mem(task_t *tasks, int num_runs, int num_mem_runs, int nthreads);
 
 static inline void *xchg_64(void *ptr, void *x) {
     __asm__ __volatile__("xchgq %0,%1"

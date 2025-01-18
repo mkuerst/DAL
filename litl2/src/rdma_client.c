@@ -468,7 +468,7 @@ ull rdma_request_lock(disa_mutex_t* disa_mutex)
 	ull end_of_read = rdtscp();
 	thread_task->sdata_read[thread_task->idx] = end_of_read - end_of_cas;
 	thread_task->sglock_tries[thread_task->idx] = tries;
-	thread_task->data_read[thread_task->run][thread_task->snd_run] += end_of_read - end_of_cas;
+	thread_task->data_read[thread_task->run] += end_of_read - end_of_cas;
 	return tries;
 }
 
@@ -494,7 +494,7 @@ int rdma_release_lock(disa_mutex_t *disa_mutex)
 	}
 	thread_task->sgwait_rel[thread_task->idx] = rdtscp() - end_of_data_write;
 	thread_task->sdata_write[thread_task->idx] = end_of_data_write - start;
-	thread_task->data_write[thread_task->run][thread_task->snd_run] += end_of_data_write - start;
+	thread_task->data_write[thread_task->run] += end_of_data_write - start;
 	DEBUG("[%d.%d] released rlock [%d] on server\n", rdma_client_id, rdma_task_id, curr_rlock_id);
 	return 0;
 }
@@ -554,7 +554,7 @@ ull rdma_request_lock_lease1(disa_mutex_t *disa_mutex)
 	ull end_of_read = rdtscp();
 	thread_task->sdata_read[thread_task->idx] = end_of_read - end_of_cas;
 	thread_task->sglock_tries[thread_task->idx] = tries;
-	thread_task->data_read[thread_task->run][thread_task->snd_run] += end_of_read - end_of_cas;
+	thread_task->data_read[thread_task->run] += end_of_read - end_of_cas;
 	return tries;
 }
 
@@ -591,7 +591,7 @@ int rdma_release_lock_lease1(disa_mutex_t *disa_mutex)
 
 	thread_task->sgwait_rel[thread_task->idx] = rdtscp() - end_of_data_write;
 	thread_task->sdata_write[thread_task->idx] = end_of_data_write - start;
-	thread_task->data_write[thread_task->run][thread_task->snd_run] += end_of_data_write - start;
+	thread_task->data_write[thread_task->run] += end_of_data_write - start;
 	DEBUG("[%d.%d] released rlock [%d] on server\n", rdma_client_id, rdma_task_id, curr_rlock_id);
 	return 0;
 }

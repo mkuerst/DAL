@@ -48,19 +48,6 @@ inline void *alloc_cache_align(size_t n) {
     return res;
 }
 
-inline int get_snd_runs(int mode) {
-    switch(mode) {
-        case(0): return 1;
-        case(1): return 1;
-        case(2): return NUM_LAT_RUNS;
-        case(3): return NUM_MEM_RUNS;
-        case(4): return NUM_MEM_RUNS;
-        case(5): return NUM_MEM_RUNS;
-        case(6): return NUM_MEM_RUNS;
-        default: return 1;
-    }
-}
-
 bool is_power_of_2(int n) {
     return (n > 0) && ((n & (n - 1)) == 0);
 }
@@ -165,7 +152,7 @@ ull percentile(unsigned long long *latencies, size_t size, double p) {
 }
 
 void log_single(task_t * task, int num_runs) {
-    size_t array_size = task->array_size[0][0];
+    size_t array_size = task->array_size[0];
     fprintf(stderr, "tid, slock_hold, swait_acq, swait_rel, slwait_acq, slwait_rel, sgwait_acq, sgwait_rel, sdata_read, sdata_write, sglock_tries, array_sz, cid\n");
     fprintf(stderr, "---------------------------------------------------------------------\n");
     for (int c = task->idx-1; c >= ((int)task->idx-num_runs); c--) {
@@ -184,37 +171,38 @@ void log_single(task_t * task, int num_runs) {
     }
 }
 
-int write_res_cum(task_t* tasks, int nthreads, int mode, char* res_file) {
+int write_res_cum(task_t* tasks, int nthreads, int mode, char* res_file, int num_runs, int snd_runs) {
     int client = tasks[0].client_id;
     FILE *file = fopen(res_file, "a");
     if (file == NULL) {
         _error("Client %d failed to open result file %s, errno %d\n", client, res_file, errno);
     }
-    int snd_runs = get_snd_runs(mode);
-    for (int j = 0; j < NUM_RUNS; j++) {
+    // int snd_runs = get_snd_runs(mode);
+    for (int j = 0; j < num_runs; j++) {
         float total_lock_hold = 0;
         ull total_lock_acq = 0;
         for (int i = 0; i < nthreads; i++) {
             task_t task = (task_t) tasks[i];
             for (int l = 0; l < snd_runs; l++) {
-                float lock_hold = task.lock_hold[j][l] / cycle_to_ms;
-                float wait_acq = task.wait_acq[j][l] / cycle_to_ms;
-                float wait_rel = task.wait_rel[j][l] / cycle_to_ms;
-                float lwait_acq = task.lwait_acq[j][l] / cycle_to_ms;
-                float lwait_rel = task.lwait_rel[j][l] / cycle_to_ms;
-                float gwait_acq = task.gwait_acq[j][l] / cycle_to_ms;
-                float gwait_rel = task.gwait_rel[j][l] / cycle_to_ms;
-                float data_read = task.data_read[j][l] / cycle_to_ms;
-                float data_write = task.data_write[j][l] / cycle_to_ms;
+                int idx = j*snd_runs + l;
+                float lock_hold = task.lock_hold[idx] / cycle_to_ms;
+                float wait_acq = task.wait_acq[idx] / cycle_to_ms;
+                float wait_rel = task.wait_rel[idx] / cycle_to_ms;
+                float lwait_acq = task.lwait_acq[idx] / cycle_to_ms;
+                float lwait_rel = task.lwait_rel[idx] / cycle_to_ms;
+                float gwait_acq = task.gwait_acq[idx] / cycle_to_ms;
+                float gwait_rel = task.gwait_rel[idx] / cycle_to_ms;
+                float data_read = task.data_read[idx] / cycle_to_ms;
+                float data_write = task.data_write[idx] / cycle_to_ms;
 
 
-                size_t array_size = task.array_size[j][l];
+                size_t array_size = task.array_size[idx];
                 total_lock_hold += lock_hold;
-                total_lock_acq += task.lock_acquires[j][l];
+                total_lock_acq += task.lock_acquires[idx];
                 fprintf(file, "%03d,%10llu,%8llu,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%10llu,%16lu,%03d,%03d,%06d\n",
                         task.id,
-                        task.loop_in_cs[j][l],
-                        task.lock_acquires[j][l],
+                        task.loop_in_cs[idx],
+                        task.lock_acquires[idx],
                         lock_hold,
                         (float) task.duration,
                         wait_acq,
@@ -225,7 +213,7 @@ int write_res_cum(task_t* tasks, int nthreads, int mode, char* res_file) {
                         gwait_rel,
                         data_read,
                         data_write,
-                        task.glock_tries[j][l],
+                        task.glock_tries[idx],
                         array_size,
                         task.client_id,
                         j,
@@ -247,7 +235,7 @@ int write_res_single(task_t* tasks, int nthreads, int mode, char* res_file) {
         _error("Client %d failed to open result file %s, errno %d\n", client, res_file, errno);
     }
     // double p = 0.999;
-    size_t array_size = tasks[0].array_size[0][0];
+    size_t array_size = tasks[0].array_size[0];
     float duration = (float) tasks[0].duration;
     for (int i = 0; i < nthreads; i++) {
         task_t task = tasks[i];
@@ -276,4 +264,22 @@ int write_res_single(task_t* tasks, int nthreads, int mode, char* res_file) {
     // MPI Clients don't sync on buffer file IO
     sleep(1);
     return 0;
+}
+
+void allocate_task_mem(task_t *tasks, int num_runs, int num_mem_runs, int nthreads) {
+    for (int i = 0; i < nthreads; i++) {
+        tasks[i].loop_in_cs = aligned_alloc(CACHELINE_SIZE, sizeof(ull)*num_runs*num_mem_runs);
+        tasks[i].lock_acquires = aligned_alloc(CACHELINE_SIZE, sizeof(ull)*num_runs*num_mem_runs);
+        tasks[i].lock_hold = aligned_alloc(CACHELINE_SIZE, sizeof(ull)*num_runs*num_mem_runs);
+        tasks[i].wait_acq = aligned_alloc(CACHELINE_SIZE, sizeof(ull)*num_runs*num_mem_runs);
+        tasks[i].wait_rel = aligned_alloc(CACHELINE_SIZE, sizeof(ull)*num_runs*num_mem_runs);
+        tasks[i].lwait_acq = aligned_alloc(CACHELINE_SIZE, sizeof(ull)*num_runs*num_mem_runs);
+        tasks[i].lwait_rel = aligned_alloc(CACHELINE_SIZE, sizeof(ull)*num_runs*num_mem_runs);
+        tasks[i].gwait_acq = aligned_alloc(CACHELINE_SIZE, sizeof(ull)*num_runs*num_mem_runs);
+        tasks[i].gwait_rel = aligned_alloc(CACHELINE_SIZE, sizeof(ull)*num_runs*num_mem_runs);
+        tasks[i].glock_tries = aligned_alloc(CACHELINE_SIZE, sizeof(ull)*num_runs*num_mem_runs);
+        tasks[i].data_read = aligned_alloc(CACHELINE_SIZE, sizeof(ull)*num_runs*num_mem_runs);
+        tasks[i].data_write = aligned_alloc(CACHELINE_SIZE, sizeof(ull)*num_runs*num_mem_runs);
+        tasks[i].array_size = aligned_alloc(CACHELINE_SIZE, sizeof(ull)*num_runs*num_mem_runs);
+    }
 }

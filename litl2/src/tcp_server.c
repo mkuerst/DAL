@@ -25,7 +25,7 @@ int nclients;
 int nthreads;
 bool bench_running = true;
 
-int snd_runs = 0;
+int num_runs, num_mem_runs;
 
 __thread char buffer[BUFFER_SIZE];
 __thread char granted_msg[BUFFER_SIZE];
@@ -57,13 +57,13 @@ int _recv(int fd) {
 
 int process_msg(int fd) {
     char cmd;
-    int client_id, task_id, run, snd_run;
-    if (sscanf(buffer, "%c%d.%d.%d.%d", &cmd, &client_id, &task_id, &run, &snd_run) == 5) {
+    int client_id, task_id, run;
+    if (sscanf(buffer, "%c%d.%d.%d", &cmd, &client_id, &task_id, &run) == 4) {
         if (cmd == 'l') {
             ull start = rdtscp();
             pthread_mutex_lock(&mutex);
             ull time = rdtscp() - start;
-            client->wait_acq[task_id][run][snd_run] += time;
+            client->wait_acq[task_id*num_mem_runs+run] += time;
 
             if (send(fd, granted_msg, BUFFER_SIZE, 0) < 0) 
                 tcp_client_error(fd, "lock acquisition notice failed for client.task_id %d.%d", client_id, task_id);
@@ -82,7 +82,7 @@ int process_msg(int fd) {
             start = rdtscp();
             pthread_mutex_unlock(&mutex);
             time = rdtscp() - start;
-            client->wait_rel[task_id][run][snd_run] += time; 
+            client->wait_rel[task_id*num_mem_runs+run] += time; 
             DEBUG("Released lock to client.task %d.%d over socket %d\n", client_id, task_id, fd);
             return 0;
         }
@@ -357,7 +357,8 @@ int main(int argc, char *argv[]) {
     nthreads = atoi(argv[1]);
     mode = atoi(argv[2]);
     nclients = atoi(argv[3]);
-    snd_runs = mode == 1 ? NUM_LAT_RUNS :(mode == 2 ? NUM_MEM_RUNS : 1);
+    num_runs = atoi(argv[4]);
+    num_mem_runs = atoi(argv[5]);
     int client_fd;
     struct sockaddr_in server_addr, client_addr;
     socklen_t addr_len = sizeof(client_addr);
@@ -457,15 +458,16 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < nclients; i++) {
         pthread_join(clients[i].thread, NULL);
     }
-    for (int j = 0; j < NUM_RUNS; j++) {
+    for (int j = 0; j < num_runs; j++) {
         // printf("RUN %d\n", j);
         for (int i = 0; i < nclients; i++) {
             client_data client = (client_data) clients[i];
             for (int k = 0; k < nthreads; k++) {
-                for (int l = 0; l < snd_runs; l++) {
+                for (int l = 0; l < num_mem_runs; l++) {
+                    int idx = j*num_mem_runs + l;
                     printf("%03d,%10.9f,%10.9f,%03d,%03d\n", k,
-                    client.wait_acq[k][j][l] / FACTOR,
-                    client.wait_rel[k][j][l] / FACTOR,
+                    client.wait_acq[idx] / FACTOR,
+                    client.wait_rel[idx] / FACTOR,
                     client.id,
                     j);
                 }

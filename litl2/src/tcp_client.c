@@ -95,7 +95,7 @@ int tcp_request_lock()
 {
     memset(buffer, 0, BUFFER_SIZE);
     memset(lock_msg, 0, BUFFER_SIZE);
-    sprintf(lock_msg, "l%d.%d.%d.%d", client_id, task_id, task->run, task->snd_run);
+    sprintf(lock_msg, "l%d.%d.%d", client_id, task_id, task->run);
     DEBUG("Client.Task %d.%d requests the lock: %s on socket %d\n", client_id, task_id, lock_msg, sockfd);
     if (send(sockfd, lock_msg, BUFFER_SIZE, 0) < 0)
         tcp_client_error(sockfd, "Client.Task %d.%d failed at sending lock request\n", client_id, task_id);
@@ -117,7 +117,7 @@ int tcp_release_lock()
 {
     memset(buffer, 0, BUFFER_SIZE);
     memset(rel_msg, 0, BUFFER_SIZE);
-    sprintf(rel_msg, "r%d.%d.%d.%d", client_id, task_id, task->run, task->snd_run);
+    sprintf(rel_msg, "r%d.%d.%d", client_id, task_id, task->run);
     if (send(sockfd, rel_msg, BUFFER_SIZE, 0) < 0)
         tcp_client_error(sockfd, "Client.Task %d.%d failed at releasing lock\n", client_id, task_id);
 

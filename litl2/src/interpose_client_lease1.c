@@ -497,11 +497,11 @@ int pthread_mutex_lock(pthread_mutex_t *mutex) {
         tries = rdma_request_lock_lease1(disa_mutex);
         disa_mutex->turns = nthreads;
         ull end = rdtscp();
-        task->gwait_acq[task->run][task->snd_run] += end - end_lacq; 
-        task->glock_tries[task->run][task->snd_run] += tries;
+        task->gwait_acq[task->run] += end - end_lacq; 
+        task->glock_tries[task->run] += tries;
     }
 
-    task->lwait_acq[task->run][task->snd_run] += end_lacq - start;
+    task->lwait_acq[task->run] += end_lacq - start;
     task->slwait_acq[task->idx] = end_lacq - start;
     return 0;
 }
@@ -543,8 +543,8 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex) {
     lock_mutex_unlock(mutex, NULL);
 #endif
     ull end = rdtscp();
-    task->lwait_rel[task->run][task->snd_run] += end - end_grel;
-    task->gwait_rel[task->run][task->snd_run] += end_grel - start;
+    task->lwait_rel[task->run] += end - end_grel;
+    task->gwait_rel[task->run] += end_grel - start;
     task->slwait_rel[task->idx] = end - end_grel;
 
     return 0;
