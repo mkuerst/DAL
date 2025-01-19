@@ -274,6 +274,9 @@ void *mlocks_worker(void *arg) {
             }
 
             for (int j = 0; j < 100; j++) {
+                if (*task->stop) {
+                    break;
+                }
                 int lock_idx = uniform_rand_int(nlocks);
                 // int lock_idx = 1;
                 disa_mutex_t l = locks[lock_idx];
@@ -303,6 +306,7 @@ void *mlocks_worker(void *arg) {
                 lock_hold += rel_start - lock_start;
                 wait_rel += rel_end - rel_start;
                 lock_acquires++;
+
                 if (*task->stop) {
                     break;
                 }

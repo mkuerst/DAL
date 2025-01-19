@@ -134,11 +134,11 @@ opts=("spinlock" "lease1")
 client_ids=(0 1 2 3 4 5 6 7 8 9)
 
 mem_runs=1
-runs=(1 2 3)
-n_clients=(1 4)
+runs=3
+n_clients=(1)
 n_threads=(16)
 bench_idxs=(5)
-num_locks=(1 128 512)
+num_locks=(512)
 
 for impl_dir in "$BASE"/original/*
 do
@@ -178,42 +178,39 @@ do
                     for nlocks in ${num_locks[@]}
                     do
 
-                        for run in ${runs[@]}
-                        do
-                            server_session="server_$i"
-                            echo "START SERVER $i T & $nclients C & $nlocks L"
+                        server_session="server_$i"
+                        echo "START SERVER $i T & $nclients C & $nlocks L"
 
-                            tmux new-session -d -s "$server_session" \
-                            "ssh $REMOTE_USER@$REMOTE_SERVER $rdma_server_app -c $nclients -a $server_ip -t $i -l $nlocks >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
+                        tmux new-session -d -s "$server_session" \
+                        "ssh $REMOTE_USER@$REMOTE_SERVER $rdma_server_app -c $nclients -a $server_ip -t $i -l $nlocks >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
 
-                            # tmux new-session -d -s "$server_session" \
-                            # "ssh $REMOTE_USER@$REMOTE_SERVER LD_PRELOAD=$spinlock_so $tcp_server_app $i $j $nclients >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
+                        # tmux new-session -d -s "$server_session" \
+                        # "ssh $REMOTE_USER@$REMOTE_SERVER LD_PRELOAD=$spinlock_so $tcp_server_app $i $j $nclients >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
 
-                            sleep 3
+                        sleep 3
 
-                            # ============= MPIRUN ========================================================
-                            echo "START MICROBENCH $impl $microb $opt $nclients MPI-C $i T & $nlocks L"
-                            mpirun --hostfile ./clients.txt -np $nclients \
-                            --x LD_PRELOAD=$client_so \
-                            --mca btl_tcp_if_exclude lo,eno3,eno1,eno4,eno2,docker0 \
-                            --mca oob_tcp_dynamic_ipv4_ports 8000,8080 \
-                            --mca btl_tcp_port_min_v4 8000 --mca btl_tcp_port_range_v4 10 \
-                            $disa_bench $i $duration $critical $server_ip $j 0 $nclients $client_rescum_file $client_ressingle_file $nlocks $run $mem_runs \
-                            # 2>> $client_log_dir/nclients$n_clients"_nthreads"$i.log
+                        # ============= MPIRUN ========================================================
+                        echo "START MICROBENCH $impl $microb $opt $nclients MPI-C $i T & $nlocks L"
+                        mpirun --hostfile ./clients.txt -np $nclients \
+                        --x LD_PRELOAD=$client_so \
+                        --mca btl_tcp_if_exclude lo,eno3,eno1,eno4,eno2,docker0 \
+                        --mca oob_tcp_dynamic_ipv4_ports 8000,8080 \
+                        --mca btl_tcp_port_min_v4 8000 --mca btl_tcp_port_range_v4 10 \
+                        $disa_bench $i $duration $critical $server_ip $j 0 $nclients $client_rescum_file $client_ressingle_file $nlocks $runs $mem_runs \
+                        # 2>> $client_log_dir/nclients$n_clients"_nthreads"$i.log
 
-                            # --mca btl_base_debug 1 --mca oob_tcp_debug 1 --mca plm_base_verbose 5 --mca orte_base_help_aggregate 0 \
-                            # -mca btl openib,self \
-                            # --mca btl_tcp_inf_include 10.233.0.10/24,10.233.0.11/24,10.233.0.20/24,10.233.0.14/24,10.233.0.15/24 \
-                            # --mca btl_openib_allow_ib true \
-                            # --mca btl_openib_cpc_include udcm \
-                            # --mca btl_openib_cpc_exclude udcm \
-                            # --mca mpi_debug 1 \
-                            # --mca oob_tcp_if_include enp3s0 \
-                            # --report-bindings --mca mpi_add_procs_verbose 1 --mca mpi_btl_base_verbose 1 \
-                            # mpirun -np $nclients -x LD_PRELOAD=$client_so \
-                            # ============= MPIRUN ========================================================
-                            cleanup
-                        done
+                        # --mca btl_base_debug 1 --mca oob_tcp_debug 1 --mca plm_base_verbose 5 --mca orte_base_help_aggregate 0 \
+                        # -mca btl openib,self \
+                        # --mca btl_tcp_inf_include 10.233.0.10/24,10.233.0.11/24,10.233.0.20/24,10.233.0.14/24,10.233.0.15/24 \
+                        # --mca btl_openib_allow_ib true \
+                        # --mca btl_openib_cpc_include udcm \
+                        # --mca btl_openib_cpc_exclude udcm \
+                        # --mca mpi_debug 1 \
+                        # --mca oob_tcp_if_include enp3s0 \
+                        # --report-bindings --mca mpi_add_procs_verbose 1 --mca mpi_btl_base_verbose 1 \
+                        # mpirun -np $nclients -x LD_PRELOAD=$client_so \
+                        # ============= MPIRUN ========================================================
+                        cleanup
                     done
                 done
             done
