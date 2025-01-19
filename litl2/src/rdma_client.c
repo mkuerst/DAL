@@ -85,9 +85,9 @@ void set_rdma_client_meta(task_t* task, rdma_client_meta* client_meta, int cid, 
 	thread_wc = client_meta->wc[tid];
 	thread_task = task;
 
-	thread_byte_data = client_meta->data[tid];
-	thread_int_data = (int *) client_meta->data[tid];
-	thread_cas_result = client_meta->cas_result[tid];
+	thread_byte_data = (char *) client_meta->data_sge[tid].addr;
+	thread_int_data = (int *) client_meta->data_sge[tid].addr;
+	thread_cas_result = (uint64_t *) client_meta->cas_sge[tid].addr;
 	*thread_cas_result = 0;
 
 	rlock_addr = client_meta->rlock_addr;
@@ -100,11 +100,11 @@ void set_rdma_client_meta(task_t* task, rdma_client_meta* client_meta, int cid, 
 void *create_rdma_client_meta(int cid, int nthreads, int nlocks) {
 	rdma_client_meta* client_meta = (rdma_client_meta *) malloc(sizeof(rdma_client_meta));
 	for (int i = 0; i < nthreads; i++) {
-		cas_sge[i].addr   = (uintptr_t) local_cas_mr[0]->addr + i*RLOCK_SIZE;
+		cas_sge[i].addr   = (uint64_t) local_cas_mr[0]->addr + i*RLOCK_SIZE;
 		cas_sge[i].length = sizeof(uint64_t);
 		cas_sge[i].lkey   = local_cas_mr[0]->lkey;
 
-		w_sge[i].addr   = (uintptr_t) local_unlock_mr->addr;
+		w_sge[i].addr   = (uint64_t) local_unlock_mr->addr;
 		w_sge[i].length = sizeof(uint64_t);
 		w_sge[i].lkey   = local_unlock_mr->lkey;
 
@@ -348,8 +348,7 @@ void* client_connect_to_server(int cid, int nthreads, int nlocks, int use_nodes)
 	// 		return NULL;
 	// 	}
 	// }
-	cas_result[0] = numa_alloc_onnode(nlocks*sizeof(uint64_t), node);
-	memset(cas_result[0], 0, nlocks*RLOCK_SIZE);
+	cas_result[0] = numa_alloc_onnode(nthreads*sizeof(uint64_t), node);
 	data[0] = numa_alloc_onnode(nthreads*MAX_ARRAY_SIZE, node);
 	if (!data[0]) {
 		rdma_error("Client %d failed to allocate data memory\n", cid);
@@ -358,7 +357,7 @@ void* client_connect_to_server(int cid, int nthreads, int nlocks, int use_nodes)
 
 	local_cas_mr[0] = rdma_buffer_register(pd,
 			cas_result[0],
-			nlocks*sizeof(uint64_t),
+			nthreads*sizeof(uint64_t),
 			(IBV_ACCESS_LOCAL_WRITE|
 			IBV_ACCESS_REMOTE_READ|
 			IBV_ACCESS_REMOTE_WRITE|

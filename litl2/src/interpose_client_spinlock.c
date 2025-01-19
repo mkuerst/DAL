@@ -460,13 +460,13 @@ int pthread_mutex_init(pthread_mutex_t *mutex,
     disa_mutex_t *disa_mutex = (disa_mutex_t *) mutex;
     if (disa_mutex->disa != 'y') {
         // DEBUG("native mutex_init\n");
-        REAL(pthread_mutex_init)(mutex, attr);
+        return REAL(pthread_mutex_init)(&disa_mutex->mutex, attr);
     }
 #if !NO_INDIRECTION
-    ht_lock_create(mutex, attr);
+    ht_lock_create(&disa_mutex->mutex, attr);
     return 0;
 #else
-    return REAL(pthread_mutex_init)(mutex, attr);
+    return REAL(pthread_mutex_init)(&disa_mutex->mutex, attr);
 #endif
 }
 
@@ -496,14 +496,15 @@ int pthread_mutex_lock(pthread_mutex_t *mutex) {
     disa_mutex_t *disa_mutex = (disa_mutex_t *) mutex;
     if (disa_mutex->disa != 'y') {
         // DEBUG("native mutex_lock\n");
-        return REAL(pthread_mutex_lock)(mutex);
+        return REAL(pthread_mutex_lock)(&disa_mutex->mutex);
     }
 #if !NO_INDIRECTION
-    lock_transparent_mutex_t *impl = ht_lock_get(mutex);
+    lock_transparent_mutex_t *impl = ht_lock_get(&disa_mutex->mutex);
     lock_mutex_lock(impl->lock_lock, get_node(impl));
 #else
-    lock_mutex_lock(mutex, NULL);
+    lock_mutex_lock(&disa_mutex->mutex, NULL);
 #endif
+    DEBUG("[%d.%d] acquired local lock [%d]\n", client_id, task_id, disa_mutex->id);
     ull end_lacq = rdtscp();
 #ifdef RDMA
     tries = rdma_request_lock(disa_mutex);

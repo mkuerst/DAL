@@ -279,21 +279,22 @@ void *mlocks_worker(void *arg) {
                 }
                 int lock_idx = uniform_rand_int(nlocks);
                 // int lock_idx = 1;
-                disa_mutex_t l = locks[lock_idx];
+                disa_mutex_t *l = &locks[lock_idx];
 
                 start = rdtscp();
-                lock_acquire((pthread_mutex_t *)&l);
+                // DEBUG("[%d] lock addr %p\n", task_id, l);
+                lock_acquire((pthread_mutex_t *)l);
                 lock_start = rdtscp();
 
                 for (int idx = 0; idx < data_len; idx++) {
-                    l.int_data[idx] += sum;
+                    l->int_data[idx] += sum;
                     loop_in_cs++;
                 }
                 // data[lock_idx*data_len] += sum;
                 // loop_in_cs++;
 
                 ull rel_start = rdtscp();
-                lock_release((pthread_mutex_t *)&l);
+                lock_release((pthread_mutex_t *)l);
                 ull rel_end = rdtscp();
 
                 task->swait_acq[task->idx] = lock_start-start;
@@ -437,7 +438,9 @@ int main(int argc, char *argv[]) {
 
     /*LOCK INIT*/
     locks = (disa_mutex_t *) numa_alloc_onnode(nlocks * sizeof(disa_mutex_t), 0);
+    // locks = (disa_mutex_t *) malloc(nlocks * sizeof(disa_mutex_t));
     for (int l = 0; l < nlocks; l++) {
+        // lock_init(&locks[l].mutex);
         locks[l].disa = 'y';
         locks[l].id = l;
         locks[l].offset = -1;
@@ -445,7 +448,6 @@ int main(int argc, char *argv[]) {
         locks[l].turns = 0;
         locks[l].rlock_addr = client_meta->rlock_addr + l*RLOCK_SIZE;
         locks[l].data_addr = client_meta->data_addr + l*MAX_ARRAY_SIZE;
-        lock_init(&locks[l]);
     }
     lock = locks[0];
 
