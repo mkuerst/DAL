@@ -98,8 +98,8 @@
 #define MAX_ARRAY_SIZE MB (1) 
 #define PRIVATE_ARRAY_SZ KB(512) 
 
-#define BO (1 << 9)
-#define MAX_BO ((1 << 20) - 1)
+#define BO (1 << 20)
+#define MAX_BO ((1 << 30) - 1)
 
 #define MAX_THREADS 128
 #define MAX_CLIENTS 12

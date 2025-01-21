@@ -304,8 +304,8 @@ void* client_connect_to_server(int cid, int nthreads, int nlocks, int use_nodes)
 	bzero(&conn_param, sizeof(conn_param));
 	conn_param.initiator_depth = 16;
 	conn_param.responder_resources = 16;
-	conn_param.retry_count = 3;
-	conn_param.rnr_retry_count = 3;
+	conn_param.retry_count = 7;
+	conn_param.rnr_retry_count = 7;
 	// conn_param.flow_control = 1;
 
 	// cas_result = aligned_alloc(sizeof(uint64_t), nlocks * sizeof(uint64_t));
@@ -460,6 +460,60 @@ int perform_rdma_op(struct ibv_send_wr *wr)
 	return 0;
 }
 
+inline ull rdma_bo_cas(uint64_t rlock_addr)
+{
+    unsigned int i;
+	unsigned int delay = BO;
+	ull tries = 0;
+	thread_cas_wr.wr.atomic.remote_addr = rlock_addr;
+
+	do {
+		tries++;
+		if (tries > 100) {
+			rdma_error("[%d.%d] Exceeded tries for lock [%d]\n", rdma_client_id, rdma_task_id, curr_rlock_id);
+			exit(EXIT_FAILURE);
+		}
+		DEBUG("[%d.%d] rdma_cas post, lock[%d]\n", rdma_client_id, rdma_task_id, curr_rlock_id);
+		if(perform_rdma_op(&thread_cas_wr)) {
+			rdma_error("[%d.%d] rdma_cas failed\n", rdma_client_id, rdma_task_id);
+			exit(EXIT_FAILURE);
+		}
+		if (*thread_cas_result) {
+			for (i = 0; i < delay; i++)
+				CPU_PAUSE();
+
+			if (delay < MAX_BO)
+				delay *= 2;
+		} else {
+			DEBUG("[%d.%d] got rlock [%d] from server after %llu tries\n",
+			rdma_client_id, rdma_task_id, curr_rlock_id, tries);
+			return tries;
+		}
+	} while(1);
+}
+
+inline ull rdma_cas(uint64_t rlock_addr)
+{
+	ull tries = 0;
+	thread_cas_wr.wr.atomic.remote_addr = rlock_addr;
+	do {
+		tries++;
+		// if (tries > 100) {
+		// 	rdma_error("[%d.%d] Exceeded tries for lock [%d]\n", rdma_client_id, rdma_task_id, curr_rlock_id);
+		// 	exit(EXIT_FAILURE);
+		// }
+		DEBUG("[%d.%d] rdma_cas post, lock[%d]\n", rdma_client_id, rdma_task_id, curr_rlock_id);
+		if(perform_rdma_op(&thread_cas_wr)) {
+			rdma_error("[%d.%d] rdma_cas failed\n", rdma_client_id, rdma_task_id);
+			exit(EXIT_FAILURE);
+		}
+	} while(*thread_cas_result);
+
+	DEBUG("[%d.%d] got rlock [%d] from server after %llu tries\n",
+	rdma_client_id, rdma_task_id, curr_rlock_id, tries);
+	return tries;
+}
+
 /************************************/
 /*************SPINLOCK***************/
 /************************************/
@@ -474,21 +528,10 @@ ull rdma_request_lock(disa_mutex_t* disa_mutex)
 	curr_byte_data_len = disa_mutex->data_len;
 	curr_elem_offset = curr_byte_offset / disa_mutex->elem_sz;
 
-	thread_cas_wr.wr.atomic.remote_addr = disa_mutex->rlock_addr;
 	thread_w_wr.wr.rdma.remote_addr = disa_mutex->rlock_addr;
 
-	do {
-		tries++;
-		DEBUG("[%d.%d] rdma_cas post\n", rdma_client_id, rdma_task_id);
-		if(perform_rdma_op(&thread_cas_wr)) {
-			rdma_error("[%d.%d] rdma_cas failed\n", rdma_client_id, rdma_task_id);
-			exit(EXIT_FAILURE);
-		}
-	} while(*thread_cas_result);
-	DEBUG("[%d.%d] got rlock [%d] from server after %llu tries\n",
-	rdma_client_id, rdma_task_id, curr_rlock_id, tries);
+	tries = rdma_cas(disa_mutex->rlock_addr);
 	ull end_of_cas = rdtscp();
-	thread_task->sgwait_acq[thread_task->idx] = end_of_cas - start;
 
 	if (curr_byte_offset >= 0) {
 		thread_data_wr.wr.rdma.remote_addr = disa_mutex->data_addr;
@@ -507,9 +550,12 @@ ull rdma_request_lock(disa_mutex_t* disa_mutex)
 		thread_int_data[curr_elem_offset - curr_byte_data_len/disa_mutex->elem_sz*curr_rlock_id], curr_rlock_id);
 	}
 	ull end_of_read = rdtscp();
-	thread_task->sdata_read[thread_task->idx] = end_of_read - end_of_cas;
-	thread_task->sglock_tries[thread_task->idx] = tries;
-	thread_task->data_read[thread_task->run] += end_of_read - end_of_cas;
+	if(!*thread_task->stop) {
+		thread_task->sgwait_acq[thread_task->idx] = end_of_cas - start;
+		thread_task->sdata_read[thread_task->idx] = end_of_read - end_of_cas;
+		thread_task->sglock_tries[thread_task->idx] = tries;
+		thread_task->data_read[thread_task->run] += end_of_read - end_of_cas;
+	}
 	return tries;
 }
 
@@ -535,9 +581,11 @@ int rdma_release_lock(disa_mutex_t *disa_mutex)
 		rdma_error("[%d.%d] rdma_release failed\n", rdma_client_id, rdma_task_id);
 		exit(EXIT_FAILURE);
 	}
-	thread_task->sgwait_rel[thread_task->idx] = rdtscp() - end_of_data_write;
-	thread_task->sdata_write[thread_task->idx] = end_of_data_write - start;
-	thread_task->data_write[thread_task->run] += end_of_data_write - start;
+	if(!*thread_task->stop) {
+		thread_task->sgwait_rel[thread_task->idx] = rdtscp() - end_of_data_write;
+		thread_task->sdata_write[thread_task->idx] = end_of_data_write - start;
+		thread_task->data_write[thread_task->run] += end_of_data_write - start;
+	}
 	DEBUG("[%d.%d] released rlock [%d] on server\n", rdma_client_id, rdma_task_id, curr_rlock_id);
 	return 0;
 }
@@ -556,20 +604,10 @@ ull rdma_request_lock_lease1(disa_mutex_t *disa_mutex)
 	curr_byte_offset = disa_mutex->offset;
 	curr_byte_data_len = disa_mutex->data_len;
 	curr_elem_offset = curr_byte_offset / disa_mutex->elem_sz;
-	thread_cas_wr.wr.atomic.remote_addr = disa_mutex->rlock_addr;
 
-	do {
-		tries++;
-		if(perform_rdma_op(&thread_cas_wr)) {
-			rdma_error("[%d.%d] rdma_cas failed\n", rdma_client_id, rdma_task_id);
-			exit(EXIT_FAILURE);
-		}
-	} while(*thread_cas_result);
+	tries = rdma_cas(disa_mutex->rlock_addr);
 
-	DEBUG("[%d.%d] got rlock [%d] from server after %llu tries\n",
-	rdma_client_id, rdma_task_id, curr_rlock_id, tries);
 	ull end_of_cas = rdtscp();
-	thread_task->sgwait_acq[thread_task->idx] = end_of_cas - start;
 
 	if (curr_byte_offset >= 0) {
 		thread_data_wr.wr.rdma.remote_addr = disa_mutex->data_addr;
@@ -587,9 +625,12 @@ ull rdma_request_lock_lease1(disa_mutex_t *disa_mutex)
 		thread_int_data[curr_elem_offset - curr_byte_data_len/disa_mutex->elem_sz*curr_rlock_id], curr_rlock_id);
 	}
 	ull end_of_read = rdtscp();
-	thread_task->sdata_read[thread_task->idx] = end_of_read - end_of_cas;
-	thread_task->sglock_tries[thread_task->idx] = tries;
-	thread_task->data_read[thread_task->run] += end_of_read - end_of_cas;
+	if (!*thread_task->stop) {
+		thread_task->sgwait_acq[thread_task->idx] = end_of_cas - start;
+		thread_task->sdata_read[thread_task->idx] = end_of_read - end_of_cas;
+		thread_task->sglock_tries[thread_task->idx] = tries;
+		thread_task->data_read[thread_task->run] += end_of_read - end_of_cas;
+	}
 	return tries;
 }
 
@@ -622,9 +663,11 @@ int rdma_release_lock_lease1(disa_mutex_t *disa_mutex)
 		exit(EXIT_FAILURE);
 	}
 
-	thread_task->sgwait_rel[thread_task->idx] = rdtscp() - end_of_data_write;
-	thread_task->sdata_write[thread_task->idx] = end_of_data_write - start;
-	thread_task->data_write[thread_task->run] += end_of_data_write - start;
+	if (!*thread_task->stop) {
+		thread_task->sgwait_rel[thread_task->idx] = rdtscp() - end_of_data_write;
+		thread_task->sdata_write[thread_task->idx] = end_of_data_write - start;
+		thread_task->data_write[thread_task->run] += end_of_data_write - start;
+	}
 	DEBUG("[%d.%d] released rlock [%d] on server\n", rdma_client_id, rdma_task_id, curr_rlock_id);
 	return 0;
 }

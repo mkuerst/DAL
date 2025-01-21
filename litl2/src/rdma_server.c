@@ -247,8 +247,8 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients, int 
 			memset(&conn_param, 0, sizeof(conn_param));
 			conn_param.initiator_depth = 16;
 			conn_param.responder_resources = 16;
-			conn_param.retry_count = 3;
-			conn_param.rnr_retry_count = 3;
+			conn_param.retry_count = 7;
+			conn_param.rnr_retry_count = 7;
 			// conn_param.flow_control = 1;
 			if (rdma_accept(cm_client_id, &conn_param)) {
 				rdma_error("Failed to accept the connection, errno: %d \n", -errno);

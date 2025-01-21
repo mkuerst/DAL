@@ -261,27 +261,11 @@ int write_res_single(task_t* tasks, int nthreads, int mode, char* res_file) {
         fprintf(file, "%16lu,%03d,%06d\n", array_size, task.client_id, task.nlocks);
     }
     fclose(file);
-    // MPI Clients don't sync on buffer file IO
-    sleep(1);
     return 0;
 }
 
 void allocate_task_mem(task_t *tasks, int num_runs, int num_mem_runs, int nthreads) {
     for (int i = 0; i < nthreads; i++) {
-        // tasks[i].loop_in_cs = aligned_alloc(CACHELINE_SIZE, sizeof(ull)*num_runs*num_mem_runs);
-        // tasks[i].lock_acquires = aligned_alloc(CACHELINE_SIZE, sizeof(ull)*num_runs*num_mem_runs);
-        // tasks[i].lock_hold = aligned_alloc(CACHELINE_SIZE, sizeof(ull)*num_runs*num_mem_runs);
-        // tasks[i].wait_acq = aligned_alloc(CACHELINE_SIZE, sizeof(ull)*num_runs*num_mem_runs);
-        // tasks[i].wait_rel = aligned_alloc(CACHELINE_SIZE, sizeof(ull)*num_runs*num_mem_runs);
-        // tasks[i].lwait_acq = aligned_alloc(CACHELINE_SIZE, sizeof(ull)*num_runs*num_mem_runs);
-        // tasks[i].lwait_rel = aligned_alloc(CACHELINE_SIZE, sizeof(ull)*num_runs*num_mem_runs);
-        // tasks[i].gwait_acq = aligned_alloc(CACHELINE_SIZE, sizeof(ull)*num_runs*num_mem_runs);
-        // tasks[i].gwait_rel = aligned_alloc(CACHELINE_SIZE, sizeof(ull)*num_runs*num_mem_runs);
-        // tasks[i].glock_tries = aligned_alloc(CACHELINE_SIZE, sizeof(ull)*num_runs*num_mem_runs);
-        // tasks[i].data_read = aligned_alloc(CACHELINE_SIZE, sizeof(ull)*num_runs*num_mem_runs);
-        // tasks[i].data_write = aligned_alloc(CACHELINE_SIZE, sizeof(ull)*num_runs*num_mem_runs);
-        // tasks[i].array_size = aligned_alloc(CACHELINE_SIZE, sizeof(ull)*num_runs*num_mem_runs);
-
         tasks[i].loop_in_cs = aligned_alloc(CACHELINE_SIZE, sizeof(ull) * num_runs * num_mem_runs);
         memset(tasks[i].loop_in_cs, 0, sizeof(ull) * num_runs * num_mem_runs);
 

@@ -112,7 +112,7 @@ void *empty_cs_worker(void *arg) {
         wait_acq = 0;
         wait_rel = 0;
 
-        pthread_barrier_wait(&local_barrier);
+        pthread_barrier_wait(&global_barrier);
     #ifdef MPI
         if (task_id == 0)
             MPI_Barrier(MPI_COMM_WORLD);
@@ -176,7 +176,7 @@ void *mem_worker(void *arg) {
             wait_acq = 0;
             wait_rel = 0;
 
-            pthread_barrier_wait(&local_barrier);
+            pthread_barrier_wait(&global_barrier);
         #ifdef MPI
             if (task_id == 0)
                 MPI_Barrier(MPI_COMM_WORLD);
@@ -255,7 +255,7 @@ void *mlocks_worker(void *arg) {
         wait_acq = 0;
         wait_rel = 0;
 
-        pthread_barrier_wait(&local_barrier);
+        pthread_barrier_wait(&global_barrier);
     #ifdef MPI
         if (task_id == 0)
             MPI_Barrier(MPI_COMM_WORLD);
@@ -269,20 +269,12 @@ void *mlocks_worker(void *arg) {
                 int idx = uniform_rand_int(PRIVATE_ARRAY_SZ / sizeof(int));
                 private_int_array[idx] += sum;
             }
-            if (*task->stop) {
-                break;
-            }
 
             for (int j = 0; j < 100; j++) {
-                if (*task->stop) {
-                    break;
-                }
                 int lock_idx = uniform_rand_int(nlocks);
-                // int lock_idx = 1;
                 disa_mutex_t *l = &locks[lock_idx];
 
                 start = rdtscp();
-                // DEBUG("[%d] lock addr %p\n", task_id, l);
                 lock_acquire((pthread_mutex_t *)l);
                 lock_start = rdtscp();
 
@@ -297,6 +289,9 @@ void *mlocks_worker(void *arg) {
                 lock_release((pthread_mutex_t *)l);
                 ull rel_end = rdtscp();
 
+                if (*task->stop) {
+                    break;
+                }
                 task->swait_acq[task->idx] = lock_start-start;
                 task->slock_hold[task->idx] = rel_start - lock_start;
                 task->swait_rel[task->idx] = rel_end - rel_start;
@@ -308,13 +303,10 @@ void *mlocks_worker(void *arg) {
                 wait_rel += rel_end - rel_start;
                 lock_acquires++;
 
-                if (*task->stop) {
-                    break;
-                }
             }
         }
         task->lock_acquires[i] = lock_acquires;
-        task->loop_in_cs[i] = loop_in_cs;
+        task->loop_in_cs[i] = loop_in_cs; 
         task->lock_hold[i] = lock_hold;
         task->array_size[i] = array_size;
         task->wait_acq[i] = wait_acq;
@@ -339,10 +331,8 @@ int main(int argc, char *argv[]) {
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     client = rank;
 #endif
-
     DEBUG("HI from client [%d]\n", client);
-
-    srand(42);
+    srand(client);
     nthreads = atoi(argv[1]);
     int duration = atoi(argv[2]);
     double cs = atoi(argv[3]);
@@ -484,6 +474,7 @@ int main(int argc, char *argv[]) {
             }
             stop = 0;
             fprintf(stderr, "CLIENT %d MEASUREMENTS RUN %d_%d\n", client, i, k);
+            pthread_barrier_wait(&global_barrier);
             pthread_barrier_wait(&global_barrier);
             sleep(duration);
             stop = 1;

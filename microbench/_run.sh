@@ -121,7 +121,6 @@ nlocks"
 server_file_header="tid,wait_acq(ms),wait_rel(ms),client_id,run"
 
 # MICROBENCH INPUTS
-duration=20
 critical=1000
 
 rm -rf server_logs/
@@ -133,9 +132,10 @@ microbenches=("empty_cs2n" "empty_cs1n" "lat" "mem2n" "mem1n" "mlocks2n" "mlocks
 opts=("spinlock" "lease1")
 client_ids=(0 1 2 3 4 5 6 7 8 9)
 
+duration=20
 mem_runs=1
 runs=3
-n_clients=(1)
+n_clients=(4)
 n_threads=(16)
 bench_idxs=(5)
 num_locks=(512)
