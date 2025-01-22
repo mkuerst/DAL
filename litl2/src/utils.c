@@ -304,6 +304,5 @@ void allocate_task_mem(task_t *tasks, int num_runs, int num_mem_runs, int nthrea
 
         tasks[i].array_size = aligned_alloc(CACHELINE_SIZE, sizeof(ull) * num_runs * num_mem_runs);
         memset(tasks[i].array_size, 0, sizeof(ull) * num_runs * num_mem_runs);
-
     }
 }

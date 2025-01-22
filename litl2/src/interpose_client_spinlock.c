@@ -498,9 +498,6 @@ int pthread_mutex_lock(pthread_mutex_t *mutex) {
         // DEBUG("native mutex_lock\n");
         return REAL(pthread_mutex_lock)(&disa_mutex->mutex);
     }
-    if(*task->stop) {
-        return 1;
-    }
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get(&disa_mutex->mutex);
     lock_mutex_lock(impl->lock_lock, get_node(impl));
@@ -520,7 +517,6 @@ int pthread_mutex_lock(pthread_mutex_t *mutex) {
         task->gwait_acq[task->run] += end - end_lacq; 
         task->lwait_acq[task->run] += end_lacq - start;
         task->glock_tries[task->run] += tries;
-
         task->slwait_acq[task->idx] = end_lacq - start;
     }
     return 0;

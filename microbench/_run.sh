@@ -134,11 +134,11 @@ client_ids=(0 1 2 3 4 5 6 7 8 9)
 
 duration=20
 mem_runs=1
-runs=3
-n_clients=(4)
+runs=5
+n_clients=(1 4)
 n_threads=(16)
 bench_idxs=(5)
-num_locks=(512)
+num_locks=(1 128 512)
 
 for impl_dir in "$BASE"/original/*
 do

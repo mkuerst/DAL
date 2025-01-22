@@ -497,13 +497,12 @@ int pthread_mutex_lock(pthread_mutex_t *mutex) {
     if (disa_mutex->turns == 0) {
         tries = rdma_request_lock_lease1(disa_mutex);
         disa_mutex->turns = nthreads;
-        end = rdtscp();
     }
+    end = rdtscp();
 
     if (!*task->stop) {
         task->lwait_acq[task->run] += end_lacq - start;
         task->slwait_acq[task->idx] = end_lacq - start;
-
         task->gwait_acq[task->run] += end - end_lacq; 
         task->glock_tries[task->run] += tries;
     }
