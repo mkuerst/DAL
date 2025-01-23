@@ -31,6 +31,11 @@
 #include <x86intrin.h>
 #include <math.h>
 #include <assert.h>
+#include <getopt.h>
+#include <arpa/inet.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
 
 // r630-11: 8 MB, 16 MB, 128 MB
 // r630-12: ???
@@ -147,8 +152,8 @@ ull percentile(unsigned long long *latencies, size_t size, double p) {
     assert(p >= 0);
     assert(p <= 1);
     p = 1-p;
-    size_t index = (size_t)ceil(p * size) - 1;
-    return latencies[index];
+    // size_t index = (size_t)ceil(p * size) - 1;
+    return latencies[0];
 }
 
 void log_single(task_t * task, int num_runs) {
@@ -305,4 +310,101 @@ void allocate_task_mem(task_t *tasks, int num_runs, int num_mem_runs, int nthrea
         tasks[i].array_size = aligned_alloc(CACHELINE_SIZE, sizeof(ull) * num_runs * num_mem_runs);
         memset(tasks[i].array_size, 0, sizeof(ull) * num_runs * num_mem_runs);
     }
+} 
+
+/* Code acknowledgment: rping.c from librdmacm/examples */
+int get_addr(char *dst, struct sockaddr *addr)
+{
+	struct addrinfo *res;
+	if (getaddrinfo(dst, NULL, NULL, &res)) {
+		__error("getaddrinfo failed - invalid hostname or IP address, -errno: %d\n", -errno);
+        return -errno;
+	}
+	memcpy(addr, res->ai_addr, sizeof(struct sockaddr_in));
+	freeaddrinfo(res);
+	return 0;
+}
+
+int create_sockaddr(char *addr, struct sockaddr_in *sa)
+{
+    // sa = malloc(sizeof(struct sockaddr_in));
+	// bzero(sa, sizeof sa);
+	sa->sin_family = AF_INET;
+	sa->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	// sa->sin_addr.s_addr = htonl(INADDR_ANY); 
+
+	if (get_addr(addr, (struct sockaddr*) sa)) {
+		__error("Invalid IP, -errno: %d\n", -errno);
+        return -errno;
+	}
+	if (!sa->sin_port) {
+		sa->sin_port = htons(DEFAULT_PORT);
+	}
+	return 0;
+}
+
+void parse_cli_args(
+    int *nthreads, int *num_clients, int *nlocks, int *client, int* duration,
+    int* mode, int* num_runs, int *num_mem_runs,
+    char **res_file_cum, char **res_file_single,
+    char **mn_ip, char peer_ips[MAX_CLIENTS][MAX_IP_LENGTH],
+    int argc, char **argv) 
+{
+    int option;
+	while ((option = getopt(argc, argv,
+    "p:o:c:t:l:i:d:s:m:r:e:f:g:")) != -1
+    ) 
+    {
+		switch (option) {
+			case 's':
+                *mn_ip = optarg; 
+				break;
+			case 'f':
+                *res_file_cum = optarg; 
+				break;
+			case 'g':
+                *res_file_single = optarg; 
+				break;
+            case 'p':
+                char *addresses = strdup(optarg);
+                char *token = strtok(addresses, ",");
+                int i = 0;
+                while(token) {
+                    strncpy(peer_ips[i], token, MAX_IP_LENGTH - 1);
+                    token = strtok(NULL, ",");
+                    i++;
+                }
+                free(addresses);
+                break;
+			// case 'o':
+			// 	mn_sockaddr->sin_port = htons(strtol(optarg, NULL, 0)); 
+			// 	break;
+			case 'c':
+				*num_clients = atoi(optarg);
+				break;
+			case 'r':
+				*num_runs = atoi(optarg);
+				break;
+			case 'e':
+				*num_mem_runs = atoi(optarg);
+				break;
+			case 'm':
+				*mode = atoi(optarg);
+				break;
+			case 'd':
+				*duration = atoi(optarg);
+				break;
+            case 'i':
+                *client = atoi(optarg);
+                break;
+			case 't':
+				*nthreads = atoi(optarg);
+				break;
+			case 'l':
+				*nlocks = atoi(optarg);
+				break;
+			default:
+				break;
+		}
+	}
 }

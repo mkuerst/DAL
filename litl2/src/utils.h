@@ -40,6 +40,7 @@
 #define __UTILS_H__
 #include <topology.h>
 
+#define MAX_IP_LENGTH 16
 
 #define CPU_PAUSE() asm volatile("pause\n" : : : "memory")
 #define COMPILER_BARRIER() asm volatile("" : : : "memory")
@@ -84,11 +85,18 @@
 	exit(EXIT_FAILURE);\
 }while(0);
 
+#define __error(msg, args...) do {\
+	fprintf(stderr, "\033[1;31m%s : %d : ERROR : \033[0m"msg, __FILE__, __LINE__, ## args);\
+	fprintf(stderr, "\n");\
+}while(0);
+
 // MICROBENCH PARAMS
 /**************************************************************************************/
 #ifndef CACHELINE_SIZE
 #define CACHELINE_SIZE 64
 #endif
+
+#define DEFAULT_PORT 20051
 
 #define KB(x) ((x) * 1024L)
 #define MB(x) (KB(x) * 1024L)
@@ -152,18 +160,24 @@ typedef struct {
     uint64_t *cas_result[THREADS_PER_CLIENT];
     char *data[THREADS_PER_CLIENT];
 
+	uint64_t peer_data_addrs[MAX_CLIENTS];
+	uint32_t peer_data_rkeys[MAX_CLIENTS];
+
     struct ibv_qp **qp;
     struct ibv_comp_channel **io_comp_chan;
     struct ibv_wc *wc;
 	struct ibv_send_wr *cas_wr, **bad_wr, *w_wr, *data_wr;
     struct ibv_sge *cas_sge, *w_sge, *data_sge;
+
+    struct ibv_qp *peer_qps[MAX_CLIENTS][THREADS_PER_CLIENT];
+    struct ibv_comp_channel *peer_io_chans[MAX_CLIENTS][THREADS_PER_CLIENT];
 } rdma_client_meta;
 
 typedef struct {
     volatile int *stop;
     volatile ull *global_its;
     pthread_t thread;
-    int priority, id, sockfd, client_id, nlocks, nthreads;
+    int priority, id, sockfd, client_id, nlocks, nthreads, nclients;
     double cs;
     char* server_ip;
     char disa;
@@ -268,7 +282,7 @@ struct __attribute((packed)) rdma_buffer_attr {
 };
 
 
-
+/*FUNC DECLARATIONS*/
 void *alloc_cache_align(size_t n);
 
 int pin_thread(unsigned int id, int nthreads, int use_nodes);
@@ -288,6 +302,18 @@ void flush_cache(void *ptr, size_t size);
 void log_single(task_t * task, int num_runs);
 
 void allocate_task_mem(task_t *tasks, int num_runs, int num_mem_runs, int nthreads);
+
+int get_addr(char *dst, struct sockaddr *addr);
+
+void parse_cli_args(
+    int *nthreads, int *num_clients, int *nlocks, int *client, int* duration,
+    int* mode, int* num_runs, int *num_mem_runs,
+     char **res_file_cum, char **res_file_single,
+    char **mn_ip, char peer_ips[MAX_CLIENTS][MAX_IP_LENGTH],
+    int argc, char **argv
+);
+
+int create_sockaddr(char *addr, struct sockaddr_in* sa);
 
 static inline void *xchg_64(void *ptr, void *x) {
     __asm__ __volatile__("xchgq %0,%1"

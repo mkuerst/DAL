@@ -429,7 +429,7 @@ static void *lp_start_routine(void *_arg) {
 #endif
 #ifdef RDMA
     DEBUG("Launching thread with RDMA lp start routine\n");
-    set_rdma_client_meta(task, task->client_meta, client_id, task_id);
+    set_rdma_client_meta(task, task->client_meta, task->nclients, task_id, client_id);
 #endif
     lock_thread_start();
     res = fct(arg);

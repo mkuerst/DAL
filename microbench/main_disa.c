@@ -32,13 +32,11 @@
 char *array0;
 char *array1;
 char *res_file_cum, *res_file_single;
-int nthreads;
-int client;
-int num_clients;
-int num_runs;
-int num_mem_runs;
-int use_nodes;
-int scope;
+char *mn_ip, peer_ips[MAX_CLIENTS][MAX_IP_LENGTH];
+int nthreads, client, num_clients,
+num_runs, num_mem_runs, use_nodes,
+scope, mode, duration, nlocks;
+
 
 disa_lock_t lock;
 disa_lock_t *locks;
@@ -317,13 +315,18 @@ void *mlocks_worker(void *arg) {
 }
 
 int main(int argc, char *argv[]) {
-    client = atoi(argv[6]);
+    DEBUG("[%d] HI\n", client);
+    parse_cli_args(&nthreads, &num_clients, &nlocks, &client, &duration,
+    &mode, &num_runs, &num_mem_runs, &res_file_cum, &res_file_single,
+    &mn_ip, peer_ips, argc, argv
+    );
 #ifdef MPI
     int provided;
     MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
     if (provided < MPI_THREAD_MULTIPLE) {
-        printf("MPI does not provide required threading support\n");
+        fprintf(stderr, "MPI does not provide required threading support\n");
         MPI_Abort(MPI_COMM_WORLD, 1);
+        exit(EXIT_FAILURE);
     }
     DEBUG("MPI INIT DONE\n");
     int rank, size;
@@ -331,21 +334,9 @@ int main(int argc, char *argv[]) {
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     client = rank;
 #endif
-    DEBUG("HI from client [%d]\n", client);
     srand(client);
-    nthreads = atoi(argv[1]);
-    int duration = atoi(argv[2]);
-    double cs = atoi(argv[3]);
-    char *server_ip = argv[4];
-    int mode = atoi(argv[5]);
-    num_clients = atoi(argv[7]);
-    res_file_cum = argv[8];
-    res_file_single = argv[9];
-    int nlocks = atoi(argv[10]);
     scope = MAX_ARRAY_SIZE;
     void* worker; 
-    num_runs = atoi(argv[11]);
-    num_mem_runs = atoi(argv[12]);
     switch (mode) {
         case 0:
             use_nodes = 2;
@@ -382,17 +373,13 @@ int main(int argc, char *argv[]) {
     pthread_attr_init(&attr);
 
     volatile int stop __attribute__((aligned (CACHELINE_SIZE))) = 0;
-    volatile ull global_its __attribute__((aligned (CACHELINE_SIZE))) = 0;
-    double short_cs = duration * 1e6 / 100000.; //range in (us)
-    double long_cs = duration * 1e6 / 100.;
     rdma_client_meta* client_meta = NULL;
     int tcp_fd = 0;
-    // int stop_warmup __attribute__((aligned (CACHELINE_SIZE))) = 0;
 #ifdef RDMA
     for (int i = 0; i < num_clients;i++) {
         if (i == client) {
-            if (!(client_meta = establish_rdma_connection(client, server_ip, nthreads, nlocks, use_nodes))) {
-                _error("Client %d failed to eastablish rdma connection\n", client);
+            if (!(client_meta = establish_rdma_connections(client, mn_ip, peer_ips, nthreads, num_clients, nlocks, use_nodes))) {
+                _error("Client %d failed to establish rdma server connection\n", client);
             }
         }
     #ifdef MPI
@@ -409,17 +396,15 @@ int main(int argc, char *argv[]) {
     /*TASK INIT*/
     for (int i = 0; i < nthreads; i++) {
         tasks[i] = (task_t) {0};
-        tasks[i].global_its = &global_its;
-        tasks[i].cs = cs == 0 ? (i%2 == 0 ? short_cs : long_cs) : cs;
-        tasks[i].priority = 1;
         tasks[i].sockfd = tcp_fd;
-
         tasks[i].client_id = client;
+        tasks[i].nclients = num_clients;
         tasks[i].id = i;
         tasks[i].nlocks = nlocks;
         tasks[i].disa = 'y';
         tasks[i].stop = &stop;;
-        tasks[i].server_ip = server_ip;
+        // TODO: adapt tcp to use struct sockaddr_in
+        tasks[i].server_ip = mn_ip;
         tasks[i].client_meta = client_meta;
         tasks[i].duration = duration;
         tasks[i].nthreads = nthreads;
@@ -473,7 +458,7 @@ int main(int argc, char *argv[]) {
                 }
             }
             stop = 0;
-            fprintf(stderr, "CLIENT %d MEASUREMENTS RUN %d_%d\n", client, i, k);
+            fprintf(stderr, "[%d] RUN %d_%d\n", client, i, k);
             pthread_barrier_wait(&global_barrier);
             pthread_barrier_wait(&global_barrier);
             sleep(duration);

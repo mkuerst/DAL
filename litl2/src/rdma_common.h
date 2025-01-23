@@ -32,13 +32,13 @@
 	perror("errno");\
 }while(0);
 
-#define CQ_CAPACITY (8192)
+#define CQ_CAPACITY (4096)
 #define MAX_SGE (16)
 #define DEFAULT_RDMA_PORT (20051)
 #define MAX_WR (4096)
 
 /* resolves a given destination name to sin_addr */
-int get_addr(char *dst, struct sockaddr *addr);
+// int get_addr(char *dst, struct sockaddr *addr);
 
 /* prints RDMA buffer info structure */
 void show_rdma_buffer_attr(struct rdma_buffer_attr *attr);
@@ -101,5 +101,3 @@ int process_work_completion_events(struct ibv_comp_channel *comp_channel,
 void show_rdma_cmid(struct rdma_cm_id *id);
 
 #endif /* RDMA_COMMON_H */
-
-void* establish_rdma_connection(int tid, char* addr, int nthreads, int nlocks, int use_nodes);

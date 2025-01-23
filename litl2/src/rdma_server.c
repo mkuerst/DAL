@@ -71,13 +71,13 @@ int write_metadata_to_file() {
 	DEBUG("WRITING METADATA\n");
 	char *cwd = NULL;
 	cwd = getcwd(cwd, 128);
-	char addresses_file[64] = "/DAL/microbench/metadata/addrs";
+	char addresses_file[64] = "/DAL/microbench/metadata/MN";
 	strcat(cwd, addresses_file);
 	FILE* file = fopen(cwd, "w");
 	if (!file) {
 		DEBUG("Failed to open file %s\nTrying again with different dir\n", cwd);
 		cwd = getcwd(cwd, 128);
-		char addresses_file[64] = "/microbench/metadata/addrs";
+		char addresses_file[64] = "/microbench/metadata/MN";
 		strcat(cwd, addresses_file);
 		file = fopen(cwd, "w");
 		if (!file) {
@@ -91,7 +91,6 @@ int write_metadata_to_file() {
 	DEBUG("data_addr: %lu, key: %u\n", (uint64_t) data_mr->addr, data_mr->rkey);
 	DEBUG("rlock_addr: %lu, key: %u\n", (uint64_t) rlock_mr->addr, rlock_mr->rkey);
 	return 0;
-
 }
 
 int prep_rdma_conn(rdma_connection* conn, int nlocks)
@@ -147,8 +146,6 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients, int 
 	int_data = (int *) byte_data;
 	memset(rlocks, 0, nlocks*RLOCK_SIZE);
 	memset(byte_data, 0, nlocks*MAX_ARRAY_SIZE);
-	// data = (int *) aligned_alloc(sizeof(uint64_t), MAX_ARRAY_SIZE);
-	// memset(data, 0, MAX_ARRAY_SIZE);
 
 	for (int i = 0; i < nclients; i++) {
 		debug("Waiting for conn establishments of client %d\n", i);
@@ -202,7 +199,7 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients, int 
 				rdma_error("Failed to create an I/O completion event channel, %d\n", -errno);
 				return -errno;
 			}
-			cq = ibv_create_cq(cm_client_id->verbs, CQ_CAPACITY, NULL, io_completion_channel, 0);
+			cq = ibv_create_cq(cm_client_id->verbs, 16, NULL, io_completion_channel, 0);
 			if (!cq) {
 				rdma_error("Failed to create a completion queue (cq), errno: %d\n", -errno);
 				return -errno;
@@ -330,5 +327,3 @@ int main(int argc, char **argv)
 	fprintf(stderr, "Server terminated!\n");
 	return 0;
 }
-
-// /home/kumichae/DAL/litl2/rdma_server -a 10.233.0.21 -t 1
