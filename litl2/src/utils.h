@@ -313,7 +313,7 @@ void parse_cli_args(
     int argc, char **argv
 );
 
-int create_sockaddr(char *addr, struct sockaddr_in* sa);
+int create_sockaddr(char *addr, struct sockaddr_in* sa, uint16_t port);
 
 static inline void *xchg_64(void *ptr, void *x) {
     __asm__ __volatile__("xchgq %0,%1"

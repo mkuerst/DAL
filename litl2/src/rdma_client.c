@@ -370,48 +370,45 @@ int client_prepare_peer_connections(struct sockaddr_in *p_addr, int cid, int nth
 {
 	for (int i = 0; i < nthreads; i++) {
 		peer_cm_event_channel[cid][i] = rdma_create_event_channel();
-		struct rdma_event_channel *cm_event_channel = peer_cm_event_channel[cid][i];
-		struct rdma_cm_id *cm_client_id = peer_cm_client_id[cid][i];
-		struct rdma_cm_event *cm_event = peer_cm_event[cid][i];
 
-		if (!cm_event_channel) {
+		if (!peer_cm_event_channel[cid][i]) {
 			rdma_error("Creating cm event channel failed, errno: %d \n", -errno);
 			return -errno;
 		}
-		if (rdma_create_id(cm_event_channel, &cm_client_id, NULL, RDMA_PS_TCP)) {
+		if (rdma_create_id(peer_cm_event_channel[cid][i], &peer_cm_client_id[cid][i], NULL, RDMA_PS_TCP)) {
 			rdma_error("Creating cm id failed with errno: %d \n", -errno); 
 			return -errno;
 		}
-		if (rdma_resolve_addr(cm_client_id, NULL, (struct sockaddr*) p_addr, 2000)) {
+		if (rdma_resolve_addr(peer_cm_client_id[cid][i], NULL, (struct sockaddr*) p_addr, 2000)) {
 			rdma_error("Failed to resolve address, errno: %d \n", -errno);
 			return -errno;
 		}
-		if (process_rdma_cm_event(cm_event_channel, RDMA_CM_EVENT_ADDR_RESOLVED, &cm_event)) {
+		if (process_rdma_cm_event(peer_cm_event_channel[cid][i], RDMA_CM_EVENT_ADDR_RESOLVED, &peer_cm_event[cid][i])) {
 			rdma_error("Failed to receive a valid event, -errno = %d \n", -errno);
 			return -errno;
 		}
-		if (rdma_ack_cm_event(cm_event)) {
+		if (rdma_ack_cm_event(peer_cm_event[cid][i])) {
 			rdma_error("Failed to acknowledge the CM event, errno: %d\n", -errno);
 			return -errno;
 		}
-		if (rdma_resolve_route(cm_client_id, 2000)) {
+		if (rdma_resolve_route(peer_cm_client_id[cid][i], 2000)) {
 			rdma_error("Failed to resolve route, erno: %d \n", -errno);
 			return -errno;
 		}
-		if (process_rdma_cm_event(cm_event_channel, RDMA_CM_EVENT_ROUTE_RESOLVED, &cm_event)) {
+		if (process_rdma_cm_event(peer_cm_event_channel[cid][i], RDMA_CM_EVENT_ROUTE_RESOLVED, &peer_cm_event[cid][i])) {
 			rdma_error("Failed to receive a valid event, -errno = %d \n", -errno);
 			return -errno;
 		}
-		if (rdma_ack_cm_event(cm_event)) {
+		if (rdma_ack_cm_event(peer_cm_event[cid][i])) {
 			rdma_error("Failed to acknowledge the CM event, errno: %d \n", -errno);
 			return -errno;
 		}
-		peer_io_chans[cid][i] = ibv_create_comp_channel(cm_client_id->verbs);
+		peer_io_chans[cid][i] = ibv_create_comp_channel(peer_cm_client_id[cid][i]->verbs);
 		if (!peer_io_chans[cid][i]) {
 			rdma_error("Failed to create IO completion event channel for task %d, errno: %d\n", i, -errno);
 			return -errno;
 		}
-		peer_cqs[cid][i] = ibv_create_cq(cm_client_id->verbs, CQ_CAPACITY, NULL, peer_io_chans[cid][i], 0);
+		peer_cqs[cid][i] = ibv_create_cq(peer_cm_client_id[cid][i]->verbs, CQ_CAPACITY, NULL, peer_io_chans[cid][i], 0);
 		if (!peer_cqs[cid][i]) {
 			rdma_error("Failed to create CQ for task %d, errno: %d \n", i, -errno);
 			return -errno;
@@ -431,11 +428,11 @@ int client_prepare_peer_connections(struct sockaddr_in *p_addr, int cid, int nth
 		qp_init_attr.recv_cq = peer_cqs[cid][i]; /* Where should I notify for receive completion operations */
 		qp_init_attr.send_cq = peer_cqs[cid][i]; /* Where should I notify for send completion operations */
 
-		if (rdma_create_qp(cm_client_id, pd, &qp_init_attr)) {
+		if (rdma_create_qp(peer_cm_client_id[cid][i], pd, &qp_init_attr)) {
 			rdma_error("Failed to create QP for task %d, errno: %d \n", i, -errno);
 			return -errno;
 		}
-		peer_qps[cid][i] = cm_client_id->qp;
+		peer_qps[cid][i] = peer_cm_client_id[cid][i]->qp;
 	}
 	debug("Connection prep done\n");
 	return 0;
@@ -522,7 +519,44 @@ int client_connect_to_server(int cid, int nthreads, int nlocks, int use_nodes)
 	return 0;
 }
 
-static int listen_for_peer_connections(void* _args) 
+int client_connect_to_peers(int cid, int nclients, int nthreads, int nlocks) 
+{
+	struct rdma_conn_param conn_param;
+	bzero(&conn_param, sizeof(conn_param));
+	conn_param.initiator_depth = 16;
+	conn_param.responder_resources = 16;
+	conn_param.retry_count = 7;
+	conn_param.rnr_retry_count = 7;
+	// conn_param.flow_control = 1;
+
+	for (int c = 0; c < nclients; c++) {
+		for (int i = 0; i < nthreads; i++) {
+			peer_cm_event[c][i] = NULL;
+			conn_param.private_data = &i;
+			conn_param.private_data_len = sizeof(i);
+			peer_cm_client_id[c][i]->context = (void *)(long) i;
+			DEBUG("[%d.%d] tries to connect to [%d]\n", cid, i, c);
+			if (rdma_connect(peer_cm_client_id[c][i], &conn_param)) {
+				rdma_error("[%d.%d] failed to connect to [%d], errno: %d\n", cid, i, c, -errno);
+				return -errno;
+			}
+			if (process_rdma_cm_event(peer_cm_event_channel[c][i], RDMA_CM_EVENT_ESTABLISHED, &peer_cm_event[c][i])) {
+				rdma_error("[%d.%d] failed to get cm event from [%d], -errno = %d \n", cid, i, c, -errno);
+				return -errno;
+			}
+			if (rdma_ack_cm_event(peer_cm_event[c][i])) {
+				rdma_error("[%d.%d] failed to acknowledge cm event for [%d], errno: %d\n", cid, i, c, -errno);
+				return -errno;
+			}
+		}
+	}
+
+	// read_from_metadata_file();
+	fprintf(stderr, "Client [%d] connected to RDMA peers\n", cid);
+	return 0;
+}
+
+void* listen_for_peer_connections(void* _args) 
 {
 	peer_listener *peer_info = (peer_listener *) _args;
 	int cid = peer_info->cid;
@@ -537,11 +571,11 @@ static int listen_for_peer_connections(void* _args)
 
 	if (!cm_peer_event_channel) {
 		rdma_error("[%d] Creating cm event channel failed with errno : (%d)", cid, -errno);
-		return -errno;
+		exit(EXIT_FAILURE);
 	}
 	if (rdma_create_id(cm_peer_event_channel, &cm_server_id, NULL, RDMA_PS_TCP)) {
 		rdma_error("[%d] Creating server cm id failed with errno: %d ", cid, -errno);
-		return -errno;
+		exit(EXIT_FAILURE);
 	}
 	int retry = 0;
 	while (rdma_bind_addr(cm_server_id, (struct sockaddr*) server_addr) && retry < 10) {
@@ -550,11 +584,11 @@ static int listen_for_peer_connections(void* _args)
 	}
 	if (retry >= 10) {
 		rdma_error("[%d] failed to bind server address after 10 retries\n", cid);
-		return -errno;
+		exit(EXIT_FAILURE);
 	}
 	if (rdma_listen(cm_server_id, nclients*nthreads)) {
 		rdma_error("[%d] rdma_listen failed to listen on server address, errno: %d ", cid, -errno);
-		return -errno;
+		exit(EXIT_FAILURE);
 	}
 	fprintf(stderr, "[%d] Client is listening successfully at: %s , port: %d \n",
 			cid,
@@ -574,7 +608,7 @@ static int listen_for_peer_connections(void* _args)
 					RDMA_CM_EVENT_CONNECT_REQUEST,
 					&cm_peer_event)) {
 				rdma_error("Failed to get cm event CONNECT_REQUEST, -errno = %d \n" , -errno);
-				return -errno;
+				exit(EXIT_FAILURE);
 			}
 			DEBUG("[%d.%d] CONNECT_REQUEST received\n", i, j);
 			conn->cm_client_id = cm_peer_event->id;
@@ -583,25 +617,24 @@ static int listen_for_peer_connections(void* _args)
 			struct ibv_qp_init_attr qp_init_attr;
 			struct ibv_qp *client_qp = NULL;
 			struct rdma_cm_id* cm_client_id = conn->cm_client_id;
-
 			
 			if(!cm_client_id){
 				rdma_error("Client id is still NULL \n");
-				return -EINVAL;
+				exit(EXIT_FAILURE);
 			}
 			io_completion_channel = ibv_create_comp_channel(cm_client_id->verbs);
 			if (!io_completion_channel) {
 				rdma_error("Failed to create an I/O completion event channel, %d\n", -errno);
-				return -errno;
+				exit(EXIT_FAILURE);
 			}
 			cq = ibv_create_cq(cm_client_id->verbs, 16, NULL, io_completion_channel, 0);
 			if (!cq) {
 				rdma_error("Failed to create a completion queue (cq), errno: %d\n", -errno);
-				return -errno;
+				exit(EXIT_FAILURE);
 			}
 			if (ibv_req_notify_cq(cq, 0)) {
 				rdma_error("Failed to request notifications on CQ errno: %d \n", -errno);
-				return -errno;
+				exit(EXIT_FAILURE);
 			}
 			bzero(&qp_init_attr, sizeof qp_init_attr);
 			qp_init_attr.cap.max_recv_sge = MAX_SGE; /* Maximum SGE per receive posting */
@@ -614,7 +647,7 @@ static int listen_for_peer_connections(void* _args)
 
 			if (rdma_create_qp(cm_client_id, pd, &qp_init_attr)) {
 				rdma_error("Failed to create QP due to errno: %d\n", -errno);
-				return -errno;
+				exit(EXIT_FAILURE);
 			}
 			client_qp = cm_client_id->qp;
 			conn->pd = pd;
@@ -625,13 +658,13 @@ static int listen_for_peer_connections(void* _args)
 
 			if (rdma_ack_cm_event(cm_peer_event)) {
 				rdma_error("Failed to acknowledge the cm event errno: %d \n", -errno);
-				return -errno;
+				exit(EXIT_FAILURE);
 			}
 			DEBUG("[%d.%d] Acknowledged CONNECT_REQUEST\n", i, j);
 
 			if(!cm_client_id || !client_qp) {
 				rdma_error("Client resources are not properly setup\n");
-				return -EINVAL;
+				exit(EXIT_FAILURE);
 			}
 
 			memset(&conn_param, 0, sizeof(conn_param));
@@ -642,15 +675,15 @@ static int listen_for_peer_connections(void* _args)
 			// conn_param.flow_control = 1;
 			if (rdma_accept(cm_client_id, &conn_param)) {
 				rdma_error("Failed to accept the connection, errno: %d \n", -errno);
-				return -errno;
+				exit(EXIT_FAILURE);
 			}
 			if (process_rdma_cm_event(cm_peer_event_channel, RDMA_CM_EVENT_ESTABLISHED, &cm_peer_event)) {
 				rdma_error("Failed to get the cm event, errno: %d \n", -errno);
-				return -errno;
+				exit(EXIT_FAILURE);
 			}
 			if (rdma_ack_cm_event(cm_peer_event)) {
 				rdma_error("Failed to acknowledge the cm event %d\n", -errno);
-				return -errno;
+				exit(EXIT_FAILURE);
 			}
 			fprintf(stderr, "[%d] Accepted new connection from [%d.%d] \n", cid, i, j);
 		}
@@ -659,46 +692,11 @@ static int listen_for_peer_connections(void* _args)
 	return 0;
 }
 
-// void* establish_rdma_server_connection(int cid, char* addr, int nthreads, int nlocks, int use_nodes)
-// {
-// 	struct sockaddr_in mn_sockaddr = create_sockaddr(addr);
-// 	rdma_client_meta* client_meta;
-
-// 	if (client_prepare_server_connection(&mn_sockaddr, nthreads)) { 
-// 		rdma_error("Failed to setup client connection , -errno = %d \n", -errno);
-// 		return NULL;
-// 	}
-// 	if (!(client_meta = client_connect_to_server(cid, nthreads, nlocks, use_nodes))) { 
-// 		rdma_error("Failed to setup client connection , -errno = %d \n", -errno);
-// 		return NULL;
-// 	}
-// 	return client_meta;
-// }
-
-// void* establish_rdma_peer_connections(int cid, char *addrs, int nthreads, int nclients, int nlocks, int use_nodes)
-// {
-// 	rdma_peer_meta *peer_meta;
-// 	pthread_t listener_thread
-
-// 	pthread_create(&listener_thread, NULL, listen_for_peer_connections, &tasks[i]);
-// 	for (int c = 0; c < nclients; c++) {
-// 		struct sockaddr_in peer_sockaddr = create_sockaddr(addrs[c]);
-// 		for (int t = 0; t < nthreads; t++) {
-// 			if (client_prepare_peer_connections(&peer_sockaddr, nthreads)) { 
-// 				rdma_error("Failed to setup peer connection , -errno = %d \n", -errno);
-// 				return NULL;
-// 			}
-// 		}
-// 	}
-// 	return peer_meta;
-// }
-
 void* establish_rdma_connections(int cid, char *mn_addr, char peer_addrs[MAX_CLIENTS][MAX_IP_LENGTH],
-int nthreads, int nclients, int nlocks, int use_nodes
-)
+int nthreads, int nclients, int nlocks, int use_nodes)
 {
 	struct sockaddr_in mn_sockaddr; 
-	if (create_sockaddr(mn_addr, &mn_sockaddr)) {
+	if (create_sockaddr(mn_addr, &mn_sockaddr, DEFAULT_RDMA_PORT)) {
 		rdma_error("[%d] failed to create MN sockaddr, -errno %d", cid, -errno);
 		return NULL;
 	}
@@ -712,10 +710,10 @@ int nthreads, int nclients, int nlocks, int use_nodes
 		return NULL;
 	}
 
-	// pthread_t listener_thread
+	pthread_t listener_thread;
 	peer_listener peer_info;
 	struct sockaddr_in own_sockaddr;
-	if (create_sockaddr(peer_addrs[cid], &own_sockaddr)) {
+	if (create_sockaddr(peer_addrs[cid], &own_sockaddr, DEFAULT_RDMA_PEER_PORT)) {
 		rdma_error("[%d] failed to create loopback sockaddr, errno: %d", cid, -errno);
 		return NULL;
 	};
@@ -724,21 +722,20 @@ int nthreads, int nclients, int nlocks, int use_nodes
 	peer_info.nthreads = nthreads;
 	peer_info.nlocks = nlocks;
 	peer_info.pd = pd;
-	// pthread_create(&listener_thread, NULL, listen_for_peer_connections, &peer_info);
+	pthread_create(&listener_thread, NULL, listen_for_peer_connections, &peer_info);
 
-	// for (int c = 0; c < nclients; c++) {
-	// 	struct sockaddr_in peer_sockaddr = create_sockaddr(addrs[c]);
-	// 	for (int t = 0; t < nthreads; t++) {
-	// 		if (client_prepare_peer_connections(&peer_sockaddr, nthreads)) { 
-	// 			rdma_error("Failed to setup peer connection , -errno = %d \n", -errno);
-	// 			return NULL;
-	// 		}
-	// 		if (client_connect_to_peers(cid, nthreads, nlocks, use_nodes)) { 
-	// 			rdma_error("Failed to setup client connection , -errno = %d \n", -errno);
-	// 			return NULL;
-	// 		}
-	// 	}
-	// }
+	for (int c = 0; c < nclients; c++) {
+		struct sockaddr_in peer_sockaddr;
+		create_sockaddr(peer_addrs[c], &peer_sockaddr, DEFAULT_RDMA_PEER_PORT);
+		if (client_prepare_peer_connections(&peer_sockaddr, c, nthreads)) { 
+			rdma_error("Failed to setup peer connection , -errno = %d \n", -errno);
+			return NULL;
+		}
+		if (client_connect_to_peers(cid, nclients, nthreads, nlocks)) { 
+			rdma_error("Failed to setup client connection , -errno = %d \n", -errno);
+			return NULL;
+		}
+	}
 	return create_rdma_client_meta(cid, nclients, nthreads, nlocks);
 }
 
@@ -805,10 +802,6 @@ static inline ull rdma_cas(uint64_t rlock_addr)
 	thread_cas_wr.wr.atomic.remote_addr = rlock_addr;
 	do {
 		tries++;
-		// if (tries > 100) {
-		// 	rdma_error("[%d.%d] Exceeded tries for lock [%d]\n", rdma_client_id, rdma_task_id, curr_rlock_id);
-		// 	exit(EXIT_FAILURE);
-		// }
 		DEBUG("[%d.%d] rdma_cas post, lock[%d]\n", rdma_client_id, rdma_task_id, curr_rlock_id);
 		if(perform_rdma_op(&thread_cas_wr)) {
 			rdma_error("[%d.%d] rdma_cas failed\n", rdma_client_id, rdma_task_id);
@@ -825,6 +818,7 @@ static inline void rdma_read_data(disa_mutex_t* disa_mutex)
 {
 	if (curr_byte_offset >= 0) {
 		thread_data_wr.wr.rdma.remote_addr = disa_mutex->data_addr;
+		thread_data_sge->addr = (uint64_t) thread_byte_data;
 		thread_data_sge->length = curr_byte_data_len;
 		thread_data_wr.opcode = IBV_WR_RDMA_READ;
 		DEBUG("[%d.%d] rdma_read post\n", rdma_client_id, rdma_task_id);
@@ -846,6 +840,7 @@ static inline void rdma_write_data(disa_mutex_t* disa_mutex)
 	if (curr_byte_offset >= 0) {
 		thread_data_wr.wr.rdma.remote_addr = disa_mutex->data_addr;
 		thread_data_wr.opcode = IBV_WR_RDMA_WRITE;
+		thread_data_sge->addr = (uint64_t) disa_mutex->byte_data;
 		thread_data_sge->length = curr_byte_data_len;
 		DEBUG("[%d.%d] rdma_write_back post\n", rdma_client_id, rdma_task_id);
 		if(perform_rdma_op(&thread_data_wr)) {
@@ -854,7 +849,7 @@ static inline void rdma_write_data(disa_mutex_t* disa_mutex)
 		}
 		DEBUG("[%d.%d] written data[%d] =  [%d], lock_idx: [%d]\n",
 		rdma_client_id, rdma_task_id, curr_elem_offset,
-		thread_int_data[curr_elem_offset - curr_byte_data_len/disa_mutex->elem_sz*curr_rlock_id], curr_rlock_id);
+		disa_mutex->int_data[curr_elem_offset - curr_byte_data_len/disa_mutex->elem_sz*curr_rlock_id], curr_rlock_id);
 	}
 }
 

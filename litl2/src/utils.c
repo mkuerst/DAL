@@ -325,10 +325,8 @@ int get_addr(char *dst, struct sockaddr *addr)
 	return 0;
 }
 
-int create_sockaddr(char *addr, struct sockaddr_in *sa)
+int create_sockaddr(char *addr, struct sockaddr_in *sa, uint16_t port)
 {
-    // sa = malloc(sizeof(struct sockaddr_in));
-	// bzero(sa, sizeof sa);
 	sa->sin_family = AF_INET;
 	sa->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	// sa->sin_addr.s_addr = htonl(INADDR_ANY); 
@@ -337,9 +335,7 @@ int create_sockaddr(char *addr, struct sockaddr_in *sa)
 		__error("Invalid IP, -errno: %d\n", -errno);
         return -errno;
 	}
-	if (!sa->sin_port) {
-		sa->sin_port = htons(DEFAULT_PORT);
-	}
+    sa->sin_port = htons(port);
 	return 0;
 }
 
