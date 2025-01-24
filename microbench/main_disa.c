@@ -373,20 +373,37 @@ int main(int argc, char *argv[]) {
     pthread_attr_init(&attr);
 
     volatile int stop __attribute__((aligned (CACHELINE_SIZE))) = 0;
-    rdma_client_meta* client_meta = NULL;
     int tcp_fd = 0;
 #ifdef RDMA
+    pthread_t peer_listener;
+    rdma_client_meta* client_meta = malloc(sizeof(rdma_client_meta));
     for (int i = 0; i < num_clients;i++) {
         if (i == client) {
-            if (!(client_meta = establish_rdma_connections(client, mn_ip, peer_ips, nthreads, num_clients, nlocks, use_nodes))) {
-                _error("Client %d failed to establish rdma server connection\n", client);
+            if (establish_rdma_mn_connection(client, mn_ip, nthreads, num_clients, nlocks, use_nodes, client_meta)) {
+                _error("Client %d failed to establish rdma mn connection\n", client);
+            }
+            if (start_peer_listener(client, peer_ips, num_clients, nthreads, &peer_listener)) {
+                _error("Client %d failed to start peer listener\n", client);
             }
         }
     #ifdef MPI
         MPI_Barrier(MPI_COMM_WORLD);
     #endif
     }
+
+    for (int i = 0; i < num_clients;i++) {
+        if (i == client) {
+            if (establish_rdma_peer_connections(client, peer_ips, nthreads, num_clients, nlocks, client_meta)) {
+                _error("Client %d failed to establish rdma peer connections\n", client);
+            }
+        }
+    #ifdef MPI
+        MPI_Barrier(MPI_COMM_WORLD);
+    #endif
+    }
+    pthread_join(peer_listener, NULL);
 #endif
+
 #ifdef TCP_SPINLOCK
     if ((tcp_fd = establish_tcp_connection(client, server_ip)) == 0) {
         _error("Client %d failed to establish TCP_SPINLOCK connection\n", client);

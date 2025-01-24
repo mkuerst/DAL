@@ -71,7 +71,7 @@ rdma_server_meta *peers;
 
 typedef struct {
 	struct sockaddr_in *sockaddr;
-	int nclients, nthreads, nlocks, cid;
+	int nclients, nthreads, cid;
 	struct ibv_pd *pd;
 } peer_listener;
 
@@ -130,8 +130,7 @@ void set_rdma_client_meta(task_t* task, rdma_client_meta* client_meta, int nclie
 	}
 }
 
-void *create_rdma_client_meta(int cid, int nclients, int nthreads, int nlocks) {
-	rdma_client_meta* client_meta = (rdma_client_meta *) malloc(sizeof(rdma_client_meta));
+void populate_mn_client_meta(int nclients, int nthreads, rdma_client_meta* client_meta) {
 	for (int i = 0; i < nthreads; i++) {
 		cas_sge[i].addr   = (uint64_t) local_cas_mr[0]->addr + i*RLOCK_SIZE;
 		cas_sge[i].length = sizeof(uint64_t);
@@ -178,14 +177,6 @@ void *create_rdma_client_meta(int cid, int nclients, int nthreads, int nlocks) {
 		client_meta->cas_result[i] = local_cas_mr[0]->addr + i*RLOCK_SIZE;
 		client_meta->data[i] = local_data_mr[0]->addr + i*MAX_ARRAY_SIZE;
 	}
-
-	for (int c = 0; c < nclients; c++) {
-		for (int t = 0; t < nthreads; t++) {
-			client_meta->peer_qps[c][t] = peer_qps[c][t];
-			client_meta->peer_io_chans[c][t] = peer_io_chans[c][t];
-		}
-	}
-
 	client_meta->qp = client_qp;
 	client_meta->cas_wr = cas_wr;
 	client_meta->cas_sge = cas_sge;
@@ -200,8 +191,16 @@ void *create_rdma_client_meta(int cid, int nclients, int nthreads, int nlocks) {
 	client_meta->rlock_rkey = rlock_rkey;
 	client_meta->data_addr = data_addr;
 	client_meta->data_rkey = data_rkey;
+}
 
-	return client_meta;
+void populate_peer_client_meta(int nclients, int nthreads, rdma_client_meta* client_meta)
+{
+	for (int c = 0; c < nclients; c++) {
+		for (int t = 0; t < nthreads; t++) {
+			client_meta->peer_qps[c][t] = peer_qps[c][t];
+			client_meta->peer_io_chans[c][t] = peer_io_chans[c][t];
+		}
+	}
 }
 
 int write_metadata_to_file() {
@@ -692,51 +691,66 @@ void* listen_for_peer_connections(void* _args)
 	return 0;
 }
 
-void* establish_rdma_connections(int cid, char *mn_addr, char peer_addrs[MAX_CLIENTS][MAX_IP_LENGTH],
-int nthreads, int nclients, int nlocks, int use_nodes)
+int start_peer_listener(
+	int cid, char peer_addrs[MAX_CLIENTS][MAX_IP_LENGTH], int nclients, int nthreads,
+	pthread_t *thread)
 {
-	struct sockaddr_in mn_sockaddr; 
-	if (create_sockaddr(mn_addr, &mn_sockaddr, DEFAULT_RDMA_PORT)) {
-		rdma_error("[%d] failed to create MN sockaddr, -errno %d", cid, -errno);
-		return NULL;
-	}
-
-	if (client_prepare_server_connection(&mn_sockaddr, nthreads)) { 
-		rdma_error("Failed to setup client connection , -errno = %d \n", -errno);
-		return NULL;
-	}
-	if (client_connect_to_server(cid, nthreads, nlocks, use_nodes)) { 
-		rdma_error("Failed to setup client connection , -errno = %d \n", -errno);
-		return NULL;
-	}
-
-	pthread_t listener_thread;
 	peer_listener peer_info;
 	struct sockaddr_in own_sockaddr;
 	if (create_sockaddr(peer_addrs[cid], &own_sockaddr, DEFAULT_RDMA_PEER_PORT)) {
 		rdma_error("[%d] failed to create loopback sockaddr, errno: %d", cid, -errno);
-		return NULL;
+		return -errno;
 	};
 	peer_info.sockaddr = &own_sockaddr;
 	peer_info.nclients = nclients;
 	peer_info.nthreads = nthreads;
-	peer_info.nlocks = nlocks;
 	peer_info.pd = pd;
-	pthread_create(&listener_thread, NULL, listen_for_peer_connections, &peer_info);
+	pthread_create(thread, NULL, listen_for_peer_connections, &peer_info);
+	return 0;
+}
 
+int establish_rdma_mn_connection(
+	int cid, char *mn_addr,
+	int nthreads, int nclients, int nlocks, int use_nodes,
+	rdma_client_meta *client_meta)
+{
+	struct sockaddr_in mn_sockaddr; 
+	if (create_sockaddr(mn_addr, &mn_sockaddr, DEFAULT_RDMA_PORT)) {
+		rdma_error("[%d] failed to create MN sockaddr, -errno %d", cid, -errno);
+		return -errno;
+	}
+
+	if (client_prepare_server_connection(&mn_sockaddr, nthreads)) { 
+		rdma_error("Failed to setup client connection , -errno = %d \n", -errno);
+		return -errno;
+	}
+	if (client_connect_to_server(cid, nthreads, nlocks, use_nodes)) { 
+		rdma_error("Failed to setup client connection , -errno = %d \n", -errno);
+		return -errno;
+	}
+	populate_mn_client_meta(nclients, nthreads, client_meta);
+	return 0;
+}
+
+int establish_rdma_peer_connections(
+	int cid, char peer_addrs[MAX_CLIENTS][MAX_IP_LENGTH],
+	int nthreads, int nclients, int nlocks,
+	rdma_client_meta* client_meta)
+{
 	for (int c = 0; c < nclients; c++) {
 		struct sockaddr_in peer_sockaddr;
 		create_sockaddr(peer_addrs[c], &peer_sockaddr, DEFAULT_RDMA_PEER_PORT);
 		if (client_prepare_peer_connections(&peer_sockaddr, c, nthreads)) { 
-			rdma_error("Failed to setup peer connection , -errno = %d \n", -errno);
-			return NULL;
+			rdma_error("[%d] failed to prepare peer connection [%d], -errno = %d \n", cid, c, -errno);
+			return -errno;
 		}
 		if (client_connect_to_peers(cid, nclients, nthreads, nlocks)) { 
-			rdma_error("Failed to setup client connection , -errno = %d \n", -errno);
-			return NULL;
+			rdma_error("[%d] failed to make peer connection [%d], -errno = %d \n", cid, c, -errno);
+			return -errno;
 		}
 	}
-	return create_rdma_client_meta(cid, nclients, nthreads, nlocks);
+	populate_peer_client_meta(nclients, nthreads, client_meta);
+	return 0;
 }
 
 static inline int perform_rdma_op(struct ibv_send_wr *wr)
