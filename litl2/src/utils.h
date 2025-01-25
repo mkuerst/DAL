@@ -32,6 +32,7 @@
 #include <infiniband/verbs.h>
 #include <rdma_cma.h>
 #include <stdbool.h>
+#include <limits.h>
 
 #include <sched.h>
 #include <numa.h>
@@ -63,13 +64,18 @@
 #define UNUSED(x) x
 #endif
 
+
 #ifdef DEBUG
 #undef DEBUG
 #define DEBUG(msg, args...) do {\
-	fprintf(stderr, "%s : %d : "msg, __FILE__, __LINE__, ## args);\
+    char host[HOST_NAME_MAX];\
+    gethostname(host, sizeof(host));\
+	fprintf(stderr, "%s : %s : %d : "msg, host, __FILE__, __LINE__, ## args);\
 }while(0);
 #define debug(msg, args...) do {\
-	fprintf(stderr, "%s : %d : "msg, __FILE__, __LINE__, ## args);\
+    char host[HOST_NAME_MAX];\
+    gethostname(host, sizeof(host));\
+	fprintf(stderr, "%s : %s : %d : "msg, host, __FILE__, __LINE__, ## args);\
 }while(0);
 #else
 #define DEBUG(...)
@@ -80,13 +86,17 @@
 #define DEBUG_PTHREAD(...)
 
 #define _error(msg, args...) do {\
-	fprintf(stderr, "\033[1;31m%s : %d : ERROR : \033[0m"msg, __FILE__, __LINE__, ## args);\
+    char host[HOST_NAME_MAX];\
+    gethostname(host, sizeof(host));\
+	fprintf(stderr, "\033[1;31m%s : %s : %d : ERROR : \033[0m"msg, host, __FILE__, __LINE__, ## args);\
 	fprintf(stderr, "\n");\
 	exit(EXIT_FAILURE);\
 }while(0);
 
 #define __error(msg, args...) do {\
-	fprintf(stderr, "\033[1;31m%s : %d : ERROR : \033[0m"msg, __FILE__, __LINE__, ## args);\
+    char host[HOST_NAME_MAX];\
+    gethostname(host, sizeof(host));\
+	fprintf(stderr, "\033[1;31m%s : %s : %d : ERROR : \033[0m"msg, host, __FILE__, __LINE__, ## args);\
 	fprintf(stderr, "\n");\
 }while(0);
 
@@ -252,6 +262,7 @@ typedef struct client_data {
 
 typedef struct {
     pthread_mutex_t mutex;
+    uint64_t ow_safety0, ow_safety1;
     char disa;
     uint64_t rlock_addr, data_addr;
     int id;

@@ -327,15 +327,19 @@ int get_addr(char *dst, struct sockaddr *addr)
 
 int create_sockaddr(char *addr, struct sockaddr_in *sa, uint16_t port)
 {
+    bzero(sa, sizeof(struct sockaddr_in));
 	sa->sin_family = AF_INET;
 	sa->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	// sa->sin_addr.s_addr = htonl(INADDR_ANY); 
+	sa->sin_addr.s_addr = htonl(INADDR_ANY); 
 
 	if (get_addr(addr, (struct sockaddr*) sa)) {
 		__error("Invalid IP, -errno: %d\n", -errno);
         return -errno;
 	}
     sa->sin_port = htons(port);
+    DEBUG("created sockaddr: %s:%d\n", 
+			inet_ntoa(sa->sin_addr),
+			ntohs(sa->sin_port));
 	return 0;
 }
 
@@ -347,9 +351,9 @@ void parse_cli_args(
     int argc, char **argv) 
 {
     int option;
+    int i = 0;
 	while ((option = getopt(argc, argv,
-    "p:o:c:t:l:i:d:s:m:r:e:f:g:")) != -1
-    ) 
+    "p:o:c:t:l:i:d:s:m:r:e:f:g:")) != -1) 
     {
 		switch (option) {
 			case 's':
@@ -364,7 +368,6 @@ void parse_cli_args(
             case 'p':
                 char *addresses = strdup(optarg);
                 char *token = strtok(addresses, ",");
-                int i = 0;
                 while(token) {
                     strncpy(peer_ips[i], token, MAX_IP_LENGTH - 1);
                     token = strtok(NULL, ",");
@@ -403,4 +406,10 @@ void parse_cli_args(
 				break;
 		}
 	}
+    if (i >= 1) {
+        DEBUG("PEER_IPs: \n");
+        for (int x = 0; x < i; x++) {
+            DEBUG("%s\n", peer_ips[x]);
+        }
+    }
 }

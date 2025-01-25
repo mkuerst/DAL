@@ -17,6 +17,7 @@
 #include <string.h>
 #include <errno.h>
 #include <getopt.h>
+#include <limits.h>
 
 #include <netdb.h>
 #include <netinet/in.h>	
@@ -28,7 +29,9 @@
 #include "utils.h"
 
 #define rdma_error(msg, args...) do {\
-	fprintf(stderr, "\033[1;31m%s : %d : ERROR : \033[0m"msg, __FILE__, __LINE__, ## args);\
+    char host[HOST_NAME_MAX];\
+    gethostname(host, sizeof(host));\
+	fprintf(stderr, "\033[1;31m%s : %s : %d : ERROR : \033[0m"msg, host, __FILE__, __LINE__, ## args);\
 	perror("errno");\
 }while(0);
 

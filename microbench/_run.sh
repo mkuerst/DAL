@@ -129,16 +129,29 @@ rm -rf barrier_files/*
 
 comm_prot="rdma"
 microbenches=("empty_cs2n" "empty_cs1n" "lat" "mem2n" "mem1n" "mlocks2n" "mlocks1n")
-opts=("spinlock" "lease1")
-client_ids=(0 1 2 3 4 5 6 7 8 9)
+node_ids=(3 4 6 11)
+peer_ips=(    ""
+    "10.233.0.10"
+    "10.233.0.11"
+    "10.233.0.12"
+    "10.233.0.13"
+    "10.233.0.14"
+    "10.233.0.15"
+    "10.233.0.16"
+    "10.233.0.17"
+    "10.233.0.18"
+    "10.233.0.19"
+    "10.233.0.20"
+    "10.233.0.21"    )
 
-duration=20
+opts=("spinlock")
+duration=1
 mem_runs=1
-runs=5
-n_clients=(1 4)
-n_threads=(16)
+runs=1
+n_clients=(2)
+n_threads=(1)
 bench_idxs=(5)
-num_locks=(1 128 512)
+num_locks=(32)
 
 for impl_dir in "$BASE"/original/*
 do
@@ -165,6 +178,14 @@ do
 
             for nclients in ${n_clients[@]}
             do
+                selected=()
+                for ((i = 0; i < nclients; i++)); do
+                    selected+=("${peer_ips[${node_ids[i]}]}")
+                done
+                p_ips=$(IFS=,; echo "${selected[*]}")
+                # echo "Concatenated result: $p_ips"
+                # exit 1
+
                 for i in ${n_threads[@]}
                 do
                     client_rescum_file="$client_rescum_dir"/nclients$nclients"_nthreads"$i.csv
@@ -177,9 +198,8 @@ do
 
                     for nlocks in ${num_locks[@]}
                     do
-
                         server_session="server_$i"
-                        echo "START SERVER $i T & $nclients C & $nlocks L"
+                        echo "START SERVER $i T & $nclients C & $nlocks L & $duration s"
 
                         tmux new-session -d -s "$server_session" \
                         "ssh $REMOTE_USER@$REMOTE_SERVER $rdma_server_app -c $nclients -a $server_ip -t $i -l $nlocks >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
@@ -190,13 +210,25 @@ do
                         sleep 3
 
                         # ============= MPIRUN ========================================================
-                        echo "START MICROBENCH $impl $microb $opt $nclients MPI-C $i T & $nlocks L"
+                        echo "START MICROBENCH $impl $microb $opt $nclients C & $i T & $nlocks L & $duration s"
+
                         mpirun --hostfile ./clients.txt -np $nclients \
                         --x LD_PRELOAD=$client_so \
                         --mca btl_tcp_if_exclude lo,eno3,eno1,eno4,eno2,docker0 \
                         --mca oob_tcp_dynamic_ipv4_ports 8000,8080 \
                         --mca btl_tcp_port_min_v4 8000 --mca btl_tcp_port_range_v4 10 \
-                        $disa_bench $i $duration $critical $server_ip $j 0 $nclients $client_rescum_file $client_ressingle_file $nlocks $runs $mem_runs \
+                        $disa_bench \
+                        -t $i \
+                        -d $duration \
+                        -s $server_ip \
+                        -p $p_ips \
+                        -m $j \
+                        -c $nclients \
+                        -f $client_rescum_file \
+                        -g $client_ressingle_file \
+                        -l $nlocks \
+                        -r $runs\
+                        -e $mem_runs \
                         # 2>> $client_log_dir/nclients$n_clients"_nthreads"$i.log
 
                         # --mca btl_base_debug 1 --mca oob_tcp_debug 1 --mca plm_base_verbose 5 --mca orte_base_help_aggregate 0 \

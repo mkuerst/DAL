@@ -271,6 +271,7 @@ void *mlocks_worker(void *arg) {
             for (int j = 0; j < 100; j++) {
                 int lock_idx = uniform_rand_int(nlocks);
                 disa_mutex_t *l = &locks[lock_idx];
+                fprintf(stderr,"[%d.%d] lock_idx: %d\n", client, task_id, lock_idx);
 
                 start = rdtscp();
                 lock_acquire((pthread_mutex_t *)l);
@@ -315,7 +316,6 @@ void *mlocks_worker(void *arg) {
 }
 
 int main(int argc, char *argv[]) {
-    DEBUG("[%d] HI\n", client);
     parse_cli_args(&nthreads, &num_clients, &nlocks, &client, &duration,
     &mode, &num_runs, &num_mem_runs, &res_file_cum, &res_file_single,
     &mn_ip, peer_ips, argc, argv
@@ -334,6 +334,7 @@ int main(int argc, char *argv[]) {
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     client = rank;
 #endif
+    DEBUG("[%d] HI\n", client);
     srand(client);
     scope = MAX_ARRAY_SIZE;
     void* worker; 
@@ -374,34 +375,35 @@ int main(int argc, char *argv[]) {
 
     volatile int stop __attribute__((aligned (CACHELINE_SIZE))) = 0;
     int tcp_fd = 0;
+    /*CONNECTION*/
 #ifdef RDMA
-    pthread_t peer_listener;
+    pthread_t listener;
     rdma_client_meta* client_meta = malloc(sizeof(rdma_client_meta));
-    for (int i = 0; i < num_clients;i++) {
+    for (int i = 0; i < num_clients; i++) {
         if (i == client) {
             if (establish_rdma_mn_connection(client, mn_ip, nthreads, num_clients, nlocks, use_nodes, client_meta)) {
                 _error("Client %d failed to establish rdma mn connection\n", client);
             }
-            if (start_peer_listener(client, peer_ips, num_clients, nthreads, &peer_listener)) {
+            if (start_peer_listener(client, peer_ips, num_clients, nthreads, &listener)) {
                 _error("Client %d failed to start peer listener\n", client);
             }
+            sleep(1);
         }
-    #ifdef MPI
+        #ifdef MPI
         MPI_Barrier(MPI_COMM_WORLD);
-    #endif
+        #endif
     }
-
-    for (int i = 0; i < num_clients;i++) {
+    for (int i = 0; i < num_clients; i++) {
         if (i == client) {
             if (establish_rdma_peer_connections(client, peer_ips, nthreads, num_clients, nlocks, client_meta)) {
                 _error("Client %d failed to establish rdma peer connections\n", client);
             }
         }
-    #ifdef MPI
+        #ifdef MPI
         MPI_Barrier(MPI_COMM_WORLD);
-    #endif
+        #endif
     }
-    pthread_join(peer_listener, NULL);
+    pthread_join(listener, NULL);
 #endif
 
 #ifdef TCP_SPINLOCK
@@ -489,9 +491,9 @@ int main(int argc, char *argv[]) {
                 if (i == client) {
                     write_res_single(tasks, nthreads, mode, res_file_single);
                 }
-            #ifdef MPI
+                #ifdef MPI
                 MPI_Barrier(MPI_COMM_WORLD);
-            #endif
+                #endif
             } 
         }
     }
@@ -503,15 +505,14 @@ int main(int argc, char *argv[]) {
         if (i == client) {
             write_res_cum(tasks, nthreads, mode, res_file_cum, num_runs, num_mem_runs);
         }
-    #ifdef MPI
+        #ifdef MPI
         MPI_Barrier(MPI_COMM_WORLD);
-    #endif
+        #endif
     } 
-#ifdef MPI
+    #ifdef MPI
     MPI_Finalize();
-#endif
+    #endif
     numa_free(locks, nlocks*sizeof(disa_mutex_t));
-    // WAIT SO SERVER CAN SHUTDOWN
     sleep(2);
     fprintf(stderr, "CLIENT %d DONE\n", client);
     return 0;
