@@ -142,16 +142,17 @@ peer_ips=(    ""
     "10.233.0.18"
     "10.233.0.19"
     "10.233.0.20"
-    "10.233.0.21"    )
+    "10.233.0.21"    
+)
 
 opts=("spinlock")
-duration=1
+duration=20
 mem_runs=1
-runs=1
-n_clients=(2)
-n_threads=(1)
+runs=5
+n_clients=(1 4)
+n_threads=(1 8 16)
 bench_idxs=(5)
-num_locks=(32)
+num_locks=(1 128 512)
 
 for impl_dir in "$BASE"/original/*
 do

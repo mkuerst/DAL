@@ -252,6 +252,7 @@ void *mlocks_worker(void *arg) {
         loop_in_cs = 0;
         wait_acq = 0;
         wait_rel = 0;
+        srand(task->client_id*task->nthreads + task_id + 42);
 
         pthread_barrier_wait(&global_barrier);
     #ifdef MPI
@@ -271,7 +272,7 @@ void *mlocks_worker(void *arg) {
             for (int j = 0; j < 100; j++) {
                 int lock_idx = uniform_rand_int(nlocks);
                 disa_mutex_t *l = &locks[lock_idx];
-                fprintf(stderr,"[%d.%d] lock_idx: %d\n", client, task_id, lock_idx);
+                // fprintf(stderr,"[%d.%d] lock_idx: %d\n", client, task_id, lock_idx);
 
                 start = rdtscp();
                 lock_acquire((pthread_mutex_t *)l);
@@ -335,7 +336,6 @@ int main(int argc, char *argv[]) {
     client = rank;
 #endif
     DEBUG("[%d] HI\n", client);
-    srand(client);
     scope = MAX_ARRAY_SIZE;
     void* worker; 
     switch (mode) {

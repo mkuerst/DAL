@@ -518,7 +518,7 @@ int client_connect_to_server(int cid, int nthreads, int nlocks, int use_nodes)
 	}
 
 	read_from_metadata_file();
-	fprintf(stderr, "Client [%d] connected to RDMA mn\n", cid);
+	fprintf(stderr, "[%d] connected to RDMA mn\n", cid);
 	return 0;
 }
 
@@ -556,7 +556,7 @@ int client_connect_to_peers(int cid, int nclients, int nthreads, int nlocks)
 	}
 
 	// read_from_metadata_file();
-	fprintf(stderr, "Client [%d] connected to all RDMA peers\n", cid);
+	fprintf(stderr, "[%d] connected to RDMA peers\n", cid);
 	return 0;
 }
 
@@ -701,12 +701,13 @@ void* listen_for_peer_connections(void* _args)
 			DEBUG("[%d] Accepted new connection from [%d.%d] \n", cid, i, j);
 		}
 	}
-	fprintf(stderr, "[%d] SUCCESSFULLY ACCEPTED ALL CONNECTIONS\n listener_thread exits\n", cid);
+	DEBUG("[%d] SUCCESSFULLY ACCEPTED ALL CONNECTIONS\n listener_thread exits\n", cid);
 	return 0;
 }
 
 int start_peer_listener(
-	int cid, char peer_addrs[MAX_CLIENTS][MAX_IP_LENGTH], int nclients, int nthreads,
+	int cid, char peer_addrs[MAX_CLIENTS][MAX_IP_LENGTH],
+	int nclients, int nthreads,
 	pthread_t *thread)
 {
 	peer_listener *peer_info = malloc(sizeof(peer_listener));
