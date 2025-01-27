@@ -231,7 +231,7 @@ int write_metadata_to_file() {
 	return 0;
 }
 
-int read_from_metadata_file()
+int read_mn_metadata_file()
 {
 	char *cwd = NULL;
 	cwd = getcwd(cwd, 128);
@@ -259,6 +259,46 @@ int read_from_metadata_file()
 			sscanf(line, "%lu %u", &rlock_addr, &rlock_rkey);
 		}
 		i++;
+	}
+	DEBUG("remote data_addr: %lu, key: %u\n", data_addr, data_rkey);
+	DEBUG("rlock_addr: %lu, key: %u\n", rlock_addr, rlock_rkey);
+	return 0;
+
+}
+
+int read_peer_metadata_files(int nclients)
+{
+	for (int c = 0; c < nclients; c++) {
+		char *cwd = NULL;
+		cwd = getcwd(cwd, 128);
+		char addresses_file[64] = {0};
+		sprintf(addresses_file, "/DAL/microbench/metadata/C%d", c);
+		strcat(cwd, addresses_file);
+		FILE *file = fopen(cwd, "r");
+		if (!file) {
+			DEBUG("Failed at opening metadata file %s\nTrying again with different dir\n", cwd);
+			cwd = getcwd(cwd, 128);
+			char addresses_file[64] = {0};
+			sprintf(addresses_file, "/microbench/metadata/C%d", c);
+			strcat(cwd, addresses_file);
+			file = fopen(cwd, "r");
+			if (!file) {
+				rdma_error("Failed at opening peer metadata file %s\n", cwd);
+				return -1;
+			}
+		}
+		char line[256];
+		int i = 0;
+		while (fgets(line, sizeof(line), file)) {
+			if (i == 0) {
+				sscanf(line, "%lu %u", &data_addr, &data_rkey);
+			}
+			else {
+				sscanf(line, "%lu %u", &rlock_addr, &rlock_rkey);
+			}
+			i++;
+		}
+
 	}
 	DEBUG("remote data_addr: %lu, key: %u\n", data_addr, data_rkey);
 	DEBUG("rlock_addr: %lu, key: %u\n", rlock_addr, rlock_rkey);
@@ -517,7 +557,7 @@ int client_connect_to_server(int cid, int nthreads, int nlocks, int use_nodes)
 		}
 	}
 
-	read_from_metadata_file();
+	read_mn_metadata_file();
 	fprintf(stderr, "[%d] connected to RDMA mn\n", cid);
 	return 0;
 }
@@ -748,6 +788,7 @@ int establish_rdma_mn_connection(
 		return -errno;
 	}
 	populate_mn_client_meta(nclients, nthreads, client_meta);
+	write_metadata_to_file();
 	return 0;
 }
 
@@ -756,6 +797,7 @@ int establish_rdma_peer_connections(
 	int nthreads, int nclients, int nlocks,
 	rdma_client_meta* client_meta)
 {
+	read_peer_metadata_files();
 	if (client_prepare_peer_connections(peer_addrs, nclients, nthreads)) { 
 		rdma_error("[%d] failed to prepare peer connections, -errno = %d \n", cid, -errno);
 		return -errno;
@@ -981,5 +1023,7 @@ int rdma_release_lock_lease1(disa_mutex_t *disa_mutex)
 // int rdma_request_lock_x(disa_mutex_t *disa_mutex_t)
 // {
 //     DEBUG("[%d.%d] rdma_request_lock_x [%d]\n", rdma_client_id, rdma_task_id, disa_mutex->id);
+// 	ull start = rdtscp();
+// 	set_lock_meta(disa_mutex);
 
 // }

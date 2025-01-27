@@ -48,26 +48,40 @@ SERVER_COLS = [
 ]
 
 IMPL = [
-"alockepfl_original",
+# FLAT
 "backoff_original",
+"clh_spinlock",
+"clh_spin_then_park",
+"partitioned_original",
+"pthreadinterpose_original",
+"spinlock_original",
+"ticket_original",
+"ttas_original",
+# QUEUE
+"mcs_spinlock",
+"mcs_spin_then_park",
+# HIERARCHICAL
 "cbomcs_spin_then_park",
 "cbomcs_spinlock",
-"clh_spin_then_park",
-"clh_spinlock",
 "cna_spinlock",
-"concurrency_original",
 "cptltkt_original",
 "ctkttkt_original",
-"fns_spinlock",
-"fnm_spin_then_park",
 "hmcs_original",
 "htlockepfl_original",
 "hyshmcs_original",
-"malthusian_spin_then_park",
+# LOAD CONTROL
 "malthusian_spinlock",
-"mcs_spin_then_park",
-"mcs_spinlock",
+"malthusian_spin_then_park",
+# OTHER
+"alockepfl_original",
+"concurrency_original",
+"fns_spinlock",
+"fnm_spin_then_park",
 "mutexee_original",
+]
+
+FLAT = [
+"backoff_original",
 "partitioned_original",
 "pthreadinterpose_original",
 "spinlock_original",
@@ -75,7 +89,49 @@ IMPL = [
 "ttas_original",
 ]
 
-MICROBENCHES = ["empty_cs1n", "empty_cs2n", "lat", "mem1n", "mem2n"]
+QUEUE = [
+"clh_spin_then_park",
+"clh_spinlock",
+"mcs_spin_then_park",
+"mcs_spinlock",
+]
+
+HIERARCHICAL = [
+"cbomcs_spin_then_park",
+"cbomcs_spinlock",
+"cna_spinlock",
+"cptltkt_original",
+"ctkttkt_original",
+"hmcs_original",
+"htlockepfl_original",
+"hyshmcs_original",
+]
+
+LOAD_CONTROL = [
+"malthusian_spin_then_park",
+"malthusian_spinlock",
+]
+
+OTHER = [
+"alockepfl_original",
+"concurrency_original",
+"fns_spinlock",
+"fnm_spin_then_park",
+"mutexee_original",
+]
+
+DELEGATION = [
+    
+]
+
+IMPL_DICT = {"flat": FLAT,
+            "queue": QUEUE, 
+            "hierachical": HIERARCHICAL,
+            "load control": LOAD_CONTROL,
+            "other": OTHER,
+            "delegation": DELEGATION}
+
+MICROBENCHES = ["empty_cs1n", "empty_cs2n", "lat", "mem1n", "mem2n", "mlocks1n", "mlocks2n"]
 
 # TODO: Add "single"
 STATS = ["cum"]
@@ -84,14 +140,14 @@ lat_bar_colors = {
 "gwait_acq": "gray", "lwait_acq": "gold", 
 "gwait_rel": "blue", "lwait_rel": "green",
 "lock_hold": "red", 
-"data_read": "black", "data_write": "magenta",
+"data_read": "white", "data_write": "magenta",
 }
 median_colors = {"gwait_acq": "silver", "lwait_acq": "orange", "gwait_rel": "violet", "lwait_rel": "cyan", "lock_hold": "purple"}
 node_colors = {"empty_cs1n": "gray", "empty_cs2n": "black", "mem1n": "gray", "mem2n": "black"}
+client_hatches = {1:'/', 2:'\\', 3:'|', 5:'-', 4:'+'}
+mlocks_hatches = {1:'/', 128:'\\', 256:'|', 1024:'-', 512:'+'}
 
 BW_RLOCKS = 0.9 / N_RLOCKS
-
-
 FIG_X = 10
 FIG_Y = 6
 DURATION_FACTOR = 1e3
@@ -105,20 +161,16 @@ def jain_fairness_index(x):
 #########
 ## FIG ##
 #########
-def make_offset(candidates):
+def make_offset(candidates, bw):
     num_cand = len(candidates)
     if num_cand == 1:
         return {candidates[0]: 0}
-    bw = 0.9 / num_cand
     if num_cand == 2:
        return {candidates[0]: -0.5*bw, candidates[1]:.5*bw} 
     if num_cand == 3:
-       return {candidates[0]: -bw, candidates[1]: 0, candidates[1]: bw} 
+       return {candidates[0]: -bw, candidates[1]: 0, candidates[2]: bw} 
 
-
-        
-
-def add_lat(ax, ax2, values, position, comm_prot, bar_width, inc):
+def add_lat(ax, ax2, values, position, comm_prot, bar_width, inc, hatches={}, hatch_key=0):
     duration = values["total_duration"].max() * DURATION_FACTOR
     lock_acquires = values["lock_acquires"]
     cum = 0
@@ -126,64 +178,54 @@ def add_lat(ax, ax2, values, position, comm_prot, bar_width, inc):
     for measurement in inc:
         mean = (values[measurement] / lock_acquires).mean() / LAT_FACTOR if (measurement in values) else 0
         median = (values[measurement] / lock_acquires).median() / LAT_FACTOR if (measurement in values) else 0
-        ax.bar(position, mean, width=bar_width, bottom=cum,
+        bars = ax.bar(position, mean, width=bar_width, bottom=cum,
             color=lat_bar_colors[measurement], label=f"{comm_prot} ({measurement})" if position == 1 else "",
             edgecolor="black"
         )
-        ax.scatter([position], [cum + median], marker="x", color=median_colors[measurement])
+        if hatch_key:
+            for bar in bars:
+                bar.set_hatch(hatches[hatch_key])
+        # ax.scatter([position], [cum + median], marker="x", color=median_colors[measurement])
         cum += mean
         
     ax2.scatter([position], [lock_acquires.mean() / duration], marker="x", color="black")
 
-def add_box(ax1, ax2, position, values):
+def add_box(ax1, ax2, position, values, num_clients, bw=0.3):
     duration = values["total_duration"].max() * DURATION_FACTOR
     lock_acquires = values["lock_acquires"]
-    ax1.boxplot(
+    bps = ax1.boxplot(
         values["lock_acquires"] / duration,
         positions=[position],
-        widths=0.3,
+        widths=bw,
         patch_artist=True,
     )
-    ax2.scatter([position], jain_fairness_index(lock_acquires),
-                                marker="^", color="gold", edgecolor="black")
+    if num_clients:
+        for bp in bps["boxes"]:
+            bp.set_hatch(client_hatches[num_clients])
+    num_runs = values["run"].max() + 1
+    fairness = 0
+    for i in range(num_runs):
+        fairness += jain_fairness_index(lock_acquires[values["run"] == i])
+    fairness /= num_runs
+    ax2.scatter([position], fairness, marker="^", color="gold", edgecolor="black")
 
 def add_vline(axs, position, bw):
     for ax in axs:
         ax.axvline(x=position+2*bw-0.1, color='black', linestyle='--', alpha=0.5)
 
-def save_figs(ax1, ax2, ax3, ax4, fig1, fig2,
-              x_positions, x_labels, 
-              comm_prot="rdma", remote_lock="spinlock", bench="",
-              client_mode ="MC", nthreads=16, log=1, clients=[1],
-              ):
+def set_legend(ax1, hatches, hatch_categories,
+               include_metrics, include_hatch_keys):
     legend_lat = {}
-    ax1.set_xticks(x_positions)
-    ax1.set_xticklabels(x_labels, rotation=45, ha='right')
-    ax1.set_xlabel("Implementation")
-    ax1.set_ylabel("Mean Latencies (ms)")
-    ax2.set_ylabel("TP (ops/ms)")
-    clients_str = "|".join(map(str, clients))
-    if log:
-        ax1.set_yscale('log')
-    ax1.set_title(f"Latency Wait+TP {bench} {clients_str} Cs {comm_prot} {remote_lock}")
-    ax1.grid(linestyle="--", alpha=0.7)
     for metric,color in lat_bar_colors.items():
-        legend_lat[metric] = mlines.Line2D(
-                                [], [],
-                                color=color,
-                                marker="o",
-                                markersize=8,
-                                linestyle="None",
-                                label=metric)
-    for metric,color in median_colors.items():
-        metric = "median " + metric
-        legend_lat[metric] = mlines.Line2D(
-                                [], [],
-                                color=color,
-                                marker="x",
-                                markersize=8,
-                                linestyle="None",
-                                label=metric)
+        if metric in include_metrics:
+            legend_lat[metric] = mlines.Line2D(
+                                    [], [],
+                                    color=color,
+                                    marker="o",
+                                    markersize=8,
+                                    linestyle="None",
+                                    markeredgecolor='black',
+                                    label=metric)
     legend_lat["Avg TP"] = mlines.Line2D(
                             [], [],
                             color="black",
@@ -191,27 +233,99 @@ def save_figs(ax1, ax2, ax3, ax4, fig1, fig2,
                             markersize=8,
                             linestyle="None",
                             label="Avg TP")
+    for key, value in hatches.items():
+        if key in include_hatch_keys:
+            legend_lat[key] =  plt.Rectangle((0, 0), 10, 10, facecolor="white", hatch=value, edgecolor='black', label=hatch_categories[key])  
+
+    # ax1.legend(legend_lat.values(), [entry.get_label() for entry in legend_lat.values()],
+    #         title="", loc="upper left", bbox_to_anchor=(1.05, 1))
     ax1.legend(legend_lat.values(), [entry.get_label() for entry in legend_lat.values()],
-              title="", loc="upper left", bbox_to_anchor=(1.05, 1))
-    output_path = file_dir+f"/plots/cumlat_{comm_prot}_{remote_lock}_{bench}_{client_mode}_{nthreads}T_.png"
-    fig1.savefig(output_path, dpi=300, bbox_inches='tight')
+            title="",
+            fontsize='x-small',
+            # bbox_to_anchor=(1.05, 1),
+            markerscale=0.6,
+            labelspacing=0.2,
+            borderaxespad=0.1,
+            borderpad=0.1,
+            handlelength=1,
+            handleheight=1,
+            loc='upper right'
+            )
+
+
+def set_ax(ax1, ax2, ax3, ax4, x_positions, x_labels, x1_title, y1_title1, y1_title2,
+           x2_title, y2_title1, y2_title2, log=1):
+    if ax1 and ax2 is not None:
+            ax1.set_xticks(x_positions)
+            ax1.set_xticklabels(x_labels, rotation=45, ha='right')
+            ax1.set_xlabel(x1_title)
+            ax1.set_ylabel(y1_title1)
+            ax2.set_ylabel(y1_title2)
+            if log:
+                ax1.set_yscale('log')
+            ax1.grid(linestyle="--", alpha=0.7)
 
     if ax3 is not None and ax4 is not None:
         ax3.set_xticks(x_positions)
         ax3.set_xticklabels(x_labels, rotation=45, ha='right')
-        ax3.set_xlabel("Implementation")
-        ax3.set_ylabel("TP (lock acquistions/ms)")
-        ax4.set_ylabel("Jain's Fairness Index")
+        ax3.set_xlabel(x2_title)
+        ax3.set_ylabel(y2_title1)
+        ax4.set_ylabel(y2_title2)
         # ax3.set_yscale('log')
-        ax3.set_title(f"TP+Fairness {bench} {clients_str} Cs {comm_prot} {remote_lock}")
         ax3.grid(linestyle="--", alpha=0.7)
+    
+def save_figs(ax1, ax2, ax3, ax4, fig1, fig2,
+              x_positions, x_labels, 
+              comm_prot="rdma", remote_lock="spinlock", bench="",
+              client_mode ="MC", nthreads=16, log=1, clients=[1],
+              include_metrics=[], hatches=[], hatch_categories={},
+              include_hatch_keys=[], multi=0,
+              ):
+    
+    clients_str = "|".join(map(str, clients))
+    title1 = f"Latency Wait+TP {bench} {clients_str} Cs {comm_prot} {remote_lock}"
+    title2 = f"TP+Fairness {bench} {clients_str} Cs {comm_prot} {remote_lock}"
+
+    if not multi:
+        set_ax(ax1, ax2, ax3, ax4, x_positions, x_labels, 
+               "Implementation", "Mean Latencies (ms)", "TP (ops/ms)",
+               "Implementation", "TP (ops/ms)", "Jain's Frainess Index",
+               log)
+        set_legend(ax1, hatches, hatch_categories,
+                   include_metrics, include_hatch_keys)
+
+    else:
+        for a1,a2,a3,a4 in zip(ax1,ax2,ax3,ax4):
+            set_ax(a1, a2, a3, a4, x_positions, x_labels, 
+                "Implementation", "Mean Latencies (ms)", "TP (ops/ms)",
+                "Implementation", "TP (ops/ms)", "Jain's Frainess Index",
+                log)
+
+        set_legend(a1, hatches, hatch_categories,
+                   include_metrics, include_hatch_keys)
+            
+    output_path = file_dir+f"/plots/cumlat_{comm_prot}_{remote_lock}_{bench}_{client_mode}_{nthreads}T_.png"
+    fig1.suptitle(title1)
+    fig1.savefig(output_path, dpi=300, bbox_inches='tight')
+
+    if ax3 is not None and ax4 is not None:
         output_path = file_dir+f"/plots/tpfair_{comm_prot}_{remote_lock}_{bench}_{client_mode}_{nthreads}T_.png"
+        fig2.suptitle(title2)
         fig2.savefig(output_path, dpi=300, bbox_inches='tight')
     
-def make_ax_fig(x, y):
-    fig, ax = plt.subplots(figsize=(x,y))
-    ax2 = ax.twinx()
-    return fig, ax, ax2
+def make_ax_fig(x, y, rows=1, cols=1):
+    if rows == 1 and cols == 1:
+        fig, ax = plt.subplots(figsize=(x,y))
+        ax2 = ax.twinx()
+        return fig, ax, ax2
+
+    fig, axs = plt.subplots(rows, cols, figsize=(x,y))
+    axs2 = []
+    for ax in axs:
+        axs2.append(ax.twinx())
+    return fig, axs, axs2
+        
+    
 
 ##########
 ## READ ##
