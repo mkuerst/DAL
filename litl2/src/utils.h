@@ -172,6 +172,8 @@ typedef struct {
 
 	uint64_t peer_data_addrs[MAX_CLIENTS];
 	uint32_t peer_data_rkeys[MAX_CLIENTS];
+	uint64_t peer_cas_addrs[MAX_CLIENTS];
+	uint32_t peer_cas_rkeys[MAX_CLIENTS];
 
     struct ibv_qp **qp;
     struct ibv_comp_channel **io_comp_chan;

@@ -64,6 +64,11 @@ char *data[THREADS_PER_CLIENT];
 int *int_data[THREADS_PER_CLIENT];
 uint64_t *unlock_val;
 
+uint64_t peer_cas_addrs[MAX_CLIENTS];
+uint32_t peer_cas_rkeys[MAX_CLIENTS];
+uint64_t peer_data_addrs[MAX_CLIENTS];
+uint32_t peer_data_rkeys[MAX_CLIENTS];
+
 /*******************************************************************/
 /******************** PEER META ************************************/
 /*******************************************************************/
@@ -91,6 +96,11 @@ __thread task_t *thread_task;
 __thread uint64_t *thread_cas_result;
 __thread char* thread_byte_data;
 __thread int* thread_int_data;
+
+__thread uint64_t thread_peer_cas_addrs[MAX_CLIENTS];
+__thread uint64_t thread_peer_data_addrs[MAX_CLIENTS];
+__thread uint32_t thread_peer_cas_rkeys[MAX_CLIENTS];
+__thread uint32_t thread_peer_data_rkeys[MAX_CLIENTS];
 
 /*PEER THREAD LOCAL*/
 __thread struct ibv_qp *thread_peer_qps[MAX_CLIENTS];
@@ -127,6 +137,11 @@ void set_rdma_client_meta(task_t* task, rdma_client_meta* client_meta, int nclie
 	for (int c = 0; c < nclients; c++) {
 		thread_peer_qps[c] = client_meta->peer_qps[c][tid];
 		thread_peer_io_chans[c] = client_meta->peer_io_chans[c][tid];
+
+		thread_peer_cas_addrs[c] = client_meta->peer_cas_addrs[c];
+		thread_peer_cas_rkeys[c] = client_meta->peer_cas_rkeys[c];
+		thread_peer_data_addrs[c] = client_meta->peer_data_addrs[c];
+		thread_peer_data_rkeys[c] = client_meta->peer_data_rkeys[c];
 	}
 }
 
@@ -199,11 +214,16 @@ void populate_peer_client_meta(int nclients, int nthreads, rdma_client_meta* cli
 		for (int t = 0; t < nthreads; t++) {
 			client_meta->peer_qps[c][t] = peer_qps[c][t];
 			client_meta->peer_io_chans[c][t] = peer_io_chans[c][t];
+
+			client_meta->peer_cas_addrs[c] = peer_cas_addrs[c];
+			client_meta->peer_cas_rkeys[c] = peer_cas_rkeys[c];
+			client_meta->peer_data_addrs[c] = peer_data_addrs[c];
+			client_meta->peer_data_rkeys[c] = peer_data_rkeys[c];
 		}
 	}
 }
 
-int write_metadata_to_file() {
+int write_metadata_to_file(int cid) {
 	DEBUG("WRITING METADATA\n");
 	char *cwd = NULL;
 	cwd = getcwd(cwd, 128);
@@ -226,8 +246,8 @@ int write_metadata_to_file() {
 	fprintf(file, "%lu %u\n", (uint64_t) local_data_mr[0]->addr, local_data_mr[0]->rkey);
 	fprintf(file, "%lu %u\n", (uint64_t) local_cas_mr[0]->addr, local_cas_mr[0]->rkey);
 	fclose(file);
-	DEBUG("local_data_addr: %lu, key: %u\n", (uint64_t) local_data_mr[0]->addr, local_data_mr[0]->rkey);
-	DEBUG("local_cas_addr: %lu, key: %u\n", (uint64_t) local_cas_mr[0]->addr, local_cas_mr[0]->rkey);
+	DEBUG("[%d] local_data_addr: %lu, key: %u\n", cid, (uint64_t) local_data_mr[0]->addr, local_data_mr[0]->rkey);
+	DEBUG("[%d] local_cas_addr: %lu, key: %u\n", cid, (uint64_t) local_cas_mr[0]->addr, local_cas_mr[0]->rkey);
 	return 0;
 }
 
@@ -260,8 +280,8 @@ int read_mn_metadata_file()
 		}
 		i++;
 	}
-	DEBUG("remote data_addr: %lu, key: %u\n", data_addr, data_rkey);
-	DEBUG("rlock_addr: %lu, key: %u\n", rlock_addr, rlock_rkey);
+	DEBUG("MN remote data_addr: %lu, key: %u\n", data_addr, data_rkey);
+	DEBUG("MN rlock_addr: %lu, key: %u\n", rlock_addr, rlock_rkey);
 	return 0;
 
 }
@@ -291,17 +311,16 @@ int read_peer_metadata_files(int nclients)
 		int i = 0;
 		while (fgets(line, sizeof(line), file)) {
 			if (i == 0) {
-				sscanf(line, "%lu %u", &data_addr, &data_rkey);
+				sscanf(line, "%lu %u", &peer_data_addrs[c], &peer_data_rkeys[c]);
 			}
 			else {
-				sscanf(line, "%lu %u", &rlock_addr, &rlock_rkey);
+				sscanf(line, "%lu %u", &peer_cas_addrs[c], &peer_cas_rkeys[c]);
 			}
 			i++;
 		}
-
+		DEBUG("[%d] remote data_addr: %lu, key: %u\n", c, peer_data_addrs[c], peer_data_rkeys[c]);
+		DEBUG("[%d] remote cas_addr: %lu, key: %u\n", c, peer_cas_addrs[c], peer_cas_rkeys[c]);
 	}
-	DEBUG("remote data_addr: %lu, key: %u\n", data_addr, data_rkey);
-	DEBUG("rlock_addr: %lu, key: %u\n", rlock_addr, rlock_rkey);
 	return 0;
 
 }
@@ -558,6 +577,7 @@ int client_connect_to_server(int cid, int nthreads, int nlocks, int use_nodes)
 	}
 
 	read_mn_metadata_file();
+	write_metadata_to_file(cid);
 	fprintf(stderr, "[%d] connected to RDMA mn\n", cid);
 	return 0;
 }
@@ -595,7 +615,7 @@ int client_connect_to_peers(int cid, int nclients, int nthreads, int nlocks)
 		}
 	}
 
-	// read_from_metadata_file();
+	read_peer_metadata_files(nclients);
 	fprintf(stderr, "[%d] connected to RDMA peers\n", cid);
 	return 0;
 }
@@ -788,7 +808,6 @@ int establish_rdma_mn_connection(
 		return -errno;
 	}
 	populate_mn_client_meta(nclients, nthreads, client_meta);
-	write_metadata_to_file();
 	return 0;
 }
 
@@ -797,7 +816,6 @@ int establish_rdma_peer_connections(
 	int nthreads, int nclients, int nlocks,
 	rdma_client_meta* client_meta)
 {
-	read_peer_metadata_files();
 	if (client_prepare_peer_connections(peer_addrs, nclients, nthreads)) { 
 		rdma_error("[%d] failed to prepare peer connections, -errno = %d \n", cid, -errno);
 		return -errno;
