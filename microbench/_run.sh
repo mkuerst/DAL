@@ -145,14 +145,14 @@ peer_ips=(    ""
     "10.233.0.21"    
 )
 
-opts=("spinlock_bo")
+opts=("lease1")
 duration=20
 mem_runs=1
 runs=3
-n_clients=(1 4)
+n_clients=(4)
 n_threads=(16)
 bench_idxs=(5)
-num_locks=(1 512)
+num_locks=(512)
 
 for impl_dir in "$BASE"/original/*
 do
