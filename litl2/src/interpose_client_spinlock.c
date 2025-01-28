@@ -507,7 +507,7 @@ int pthread_mutex_lock(pthread_mutex_t *mutex) {
     DEBUG("[%d.%d] acquired local lock [%d]\n", client_id, task_id, disa_mutex->id);
     ull end_lacq = rdtscp();
 #ifdef RDMA
-    tries = rdma_request_lock(disa_mutex);
+    tries = rdma_request_lock_spinlock(disa_mutex);
 #endif
 #ifdef TCP_SPINLOCK
     tcp_request_lock();
@@ -549,7 +549,7 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex) {
         return REAL(pthread_mutex_unlock)(mutex);
     }
 #ifdef RDMA
-    rdma_release_lock(disa_mutex);
+    rdma_release_lock_spinlock(disa_mutex);
 #endif
 #ifdef TCP_SPINLOCK
     tcp_release_lock();

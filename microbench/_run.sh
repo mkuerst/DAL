@@ -145,7 +145,7 @@ peer_ips=(    ""
     "10.233.0.21"    
 )
 
-opts=("spinlock" "lease1")
+opts=("spinlock_bo")
 duration=20
 mem_runs=1
 runs=3

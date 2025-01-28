@@ -971,7 +971,7 @@ static inline void rdma_release_rlock_faa(disa_mutex_t *disa_mutex)
 /************************************/
 /*************SPINLOCK***************/
 /************************************/
-ull rdma_request_lock(disa_mutex_t* disa_mutex)
+ull rdma_request_lock_spinlock(disa_mutex_t* disa_mutex)
 {
     DEBUG("[%d.%d] rdma_request_lock [%d]\n", rdma_client_id, rdma_task_id, disa_mutex->id);
 	ull start = rdtscp();
@@ -992,7 +992,28 @@ ull rdma_request_lock(disa_mutex_t* disa_mutex)
 	return tries;
 }
 
-int rdma_release_lock(disa_mutex_t *disa_mutex)
+ull rdma_request_lock_spinlock_bo(disa_mutex_t* disa_mutex)
+{
+    DEBUG("[%d.%d] rdma_request_lock [%d]\n", rdma_client_id, rdma_task_id, disa_mutex->id);
+	ull start = rdtscp();
+	ull tries = 0;
+	set_lock_meta(disa_mutex);
+	thread_w_wr.wr.rdma.remote_addr = disa_mutex->rlock_addr;
+	tries = rdma_bo_cas(disa_mutex->rlock_addr, rlock_rkey, thread_server_qp, thread_server_io_chan);
+	ull end_of_cas = rdtscp();
+
+	rdma_read_data(disa_mutex);
+	ull end_of_read = rdtscp();
+	if(!*thread_task->stop) {
+		thread_task->sgwait_acq[thread_task->idx] = end_of_cas - start;
+		thread_task->sdata_read[thread_task->idx] = end_of_read - end_of_cas;
+		thread_task->sglock_tries[thread_task->idx] = tries;
+		thread_task->data_read[thread_task->run] += end_of_read - end_of_cas;
+	}
+	return tries;
+}
+
+int rdma_release_lock_spinlock(disa_mutex_t *disa_mutex)
 {
     DEBUG("[%d.%d] rdma_release_lock [%d]\n", rdma_client_id, rdma_task_id, curr_rlock_id);
 	ull start = rdtscp();
