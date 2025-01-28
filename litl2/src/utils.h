@@ -113,8 +113,8 @@
 #define GB(x) (MB(x) * 1024L)
 // CACHE: L1: 512 KiB (x16 instances) | L2: 4 MiB (x16 instances) | L3: 40 MiB (x2 instances)
 // 256 KiB -*8> 2 MiB -*8> 16 -*4>
-#define MAX_ARRAY_SIZE MB (1) 
-#define PRIVATE_ARRAY_SZ KB(512) 
+#define MAX_ARRAY_SIZE  KB(512) 
+#define PRIVATE_ARRAY_SZ KB(256) 
 
 #define BO (1 << 20)
 #define MAX_BO ((1 << 30) - 1)

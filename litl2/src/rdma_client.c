@@ -180,7 +180,7 @@ void populate_mn_client_meta(int nclients, int nthreads, rdma_client_meta* clien
 		w_wr[i].wr.atomic.rkey        = rlock_rkey;
 		w_wr[i].wr.rdma.remote_addr = rlock_addr;
 		w_wr[i].wr.rdma.rkey        = rlock_rkey;
-		w_wr[i].wr.atomic.compare_add = -1; 
+		// w_wr[i].wr.atomic.compare_add = -1; 
 
 		data_wr[i].wr_id          = i;
 		data_wr[i].sg_list        = &data_sge[i];
@@ -847,45 +847,43 @@ static inline int perform_rdma_op(struct ibv_qp* qp, struct ibv_comp_channel* io
 
 static inline void set_lock_meta(disa_mutex_t *disa_mutex)
 {
-	if (disa_mutex->offset >= 0) {
-		curr_rlock_id = disa_mutex->id;
-		curr_byte_offset = disa_mutex->offset;
-		curr_byte_data_len = disa_mutex->data_len;
-		curr_elem_offset = curr_byte_offset / disa_mutex->elem_sz;
-	}
+	curr_rlock_id = disa_mutex->id;
+	curr_byte_offset = disa_mutex->offset;
+	curr_byte_data_len = disa_mutex->data_len;
+	curr_elem_offset = curr_byte_offset / disa_mutex->elem_sz;
 }
 
-// static inline ull rdma_bo_cas(uint64_t rlock_addr)
-// {
-//     unsigned int i;
-// 	unsigned int delay = BO;
-// 	ull tries = 0;
-// 	thread_cas_wr.wr.atomic.remote_addr = rlock_addr;
+static inline ull rdma_bo_cas(uint64_t rlock_addr, uint32_t rkey, struct ibv_qp *qp, struct ibv_comp_channel *io_chan)
+{
+    unsigned int i;
+	unsigned int delay = BO;
+	ull tries = 0;
+	thread_cas_wr.wr.atomic.remote_addr = rlock_addr;
+	thread_cas_wr.wr.atomic.rkey = rkey;
+	do {
+		tries++;
+		// if (tries > 100) {
+		// 	rdma_error("[%d.%d] Exceeded tries for lock [%d]\n", rdma_client_id, rdma_task_id, curr_rlock_id);
+		// 	exit(EXIT_FAILURE);
+		// }
+		DEBUG("[%d.%d] rdma_cas post, lock[%d]\n", rdma_client_id, rdma_task_id, curr_rlock_id);
+		if(perform_rdma_op(qp, io_chan, &thread_cas_wr)) {
+			rdma_error("[%d.%d] rdma_cas failed\n", rdma_client_id, rdma_task_id);
+			exit(EXIT_FAILURE);
+		}
+		if (*thread_cas_result) {
+			for (i = 0; i < delay; i++)
+				CPU_PAUSE();
 
-// 	do {
-// 		tries++;
-// 		if (tries > 100) {
-// 			rdma_error("[%d.%d] Exceeded tries for lock [%d]\n", rdma_client_id, rdma_task_id, curr_rlock_id);
-// 			exit(EXIT_FAILURE);
-// 		}
-// 		DEBUG("[%d.%d] rdma_cas post, lock[%d]\n", rdma_client_id, rdma_task_id, curr_rlock_id);
-// 		if(perform_rdma_op(&thread_cas_wr)) {
-// 			rdma_error("[%d.%d] rdma_cas failed\n", rdma_client_id, rdma_task_id);
-// 			exit(EXIT_FAILURE);
-// 		}
-// 		if (*thread_cas_result) {
-// 			for (i = 0; i < delay; i++)
-// 				CPU_PAUSE();
-
-// 			if (delay < MAX_BO)
-// 				delay *= 2;
-// 		} else {
-// 			DEBUG("[%d.%d] got rlock [%d] from server after %llu tries\n",
-// 			rdma_client_id, rdma_task_id, curr_rlock_id, tries);
-// 			return tries;
-// 		}
-// 	} while(1);
-// }
+			if (delay < MAX_BO)
+				delay *= 2;
+		} else {
+			DEBUG("[%d.%d] got rlock [%d] from server after %llu tries\n",
+			rdma_client_id, rdma_task_id, curr_rlock_id, tries);
+			return tries;
+		}
+	} while(1);
+}
 
 static inline ull rdma_cas(uint64_t rlock_addr, uint32_t rkey, struct ibv_qp *qp, struct ibv_comp_channel *io_chan)
 {
@@ -956,8 +954,8 @@ static inline void rdma_release_rlock(disa_mutex_t *disa_mutex)
 		exit(EXIT_FAILURE);
 	}
 	DEBUG("[%d.%d] released rlock [%d] on server\n", rdma_client_id, rdma_task_id, curr_rlock_id);
-
 }
+
 static inline void rdma_release_rlock_faa(disa_mutex_t *disa_mutex)
 {
 	thread_w_wr.opcode = IBV_WR_ATOMIC_FETCH_AND_ADD;
@@ -1000,7 +998,7 @@ int rdma_release_lock(disa_mutex_t *disa_mutex)
 	ull start = rdtscp();
 	rdma_write_data(disa_mutex);
 	ull end_of_data_write = rdtscp();
-	rdma_release_rlock_faa(disa_mutex);
+	rdma_release_rlock(disa_mutex);
 
 	if(!*thread_task->stop) {
 		thread_task->sgwait_rel[thread_task->idx] = rdtscp() - end_of_data_write;
