@@ -14,6 +14,7 @@ SOS=$(TARGETS:=.so)
 SOS+=$(SERVER_TARGETS:=_server.so)
 SOS+=$(CLIENT_TARGETS:=_client_spinlock.so)
 SOS+=$(CLIENT_TARGETS:=_client_lease1.so)
+SOS+=$(CLIENT_TARGETS:=_client_test.so)
 SHS=$(TARGETS:=.sh)
 NUMA_NODES := $(shell lscpu | grep 'NUMA node(s)' | awk '{print $$3}')
 export COND_VAR=1

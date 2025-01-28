@@ -230,6 +230,23 @@ void *mem_worker(void *arg) {
     return 0;
 }
 
+void *debug_worker(void *arg) {
+    task_t *task = (task_t *) arg;
+    pthread_barrier_wait(&global_barrier);
+    // for (int i = 0; i < 2 ; i++) {
+    if (task->client_id == 0) {
+        lock_acquire(&lock);
+    }
+    pthread_barrier_wait(&local_barrier);
+    if (task->client_id == 1) {
+        lock_release(&lock);
+    }
+    pthread_barrier_wait(&local_barrier);
+    // }
+    return 0;
+}
+
+
 void *mlocks_worker(void *arg) {
     task_t *task = (task_t *) arg;
     int task_id = task->id;
@@ -346,6 +363,10 @@ int main(int argc, char *argv[]) {
         case 1:
             use_nodes = 1;
             worker = empty_cs_worker;
+            break;
+        case 2:
+            use_nodes = 1;
+            worker = debug_worker;
             break;
         case 3:
             use_nodes = 2;

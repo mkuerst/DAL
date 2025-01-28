@@ -67,6 +67,10 @@ all: $(SERVER_TARGETS)
 	$(CC) -shared -o $@ $^ $(LDFLAGS)
 
 .SECONDEXPANSION:
+../lib/client/lib%_client_test.so: ../obj/%/interpose_client_test.o ../obj/%/utils.o ../obj/%/rdma_common.o $$(subst algo,%,../obj/algo/algo.o)
+	$(CC) -shared -o $@ $^ $(LDFLAGS)
+
+.SECONDEXPANSION:
 ../lib/original/lib%.so: ../obj/%/interpose.o ../obj/%/utils.o $$(subst algo,%,../obj/algo/algo.o)
 	$(CC) -shared -o $@ $^ $(LDFLAGS)
 
