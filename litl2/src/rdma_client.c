@@ -847,10 +847,12 @@ static inline int perform_rdma_op(struct ibv_qp* qp, struct ibv_comp_channel* io
 
 static inline void set_lock_meta(disa_mutex_t *disa_mutex)
 {
-	curr_rlock_id = disa_mutex->id;
-	curr_byte_offset = disa_mutex->offset;
-	curr_byte_data_len = disa_mutex->data_len;
-	curr_elem_offset = curr_byte_offset / disa_mutex->elem_sz;
+	if (disa_mutex->offset >= 0) {
+		curr_rlock_id = disa_mutex->id;
+		curr_byte_offset = disa_mutex->offset;
+		curr_byte_data_len = disa_mutex->data_len;
+		curr_elem_offset = curr_byte_offset / disa_mutex->elem_sz;
+	}
 }
 
 // static inline ull rdma_bo_cas(uint64_t rlock_addr)

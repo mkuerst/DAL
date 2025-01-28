@@ -459,6 +459,7 @@ int main(int argc, char *argv[]) {
         locks[l].disa = 'y';
         locks[l].id = l;
         locks[l].offset = -1;
+        locks[l].elem_sz = 1;
         locks[l].data_len = 0;
         locks[l].turns = 0;
         locks[l].rlock_addr = client_meta->rlock_addr + l*RLOCK_SIZE;
