@@ -10,7 +10,7 @@ import matplotlib.lines as mlines
 
 file_dir = os.path.dirname(os.path.realpath(__file__))
 
-REMOTE_LOCKS = ["spinlock", "lease1"]
+REMOTE_LOCKS = ["spinlock", "lease1", "spinlock_bo"]
 N_RLOCKS = len(REMOTE_LOCKS)
 
 COMM_PROTOCOLS = ["rdma", "tcp"]
@@ -49,6 +49,7 @@ SERVER_COLS = [
 
 IMPL = [
 # FLAT
+"alockepfl_original",
 "backoff_original",
 "clh_spinlock",
 "clh_spin_then_park",
@@ -73,7 +74,6 @@ IMPL = [
 "malthusian_spinlock",
 "malthusian_spin_then_park",
 # OTHER
-"alockepfl_original",
 "concurrency_original",
 "fns_spinlock",
 "fnm_spin_then_park",
@@ -81,6 +81,7 @@ IMPL = [
 ]
 
 FLAT = [
+"alockepfl_original",
 "backoff_original",
 "partitioned_original",
 "pthreadinterpose_original",
@@ -113,7 +114,6 @@ LOAD_CONTROL = [
 ]
 
 OTHER = [
-"alockepfl_original",
 "concurrency_original",
 "fns_spinlock",
 "fnm_spin_then_park",

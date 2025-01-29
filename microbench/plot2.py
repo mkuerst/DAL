@@ -731,12 +731,12 @@ read_data(DATA, RES_DIRS)
 # plot_XvY(DATA, "rdma", "tcp")
 # plot_XvY(DATA, "orig", "rdma")
 plot_MC_rlocks(DATA, 
-               remote_locks=["spinlock", "lease1"],
+               remote_locks=["spinlock", "spinlock_bo"],
+               lat_inc=["gwait_acq", "data_read", "data_write", "gwait_rel"],
+            #    lat_inc=["gwait_acq", "gwait_rel"],
             #    lat_inc=["data_read", "data_write"],
-            #    lat_inc=["gwait_acq", "data_read", "data_write", "gwait_rel"],
-               lat_inc=["gwait_acq", "gwait_rel"],
             #    lat_inc=["lock_hold"],
                num_clients=[4], 
-               num_locks=[1, 512], 
+               num_locks=[512], 
                nt=16,
                log=1)

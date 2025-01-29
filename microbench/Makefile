@@ -19,9 +19,10 @@ GCCVERSIONGTEQ5 := $(shell expr `gcc -dumpversion | cut -f1 -d.` \>= 5)
 # endif
 
 FLAGS=-I../litl2/include/ -I../litl2/src/ -I/usr/include/rdma/ \
+-I../Sherman/include/ -I../Sherman/test/ \
 -I/home/kumichae/my_libs/rdma-core/build/include/rdma \
 -g -Wall -${OFLAG} -DCYCLE_PER_US=${CYCLE_PER_US} -DCACHELINE_SIZE=${CACHELINE_SIZE} \
--L/home/kumichae/my_libs/rdma-core/build/lib/ -lrdmacm -libverbs -lnuma
+-L/home/kumichae/my_libs/rdma-core/build/lib/ -lrdmacm -libverbs -lnuma -lmlx5 
 
 .PHONY: all target
 
@@ -32,6 +33,7 @@ target: ../litl2/src/utils.c ../litl2/src/rdma_common.o
 	@echo "USING CACHELINE_SIZE = $(CACHELINE_SIZE) Bytes"
 	mpicc main_disa.c $^ -o main_disa ${FLAGS} -DMUTEX -D$(DEBUG) -D$(COMM_PROT) -D$(MPI) -D${CORRECTNESS}
 	gcc main_orig.c $^ -o main_orig ${FLAGS} -DMUTEX
+	g++ test_rdma_conn.cpp $^ - test_rdma_conn ${FLAGS} -DMUTEX
 # gcc main.c -o main_spin ${FLAGS} -DSPIN
 
 

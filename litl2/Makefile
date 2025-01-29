@@ -14,8 +14,8 @@ SOS=$(TARGETS:=.so)
 SOS+=$(SERVER_TARGETS:=_server.so)
 SOS+=$(CLIENT_TARGETS:=_client_spinlock.so)
 SOS+=$(CLIENT_TARGETS:=_client_lease1.so)
-SOS+=$(CLIENT_TARGETS:=_client_test.so)
-SOS+=$(CLIENT_TARGETS:=_client_spinlock_bo.so)
+# SOS+=$(CLIENT_TARGETS:=_client_test.so)
+# SOS+=$(CLIENT_TARGETS:=_client_spinlock_bo.so)
 SHS=$(TARGETS:=.sh)
 NUMA_NODES := $(shell lscpu | grep 'NUMA node(s)' | awk '{print $$3}')
 export COND_VAR=1
@@ -23,6 +23,10 @@ export COND_VAR=1
 .PRECIOUS: %.o
 .SECONDARY: $(OBJS)
 .PHONY: all clean format
+
+# cmake_build:
+# 	mkdir -p ../Sherman/build
+# 	cd ../Sherman/build && cmake .. && make
 
 all: clean $(DIR) include/topology.h $(SOS) #$(SHS)
 	$(MAKE) -C ./src/ all
@@ -35,6 +39,7 @@ no_cond_var: all
 	mkdir -p lib/original/
 	mkdir -p lib/client/
 	mkdir -p lib/server/
+	mkdir -p lib/sherman/
 	$(MAKE) -C src/ ../lib/$@
 
 obj/:

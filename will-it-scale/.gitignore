@@ -1,6 +1,0 @@
-*_processes
-*_threads
-tests/*.o
-*.csv
-*.title
-*.html

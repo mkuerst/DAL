@@ -17,3 +17,4 @@ microbench/barrier_files/*
 microbench/metadata/*
 litl2/make.log
 microbench/__pycache__
+sherman_deps/
