@@ -531,6 +531,13 @@ int main(int argc, char *argv[]) {
         MPI_Barrier(MPI_COMM_WORLD);
         #endif
     } 
+    // #ifdef RDMA
+    // if (client == 0) {
+    //     shutdown_server(client_meta);
+    // }
+    // MPI_Barrier(MPI_COMM_WORLD);
+    // #endif
+
     #ifdef MPI
     MPI_Finalize();
     #endif

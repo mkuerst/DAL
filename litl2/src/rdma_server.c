@@ -8,63 +8,77 @@
 volatile bool server_running = true;
 rdma_server_meta *clients;
 pthread_mutex_t mutex;
-int num_connections = 0;
 int nclients = 0;
+int num_connections = 0;
 int nthreads = 0;
 int nlocks = 0;
 
 uint64_t *rlocks;
 int *int_data;
 char *byte_data;
+uint64_t *shutdown_signal;
 
 struct ibv_pd *pd = NULL;
 struct rdma_event_channel *cm_event_channel = NULL;
 struct rdma_cm_event *cm_event = NULL;
 struct rdma_cm_id *cm_server_id = NULL;
 struct ibv_wc wc;
-struct ibv_mr *rlock_mr, *data_mr;
+struct ibv_mr *rlock_mr, *data_mr, *shutdown_mr;
+
+void *await_shutdown(void *arg) {
+	struct ibv_sge sge_recv;
+	sge_recv.addr = (uintptr_t)shutdown_signal;
+	sge_recv.length = sizeof(shutdown_signal);
+	sge_recv.lkey = shutdown_mr->lkey;
+
+	struct ibv_recv_wr wr_recv;
+	wr_recv.wr_id = 1;
+	wr_recv.next = NULL;
+	wr_recv.sg_list = &sge_recv;
+	wr_recv.num_sge = 1;
+
+	struct ibv_recv_wr *bad_wr;
+	if (ibv_post_recv(clients->connections[0].qp, &wr_recv, &bad_wr)) {
+		perror("ibv_post_recv shutdown failed");
+	}
+	*shutdown_signal = 1;
+	return 0;
+}
 
 void _shutdown() {
-	// const char *command = "killall rdma_server";
-	// if (system(command)) {
-	// 		rdma_error("Failed to kill rdma listener. Please execute killall rdma_server manually on server-side machine.\n");
-	// } 
 	for (int i = 0; i < nclients; i++) {
-		rdma_server_meta client = clients[i]; 
+		rdma_server_meta *client = &clients[i]; 
 		for (int j = 0; j < nthreads; j++) {
-			rdma_connection conn = client.connections[j];
-			if (conn.cm_client_id) {
-				rdma_disconnect(conn.cm_client_id);
-				ibv_destroy_qp(conn.qp);
-				ibv_destroy_comp_channel(conn.io_comp_chan);
-				ibv_dealloc_pd(conn.pd);
-				rdma_destroy_id(conn.cm_client_id);
-				// rdma_destroy_id(cm_server_id);
-				// rdma_destroy_event_channel(cm_event_channel);
-				rdma_buffer_free(rlock_mr);
-				rdma_buffer_free(data_mr);
+			rdma_connection *conn = &client->connections[j];
+			if (conn->cm_client_id) {
+				rdma_disconnect(conn->cm_client_id);
+				ibv_destroy_qp(conn->qp);
+				ibv_destroy_comp_channel(conn->io_comp_chan);
+				ibv_dealloc_pd(conn->pd);
+				rdma_destroy_id(conn->cm_client_id);
 			}
 		}
-		free(client.connections);
+		free(client->connections);
 	}
 	free(clients);
-	fprintf(stderr, "Finished server shutdown\n");
 	server_running = false;
+	ull sum = 0;
+	for (int i = 0; i < nlocks*MAX_ARRAY_SIZE/sizeof(int); i++) {
+		sum += int_data[i];
+	}
+	fprintf(stderr, "SERVER COUNTS %llu TOTAL LOCK ACQUISITIONS\n", sum);
+
+	rdma_buffer_free(rlock_mr);
+	rdma_buffer_free(data_mr);
+	rdma_buffer_free(shutdown_mr);
+	rdma_destroy_id(cm_server_id);
+	rdma_destroy_event_channel(cm_event_channel);// 
+	fprintf(stderr, "Finished server shutdown\n");
 }
 
-void handle_sigint(int sig) {
-    fprintf(stderr, "\nCaught signal %d. Shutting down gracefully...\n", sig);
+void signal_handler(int signum) {
+    fprintf(stderr, "\nCaught signal %d. Shutting down gracefully...\n", signum);
 	_shutdown();
-}
-
-void register_sigint_handler() {
-    struct sigaction sa;
-    memset(&sa, 0, sizeof(struct sigaction));
-    sa.sa_handler = handle_sigint;
-    sigaction(SIGINT, &sa, NULL);
-	sigaction(SIGTERM, &sa, NULL);
-	sigaction(SIGHUP, &sa, NULL);
-	sigaction(SIGKILL, &sa, NULL);
 }
 
 int write_metadata_to_file() {
@@ -87,9 +101,11 @@ int write_metadata_to_file() {
 	}
 	fprintf(file, "%lu %u\n", (uint64_t) data_mr->addr, data_mr->rkey);
 	fprintf(file, "%lu %u\n", (uint64_t) rlock_mr->addr, rlock_mr->rkey);
+	fprintf(file, "%lu %u\n", (uint64_t) shutdown_mr->addr, shutdown_mr->rkey);
 	fclose(file);
 	DEBUG("data_addr: %lu, key: %u\n", (uint64_t) data_mr->addr, data_mr->rkey);
 	DEBUG("rlock_addr: %lu, key: %u\n", (uint64_t) rlock_mr->addr, rlock_mr->rkey);
+	DEBUG("shutdown_addr: %lu, key: %u\n", (uint64_t) shutdown_mr->addr, shutdown_mr->rkey);
 	return 0;
 }
 
@@ -144,6 +160,8 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients, int 
 	rlocks = (uint64_t *) aligned_alloc(sizeof(uint64_t), nlocks*RLOCK_SIZE);
 	byte_data = malloc(nlocks*MAX_ARRAY_SIZE);
 	int_data = (int *) byte_data;
+	shutdown_signal = (uint64_t *) malloc(sizeof(uint64_t));
+	*shutdown_signal = 0;
 	memset(rlocks, 0, nlocks*RLOCK_SIZE);
 	memset(byte_data, 0, nlocks*MAX_ARRAY_SIZE);
 
@@ -184,7 +202,11 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients, int 
 					pd, byte_data, nlocks*MAX_ARRAY_SIZE,
 					IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_REMOTE_READ
 				);
-				if (!rlock_mr || !data_mr) {
+				shutdown_mr = rdma_buffer_register(
+					pd, shutdown_signal, sizeof(uint64_t),
+					IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_REMOTE_ATOMIC
+				);
+				if (!rlock_mr || !data_mr || !shutdown_mr) {
 					rdma_error("Failed to register mrs, -errno %d\n", -errno);
 					return -errno;
 				}
@@ -275,7 +297,11 @@ void usage()
 
 int main(int argc, char **argv) 
 {
-	register_sigint_handler();
+	signal(SIGINT, signal_handler);  // Ctrl+C
+    signal(SIGTERM, signal_handler); // VSCode "Stop Debugging" (Shift+F5)
+    signal(SIGHUP, signal_handler);  // Terminal closed
+    signal(SIGKILL, signal_handler);  // Process killed
+
 	int option;
 	struct sockaddr_in server_sockaddr;
 	bzero(&server_sockaddr, sizeof server_sockaddr);
@@ -318,12 +344,9 @@ int main(int argc, char **argv)
 		_shutdown();
 		return -errno;
 	}
-
-	fprintf(stderr, "Server will busy spin\n");
-	while (server_running) {
+	while (true) {
 		sleep(3);
 	}
 	_shutdown();
-	fprintf(stderr, "Server terminated!\n");
 	return 0;
 }

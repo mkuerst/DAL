@@ -59,6 +59,8 @@ uint64_t rlock_addr;
 uint32_t rlock_rkey;
 uint64_t data_addr;
 uint32_t data_rkey;
+uint64_t rshutdown_addr;
+uint32_t rshutdown_rkey;
 uint64_t *cas_result[THREADS_PER_CLIENT];
 char *data[THREADS_PER_CLIENT];
 int *int_data[THREADS_PER_CLIENT];
@@ -273,16 +275,30 @@ int read_mn_metadata_file()
 	char line[256];
 	int i = 0;
 	while (fgets(line, sizeof(line), file)) {
-		if (i == 0) {
-			sscanf(line, "%lu %u", &data_addr, &data_rkey);
+		switch(i) {
+			case 0:
+				sscanf(line, "%lu %u", &data_addr, &data_rkey);
+				break;
+			case 1:
+				sscanf(line, "%lu %u", &rlock_addr, &rlock_rkey);
+				break;
+			case 2:
+				sscanf(line, "%lu %u", &rshutdown_addr, &rshutdown_rkey);
+				break;
+			default:
+				break;
 		}
-		else {
-			sscanf(line, "%lu %u", &rlock_addr, &rlock_rkey);
-		}
+		// if (i == 0) {
+		// 	sscanf(line, "%lu %u", &data_addr, &data_rkey);
+		// }
+		// else {
+		// 	sscanf(line, "%lu %u", &rlock_addr, &rlock_rkey);
+		// }
 		i++;
 	}
 	DEBUG("MN remote data_addr: %lu, key: %u\n", data_addr, data_rkey);
 	DEBUG("MN rlock_addr: %lu, key: %u\n", rlock_addr, rlock_rkey);
+	DEBUG("MN rshutdown_addr: %lu, key: %u\n", rshutdown_addr, rshutdown_rkey);
 	return 0;
 
 }
@@ -828,19 +844,35 @@ int establish_rdma_peer_connections(
 	return 0;
 }
 
+
+/*OPS*/
 static inline int perform_rdma_op(struct ibv_qp* qp, struct ibv_comp_channel* io_chan, struct ibv_send_wr *wr)
 {
-	if (ibv_post_send(qp, wr, &thread_bad_wr)) {
+	struct ibv_send_wr *bad_wr;
+	struct ibv_wc wc;
+
+	if (ibv_post_send(qp, wr, &bad_wr)) {
 		rdma_error("[%d.%d] Failed to post wr to\nremote_addr: %lu rkey: %u, -errno %d\n",
 		rdma_client_id, rdma_task_id, wr->wr.rdma.remote_addr, wr->wr.rdma.rkey, -errno);
 		rdma_error("atomic remote_addr: %lu rkey: %u, -errno %d\n",
 		wr->wr.atomic.remote_addr, wr->wr.atomic.rkey, -errno);
 		return -1;
 	}
-	if (process_work_completion_events(io_chan, &thread_wc, 1) != 1) {
+	if (process_work_completion_events(io_chan, &wc, 1) != 1) {
 		rdma_error("[%d.%d] Failed to poll wr completion, -errno %d\n",
 		rdma_client_id, rdma_task_id, -errno);
 		return -1;
+	}
+	return 0;
+}
+
+int shutdown_server(rdma_client_meta* client_meta) {
+	client_meta->w_wr[0].opcode = IBV_WR_RDMA_WRITE;
+	client_meta->w_wr[0].wr.rdma.remote_addr = rshutdown_addr;
+	client_meta->w_wr[0].wr.rdma.rkey = rshutdown_rkey;
+	if (perform_rdma_op(client_meta->qp[0], client_meta->io_comp_chan[0], &client_meta->w_wr[0])) {
+		rdma_error("[%d] Failed to notify server of shutdown, -errno %d\n", rdma_client_id, -errno);
+		return -errno;
 	}
 	return 0;
 }
