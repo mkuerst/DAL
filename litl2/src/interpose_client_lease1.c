@@ -482,6 +482,7 @@ int pthread_mutex_lock(pthread_mutex_t *mutex) {
     ull start = rdtscp();
     disa_mutex_t *disa_mutex = (disa_mutex_t *) mutex;
     // __atomic_fetch_add(&disa_mutex->other, 1, __ATOMIC_SEQ_CST);
+    atomic_fetch_add(&disa_mutex->other, 1);
 
     if (disa_mutex->disa != 'y') {
         // DEBUG("native mutex_lock\n");
@@ -494,11 +495,16 @@ int pthread_mutex_lock(pthread_mutex_t *mutex) {
     lock_mutex_lock(mutex, NULL);
 #endif
     // __atomic_fetch_add(&disa_mutex->other, -1, __ATOMIC_SEQ_CST);
+    atomic_fetch_add(&disa_mutex->other, -1);
     ull end_lacq = rdtscp();
     // if (__atomic_load_n(&disa_mutex->turns, __ATOMIC_SEQ_CST) == 0) {
     //     tries = rdma_request_lock_lease1(disa_mutex);
     //     __atomic_store_n(&disa_mutex->turns, nthreads, __ATOMIC_SEQ_CST);
     // }
+    if (atomic_load(&disa_mutex->turns) == 0) {
+        tries = rdma_request_lock_lease1(disa_mutex);
+        atomic_store(&disa_mutex->turns, nthreads);
+    }
     end = rdtscp();
 
     if (!*task->stop) {
@@ -539,6 +545,12 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex) {
     //     rdma_release_lock_lease1(disa_mutex);
     // }
     // __atomic_fetch_add(&disa_mutex->turns, -1, __ATOMIC_SEQ_CST);
+    if (atomic_load(&disa_mutex->turns) == 1 || 
+        atomic_load(&disa_mutex->other) == 0)
+    {
+        rdma_release_lock_lease1(disa_mutex);
+    }
+    atomic_fetch_add(&disa_mutex->turns, -1);
     ull end_grel = rdtscp();
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get(mutex);

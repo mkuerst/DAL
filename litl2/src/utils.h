@@ -272,10 +272,11 @@ typedef struct {
     int offset;
     size_t elem_sz;
     size_t data_len;
-    atomic_int other, turns;
+    volatile atomic_int other __attribute__((aligned (CACHELINE_SIZE))); 
+    volatile atomic_int turns __attribute__((aligned (CACHELINE_SIZE)));
     int *int_data;
     char *byte_data;
-} disa_mutex_t;
+} disa_mutex_t __attribute__ ((aligned (CACHELINE_SIZE)));
 
 /* 
  * We use attribute so that compiler does not step in and try to pad the structure.
@@ -284,14 +285,14 @@ typedef struct {
  * For details see: http://gcc.gnu.org/onlinedocs/gcc/Type-Attributes.html
  */
 struct __attribute((packed)) rdma_buffer_attr {
-  uint64_t address;
-  uint32_t length;
-  union stag {
-	  /* if we send, we call it local stags */
-	  uint32_t local_stag;
-	  /* if we receive, we call it remote stag */
-	  uint32_t remote_stag;
-  }stag;
+    uint64_t address;
+    uint32_t length;
+    union stag {
+        /* if we send, we call it local stags */
+        uint32_t local_stag;
+        /* if we receive, we call it remote stag */
+        uint32_t remote_stag;
+    }stag;
 };
 
 
