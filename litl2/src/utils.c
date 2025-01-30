@@ -176,16 +176,17 @@ void log_single(task_t * task, int num_runs) {
     }
 }
 
-int write_res_cum(task_t* tasks, int nthreads, int mode, char* res_file, int num_runs, int snd_runs) {
+ull write_res_cum(task_t* tasks, int nthreads, int mode, char* res_file, int num_runs, int snd_runs) {
     int client = tasks[0].client_id;
     FILE *file = fopen(res_file, "a");
     if (file == NULL) {
         _error("Client %d failed to open result file %s, errno %d\n", client, res_file, errno);
     }
     // int snd_runs = get_snd_runs(mode);
+    ull total_lock_acq = 0;
     for (int j = 0; j < num_runs; j++) {
         float total_lock_hold = 0;
-        ull total_lock_acq = 0;
+        ull run_lock_acq = 0;
         for (int i = 0; i < nthreads; i++) {
             task_t task = (task_t) tasks[i];
             for (int l = 0; l < snd_runs; l++) {
@@ -203,6 +204,7 @@ int write_res_cum(task_t* tasks, int nthreads, int mode, char* res_file, int num
 
                 size_t array_size = task.array_size[idx];
                 total_lock_hold += lock_hold;
+                run_lock_acq += task.lock_acquires[idx];
                 total_lock_acq += task.lock_acquires[idx];
                 fprintf(file, "%03d,%10llu,%8llu,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%12.6f,%10llu,%16lu,%03d,%03d,%06d\n",
                         task.id,
@@ -230,7 +232,7 @@ int write_res_cum(task_t* tasks, int nthreads, int mode, char* res_file, int num
         fprintf(stderr, "Total lock acquisitions: %llu\n\n", total_lock_acq);
     }
     fclose(file);
-    return 0;
+    return total_lock_acq;
 }
 
 int write_res_single(task_t* tasks, int nthreads, int mode, char* res_file) {
@@ -412,4 +414,19 @@ void parse_cli_args(
             DEBUG("%s\n", peer_ips[x]);
         }
     }
+}
+
+int check_correctness(ull total_acq, ull* lock_acqs, ull* lock_rels, int nlocks) 
+{
+    ull sum_acqs = 0;
+    ull sum_rels = 0;
+    for (int i = 0; i < nlocks; i++) {
+        sum_acqs += lock_acqs[i];
+        sum_rels += lock_rels[i];
+    }
+    DEBUG("sum_acqs = %llu\ntotal_acq = %llu\n", sum_acqs, total_acq);
+    assert(sum_acqs == sum_rels);
+    assert(sum_acqs == total_acq);
+    return 0;
+
 }

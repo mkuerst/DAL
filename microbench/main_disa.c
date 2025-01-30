@@ -37,6 +37,7 @@ int nthreads, client, num_clients,
 num_runs, num_mem_runs, use_nodes,
 scope, mode, duration, nlocks;
 
+ull *lock_acqs, *lock_rels;
 
 disa_lock_t lock;
 disa_lock_t *locks;
@@ -246,6 +247,89 @@ void *debug_worker(void *arg) {
     return 0;
 }
 
+void *correctness_worker(void *arg) {
+    task_t *task = (task_t *) arg;
+    int task_id = task->id;
+    int nlocks = task->nlocks;
+    int *private_int_array = task->private_int_array;
+    // int data_len = MAX_ARRAY_SIZE / sizeof(int);
+
+    pin_thread(task_id, nthreads, use_nodes);
+    ull start, lock_start;
+    ull lock_acquires, lock_hold, loop_in_cs;
+    ull wait_acq, wait_rel;
+
+    volatile int sum = 1;
+
+    for (int i = 0; i < num_runs; i++) {
+        task->run = i;
+        ull array_size = MAX_ARRAY_SIZE;
+        lock_acquires = 0;
+        lock_hold = 0;
+        loop_in_cs = 0;
+        wait_acq = 0;
+        wait_rel = 0;
+        srand(task->client_id*task->nthreads + task_id + 42);
+
+        pthread_barrier_wait(&global_barrier);
+    #ifdef MPI
+        if (task_id == 0)
+            MPI_Barrier(MPI_COMM_WORLD);
+    #endif
+        pthread_barrier_wait(&global_barrier);
+
+        task->cnt = 0;
+        task->idx = 0;
+        while (!*task->stop) {
+            for (int j = 0; j < 400; j++) {
+                int idx = uniform_rand_int(PRIVATE_ARRAY_SZ / sizeof(int));
+                private_int_array[idx] += sum;
+            }
+
+            for (int j = 0; j < 100; j++) {
+                int lock_idx = uniform_rand_int(nlocks);
+                disa_mutex_t *l = &locks[lock_idx];
+                // fprintf(stderr,"[%d.%d] lock_idx: %d\n", client, task_id, lock_idx);
+
+                start = rdtscp();
+                lock_acquire((pthread_mutex_t *)l);
+                lock_acqs[lock_idx]++;
+                lock_start = rdtscp();
+
+                l->int_data[0] += sum;
+                // data[lock_idx*data_len] += sum;
+                // loop_in_cs++;
+
+                ull rel_start = rdtscp();
+                lock_release((pthread_mutex_t *)l);
+                ull rel_end = rdtscp();
+                lock_rels[lock_idx]++;
+
+                lock_acquires++;
+                if (*task->stop) {
+                    break;
+                }
+                task->swait_acq[task->idx] = lock_start-start;
+                task->slock_hold[task->idx] = rel_start - lock_start;
+                task->swait_rel[task->idx] = rel_end - rel_start;
+                task->idx = (task->idx + 1) % MAX_MEASUREMENTS;
+                task->cnt++;
+
+                wait_acq += lock_start-start;
+                lock_hold += rel_start - lock_start;
+                wait_rel += rel_end - rel_start;
+                }
+        }
+        task->lock_acquires[i] = lock_acquires;
+        task->loop_in_cs[i] = loop_in_cs; 
+        task->lock_hold[i] = lock_hold;
+        task->array_size[i] = array_size;
+        task->wait_acq[i] = wait_acq;
+        task->wait_rel[i] = wait_rel;
+        pthread_barrier_wait(&global_barrier);
+    }
+    return 0;
+}
 
 void *mlocks_worker(void *arg) {
     task_t *task = (task_t *) arg;
@@ -354,6 +438,7 @@ int main(int argc, char *argv[]) {
 #endif
     DEBUG("[%d] HI\n", client);
     scope = MAX_ARRAY_SIZE;
+    /*WORKER*/
     void* worker; 
     switch (mode) {
         case 0:
@@ -383,6 +468,10 @@ int main(int argc, char *argv[]) {
         case 6:
             use_nodes = 1;
             worker = mlocks_worker;
+            break;
+        case 7:
+            use_nodes = 2;
+            worker = correctness_worker;
             break;
         default:
             use_nodes = 2;
@@ -453,6 +542,8 @@ int main(int argc, char *argv[]) {
 
     /*LOCK INIT*/
     locks = (disa_mutex_t *) numa_alloc_onnode(nlocks * sizeof(disa_mutex_t), 0);
+    lock_acqs = malloc(nlocks*sizeof(ull));
+    lock_rels = malloc(nlocks*sizeof(ull));
     // locks = (disa_mutex_t *) malloc(nlocks * sizeof(disa_mutex_t));
     for (int l = 0; l < nlocks; l++) {
         // lock_init(&locks[l].mutex);
@@ -464,6 +555,8 @@ int main(int argc, char *argv[]) {
         locks[l].turns = 0;
         locks[l].rlock_addr = client_meta->rlock_addr + l*RLOCK_SIZE;
         locks[l].data_addr = client_meta->data_addr + l*MAX_ARRAY_SIZE;
+        lock_acqs[l] = 0;
+        lock_rels[l] = 0;
     }
     lock = locks[0];
 
@@ -525,18 +618,15 @@ int main(int argc, char *argv[]) {
     }
     for (int i = 0; i < num_clients; i++) {
         if (i == client) {
-            write_res_cum(tasks, nthreads, mode, res_file_cum, num_runs, num_mem_runs);
+            ull total_acqs = write_res_cum(tasks, nthreads, mode, res_file_cum, num_runs, num_mem_runs);
+            if (check_correctness(total_acqs, lock_acqs, lock_rels, nlocks)) {
+                __error("INCORRECT ACQ NUMBERS");
+            }
         }
         #ifdef MPI
         MPI_Barrier(MPI_COMM_WORLD);
         #endif
     } 
-    // #ifdef RDMA
-    // if (client == 0) {
-    //     shutdown_server(client_meta);
-    // }
-    // MPI_Barrier(MPI_COMM_WORLD);
-    // #endif
 
     #ifdef MPI
     MPI_Finalize();

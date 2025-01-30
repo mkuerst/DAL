@@ -33,6 +33,7 @@
 #include <rdma_cma.h>
 #include <stdbool.h>
 #include <limits.h>
+#include <stdatomic.h>
 
 #include <sched.h>
 #include <numa.h>
@@ -271,8 +272,7 @@ typedef struct {
     int offset;
     size_t elem_sz;
     size_t data_len;
-    int turns;
-    unsigned int other;
+    atomic_int other, turns;
     int *int_data;
     char *byte_data;
 } disa_mutex_t;
@@ -300,7 +300,7 @@ void *alloc_cache_align(size_t n);
 
 int pin_thread(unsigned int id, int nthreads, int use_nodes);
 
-int write_res_cum(task_t* tasks, int nthreads, int mode, char* res_file, int num_runs, int snd_runs);
+ull write_res_cum(task_t* tasks, int nthreads, int mode, char* res_file, int num_runs, int snd_runs);
 
 int write_res_single(task_t* tasks, int nthreads, int mode, char* res_file);
 
@@ -317,6 +317,8 @@ void log_single(task_t * task, int num_runs);
 void allocate_task_mem(task_t *tasks, int num_runs, int num_mem_runs, int nthreads);
 
 int get_addr(char *dst, struct sockaddr *addr);
+
+int check_correctness(ull total_acq, ull* lock_acqs, ull* lock_rels, int nlocks);
 
 void parse_cli_args(
     int *nthreads, int *num_clients, int *nlocks, int *client, int* duration,

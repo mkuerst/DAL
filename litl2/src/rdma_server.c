@@ -25,26 +25,6 @@ struct rdma_cm_id *cm_server_id = NULL;
 struct ibv_wc wc;
 struct ibv_mr *rlock_mr, *data_mr, *shutdown_mr;
 
-void *await_shutdown(void *arg) {
-	struct ibv_sge sge_recv;
-	sge_recv.addr = (uintptr_t)shutdown_signal;
-	sge_recv.length = sizeof(shutdown_signal);
-	sge_recv.lkey = shutdown_mr->lkey;
-
-	struct ibv_recv_wr wr_recv;
-	wr_recv.wr_id = 1;
-	wr_recv.next = NULL;
-	wr_recv.sg_list = &sge_recv;
-	wr_recv.num_sge = 1;
-
-	struct ibv_recv_wr *bad_wr;
-	if (ibv_post_recv(clients->connections[0].qp, &wr_recv, &bad_wr)) {
-		perror("ibv_post_recv shutdown failed");
-	}
-	*shutdown_signal = 1;
-	return 0;
-}
-
 void _shutdown() {
 	for (int i = 0; i < nclients; i++) {
 		rdma_server_meta *client = &clients[i]; 
@@ -62,11 +42,11 @@ void _shutdown() {
 	}
 	free(clients);
 	server_running = false;
-	ull sum = 0;
+	int sum = 0;
 	for (int i = 0; i < nlocks*MAX_ARRAY_SIZE/sizeof(int); i++) {
 		sum += int_data[i];
 	}
-	fprintf(stderr, "SERVER COUNTS %llu TOTAL LOCK ACQUISITIONS\n", sum);
+	fprintf(stderr, "SERVER COUNTS %d TOTAL LOCK ACQUISITIONS\n", sum);
 
 	rdma_buffer_free(rlock_mr);
 	rdma_buffer_free(data_mr);

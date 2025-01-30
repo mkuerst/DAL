@@ -478,26 +478,27 @@ int pthread_mutex_destroy(pthread_mutex_t *mutex) {
 int pthread_mutex_lock(pthread_mutex_t *mutex) {
     DEBUG_PTHREAD("[p] pthread_mutex_lock_lease1\n");
     ull tries = 0;
-    ull start = rdtscp();
     ull end = 0;
+    ull start = rdtscp();
     disa_mutex_t *disa_mutex = (disa_mutex_t *) mutex;
+    // __atomic_fetch_add(&disa_mutex->other, 1, __ATOMIC_SEQ_CST);
+
     if (disa_mutex->disa != 'y') {
         // DEBUG("native mutex_lock\n");
         return REAL(pthread_mutex_lock)(mutex);
     }
-    __sync_fetch_and_add(&disa_mutex->other, 1);
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get(mutex);
     lock_mutex_lock(impl->lock_lock, get_node(impl));
 #else
     lock_mutex_lock(mutex, NULL);
 #endif
-    __sync_fetch_and_add(&disa_mutex->other, -1);
+    // __atomic_fetch_add(&disa_mutex->other, -1, __ATOMIC_SEQ_CST);
     ull end_lacq = rdtscp();
-    if (disa_mutex->turns == 0) {
-        tries = rdma_request_lock_lease1(disa_mutex);
-        disa_mutex->turns = nthreads;
-    }
+    // if (__atomic_load_n(&disa_mutex->turns, __ATOMIC_SEQ_CST) == 0) {
+    //     tries = rdma_request_lock_lease1(disa_mutex);
+    //     __atomic_store_n(&disa_mutex->turns, nthreads, __ATOMIC_SEQ_CST);
+    // }
     end = rdtscp();
 
     if (!*task->stop) {
@@ -532,12 +533,12 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex) {
         // DEBUG("native mutex_unlock\n");
         return REAL(pthread_mutex_unlock)(mutex);
     }
-    disa_mutex->turns--;
-    __sync_synchronize(); 
-    int other = disa_mutex->other;
-    if (disa_mutex->turns == 0 || other == 0){
-        rdma_release_lock_lease1(disa_mutex);
-    }
+    // if (__atomic_load_n(&disa_mutex->turns, __ATOMIC_SEQ_CST) == 1 || 
+    //     __atomic_load_n(&disa_mutex->other, __ATOMIC_SEQ_CST) == 0)
+    // {
+    //     rdma_release_lock_lease1(disa_mutex);
+    // }
+    // __atomic_fetch_add(&disa_mutex->turns, -1, __ATOMIC_SEQ_CST);
     ull end_grel = rdtscp();
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get(mutex);

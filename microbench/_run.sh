@@ -34,18 +34,19 @@ cleanup() {
     echo "Cleaning up..."
     if kill -0 $SERVER_PID 2>/dev/null; then
         echo "Stopping server with PID $SERVER_PID..."
-        kill $SERVER_PID
+        kill -SIGINT $SERVER_PID
     fi
-    tmux kill-server
     fuser -k ${TCP_PORT0}/tcp 2>/dev/null
     fuser -k ${TCP_PORT1}/tcp 2>/dev/null
     fuser -k ${TCP_PORT2}/tcp 2>/dev/null
     fuser -k ${RDMA_PORT}/rdma 2>/dev/null
-    pkill -P $$ 
     for pid in $(lsof | grep infiniband | awk '{print $2}' | sort -u); do
         echo "Killing process $pid using RDMA resources..."
-        kill -9 "$pid"
+        kill -SIGINT "$pid"
     done
+    sleep 3
+    tmux kill-server
+    pkill -P $$ 
     echo "CLEANUP DONE"
 }
 
@@ -128,7 +129,7 @@ rm -rf client_logs/
 rm -rf barrier_files/*
 
 comm_prot="rdma"
-microbenches=("empty_cs2n" "empty_cs1n" "lat" "mem2n" "mem1n" "mlocks2n" "mlocks1n")
+microbenches=("empty_cs2n" "empty_cs1n" "lat" "mem2n" "mem1n" "mlocks2n" "mlocks1n" "correctness")
 node_ids=(3 4 6 11)
 peer_ips=(    ""
     "10.233.0.10"
@@ -146,12 +147,12 @@ peer_ips=(    ""
 )
 
 opts=("lease1")
-duration=20
+duration=5
 mem_runs=1
-runs=3
-n_clients=(4)
+runs=1
+n_clients=(1)
 n_threads=(16)
-bench_idxs=(5)
+bench_idxs=(7)
 num_locks=(512)
 
 for impl_dir in "$BASE"/original/*
