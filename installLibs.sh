@@ -68,3 +68,5 @@ rm -rf tmp
 
 sudo apt install -y rdma-core librdmacm-dev libibverbs-dev
 sudo apt install -y libnuma-dev
+sudo apt install -y gh
+sudo apt-get install -y pdsh 

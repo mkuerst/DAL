@@ -68,23 +68,22 @@ REMOTE_SERVER="r630-12"
 server_ip=10.233.0.21
 # REMOTE_SERVER="r630-06"
 # server_ip=10.233.0.15
-rdma_ip=0.0.0.0
-
 REMOTE_CLIENTS=("r630-11" "r630-03" "r630-04" "r630-06")
-REMOTE_CLIENT="r630-11"
+
+REMOTE_USER="mkuerst"
+REMOTE_SERVER="node0"
+REMOTE_CLIENTS=("node0" "node1" "node2" "node3" "node4")
 
 eval "$(ssh-agent -s)"
-ssh_key="/home/mihi/.ssh/id_ed25519_localhost"
-ssh-add $ssh_key  
 
-# for remote_client in ${REMOTE_CLIENTS[@]}
-# do
-#     ssh-copy-id "$REMOTE_USER@$remote_client"
-# done
-# for remote_client in ${REMOTE_CLIENTS[@]}
-# do
-#     ssh-copy-id "$REMOTE_USER@$remote_client"
-# done
+for remote_client in ${REMOTE_CLIENTS[@]}
+do
+    ssh-copy-id "$REMOTE_USER@$remote_client"
+done
+for remote_client in ${REMOTE_CLIENTS[@]}
+do
+    ssh-copy-id "$REMOTE_USER@$remote_client"
+done
 
 # PATHS
 BASE="$PWD/../litl2/lib"
@@ -214,12 +213,8 @@ do
                         # ============= MPIRUN ========================================================
                         echo "START MICROBENCH $impl $microb $opt $nclients C & $i T & $nlocks L & $duration s"
 
-                        mpirun --hostfile ./clients.txt -np $nclients \
-                        --x LD_PRELOAD=$client_so \
-                        --mca btl_tcp_if_exclude lo,eno3,eno1,eno4,eno2,docker0 \
-                        --mca oob_tcp_dynamic_ipv4_ports 8000,8080 \
-                        --mca btl_tcp_port_min_v4 8000 --mca btl_tcp_port_range_v4 10 \
-                        $disa_bench \
+                        pdsh -R ssh -w node1,node2,node3,node4 \
+                        "$disa_bench 
                         -t $i \
                         -d $duration \
                         -s $server_ip \
@@ -230,7 +225,25 @@ do
                         -g $client_ressingle_file \
                         -l $nlocks \
                         -r $runs\
-                        -e $mem_runs \
+                        -e $mem_runs"
+
+                        # mpirun --hostfile ./clients.txt -np $nclients \
+                        # --x LD_PRELOAD=$client_so \
+                        # --mca btl_tcp_if_exclude lo,eno3,eno1,eno4,eno2,docker0 \
+                        # --mca oob_tcp_dynamic_ipv4_ports 8000,8080 \
+                        # --mca btl_tcp_port_min_v4 8000 --mca btl_tcp_port_range_v4 10 \
+                        # $disa_bench \
+                        # -t $i \
+                        # -d $duration \
+                        # -s $server_ip \
+                        # -p $p_ips \
+                        # -m $j \
+                        # -c $nclients \
+                        # -f $client_rescum_file \
+                        # -g $client_ressingle_file \
+                        # -l $nlocks \
+                        # -r $runs\
+                        # -e $mem_runs \
                         # 2>> $client_log_dir/nclients$n_clients"_nthreads"$i.log
 
                         # --mca btl_base_debug 1 --mca oob_tcp_debug 1 --mca plm_base_verbose 5 --mca orte_base_help_aggregate 0 \

@@ -112,6 +112,12 @@ echo "Mount of $NFSSERVER:$NFSDIR is ready."
 
 
 
+sudo chown -R mkuerst:dal-PG0 /nfs/DAL
+
+sudo sed -i 's/^#PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config 
+sudo sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config 
+sudo systemctl restart sshd
+echo "mkuerst:1" | sudo chpasswd
 
 
 
