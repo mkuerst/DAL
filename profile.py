@@ -65,7 +65,7 @@ nfsLan.link_multiplexing = True
 # link_0.Site('undefined')
 
 for i in range(0, params.clientCount):
-    node = request.RawPC("node-%d" % i)
+    node = request.RawPC("node%d" % i)
     nfsLan.addInterface(node.addInterface())
     # iface = node.addInterface('interface-%d' % i)
     # link_0.addInterface(iface)
