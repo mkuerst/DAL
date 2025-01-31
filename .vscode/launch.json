@@ -1,0 +1,324 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Plot",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "/nfs/DAL/microbench/plot.py", // Path to the file currently open in the editor
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Plot1",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "/nfs/DAL/microbench/plot1.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Plot2",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "/nfs/DAL/microbench/plot2.py",
+            "console": "integratedTerminal"
+        },
+      {
+          "name": "will-it-scale runtest.py w/ specific testcase & impl",
+          "type": "debugpy",
+          "request": "launch",
+          "program": "/nfs/DAL/will-it-scale/runtest.py",
+          "console": "integratedTerminal",
+          "cwd": "/nfs/DAL/will-it-scale/",
+          "args": [
+              "pthread_mutex1",
+              "/nfs/DAL/litl/impl/libcbomcs_spinlock.so"
+          ]
+      },
+      {
+          "name": "C - will-it-scale - pthread_mutex",
+          "type": "cppdbg",
+          "request": "launch",
+          "program": "${workspaceFolder}/will-it-scale/pthread_mutex1_threads", // Replace with the actual path if necessary
+          "args": [
+              "-t",
+              "2",
+              "-s",
+              "3",
+              "-lpapi"
+          ], // Replace with desired arguments
+          "stopAtEntry": false,
+          "cwd": "${workspaceFolder}",
+          "environment": [
+              {
+                  "name": "LD_PRELOAD",
+                  "value": "/nfs/DAL/litl/impl/libcbomcs_spinlock.so"
+              }
+          ],
+          "MIMode": "gdb",
+          "setupCommands": [
+              {
+                  "description": "Enable pretty-printing for gdb",
+                  "text": "-enable-pretty-printing",
+                  "ignoreFailures": true
+              }
+          ],
+          "externalConsole": false, // Set to true if you prefer an external console
+          "preLaunchTask": "build" // Optional: task for building the program before debugging
+      },
+      {
+          "name": "orig",
+          "type": "cppdbg",
+          "request": "launch",
+          "program": "${workspaceFolder}/microbench/main_orig",
+          "args": [
+              "16", // n_thread
+              "1", // duration in s
+              "1000", // <<cs prio> ... >
+              "0.0.0.0", //ip (not really needed for local)
+              "1", // mode
+              "/nfs/DAL/microbench/results/test_cum.csv", // res_file
+              "/nfs/DAL/microbench/results/test_single.csv", // res_file
+              "3", // num_runs
+              "1" // num_mem_runs//nlocks
+          ], 
+          "stopAtEntry": false,
+          "cwd": "${workspaceFolder}",
+          "environment": [
+              {
+                  "name": "LD_PRELOAD",
+                  "value": "/nfs/DAL/litl2/lib/original/libalockepfl_original.so"
+              }
+          ],
+          "MIMode": "gdb",
+          "setupCommands": [
+              {
+                  "description": "Enable pretty-printing for gdb",
+                  "text": "-enable-pretty-printing",
+                  "ignoreFailures": true
+              }
+          ],
+          "externalConsole": false, // Set to true if you prefer an external console
+      },
+      {
+          "name": "client1",
+          "type": "cppdbg",
+          "request": "launch",
+          "program": "${workspaceFolder}/microbench/main_disa",
+          "args": [
+              "-t", "1",
+              "-d", "1", // in s
+              "-s",
+            //   "10.5.12.168", // stf 
+            //   "192.168.1.70", // home
+                // "172.20.10.10", // phone
+            "192.168.132.61",
+              "-m", "5",
+              "-i", "1", 
+              "-c", "2",
+              "-f", "/nfs/DAL/microbench/results/test_cum.csv",
+              "-g","/nfs/DAL/microbench/results/test_single.csv",
+              "-l", "1",
+              "-r", "1", 
+              "-e", "1"
+
+          ], 
+          "stopAtEntry": false,
+          "cwd": "${workspaceFolder}",
+          "environment": [
+              {
+                  "name": "LD_PRELOAD",
+                  "value": "/nfs/DAL/litl2/lib/client/libalockepfl_original_client_lease1.so"
+                //   "value": "/nfs/DAL/litl2/lib/client/libhmcs_original_client.so"
+              }
+          ],
+          "MIMode": "gdb",
+          "setupCommands": [
+              {
+                  "description": "Enable pretty-printing for gdb",
+                  "text": "-enable-pretty-printing",
+                  "ignoreFailures": true
+              }
+          ],
+          "externalConsole": false, // Set to true if you prefer an external console
+          "preLaunchTask": "wait-for-server" // Optional: task for building the program before debugging
+      },
+      {
+          "name": "client0",
+          "type": "cppdbg",
+          "request": "launch",
+          "program": "${workspaceFolder}/microbench/main_disa",
+          "args": [
+              "-t", "1",
+              "-d", "1", // in s
+              "-s",
+              "128.110.218.227", // stf 
+            //   "192.168.1.70", // home
+                // "172.20.10.10", // phone
+            // "192.168.132.61",
+            "-p", "10.10.1.2",
+              "-m", "7",
+              "-i", "0", 
+              "-c", "1",
+              "-f", "/nfs/DAL/microbench/results/test_cum.csv",
+              "-g","/nfs/DAL/microbench/results/test_single.csv",
+              "-l", "1",
+              "-r", "1", 
+              "-e", "1"
+          ], 
+          "stopAtEntry": false,
+          "cwd": "${workspaceFolder}",
+          "environment": [
+              {
+                  "name": "LD_PRELOAD",
+                  "value": "/nfs/DAL/litl2/lib/client/libbackoff_original_client_spinlock.so"
+                //   "value": "/nfs/DAL/litl2/lib/client/libhmcs_original_client.so"
+              }
+          ],
+          "MIMode": "gdb",
+          "setupCommands": [
+              {
+                  "description": "Enable pretty-printing for gdb",
+                  "text": "-enable-pretty-printing",
+                  "ignoreFailures": true
+              }
+          ],
+          "externalConsole": false, // Set to true if you prefer an external console
+          "preLaunchTask": "wait-for-server" // Optional: task for building the program before debugging
+      },
+      {
+          "name": "tcp server",
+          "type": "cppdbg",
+          "request": "launch",
+          "program": "${workspaceFolder}/litl2/tcp_server",
+          "args": [
+            "1", //nthread
+            "0", //mode
+            "1", //num_clients
+          ], 
+          "stopAtEntry": false,
+          "cwd": "${workspaceFolder}",
+          "environment": [
+              {
+                  "name": "LD_PRELOAD",
+                  "value": "/nfs/DAL/litl2/lib/server/libalockepfl_original_server.so"
+                //   "value": "/nfs/DAL/litl2/lib/server/libhmcs_original_server.so"
+              }
+          ],
+          "MIMode": "gdb",
+          "setupCommands": [
+              {
+                  "description": "Enable pretty-printing for gdb",
+                  "text": "-enable-pretty-printing",
+                  "ignoreFailures": true
+              }
+          ],
+          "externalConsole": false, // Set to true if you prefer an external console
+      },
+      {
+          "name": "rdma server",
+          "type": "cppdbg",
+          "request": "launch",
+          "program": "${workspaceFolder}/litl2/rdma_server",
+          "args": [
+            "-c", "1", // nclients
+            "-a",
+            "128.110.218.227", // stf
+            // "192.168.1.70", // home
+            // "172.20.10.10", // phone
+            // "192.168.132.61",
+            "-t", "1", // nthreads per client
+            "-l", "1", // nlocks
+          ], 
+          "stopAtEntry": false,
+          "cwd": "${workspaceFolder}",
+        //   "environment": [
+        //       {
+        //           "name": "LD_PRELOAD",
+        //           "value": "/nfs/DAL/litl2/lib/server/libalockepfl_original_server.so"
+        //       }
+        //   ],
+          "MIMode": "gdb",
+          "setupCommands": [
+              {
+                  "description": "Enable pretty-printing for gdb",
+                  "text": "-enable-pretty-printing",
+                  "ignoreFailures": true
+              }
+          ],
+          "externalConsole": false, // Set to true if you prefer an external console
+      },
+      {
+        "name": "mpi_client",
+        "type": "cppdbg",
+        "request": "launch",
+        "program": "/usr/bin/mpirun",
+        "args": [
+            "-np", "1", // Number of processes
+            "--mca", "oob_tcp_debug", "1",
+            "--mca", "mpi_debug", "1",
+            "--mca", "mpi_add_procs_verbose", "1",
+            "--mca", "btl", "self,tcp",
+            "--mca", "oob_tcp_if_include", "127.0.0.1/24",
+            "--report-bindings",
+            // "-x", "LD_LIBRARY_PATH=/home/mihi/DAL/litle2/include/",
+            "-x", "LD_PRELOAD=/nfs/DAL/litl2/lib/client/libalockepfl_original_client_lease1.so",
+            "/nfs/DAL/microbench/main_disa",
+            "1", // n_thread
+            "1", // duration in s
+            "1000", // <<cs prio> ... >
+                  "10.5.12.168", // stf
+            // "192.168.1.70", // home
+            "0", // mode
+            "0", //client_id
+            "2", //num_clients
+            "/nfs/DAL/microbench/results/test_cum.csv", // res_file
+            "/nfs/DAL/microbench/results/test_single.csv", // res_file
+            "1", // nlocks
+        ],
+        "stopAtEntry": false,
+        "cwd": "${workspaceFolder}",
+        "environment": [
+            // {
+            //     "name": "LD_DEBUG",
+            //     "value": "bindings"
+            // }
+        ],
+        "externalConsole": false,
+        "MIMode": "gdb",
+        "miDebuggerPath": "/usr/bin/gdb",
+        "setupCommands": [
+          {
+            "description": "Enable pretty-printing for gdb",
+            "text": "-enable-pretty-printing",
+            "ignoreFailures": true
+          }
+        ],
+        "preLaunchTask": "wait-for-server" // Optional: task for building the program before debugging
+      },
+    ],
+    "compounds": [
+        {
+            "name": "tcp_server + clients",
+            "configurations": ["tcp server", "client0"]
+        },
+        {
+            "name": "rdma_server + 1clients",
+            "configurations": ["rdma server", "client0"]
+        },
+        {
+            "name": "rdma_server + 2clients",
+            "configurations": ["rdma server", "client0", "client1"]
+        },
+        {
+            "name": "tcp_server + mpi clients",
+            "configurations": ["tcp server", "mpi_client"]
+        },
+        {
+            "name": "rdma_server + mpi clients",
+            "configurations": ["rdma server", "mpi_client"]
+        }
+    ]
+}

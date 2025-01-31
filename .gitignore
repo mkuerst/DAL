@@ -1,6 +1,6 @@
 microbench/results*
 litl/impl/*
-.vscode
+# .vscode
 *.o
 *.so
 litl/Makefile

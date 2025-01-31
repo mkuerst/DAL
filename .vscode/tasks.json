@@ -1,0 +1,24 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "make microbench", // The name of the task, which will be used in the preLaunchTask field
+        "type": "shell",
+        "command": "make", // Command to run (make)
+        "args": [
+        ],
+        // "cwd": "$/home/mihi/Desktop/DAL/microbench",
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": ["$gcc"],
+        "detail": "Generated task to build the program using make"
+      },
+      {
+        "label": "wait-for-server",
+        "type": "shell",
+        "command": "sleep 3" 
+    }
+    ]
+  }
