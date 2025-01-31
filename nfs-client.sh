@@ -109,5 +109,12 @@ fi
 echo ""
 echo "Mount of $NFSSERVER:$NFSDIR is ready."
 # rm -rf /local/repository/DAL
+
+
+
+
+
+
+
 exit 0
 

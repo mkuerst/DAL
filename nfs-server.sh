@@ -164,3 +164,4 @@ fi
 # Give it time to start-up
 sleep 5
 sudo git clone https://github.com/mkuerst/DAL.git /nfs/DAL
+sudo chown -R mkuerst:dal-PG0 /nfs/DAL

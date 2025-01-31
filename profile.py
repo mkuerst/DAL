@@ -11,9 +11,9 @@ request = pc.makeRequestRSpec()
 num_nodes = 5
 hw = "xl170"
 
-# Client image list
 imageList = [
     ('urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU20-64-STD', 'UBUNTU 20.04'),
+    ('urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU22-64-STD', 'UBUNTU 22.04'),
     ('urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU18-64-STD', 'UBUNTU 18.04'),
     ('urn:publicid:IDN+emulab.net+image+emulab-ops//CENTOS8-64-STD', 'CENTOS 8'),
     ('urn:publicid:IDN+emulab.net+image+emulab-ops//CENTOS7-64-STD', 'CENTOS 7'),
@@ -21,9 +21,9 @@ imageList = [
     ('urn:publicid:IDN+emulab.net+image+emulab-ops//FBSD123-64-STD', 'FreeBSD 12.3'),
 ]
 
-# Server image list, not tested with CentOS
 imageList2 = [
     ('urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU20-64-STD', 'UBUNTU 20.04'),
+    ('urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU22-64-STD', 'UBUNTU 22.04'),
     ('urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU18-64-STD', 'UBUNTU 18.04'),
     ('urn:publicid:IDN+emulab.net+image+emulab-ops//FBSD131-64-STD', 'FreeBSD 13.1'),
     ('urn:publicid:IDN+emulab.net+image+emulab-ops//FBSD123-64-STD', 'FreeBSD 12.3'),
@@ -32,7 +32,6 @@ nfsServerName = "nfs"
 nfsLanName    = "nfsLan"
 nfsDirectory  = "/nfs"
 
-# Number of NFS clients (there is always a server)
 pc.defineParameter("clientCount", "Number of nodes",
                    portal.ParameterType.INTEGER, num_nodes)
 
@@ -51,10 +50,8 @@ pc.defineParameter("nfsSize", "Size of NFS Storage",
 pc.defineParameter("hardware", "Node HW",
                    portal.ParameterType.STRING, hw)
 
-# Always need this when using parameters
 params = pc.bindParameters()
 
-# The NFS network. All these options are required.
 nfsLan = request.LAN(nfsLanName)
 nfsLan.best_effort       = True
 nfsLan.vlan_tagging      = True
@@ -82,5 +79,7 @@ for i in range(0, params.clientCount):
     else:
         node.disk_image = params.osImage
         node.addService(pg.Execute(shell="sh", command="sudo /bin/bash /local/repository/nfs-client.sh"))
+
+    node.addService(pg.Execute(shell="sh", command="sudo /bin/bash /local/repository/installLibs.sh"))
 
 pc.printRequestRSpec(request)
