@@ -50,6 +50,9 @@ pc.defineParameter("nfsSize", "Size of NFS Storage",
                    portal.ParameterType.STRING, "80GB",
                    longDescription="Size of disk partition to allocate on NFS server")
 
+pc.defineParameter("hardware", "Node HW",
+                   portal.ParameterType.STRING, hw)
+
 # Always need this when using parameters
 params = pc.bindParameters()
 
@@ -74,16 +77,18 @@ for i in range(0, params.clientCount):
         # Storage file system goes into a local (ephemeral) blockstore.
         nfsBS = node.Blockstore("nfsBS", nfsDirectory)
         nfsBS.size = params.nfsSize
+        iface = node.addInterface('interface-'+str(i))
+        link_0.addInterface(iface)
         # Initialization script for the server
         node.addService(pg.Execute(shell="sh", command="sudo /bin/bash /local/repository/nfs-server.sh"))
-        iface = node.addInterface('interface-'+str(i))
-        node.addService(pg.Execute(shell="sh", command="sudo /bin/bash /local/repository/nfs-client.sh"))
+        # node.addService(pg.Execute(shell="sh", command="sudo /bin/bash /local/repository/nfs-client.sh"))
     else:
         node.hardware_type = hw  # Adjust to your cluster type
         node.routable_control_ip = True
         node.disk_image = params.osImage
         nfsLan.addInterface(node.addInterface())
         iface = node.addInterface('interface-'+str(i))
+        link_0.addInterface(iface)
         # Initialization script for the clients
         node.addService(pg.Execute(shell="sh", command="sudo /bin/bash /local/repository/nfs-client.sh"))
 

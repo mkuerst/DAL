@@ -163,4 +163,4 @@ fi
 
 # Give it time to start-up
 sleep 5
-git clone git clone https://github.com/mkuerst/DAL.git /mnt/nfs/
+git clone git clone https://github.com/mkuerst/DAL.git /nfs/
