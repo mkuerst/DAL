@@ -175,3 +175,15 @@ git config --global user.name "mkuerst"
 git config --global user.email "michael.kuersteiner@outlook.com"
 
 sudo chown -R mkuerst:dal-PG0 /nfs/DAL
+
+REMOTE_CLIENTS=("node0" "node1" "node2" "node3" "node4")
+eval "$(ssh-agent -s)"
+
+for remote_client in ${REMOTE_CLIENTS[@]}
+do
+    ssh-copy-id "$REMOTE_USER@$remote_client"
+done
+for remote_client in ${REMOTE_CLIENTS[@]}
+do
+    ssh-copy-id "$REMOTE_USER@$remote_client"
+done

@@ -3,6 +3,8 @@ TCP_PORT0=8000
 TCP_PORT1=8022
 TCP_PORT2=8080
 RDMA_PORT=20051
+RDMA_PORT1=20052
+RDMA_PORT2=20053
  
 chmod +x "$0"
 
@@ -18,6 +20,8 @@ cleanup_exit() {
     fuser -k ${TCP_PORT1}/tcp 2>/dev/null
     fuser -k ${TCP_PORT2}/tcp 2>/dev/null
     fuser -k ${RDMA_PORT}/rdma 2>/dev/null
+    fuser -k ${RDMA_PORT1}/rdma 2>/dev/null
+    fuser -k ${RDMA_PORT2}/rdma 2>/dev/null
     # rdma-devices reset
     pkill -P $$ 
     for pid in $(lsof | grep infiniband | awk '{print $2}' | sort -u); do
@@ -40,6 +44,8 @@ cleanup() {
     fuser -k ${TCP_PORT1}/tcp 2>/dev/null
     fuser -k ${TCP_PORT2}/tcp 2>/dev/null
     fuser -k ${RDMA_PORT}/rdma 2>/dev/null
+    fuser -k ${RDMA_PORT1}/rdma 2>/dev/null
+    fuser -k ${RDMA_PORT2}/rdma 2>/dev/null
     for pid in $(lsof | grep infiniband | awk '{print $2}' | sort -u); do
         echo "Killing process $pid using RDMA resources..."
         kill -SIGINT "$pid"
