@@ -71,6 +71,18 @@ sudo apt install -y libnuma-dev
 sudo apt install -y gh
 sudo apt-get install -y pdsh 
 
-sudo sed -i 's/^#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config 
-sudo sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config 
-sudo systemctl restart sshd
+# sudo sed -i 's/^#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config 
+# sudo sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config 
+# sudo systemctl restart sshd
+
+PUBKEY_FILE="/nfs/id_rsa.pub"
+AUTHORIZED_KEYS="~/.ssh/authorized_keys"
+
+if [ -f "$PUBKEY_FILE" ]; then
+    grep -qxF "$(cat "$PUBKEY_FILE")" "$AUTHORIZED_KEYS" || cat "$PUBKEY_FILE" >> "$AUTHORIZED_KEYS"
+    chmod 600 "$AUTHORIZED_KEYS"
+    echo "Public key added successfully."
+else
+    echo "Error: Public key file '$PUBKEY_FILE' not found."
+    exit 1
+fi
