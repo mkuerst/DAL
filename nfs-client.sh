@@ -119,6 +119,8 @@ sudo sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/
 sudo systemctl restart sshd
 echo "mkuerst:1" | sudo chpasswd
 
+sudo chown -R mkuerst:dal-PG0 /nfs/DAL
+
 
 
 
