@@ -59,18 +59,22 @@ nfsLan.link_multiplexing = True
 
 
 ips = ["10.10.2.%d" % i for i in range(0, num_nodes+1)]
-link_0 = request.Link('link-0')
-link_0.Site('undefined')
+# link_0 = request.Link('link-0')
+# link_0.Site('undefined')
 
 for i in range(0, params.clientCount):
     node = request.RawPC("node%d" % i)
     node.hardware_type = hw
     node.routable_control_ip = True
 
-    iface = node.addInterface()
-    nfsLan.addInterface(iface)
-    iface.addAddress(pg.IPv4Address(ips[i], "255.255.255.0"))
-    link_0.addInterface(iface)
+    iface_nfs = node.addInterface()  
+    iface_nfs.addAddress(pg.IPv4Address(ips[i], "255.255.255.0"))
+    
+    # iface_link = node.addInterface()  
+    # iface_link.addAddress(pg.IPv4Address(ips[i], "255.255.255.0"))
+    
+    nfsLan.addInterface(iface_nfs)  # Add to nfsLan
+    # link_0.addInterface(iface_link)  # Add to link_0
 
     node.installRootKeys(True, True)
 
