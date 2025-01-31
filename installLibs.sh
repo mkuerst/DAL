@@ -68,5 +68,3 @@ rm -rf tmp
 
 sudo apt install -y rdma-core librdmacm-dev libibverbs-dev
 sudo apt install -y libnuma-dev
-
-sudo chown -R mkuerst:dal-PG0 /nfs/DAL
