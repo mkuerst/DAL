@@ -1,1 +1,0 @@
-tid,total_duration(s),min_slock_hold,med,max,min_swait_acq,med,max,min_swait_rel,med,max,min_slwait_acq,med,max,min_slwait_rel,med,max,min_sgwait_acq,med,max,min_sgwait_rel,med,max,min_sdata_read,med,max,min_sdata_write,med,max,min_sglock_tries,med,max,array_size(B),client_id

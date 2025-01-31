@@ -163,4 +163,4 @@ fi
 
 # Give it time to start-up
 sleep 5
-sudo git clone git clone https://github.com/mkuerst/DAL.git /nfs/
+sudo git clone https://github.com/mkuerst/DAL.git /nfs/DAL
