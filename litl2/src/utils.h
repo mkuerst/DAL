@@ -107,7 +107,7 @@
 #define CACHELINE_SIZE 64
 #endif
 
-#define DEFAULT_PORT 20051
+#define DEFAULT_PORT 20053
 
 #define KB(x) ((x) * 1024L)
 #define MB(x) (KB(x) * 1024L)

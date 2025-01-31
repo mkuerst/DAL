@@ -122,7 +122,10 @@ static int start_rdma_server(struct sockaddr_in *server_addr, int nclients, int 
 	}
 	int retry = 0;
 	while (rdma_bind_addr(cm_server_id, (struct sockaddr*) server_addr) && retry < 10) {
-		rdma_error("Failed to bind server address, errno: %d \n", -errno);
+		rdma_error("Failed to bind server address %s:%d, errno: %d \n",
+			inet_ntoa(server_addr->sin_addr),
+			ntohs(server_addr->sin_port),
+			-errno);
 		retry++;
 	}
 	if (retry >= 10) {

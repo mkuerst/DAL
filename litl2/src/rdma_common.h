@@ -37,7 +37,7 @@
 
 #define CQ_CAPACITY (4096)
 #define MAX_SGE (16)
-#define DEFAULT_RDMA_PORT (20051)
+#define DEFAULT_RDMA_PORT (20053)
 #define DEFAULT_RDMA_PEER_PORT (20052)
 #define MAX_WR (4096)
 

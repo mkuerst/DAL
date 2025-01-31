@@ -58,6 +58,7 @@ nfsLan.vlan_tagging      = True
 nfsLan.link_multiplexing = True
 
 
+ips = ["10.10.2.%d" % i for i in range(0, num_nodes+1)]
 # link_0 = request.Link('link-0')
 # link_0.Site('undefined')
 
@@ -68,6 +69,7 @@ for i in range(0, params.clientCount):
     # link_0.addInterface(iface)
     node.hardware_type = hw
     node.routable_control_ip = True
+    node.addInterface("eth0", ip=ips[i])
 
     if i == 0:
         # nfsServer = request.RawPC(nfsServerName)
