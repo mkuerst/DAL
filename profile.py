@@ -11,7 +11,7 @@ request = pc.makeRequestRSpec()
 
 # Number of nodes
 num_nodes = 5  # Change this as needed
-hw = "m400"
+hw = "xl170"
 
 # Client image list
 imageList = [
