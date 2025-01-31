@@ -166,24 +166,12 @@ sleep 5
 sudo git clone https://github.com/mkuerst/DAL.git /nfs/DAL
 ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
 
-sudo sed -i 's/^#PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config 
-sudo sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config 
-sudo systemctl restart sshd
-echo "mkuerst:1" | sudo chpasswd
+# sudo sed -i 's/^#PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config 
+# sudo sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config 
+# sudo systemctl restart sshd
+# echo "mkuerst:1" | sudo chpasswd
 
 git config --global user.name "mkuerst"
 git config --global user.email "michael.kuersteiner@outlook.com"
 
 sudo chown -R mkuerst:dal-PG0 /nfs/DAL
-
-REMOTE_CLIENTS=("node0" "node1" "node2" "node3" "node4")
-eval "$(ssh-agent -s)"
-
-for remote_client in ${REMOTE_CLIENTS[@]}
-do
-    ssh-copy-id "$REMOTE_USER@$remote_client"
-done
-for remote_client in ${REMOTE_CLIENTS[@]}
-do
-    ssh-copy-id "$REMOTE_USER@$remote_client"
-done
