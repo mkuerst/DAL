@@ -73,6 +73,7 @@ REMOTE_CLIENTS=("r630-11" "r630-03" "r630-04" "r630-06")
 REMOTE_USER="mkuerst"
 REMOTE_SERVER="node0"
 REMOTE_CLIENTS=("node0" "node1" "node2" "node3" "node4")
+server_ip=128.110.218.227
 
 eval "$(ssh-agent -s)"
 
@@ -129,7 +130,7 @@ rm -rf barrier_files/*
 
 comm_prot="rdma"
 microbenches=("empty_cs2n" "empty_cs1n" "lat" "mem2n" "mem1n" "mlocks2n" "mlocks1n" "correctness")
-node_ids=(3 4 6 11)
+node_ids=(1 2 3 4)
 peer_ips=(    ""
     "10.233.0.10"
     "10.233.0.11"
@@ -144,13 +145,20 @@ peer_ips=(    ""
     "10.233.0.20"
     "10.233.0.21"    
 )
+peer_ips=(
+    "10.10.1.1"
+    "10.10.1.2"
+    "10.10.1.3"
+    "10.10.1.4"
+    "10.10.1.5"
+)
 
-opts=("lease1")
+opts=("spinlock")
 duration=5
 mem_runs=1
 runs=1
 n_clients=(1)
-n_threads=(16)
+n_threads=(1)
 bench_idxs=(7)
 num_locks=(512)
 
@@ -203,7 +211,7 @@ do
                         echo "START SERVER $i T & $nclients C & $nlocks L & $duration s"
 
                         tmux new-session -d -s "$server_session" \
-                        "ssh $REMOTE_USER@$REMOTE_SERVER $rdma_server_app -c $nclients -a $server_ip -t $i -l $nlocks >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
+                        "ssh $REMOTE_USER@$REMOTE_SERVER sudo $rdma_server_app -c $nclients -a $server_ip -t $i -l $nlocks >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
 
                         # tmux new-session -d -s "$server_session" \
                         # "ssh $REMOTE_USER@$REMOTE_SERVER LD_PRELOAD=$spinlock_so $tcp_server_app $i $j $nclients >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
@@ -213,8 +221,15 @@ do
                         # ============= MPIRUN ========================================================
                         echo "START MICROBENCH $impl $microb $opt $nclients C & $i T & $nlocks L & $duration s"
 
-                        pdsh -R ssh -w node1,node2,node3,node4 \
-                        "$disa_bench 
+                        # pdsh -R ssh -w node1,node2 \
+                        # "$LD_PRELOAD=$client_so disa_bench -t $i -d $duration -s $server_ip -p $p_ips -m $j -c $nclients -f $client_rescum_file -g $client_ressingle_file -l $nlocks -r $runs -e $mem_runs"
+
+                        mpirun --hostfile ./clients.txt -np $nclients \
+                        --x LD_PRELOAD=$client_so \
+                        --mca btl_tcp_if_exclude lo,eno3,eno1,eno4,eno2,docker0 \
+                        --mca oob_tcp_dynamic_ipv4_ports 8000,8080 \
+                        --mca btl_tcp_port_min_v4 8000 --mca btl_tcp_port_range_v4 10 \
+                        $disa_bench \
                         -t $i \
                         -d $duration \
                         -s $server_ip \
@@ -225,25 +240,7 @@ do
                         -g $client_ressingle_file \
                         -l $nlocks \
                         -r $runs\
-                        -e $mem_runs"
-
-                        # mpirun --hostfile ./clients.txt -np $nclients \
-                        # --x LD_PRELOAD=$client_so \
-                        # --mca btl_tcp_if_exclude lo,eno3,eno1,eno4,eno2,docker0 \
-                        # --mca oob_tcp_dynamic_ipv4_ports 8000,8080 \
-                        # --mca btl_tcp_port_min_v4 8000 --mca btl_tcp_port_range_v4 10 \
-                        # $disa_bench \
-                        # -t $i \
-                        # -d $duration \
-                        # -s $server_ip \
-                        # -p $p_ips \
-                        # -m $j \
-                        # -c $nclients \
-                        # -f $client_rescum_file \
-                        # -g $client_ressingle_file \
-                        # -l $nlocks \
-                        # -r $runs\
-                        # -e $mem_runs \
+                        -e $mem_runs \
                         # 2>> $client_log_dir/nclients$n_clients"_nthreads"$i.log
 
                         # --mca btl_base_debug 1 --mca oob_tcp_debug 1 --mca plm_base_verbose 5 --mca orte_base_help_aggregate 0 \

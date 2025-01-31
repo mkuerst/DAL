@@ -65,9 +65,10 @@ int write_metadata_to_file() {
 	DEBUG("WRITING METADATA\n");
 	char *cwd = NULL;
 	cwd = getcwd(cwd, 128);
-	char addresses_file[64] = "/DAL/microbench/metadata/MN";
-	strcat(cwd, addresses_file);
-	FILE* file = fopen(cwd, "w");
+	// char addresses_file[64] = "/DAL/microbench/metadata/MN";
+	// strcat(cwd, addresses_file);
+	char addresses_file[64] = "/nfs/DAL/microbench/metadata/MN";
+	FILE* file = fopen(addresses_file, "w");
 	if (!file) {
 		DEBUG("Failed to open file %s\nTrying again with different dir\n", cwd);
 		cwd = getcwd(cwd, 128);

@@ -165,4 +165,10 @@ fi
 sleep 5
 sudo git clone https://github.com/mkuerst/DAL.git /nfs/DAL
 ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
+
+sudo sed -i 's/^#PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config 
+sudo sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config 
+sudo systemctl restart sshd
+echo "mkuerst:1" | sudo chpasswd
+
 sudo chown -R mkuerst:dal-PG0 /nfs/DAL
