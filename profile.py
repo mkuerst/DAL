@@ -61,14 +61,14 @@ nfsLan.vlan_tagging      = True
 nfsLan.link_multiplexing = True
 
 
-link_0 = request.Link('link-0')
-link_0.Site('undefined')
+# link_0 = request.Link('link-0')
+# link_0.Site('undefined')
 
 for i in range(0, params.clientCount):
     node = request.RawPC("node-%d" % i)
     nfsLan.addInterface(node.addInterface())
-    iface = node.addInterface('interface-%d' % i)
-    link_0.addInterface(iface)
+    # iface = node.addInterface('interface-%d' % i)
+    # link_0.addInterface(iface)
     node.hardware_type = hw
     node.routable_control_ip = True
 
