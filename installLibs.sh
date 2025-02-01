@@ -79,7 +79,7 @@ sudo sed -i 's/^AuthorizedKeysFile .ssh/authorized_keys .ssh/authorized_keys/Aut
 PUBKEY_FILE="/nfs/id_rsa.pub"
 AUTHORIZED_KEYS="~/.ssh/authorized_keys"
 
-sudo cp ~/id_rsa ~/.ssh/
+sudo cp /nfs/id_rsa ~/.ssh/
 
 sudo cat "$PUBKEY_FILE" >> "$AUTHORIZED_KEYS"
 echo -e "Host *\n    StrictHostKeyChecking accept-new" >> ~/.ssh/config
