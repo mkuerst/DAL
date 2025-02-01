@@ -167,7 +167,7 @@ runs=1
 n_clients=(1)
 n_threads=(1)
 bench_idxs=(7)
-num_locks=(512)
+num_locks=(1)
 
 for impl_dir in "$BASE"/original/*
 do
@@ -227,7 +227,7 @@ do
 
                         echo "START MICROBENCH $impl $microb $opt $nclients C & $i T & $nlocks L & $duration s"
                         dsh -M -f <(head -n $nclients ./clients.txt) -c \
-                        "sudo bash -l -c 'export LD_PRELOAD=$client_so; sudo $disa_bench -t $i -d $duration -s $server_ip -p $p_ips -m $j -c $nclients -f $client_rescum_file -g $client_ressingle_file -l $nlocks -r $runs -e $mem_runs'"
+                        "sudo LD_PRELOAD=$client_so $disa_bench -t $i -d $duration -s $server_ip -p $p_ips -m $j -c $nclients -f $client_rescum_file -g $client_ressingle_file -l $nlocks -r $runs -e $mem_runs"
 
                         # ============= MPIRUN ========================================================
                         # sudo pdsh -u root -w node1,node2 \
