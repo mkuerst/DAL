@@ -66,6 +66,8 @@ for i in range(0, params.clientCount):
     node = request.RawPC("node%d" % i)
     node.hardware_type = params.hardware
     node.routable_control_ip = True
+    node.installRootKeys(True, True)
+    node.installRootKeys(True, True)
 
     iface_nfs = node.addInterface("nfs%d" % i)  
     iface_nfs.addAddress(pg.IPv4Address(ips[i], "255.255.255.0"))
