@@ -64,7 +64,7 @@ ips = ["10.10.2.%d" % i for i in range(0, num_nodes+1)]
 
 for i in range(0, params.clientCount):
     node = request.RawPC("node%d" % i)
-    node.hardware_type = hw
+    node.hardware_type = params.hardware
     node.routable_control_ip = True
     if i == 0:
         node.installRootKeys(True, True)
