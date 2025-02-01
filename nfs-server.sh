@@ -174,4 +174,4 @@ sudo git clone https://github.com/mkuerst/DAL.git /nfs/DAL
 git config --global user.name "mkuerst"
 git config --global user.email "michael.kuersteiner@outlook.com"
 
-sudo chown -R mkuerst:dal-PG0 /nfs/DAL
+sudo chown -R mkuerst:dal-PG0 /

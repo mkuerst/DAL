@@ -119,9 +119,7 @@ sudo chown -R mkuerst:dal-PG0 /nfs/DAL
 # sudo systemctl restart sshd
 # echo "mkuerst:1" | sudo chpasswd
 
-sudo chown -R mkuerst:dal-PG0 /nfs/DAL
-
-
+sudo chown -R mkuerst:dal-PG0 /
 
 
 exit 0
