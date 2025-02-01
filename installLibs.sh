@@ -75,9 +75,12 @@ sudo sed -i 's/^#PubAuthentication no/PubAuthentication yes/' /etc/ssh/sshd_conf
 sudo sed -i 's/^PubAuthentication no/PubAuthentication yes/' /etc/ssh/sshd_config 
 sudo sed -i 's/^#AuthorizedKeysFile .ssh/authorized_keys .ssh/authorized_keys/AuthorizedKeysFile /users/mkuerst/.ssh/authorized_keys' /etc/ssh/sshd_config 
 sudo sed -i 's/^AuthorizedKeysFile .ssh/authorized_keys .ssh/authorized_keys/AuthorizedKeysFile /users/mkuerst/.ssh/authorized_keys' /etc/ssh/sshd_config 
-sudo systemctl restart sshd
 
 PUBKEY_FILE="/nfs/id_rsa.pub"
 AUTHORIZED_KEYS="~/.ssh/authorized_keys"
 
+sudo cp ~/id_rsa ~/.ssh/
+
 sudo cat "$PUBKEY_FILE" >> "$AUTHORIZED_KEYS"
+echo -e "Host *\n    StrictHostKeyChecking accept-new" >> ~/.ssh/config
+sudo systemctl restart sshd
