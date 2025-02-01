@@ -226,9 +226,8 @@ do
                         sleep 3
 
                         echo "START MICROBENCH $impl $microb $opt $nclients C & $i T & $nlocks L & $duration s"
-                        dsh -f <(head -n $nclients ./clients.txt) -c \
-                        "sudo $LD_PRELOAD=$client_so $disa_bench -t $i -d $duration -s $server_ip -p $p_ips -m $j -c $nclients -f $client_rescum_file -g $client_ressingle_file -l $nlocks -r $runs -e $mem_runs"
-
+                        dsh -M -f <(head -n $nclients ./clients.txt) -c \
+                        "sudo bash -l -c 'export LD_PRELOAD=$client_so; sudo $disa_bench -t $i -d $duration -s $server_ip -p $p_ips -m $j -c $nclients -f $client_rescum_file -g $client_ressingle_file -l $nlocks -r $runs -e $mem_runs'"
 
                         # ============= MPIRUN ========================================================
                         # sudo pdsh -u root -w node1,node2 \

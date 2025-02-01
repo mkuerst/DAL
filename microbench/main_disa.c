@@ -318,7 +318,7 @@ void *correctness_worker(void *arg) {
                 wait_acq += lock_start-start;
                 lock_hold += rel_start - lock_start;
                 wait_rel += rel_end - rel_start;
-                }
+            }
         }
         task->lock_acquires[i] = lock_acquires;
         task->loop_in_cs[i] = loop_in_cs; 
