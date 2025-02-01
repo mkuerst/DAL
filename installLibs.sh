@@ -71,16 +71,16 @@ sudo apt install -y libnuma-dev
 sudo apt install -y gh
 sudo apt-get install -y pdsh 
 
-sudo sed -i 's/^#PubAuthentication no/PubAuthentication yes/' /etc/ssh/sshd_config 
-sudo sed -i 's/^PubAuthentication no/PubAuthentication yes/' /etc/ssh/sshd_config 
-sudo sed -i 's/^#AuthorizedKeysFile .ssh/authorized_keys .ssh/authorized_keys/AuthorizedKeysFile /users/mkuerst/.ssh/authorized_keys' /etc/ssh/sshd_config 
-sudo sed -i 's/^AuthorizedKeysFile .ssh/authorized_keys .ssh/authorized_keys/AuthorizedKeysFile /users/mkuerst/.ssh/authorized_keys' /etc/ssh/sshd_config 
+# sudo sed -i 's/^#PubAuthentication no/PubAuthentication yes/' /etc/ssh/sshd_config 
+# sudo sed -i 's/^PubAuthentication no/PubAuthentication yes/' /etc/ssh/sshd_config 
+# sudo sed -i 's/^#AuthorizedKeysFile .ssh/authorized_keys .ssh/authorized_keys/AuthorizedKeysFile /users/mkuerst/.ssh/authorized_keys' /etc/ssh/sshd_config 
+# sudo sed -i 's/^AuthorizedKeysFile .ssh/authorized_keys .ssh/authorized_keys/AuthorizedKeysFile /users/mkuerst/.ssh/authorized_keys' /etc/ssh/sshd_config 
 
-PUBKEY_FILE="/nfs/id_rsa.pub"
-AUTHORIZED_KEYS="~/.ssh/authorized_keys"
+# PUBKEY_FILE="/nfs/id_rsa.pub"
+# AUTHORIZED_KEYS="~/.ssh/authorized_keys"
 
-sudo cp /nfs/id_rsa ~/.ssh/
+# sudo cp /nfs/id_rsa ~/.ssh/
 
-sudo cat "$PUBKEY_FILE" >> "$AUTHORIZED_KEYS"
-echo -e "Host *\n    StrictHostKeyChecking accept-new" >> ~/.ssh/config
-sudo systemctl restart sshd
+# sudo cat "$PUBKEY_FILE" >> "$AUTHORIZED_KEYS"
+# echo -e "Host *\n    StrictHostKeyChecking accept-new" >> ~/.ssh/config
+# sudo systemctl restart sshd
