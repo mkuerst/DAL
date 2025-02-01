@@ -163,7 +163,9 @@ fi
 
 # Give it time to start-up
 sleep 5
-sudo git clone https://github.com/mkuerst/DAL.git /nfs/
+cd /nfs
+sudo git clone https://github.com/mkuerst/DAL.git
+cd DAL/
 # ssh-keygen -t rsa -b 4096 -f /nfs/id_rsa -N ""
 
 # sudo sed -i 's/^#PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config 

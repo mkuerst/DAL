@@ -239,7 +239,7 @@ int write_metadata_to_file(int cid) {
 		cwd = getcwd(cwd, 128);
 		char addresses_file[64] = {0};
 		sprintf(addresses_file, "/microbench/metadata/C%d", cid);
-		sprintf(addresses_file, "/nfs/microbench/metadata/C%d", cid);
+		sprintf(addresses_file, "/nfs/DAL/microbench/metadata/C%d", cid);
 		strcat(cwd, addresses_file);
 		file = fopen(addresses_file, "w");
 		if (!file) {
@@ -265,7 +265,7 @@ int read_mn_metadata_file()
 	if (!file) {
 		DEBUG("Failed at opening metadata file %s\nTrying again with different dir\n", cwd);
 		cwd = getcwd(cwd, 128);
-		char *filename = "/nfs/microbench/metadata/MN";
+		char *filename = "/nfs/DAL/microbench/metadata/MN";
 		strcat(cwd, filename);
 		file = fopen(filename, "r");
 		if (!file) {
@@ -317,7 +317,7 @@ int read_peer_metadata_files(int nclients)
 			DEBUG("Failed at opening metadata file %s\nTrying again with different dir\n", cwd);
 			cwd = getcwd(cwd, 128);
 			char addresses_file[64] = {0};
-			sprintf(addresses_file, "/nfs/microbench/metadata/C%d", c);
+			sprintf(addresses_file, "/nfs/DAL/microbench/metadata/C%d", c);
 			strcat(cwd, addresses_file);
 			file = fopen(addresses_file, "r");
 			if (!file) {
