@@ -76,21 +76,21 @@ server_ip=10.233.0.21
 # server_ip=10.233.0.15
 REMOTE_CLIENTS=("r630-11" "r630-03" "r630-04" "r630-06")
 
-REMOTE_USER="mkuerst"
+REMOTE_USER="root"
 REMOTE_SERVER="node0"
 REMOTE_CLIENTS=("node0" "node1" "node2" "node3" "node4")
-server_ip=128.110.218.227
+server_ip=10.10.2.0
 
-eval "$(ssh-agent -s)"
+# eval "$(ssh-agent -s)"
 
-for remote_client in ${REMOTE_CLIENTS[@]}
-do
-    ssh-copy-id "$REMOTE_USER@$remote_client"
-done
-for remote_client in ${REMOTE_CLIENTS[@]}
-do
-    ssh-copy-id "$REMOTE_USER@$remote_client"
-done
+# for remote_client in ${REMOTE_CLIENTS[@]}
+# do
+#     ssh-copy-id "$REMOTE_USER@$remote_client"
+# done
+# for remote_client in ${REMOTE_CLIENTS[@]}
+# do
+#     ssh-copy-id "$REMOTE_USER@$remote_client"
+# done
 
 # PATHS
 BASE="$PWD/../litl2/lib"
@@ -152,11 +152,12 @@ peer_ips=(    ""
     "10.233.0.21"    
 )
 peer_ips=(
-    "10.10.1.1"
-    "10.10.1.2"
-    "10.10.1.3"
-    "10.10.1.4"
-    "10.10.1.5"
+    "10.10.2.0"
+    "10.10.2.1"
+    "10.10.2.2"
+    "10.10.2.3"
+    "10.10.2.4"
+    "10.10.2.5"
 )
 
 opts=("spinlock")
@@ -217,48 +218,51 @@ do
                         echo "START SERVER $i T & $nclients C & $nlocks L & $duration s"
 
                         tmux new-session -d -s "$server_session" \
-                        "ssh $REMOTE_USER@$REMOTE_SERVER sudo $rdma_server_app -c $nclients -a $server_ip -t $i -l $nlocks >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
+                        "sudo ssh $REMOTE_USER@$REMOTE_SERVER $rdma_server_app -c $nclients -a $server_ip -t $i -l $nlocks >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
 
                         # tmux new-session -d -s "$server_session" \
                         # "ssh $REMOTE_USER@$REMOTE_SERVER LD_PRELOAD=$spinlock_so $tcp_server_app $i $j $nclients >> $server_res_file 2>> $server_log_dir/server_$n_clients"_"$i.log" & SERVER_PID=$!
 
                         sleep 3
 
-                        # ============= MPIRUN ========================================================
                         echo "START MICROBENCH $impl $microb $opt $nclients C & $i T & $nlocks L & $duration s"
+                        dsh -f <(head -n $nclients ./clients.txt) -c \
+                        "sudo $LD_PRELOAD=$client_so $disa_bench -t $i -d $duration -s $server_ip -p $p_ips -m $j -c $nclients -f $client_rescum_file -g $client_ressingle_file -l $nlocks -r $runs -e $mem_runs"
 
-                        # pdsh -R ssh -w node1,node2 \
+
+                        # ============= MPIRUN ========================================================
+                        # sudo pdsh -u root -w node1,node2 \
                         # "$LD_PRELOAD=$client_so disa_bench -t $i -d $duration -s $server_ip -p $p_ips -m $j -c $nclients -f $client_rescum_file -g $client_ressingle_file -l $nlocks -r $runs -e $mem_runs"
 
-                        mpirun --hostfile ./clients.txt -np $nclients \
-                        --x LD_PRELOAD=$client_so \
-                        --mca btl_tcp_if_exclude lo,eno3,eno1,eno4,eno2,docker0 \
-                        --mca oob_tcp_dynamic_ipv4_ports 8000,8080 \
-                        --mca btl_tcp_port_min_v4 8000 --mca btl_tcp_port_range_v4 10 \
-                        $disa_bench \
-                        -t $i \
-                        -d $duration \
-                        -s $server_ip \
-                        -p $p_ips \
-                        -m $j \
-                        -c $nclients \
-                        -f $client_rescum_file \
-                        -g $client_ressingle_file \
-                        -l $nlocks \
-                        -r $runs\
-                        -e $mem_runs \
+                        # mpirun --hostfile ./clients.txt -np $nclients \
+                        # --mca btl openib,self \
+                        # --mca mpi_debug 1 \
+                        # --mca btl_base_debug 1 --mca oob_tcp_debug 1 --mca plm_base_verbose 5 --mca orte_base_help_aggregate 0 \
+                        # --report-bindings --mca mpi_add_procs_verbose 1 --mca mpi_btl_base_verbose 1 \
+                        # --mca plm_rsh_agent "sudo ssh" \
+                        # --x LD_PRELOAD=$client_so \
+                        # $disa_bench \
+                        # -t $i \
+                        # -s $server_ip \
+                        # -d $duration \
+                        # -p $p_ips \
+                        # -m $j \
+                        # -c $nclients \
+                        # -f $client_rescum_file \
+                        # -g $client_ressingle_file \
+                        # -l $nlocks \
+                        # -r $runs\
+                        # -e $mem_runs \
                         # 2>> $client_log_dir/nclients$n_clients"_nthreads"$i.log
 
-                        # --mca btl_base_debug 1 --mca oob_tcp_debug 1 --mca plm_base_verbose 5 --mca orte_base_help_aggregate 0 \
-                        # -mca btl openib,self \
                         # --mca btl_tcp_inf_include 10.233.0.10/24,10.233.0.11/24,10.233.0.20/24,10.233.0.14/24,10.233.0.15/24 \
                         # --mca btl_openib_allow_ib true \
                         # --mca btl_openib_cpc_include udcm \
                         # --mca btl_openib_cpc_exclude udcm \
-                        # --mca mpi_debug 1 \
+                        # --mca btl_tcp_if_exclude lo,eno3,eno1,eno4,eno2,docker0 \
+                        # --mca oob_tcp_dynamic_ipv4_ports 8000,8080 \
+                        # --mca btl_tcp_port_min_v4 8000 --mca btl_tcp_port_range_v4 10 \
                         # --mca oob_tcp_if_include enp3s0 \
-                        # --report-bindings --mca mpi_add_procs_verbose 1 --mca mpi_btl_base_verbose 1 \
-                        # mpirun -np $nclients -x LD_PRELOAD=$client_so \
                         # ============= MPIRUN ========================================================
                         cleanup
                     done

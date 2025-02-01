@@ -59,17 +59,18 @@ wget https://content.mellanox.com/ofed/MLNX_OFED-4.9-5.1.0.0/MLNX_OFED_LINUX-4.9
 tar -xvf MLNX_OFED_LINUX-4.9-5.1.0.0-ubuntu22.04-x86_64.tgz
 cd MLNX_OFED_LINUX-4.9-5.1.0.0-ubuntu22.04-x86_64
 
-sudo ./mlnxofedinstall  --force
-sudo /etc/init.d/openibd restart
-sudo /etc/init.d/opensmd restart
-
-cd ..
-rm -rf tmp
-
 sudo apt install -y rdma-core librdmacm-dev libibverbs-dev
 sudo apt install -y libnuma-dev
 sudo apt install -y gh
 sudo apt-get install -y pdsh 
+
+sudo ./mlnxofedinstall  --force
+sudo /etc/init.d/openibd restart
+sudo /etc/init.d/opensmd restart
+
+# cd ..
+# rm -rf tmp
+
 
 # sudo sed -i 's/^#PubAuthentication no/PubAuthentication yes/' /etc/ssh/sshd_config 
 # sudo sed -i 's/^PubAuthentication no/PubAuthentication yes/' /etc/ssh/sshd_config 
@@ -82,5 +83,5 @@ sudo apt-get install -y pdsh
 # sudo cp /nfs/id_rsa ~/.ssh/
 
 # sudo cat "$PUBKEY_FILE" >> "$AUTHORIZED_KEYS"
-# echo -e "Host *\n    StrictHostKeyChecking accept-new" >> ~/.ssh/config
-# sudo systemctl restart sshd
+echo -e "Host *\n    StrictHostKeyChecking accept-new" >> ~/.ssh/config
+sudo systemctl restart sshd
