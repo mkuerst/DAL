@@ -85,3 +85,6 @@ sudo /etc/init.d/opensmd restart
 # sudo cat "$PUBKEY_FILE" >> "$AUTHORIZED_KEYS"
 echo -e "Host *\n    StrictHostKeyChecking accept-new" >> ~/.ssh/config
 sudo systemctl restart sshd
+
+git config --global user.name "mkuerst"
+git config --global user.email "michael.kuersteiner@outlook.com"
