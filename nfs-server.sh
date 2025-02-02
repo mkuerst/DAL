@@ -171,7 +171,6 @@ sleep 5
 # echo "mkuerst:1" | sudo chpasswd
 
 
-sudo chown -R mkuerst:dal-PG0 /nfs/
 
 cd /local/repository/
 
@@ -183,3 +182,5 @@ cd /nfs/DAL/
 
 git config --global user.name "mkuerst"
 git config --global user.email "michael.kuersteiner@outlook.com"
+
+sudo chown -R mkuerst:dal-PG0 /nfs/
