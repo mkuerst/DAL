@@ -88,5 +88,6 @@ sudo bash ./installMLNX.sh
 echo -e "Host *\n    StrictHostKeyChecking accept-new" >> ~/.ssh/config
 sudo systemctl restart sshd
 
+cd /nfs/DAL/
 git config --global user.name "mkuerst"
 git config --global user.email "michael.kuersteiner@outlook.com"
