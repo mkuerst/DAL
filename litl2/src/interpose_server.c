@@ -433,8 +433,8 @@ int __pthread_create(pthread_t *thread, const pthread_attr_t *attr,
 
     return REAL(pthread_create)(thread, attr, lp_start_routine, r);
 }
-__asm__(".symver __pthread_create,pthread_create@@" GLIBC_2_2_5);
-__asm__(".symver __pthread_create,pthread_create@" GLIBC_2_34);
+// __asm__(".symver __pthread_create,pthread_create@@" GLIBC_2_2_5);
+// __asm__(".symver __pthread_create,pthread_create@" GLIBC_2_34);
 
 int pthread_mutex_init(pthread_mutex_t *mutex,
                        const pthread_mutexattr_t *attr) {
@@ -505,13 +505,13 @@ int __pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr) {
     DEBUG_PTHREAD("[p] pthread_cond_init\n");
     return lock_cond_init(cond, attr);
 }
-__asm__(".symver __pthread_cond_init,pthread_cond_init@@" GLIBC_2_3_2);
+// __asm__(".symver __pthread_cond_init,pthread_cond_init@@" GLIBC_2_3_2);
 
 int __pthread_cond_destroy(pthread_cond_t *cond) {
     DEBUG_PTHREAD("[p] pthread_cond_destroy\n");
     return lock_cond_destroy(cond);
 }
-__asm__(".symver __pthread_cond_destroy,pthread_cond_destroy@@" GLIBC_2_3_2);
+// __asm__(".symver __pthread_cond_destroy,pthread_cond_destroy@@" GLIBC_2_3_2);
 
 int __pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
                              const struct timespec *abstime) {
@@ -523,8 +523,7 @@ int __pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
     return lock_cond_timedwait(cond, mutex, NULL, abstime);
 #endif
 }
-__asm__(
-    ".symver __pthread_cond_timedwait,pthread_cond_timedwait@@" GLIBC_2_3_2);
+// __asm__( ".symver __pthread_cond_timedwait,pthread_cond_timedwait@@" GLIBC_2_3_2);
 
 int __pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex) {
     DEBUG_PTHREAD("[p] pthread_cond_wait\n");
@@ -535,20 +534,20 @@ int __pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex) {
     return lock_cond_wait(cond, mutex, NULL);
 #endif
 }
-__asm__(".symver __pthread_cond_wait,pthread_cond_wait@@" GLIBC_2_3_2);
+// __asm__(".symver __pthread_cond_wait,pthread_cond_wait@@" GLIBC_2_3_2);
 
 int __pthread_cond_signal(pthread_cond_t *cond) {
     DEBUG_PTHREAD("[p] pthread_cond_signal\n");
     return lock_cond_signal(cond);
 }
-__asm__(".symver __pthread_cond_signal,pthread_cond_signal@@" GLIBC_2_3_2);
+// __asm__(".symver __pthread_cond_signal,pthread_cond_signal@@" GLIBC_2_3_2);
 
 int __pthread_cond_broadcast(pthread_cond_t *cond) {
     DEBUG_PTHREAD("[p] pthread_cond_broadcast\n");
     return lock_cond_broadcast(cond);
 }
-__asm__(
-    ".symver __pthread_cond_broadcast,pthread_cond_broadcast@@" GLIBC_2_3_2);
+// __asm__(
+//     ".symver __pthread_cond_broadcast,pthread_cond_broadcast@@" GLIBC_2_3_2);
 
 
 
