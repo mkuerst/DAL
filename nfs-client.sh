@@ -19,6 +19,7 @@
 OS=$(uname -s)
 HOSTNAME=$(hostname -s)
 
+sleep 30
 #
 # The storage partition is mounted on /nfs, if you change this, you
 # must change profile.py also.
