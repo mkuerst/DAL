@@ -63,7 +63,7 @@ sudo apt install -y rdma-core librdmacm-dev libibverbs-dev
 sudo apt install -y libnuma-dev
 sudo apt install -y gh
 sudo apt-get install -y pdsh 
-sudo apt install -y openmpi-bin openmpi-common libopenmpi-dev
+sudo apt-get install -y openmpi-bin openmpi-common libopenmpi-dev
 # sudo ./mlnxofedinstall  --force
 # sudo /etc/init.d/openibd restart
 # sudo /etc/init.d/opensmd restart
