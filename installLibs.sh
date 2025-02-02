@@ -68,9 +68,9 @@ sudo apt-get install -y openmpi-bin openmpi-common libopenmpi-dev
 # sudo /etc/init.d/openibd restart
 # sudo /etc/init.d/opensmd restart
 
-cd /tmp 
-sudo cp /local/repository/installMLNX.sh /tmp/ 
-sudo bash /tmp/installMLNX.sh
+cd /tmp/
+# sudo cp /local/repository/installMLNX.sh /tmp/ 
+sudo bash /local/repository/installMLNX.sh
 # rm -rf tmp
 
 

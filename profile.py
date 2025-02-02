@@ -78,7 +78,7 @@ for i in range(0, params.clientCount):
     # link_0.addInterface(iface_link)  # Add to link_0
 
 
-    node.addService(pg.Execute(shell="sh", command="sudo /bin/bash /local/repository/installLibs.sh"))
+    # node.addService(pg.Execute(shell="sh", command="sudo /bin/bash /local/repository/installLibs.sh"))
     if i == 0:
         # nfsServer = request.RawPC(nfsServerName)
         node.disk_image = params.osServerImage
