@@ -69,7 +69,7 @@ sudo apt install -y openmpi-bin openmpi-common libopenmpi-dev
 # sudo /etc/init.d/opensmd restart
 
 cd /tmp 
-sudo cp /nfs/DAL/installMLNX.sh /tmp/ 
+sudo cp /local/repository/installMLNX.sh /tmp/ 
 sudo bash /tmp/installMLNX.sh
 # rm -rf tmp
 
@@ -83,11 +83,10 @@ sudo bash /tmp/installMLNX.sh
 # AUTHORIZED_KEYS="~/.ssh/authorized_keys"
 
 # sudo cp /nfs/id_rsa ~/.ssh/
-
 # sudo cat "$PUBKEY_FILE" >> "$AUTHORIZED_KEYS"
-echo -e "Host *\n    StrictHostKeyChecking accept-new" >> ~/.ssh/config
-sudo systemctl restart sshd
 
-cd /nfs/DAL/
-git config --global user.name "mkuerst"
-git config --global user.email "michael.kuersteiner@outlook.com"
+
+
+
+# echo -e "Host *\n    StrictHostKeyChecking accept-new" >> ~/.ssh/config
+# sudo systemctl restart sshd

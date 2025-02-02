@@ -165,7 +165,6 @@ fi
 sleep 5
 cd /nfs
 sudo git clone https://github.com/mkuerst/DAL.git
-cd /nfs/DAL/
 # ssh-keygen -t rsa -b 4096 -f /nfs/id_rsa -N ""
 
 # sudo sed -i 's/^#PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config 
@@ -173,6 +172,7 @@ cd /nfs/DAL/
 # sudo systemctl restart sshd
 # echo "mkuerst:1" | sudo chpasswd
 
+cd /nfs/DAL/
 git config --global user.name "mkuerst"
 git config --global user.email "michael.kuersteiner@outlook.com"
 
