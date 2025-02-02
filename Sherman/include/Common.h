@@ -120,11 +120,11 @@ constexpr Value kValueNull = 0;
 constexpr uint32_t kInternalPageSize = 1024;
 constexpr uint32_t kLeafPageSize = 1024;
 
-// __inline__ unsigned long long rdtsc(void) {
-//   unsigned hi, lo;
-//   __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
-//   return ((unsigned long long)lo) | (((unsigned long long)hi) << 32);
-// }
+__inline__ unsigned long long rdtsc(void) {
+  unsigned hi, lo;
+  __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
+  return ((unsigned long long)lo) | (((unsigned long long)hi) << 32);
+}
 
 inline void mfence() { asm volatile("mfence" ::: "memory"); }
 

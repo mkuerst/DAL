@@ -21,8 +21,9 @@ GCCVERSIONGTEQ5 := $(shell expr `gcc -dumpversion | cut -f1 -d.` \>= 5)
 FLAGS=-I../litl2/include/ -I../litl2/src/ -I/usr/include/rdma/ \
 -I../Sherman/include/ -I../Sherman/test/ \
 -I/home/kumichae/my_libs/rdma-core/build/include/rdma \
--g -Wall -${OFLAG} -DCYCLE_PER_US=${CYCLE_PER_US} -DCACHELINE_SIZE=${CACHELINE_SIZE} \
--L/home/kumichae/my_libs/rdma-core/build/lib/ -lrdmacm -libverbs -lnuma
+-g -Wall -${OFLAG} -DCYCLE_PER_US=${CYCLE_PER_US} -DCACHELINE_SIZE=${CACHELINE_SIZE} -DBOOST_COROUTINES_NO_DEPRECATION_WARNING\
+-L/home/kumichae/my_libs/rdma-core/build/lib/ -lrdmacm -libverbs -lnuma \
+-L../Sherman/build/ -lsherman
 
 ++_FLAGS=-I../litl2/include/ -I../litl2/src/ -I/usr/include/rdma/ \
 -I../Sherman/include/ -I../Sherman/test/ \

@@ -437,8 +437,8 @@ static void *lp_start_routine(void *_arg) {
     return res;
 }
 
-
-int __pthread_create(pthread_t *thread, const pthread_attr_t *attr,
+#undef pthread_create
+int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                    void *(*start_routine)(void *), void *arg) {
     DEBUG_PTHREAD("[p] pthread_create\n");
     struct routine *r = malloc(sizeof(struct routine));
@@ -451,8 +451,8 @@ int __pthread_create(pthread_t *thread, const pthread_attr_t *attr,
     }
     return REAL(pthread_create)(thread, attr, start_routine, arg);
 }
-__asm__(".symver __pthread_create,pthread_create@@" GLIBC_2_2_5);
-__asm__(".symver __pthread_create,pthread_create@" GLIBC_2_34);
+// __asm__(".symver __pthread_create,pthread_create@@" GLIBC_2_2_5);
+// __asm__(".symver __pthread_create,pthread_create@" GLIBC_2_34);
 
 int pthread_mutex_init(pthread_mutex_t *mutex,
                        const pthread_mutexattr_t *attr) {

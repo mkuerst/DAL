@@ -375,7 +375,7 @@ static inline uint64_t rdpmc(unsigned int counter) {
     return low | ((uint64_t)high) << 32;
 }
 
-static inline uint64_t rdtsc(void) {
+static inline uint64_t rdtscc(void) {
     uint32_t low, high;
 
     asm volatile("rdtsc" : "=a"(low), "=d"(high));
@@ -396,7 +396,7 @@ static __inline__ unsigned long long rdtscp(void)
 
 // EPFL libslock
 #define my_random xorshf96
-#define getticks rdtsc
+#define getticks rdtscc
 typedef uint64_t ticks;
 
 static inline unsigned long xorshf96(unsigned long *x, unsigned long *y,
