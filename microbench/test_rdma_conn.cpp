@@ -8,7 +8,10 @@
 #include <time.h>
 #include <unistd.h>
 #include <vector>
+extern "C" {
 #include <utils.h>
+
+}
 
 int main(int argc, char *argv[]) {
     char *res_file_cum, *res_file_single;

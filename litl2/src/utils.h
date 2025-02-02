@@ -22,6 +22,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <malloc.h>
 #include <padding.h>
 #include <stdint.h>
@@ -456,4 +460,9 @@ static inline void wait_cycles(uint64_t cycles) {
             ;
     }
 }
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif
