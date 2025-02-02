@@ -35,5 +35,5 @@ OFED_PKGS=(libc6-dev
 
 apt install -y ${OFED_PKGS[@]}
 
-echo "configure ib devices ..."
-systemctl restart openibd
+# echo "configure ib devices ..."
+# systemctl restart openibd
