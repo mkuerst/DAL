@@ -14,7 +14,8 @@ microbench/server_logs
 microbench/client_logs
 microbench/mpi_test
 microbench/barrier_files/*
-microbench/metadata/*
+# microbench/metadata/*
 litl2/make.log
 microbench/__pycache__
 sherman_deps/
+c_cpp_properties.json

@@ -352,6 +352,22 @@ void parse_cli_args(
     char **mn_ip, char peer_ips[MAX_CLIENTS][MAX_IP_LENGTH],
     int argc, char **argv) 
 {
+    char hostname[256];
+    char *ptr;
+
+    if (gethostname(hostname, sizeof(hostname)) == 0) {
+        DEBUG("Hostname: %s\n", hostname);
+        ptr = strstr(hostname, "node");
+        if (ptr != NULL) {
+            *client = atoi(ptr + 4) - 1;  // 4 is the length of "node"
+            DEBUG("Extracted node number: %d\n", *client);
+        } else {
+            DEBUG("No node found in the hostname.\n");
+        }
+    } else {
+        _error("gethostname failed");
+    }
+
     int option;
     int i = 0;
 	while ((option = getopt(argc, argv,
