@@ -370,6 +370,8 @@ void parse_cli_args(
 
     int option;
     int i = 0;
+    char *addresses;
+    char *token;
 	while ((option = getopt(argc, argv,
     "p:o:c:t:l:i:d:s:m:r:e:f:g:")) != -1) 
     {
@@ -384,8 +386,8 @@ void parse_cli_args(
                 *res_file_single = optarg; 
 				break;
             case 'p':
-                char *addresses = strdup(optarg);
-                char *token = strtok(addresses, ",");
+                addresses = strdup(optarg);
+                token = strtok(addresses, ",");
                 while(token) {
                     strncpy(peer_ips[i], token, MAX_IP_LENGTH - 1);
                     token = strtok(NULL, ",");
