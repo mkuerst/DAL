@@ -60,6 +60,7 @@ sudo apt-get -y --force-yes install openjdk-8-jdk
 # cd MLNX_OFED_LINUX-4.9-5.1.0.0-ubuntu22.04-x86_64
 
 sudo apt install -y rdma-core librdmacm-dev libibverbs-dev
+sudo apt-get install -y infiniband-diags
 sudo apt install -y libnuma-dev
 sudo apt install -y gh
 sudo apt-get install -y pdsh 
