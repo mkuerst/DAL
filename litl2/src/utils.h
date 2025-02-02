@@ -23,7 +23,11 @@
  * SOFTWARE.
  */
 #ifdef __cplusplus
+#include <atomic>
+using namespace std;
 extern "C" {
+#else
+#include <stdatomic.h>
 #endif
 
 #include <malloc.h>
@@ -37,7 +41,6 @@ extern "C" {
 #include <rdma_cma.h>
 #include <stdbool.h>
 #include <limits.h>
-#include <stdatomic.h>
 
 #include <sched.h>
 #include <numa.h>
