@@ -8,7 +8,7 @@ ifeq ($(LOCAL), 0)
 	CFLAGS=-I../include/ -I/home/kumichae/my_libs/rdma-core/build/include/rdma/ -I../obj/CLHT/include/ -I../obj/CLHT/external/include/ -I/home/kumichae/my_libs/papi-7.2.0b1/src -fPIC -Wall -$(OFLAG) -g -DCACHELINE_SIZE=$(CACHELINE_SIZE) -D$(COMM_PROT) -D$(DEBUG) -D$(CORRECTNESS)
 else
 # LOCAL MACHINE
-	LDFLAGS=-L../obj/CLHT/external/lib -L../obj/CLHT  -Wl,--whole-archive -Wl,--version-script=interpose.map -lsspfd -lssmem -lclht -lrt -lm -ldl -m64 -pthread -lrdmacm -libverbs -lnuma
+	LDFLAGS=-L../obj/CLHT/external/lib -L../obj/CLHT -Wl,--whole-archive -Wl,--version-script=interpose.map -lsspfd -lssmem -lclht -Wl,--no-whole-archive  -lrt -lm -ldl -m64 -pthread -lrdmacm -libverbs -lnuma
 	CFLAGS=-I../include/ -I/usr/include/rdma/ -I../obj/CLHT/include/ -I../obj/CLHT/external/include/ -fPIC -Wall -$(OFLAG) -g -DCACHELINE_SIZE=$(CACHELINE_SIZE) -D$(COMM_PROT) -D$(DEBUG) -D$(CORRECTNESS)
 endif
 # -Wl,--whole-archive -Wl,--version-script=interpose.map
