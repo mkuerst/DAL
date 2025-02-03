@@ -162,7 +162,7 @@ else
 fi
 
 # Give it time to start-up
-sleep 10
+sleep 5
 # ssh-keygen -t rsa -b 4096 -f /nfs/id_rsa -N ""
 
 # sudo sed -i 's/^#PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config 
@@ -172,15 +172,15 @@ sleep 10
 
 
 
-cd /local/repository/
+# cd /local/repository/
 
-sudo bash /local/repository/installLibs.sh
+# sudo bash /local/repository/installLibs.sh
 
-cd /nfs
-sudo git clone https://github.com/mkuerst/DAL.git
-cd /nfs/DAL/
+# cd /nfs
+# sudo git clone https://github.com/mkuerst/DAL.git
+# cd /nfs/DAL/
 
-git config --global user.name "mkuerst"
-git config --global user.email "michael.kuersteiner@outlook.com"
+# git config --global user.name "mkuerst"
+# git config --global user.email "michael.kuersteiner@outlook.com"
 
 # sudo chown -R mkuerst:dal-PG0 /nfs/
