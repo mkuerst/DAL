@@ -15,7 +15,6 @@ imageList = [
     ('urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU20-64-STD', 'UBUNTU 20.04'),
     ('urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU22-64-STD', 'UBUNTU 22.04'),
     ('urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU18-64-STD', 'UBUNTU 18.04'),
-    ('urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU16-64-STD', 'UBUNTU 16.04'),
     ('urn:publicid:IDN+emulab.net+image+emulab-ops//CENTOS8-64-STD', 'CENTOS 8'),
     ('urn:publicid:IDN+emulab.net+image+emulab-ops//CENTOS7-64-STD', 'CENTOS 7'),
     ('urn:publicid:IDN+emulab.net+image+emulab-ops//FBSD131-64-STD', 'FreeBSD 13.1'),
@@ -26,7 +25,6 @@ imageList2 = [
     ('urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU20-64-STD', 'UBUNTU 20.04'),
     ('urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU22-64-STD', 'UBUNTU 22.04'),
     ('urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU18-64-STD', 'UBUNTU 18.04'),
-    ('urn:publicid:IDN+emulab.net+image+emulab-ops//UBUNTU16-64-STD', 'UBUNTU 16.04'),
     ('urn:publicid:IDN+emulab.net+image+emulab-ops//FBSD131-64-STD', 'FreeBSD 13.1'),
     ('urn:publicid:IDN+emulab.net+image+emulab-ops//FBSD123-64-STD', 'FreeBSD 12.3'),
 ]
@@ -60,12 +58,12 @@ nfsLan.vlan_tagging      = True
 nfsLan.link_multiplexing = True
 
 
-ips1 = ["10.10.1.%d" % i for i in range(0, num_nodes+1)]
-ips2 = ["10.10.2.%d" % i for i in range(0, num_nodes+1)]
+ips1 = ["10.10.1.%d" % i for i in range(1, num_nodes+1)]
+ips2 = ["10.10.2.%d" % i for i in range(1, num_nodes+1)]
 # link_0 = request.Link('link-0')
 # link_0.Site('undefined')
 
-for i in range(0, params.clientCount):
+for i in range(1, params.clientCount+1):
     node = request.RawPC("node%d" % i)
     node.hardware_type = params.hardware
     node.routable_control_ip = True
