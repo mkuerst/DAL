@@ -60,18 +60,18 @@ nfsLan.vlan_tagging      = True
 nfsLan.link_multiplexing = True
 
 
-ips = ["10.10.2.%d" % i for i in range(0, num_nodes+1)]
+ips1 = ["10.10.1.%d" % i for i in range(0, num_nodes+1)]
+ips2 = ["10.10.2.%d" % i for i in range(0, num_nodes+1)]
 # link_0 = request.Link('link-0')
 # link_0.Site('undefined')
 
 for i in range(0, params.clientCount):
     node = request.RawPC("node%d" % i)
-    node.installRootKeys(True, True)
     node.hardware_type = params.hardware
-    # node.routable_control_ip = True
+    node.routable_control_ip = True
 
     iface_nfs = node.addInterface("nfs%d" % i)  
-    # iface_nfs.addAddress(pg.IPv4Address(ips[i], "255.255.255.0"))
+    iface_nfs.addAddress(pg.IPv4Address(ips1[i], "255.255.255.0"))
     
     # iface_link = node.addInterface("node" % i)  
     # iface_link.addAddress(pg.IPv4Address(ips[i], "255.255.255.0"))
@@ -88,6 +88,7 @@ for i in range(0, params.clientCount):
         node.disk_image = params.osImage
         node.addService(pg.Execute(shell="sh", command="sudo /bin/bash /local/repository/nfs-client.sh"))
 
+    node.installRootKeys(True, True)
     # node.addService(pg.Execute(shell="sh", command="sudo /bin/bash /local/repository/installLibs.sh"))
 
 pc.printRequestRSpec(request)

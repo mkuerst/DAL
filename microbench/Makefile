@@ -42,9 +42,6 @@ target: ../litl2/src/utils.c ../litl2/src/rdma_common.o
 	gcc main_orig.c $^ -o main_orig ${FLAGS} -DMUTEX
 	gcc -c ../litl2/src/utils.c -o litl_utils.o ${FLAGS} 
 # g++ -std=c++17 test_rdma_conn.cpp litl_utils.o  ../Sherman/build/libsherman.a ../litl2/src/rdma_common.o -o test_rdma_conn ${FLAGS} -DMUTEX
-# gcc main.c -o main_spin ${FLAGS} -DSPIN
-
-
 
 # mutex:
 # 	gcc main.c -o main ${FLAGS} -DMUTEX
