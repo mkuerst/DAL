@@ -55,39 +55,18 @@ cd ../..
 # openjdk-8
 sudo apt-get -y --force-yes install openjdk-8-jdk
 
-# wget https://content.mellanox.com/ofed/MLNX_OFED-4.9-5.1.0.0/MLNX_OFED_LINUX-4.9-5.1.0.0-ubuntu22.04-x86_64.tgz
-# tar -xvf MLNX_OFED_LINUX-4.9-5.1.0.0-ubuntu22.04-x86_64.tgz
-# cd MLNX_OFED_LINUX-4.9-5.1.0.0-ubuntu22.04-x86_64
-
 sudo apt install -y rdma-core librdmacm-dev libibverbs-dev
 sudo apt-get install -y infiniband-diags
 sudo apt install -y libnuma-dev
 sudo apt install -y gh
 sudo apt install -y pdsh 
 sudo apt install -y htop
+sudo apt install -y dsh
 sudo apt install -y openmpi-bin openmpi-common libopenmpi-dev
 
 cd /tmp/
-# sudo cp /local/repository/installMLNX.sh /tmp/ 
 sudo bash /local/repository/installMLNX.sh
-# rm -rf tmp
 
-
-# sudo sed -i 's/^#PubAuthentication no/PubAuthentication yes/' /etc/ssh/sshd_config 
-# sudo sed -i 's/^PubAuthentication no/PubAuthentication yes/' /etc/ssh/sshd_config 
-# sudo sed -i 's/^#AuthorizedKeysFile .ssh/authorized_keys .ssh/authorized_keys/AuthorizedKeysFile /users/mkuerst/.ssh/authorized_keys' /etc/ssh/sshd_config 
-# sudo sed -i 's/^AuthorizedKeysFile .ssh/authorized_keys .ssh/authorized_keys/AuthorizedKeysFile /users/mkuerst/.ssh/authorized_keys' /etc/ssh/sshd_config 
-
-# PUBKEY_FILE="/nfs/id_rsa.pub"
-# AUTHORIZED_KEYS="~/.ssh/authorized_keys"
-
-# sudo cp /nfs/id_rsa ~/.ssh/
-# sudo cat "$PUBKEY_FILE" >> "$AUTHORIZED_KEYS"
 
 # echo -e "Host *\n    StrictHostKeyChecking accept-new" >> ~/.ssh/config
 # sudo systemctl restart sshd
-
-
-# sudo ./mlnxofedinstall  --force
-# sudo /etc/init.d/openibd restart
-# sudo /etc/init.d/opensmd restart
