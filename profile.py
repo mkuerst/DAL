@@ -70,22 +70,22 @@ for i in range(0, params.clientCount):
     node.hardware_type = params.hardware
     node.routable_control_ip = True
 
-    iface_nfs = node.addInterface("nfs%d" % i)  
+    node.disk_image = params.osImage
+    iface_nfs = node.addInterface(node.addInterface())  
     iface_nfs.addAddress(pg.IPv4Address(ips1[i], "255.255.255.0"))
+    nfsLan.addInterface(iface_nfs)  # Add to nfsLan
+
     
-    # iface_link = node.addInterface("node" % i)  
+    # iface_link = node.addInterface("node%d" % i)  
     # iface_link.addAddress(pg.IPv4Address(ips[i], "255.255.255.0"))
     
-    nfsLan.addInterface(iface_nfs)  # Add to nfsLan
     # link_0.addInterface(iface_link)  # Add to link_0
 
     if i == 0:
-        node.disk_image = params.osServerImage
         nfsBS = node.Blockstore("nfsBS", nfsDirectory)
         nfsBS.size = params.nfsSize
         node.addService(pg.Execute(shell="sh", command="sudo /bin/bash /local/repository/nfs-server.sh"))
     else:
-        node.disk_image = params.osImage
         node.addService(pg.Execute(shell="sh", command="sudo /bin/bash /local/repository/nfs-client.sh"))
 
     node.installRootKeys(True, True)
