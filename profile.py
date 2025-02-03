@@ -58,8 +58,8 @@ nfsLan.vlan_tagging      = True
 nfsLan.link_multiplexing = True
 
 
-ips1 = ["10.10.1.%d" % i for i in range(1, num_nodes+1)]
-ips2 = ["10.10.2.%d" % i for i in range(1, num_nodes+1)]
+ips1 = ["10.10.1.%d" % i for i in range(0, num_nodes+1)]
+ips2 = ["10.10.2.%d" % i for i in range(0, num_nodes+1)]
 # link_0 = request.Link('link-0')
 # link_0.Site('undefined')
 
