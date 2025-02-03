@@ -114,5 +114,5 @@ cd /local/repository/
 sudo bash installLibs.sh
 sudo bash /local/repository/Sherman/script/hugepage.sh
 
-exit 0
+sudo reboot
 

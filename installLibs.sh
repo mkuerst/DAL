@@ -64,7 +64,19 @@ sudo apt install -y htop
 sudo apt install -y dsh
 
 cd /local/repository/
-sudo bash installMLNX.sh
+
+OFED_FILE="/local/repository/MLNX_OFED_LINUX-4.9-5.1.0.0-ubuntu20.04-x86_64"
+if [ ! -f "$OFED_FILE" ]; then
+    echo "MLNX OFED version is not installed. Running installation script..."
+    if [ -x "$INSTALL_SCRIPT" ]; then
+		sudo bash installMLNX.sh
+    else
+        echo "Error: Install script not found or not executable."
+        exit 1
+    fi
+else
+    echo "MLNX OFED version already installed."
+fi
 
 sudo apt install -y openmpi-bin openmpi-common libopenmpi-dev
 

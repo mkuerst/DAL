@@ -185,3 +185,5 @@ sudo chown -R mkuerst:dal-PG0 /nfs/
 
 sudo git config --global user.name "mkuerst"
 sudo git config --global user.email "michael.kuersteiner@outlook.com"
+
+sudo reboot
