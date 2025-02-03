@@ -422,7 +422,8 @@ static void *lp_start_routine(void *_arg) {
     return res;
 }
 
-int __pthread_create(pthread_t *thread, const pthread_attr_t *attr,
+#undef pthread_create
+int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                    void *(*start_routine)(void *), void *arg) {
     DEBUG_PTHREAD("[p] pthread_create\n");
     struct routine *r = malloc(sizeof(struct routine));
@@ -432,8 +433,8 @@ int __pthread_create(pthread_t *thread, const pthread_attr_t *attr,
 
     return REAL(pthread_create)(thread, attr, lp_start_routine, r);
 }
-__asm__(".symver __pthread_create,pthread_create@@" GLIBC_2_2_5);
-__asm__(".symver __pthread_create,pthread_create@" GLIBC_2_34);
+// __asm__(".symver __pthread_create,pthread_create@@" GLIBC_2_2_5);
+// __asm__(".symver __pthread_create,pthread_create@" GLIBC_2_34);
 
 int pthread_mutex_init(pthread_mutex_t *mutex,
                        const pthread_mutexattr_t *attr) {
@@ -665,17 +666,22 @@ int pthread_rwlock_rdlock(pthread_rwlock_t *rwlock) {
 #endif
 }
 
-int pthread_rwlock_wrlock(pthread_rwlock_t *rwlock) {
-    DEBUG_PTHREAD("[p] pthread_rwlock_wrlock\n");
-#if !NO_INDIRECTION
-    lock_transparent_mutex_t *impl = ht_lock_get((void*)rwlock);
-    return lock_mutex_lock(impl->lock_lock, get_node(impl));
-#else
-    assert(0 && "rwlock not supported without indirection");
-#endif
-}
+// int pthread_rwlock_wrlock(pthread_rwlock_t *rwlock) {
+//     DEBUG_PTHREAD("[p] pthread_rwlock_wrlock\n");
+//     disa_mutex_t *disa_mutex = (disa_mutex_t *) rwlock;
+//     if (disa_mutex->disa != 'y') {
+//         // DEBUG("native mutex_lock\n");
+//         return REAL(pthread_rwlock_wrlock)(rwlock);
+//     }
+// #if !NO_INDIRECTION
+//     lock_transparent_mutex_t *impl = ht_lock_get((void*)rwlock);
+//     return lock_mutex_lock(impl->lock_lock, get_node(impl));
+// #else
+//     assert(0 && "rwlock not supported without indirection");
+// #endif
+// }
 
-int pthread_rwlock_timedrdlock(pthread_rwlock_t *lcok,
+int pthread_rwlock_timedrdlock(pthread_rwlock_t *lock,
                             const struct timespec *abstime) {
     assert(0 && "Timed locks not supported");
 }
@@ -706,13 +712,18 @@ int pthread_rwlock_wrtrylock(pthread_rwlock_t *rwlock) {
 #endif
 }
 
-int pthread_rwlock_unlock(pthread_rwlock_t *rwlock) {
-    DEBUG_PTHREAD("[p] pthread_rwlock_unlock\n");
-#if !NO_INDIRECTION
-    lock_transparent_mutex_t *impl = ht_lock_get((void*)rwlock);
-    lock_mutex_unlock(impl->lock_lock, get_node(impl));
-    return 0;
-#else
-    assert(0 && "rwlock not supported without indirection");
-#endif
-}
+// int pthread_rwlock_unlock(pthread_rwlock_t *rwlock) {
+//     DEBUG_PTHREAD("[p] pthread_rwlock_unlock\n");
+//     disa_mutex_t *disa_mutex = (disa_mutex_t *) rwlock;
+//     if (disa_mutex->disa != 'y') {
+//         // DEBUG("native mutex_lock\n");
+//         return REAL(pthread_rwlock_unlock)(rwlock);
+//     }
+// #if !NO_INDIRECTION
+//     lock_transparent_mutex_t *impl = ht_lock_get((void*)rwlock);
+//     lock_mutex_unlock(impl->lock_lock, get_node(impl));
+//     return 0;
+// #else
+//     assert(0 && "rwlock not supported without indirection");
+// #endif
+// }
