@@ -64,11 +64,8 @@ sudo apt-get install -y infiniband-diags
 sudo apt install -y libnuma-dev
 sudo apt install -y gh
 sudo apt install -y pdsh 
-sudo apt install -y openmpi-bin openmpi-common libopenmpi-dev
 sudo apt install -y htop
-# sudo ./mlnxofedinstall  --force
-# sudo /etc/init.d/openibd restart
-# sudo /etc/init.d/opensmd restart
+sudo apt install -y openmpi-bin openmpi-common libopenmpi-dev
 
 cd /tmp/
 # sudo cp /local/repository/installMLNX.sh /tmp/ 
@@ -87,8 +84,10 @@ sudo bash /local/repository/installMLNX.sh
 # sudo cp /nfs/id_rsa ~/.ssh/
 # sudo cat "$PUBKEY_FILE" >> "$AUTHORIZED_KEYS"
 
-
-
-
 # echo -e "Host *\n    StrictHostKeyChecking accept-new" >> ~/.ssh/config
 # sudo systemctl restart sshd
+
+
+# sudo ./mlnxofedinstall  --force
+# sudo /etc/init.d/openibd restart
+# sudo /etc/init.d/opensmd restart

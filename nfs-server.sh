@@ -162,7 +162,7 @@ else
 fi
 
 # Give it time to start-up
-sleep 5
+sleep 10
 # ssh-keygen -t rsa -b 4096 -f /nfs/id_rsa -N ""
 
 # sudo sed -i 's/^#PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config 
@@ -183,4 +183,4 @@ cd /nfs/DAL/
 git config --global user.name "mkuerst"
 git config --global user.email "michael.kuersteiner@outlook.com"
 
-sudo chown -R mkuerst:dal-PG0 /nfs/
+# sudo chown -R mkuerst:dal-PG0 /nfs/

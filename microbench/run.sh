@@ -13,8 +13,10 @@ client_libs_dir=$BASE"/client/"
 orig_libs_dir=$BASE"/original/"
 microbenches=("empty_cs2n" "empty_cs1n" "lat" "mem2n" "mem1n")
 
-duration=30
+duration=5
 critical=1000
+runs=1
+mem_runs=1
 
 client_filecum_header="tid,loop_in_cs,lock_acquires,lock_hold(ms),total_duration(s),\
 wait_acq(ms),wait_rel(ms),lwait_acq,lwait_rel,\
@@ -56,7 +58,7 @@ do
 
 
             echo "START MICROBENCH $microb CLIENT WITH $i THREADS"
-            LD_PRELOAD=$orig_so ./main_orig $i $duration $critical $j $orig_rescum_file $orig_rescum_file
+            LD_PRELOAD=$orig_so ./main_orig -t $i -d $duration -m $j -f $orig_rescum_file -g $orig_ressingle_file -r $runs -e $mem_runs
         done
     done
 done

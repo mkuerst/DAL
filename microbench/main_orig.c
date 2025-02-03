@@ -22,10 +22,13 @@
 
 char *array0;
 char *array1;
-int nthreads;
-int num_runs, num_mem_runs;
 char *res_file_cum, *res_file_single;
-int use_nodes;
+char *mn_ip, peer_ips[MAX_CLIENTS][MAX_IP_LENGTH];
+int nthreads, client, num_clients,
+num_runs, num_mem_runs, use_nodes,
+scope, mode, duration, nlocks;
+
+ull *lock_acqs, *lock_rels;
 
 lock_t lock;
 pthread_barrier_t global_barrier;
@@ -144,15 +147,10 @@ void *mem_worker(void *arg) {
 }
 
 int main(int argc, char *argv[]) {
-    srand(42);
-    nthreads = atoi(argv[1]);
-    int duration = atoi(argv[2]);
-    double cs = atoi(argv[3]);
-    int mode = atoi(argv[4]);
-    res_file_cum = argv[5];
-    res_file_single = argv[6];
-    num_runs = atoi(argv[7]);
-    num_mem_runs = atoi(argv[8]);
+    parse_cli_args(&nthreads, &num_clients, &nlocks, &client, &duration,
+    &mode, &num_runs, &num_mem_runs, &res_file_cum, &res_file_single,
+    &mn_ip, peer_ips, argc, argv
+    );
     void* worker; 
     switch (mode) {
         case 0:
@@ -183,21 +181,17 @@ int main(int argc, char *argv[]) {
     pthread_attr_init(&attr);
 
     volatile int stop __attribute__((aligned (CACHELINE_SIZE))) = 0;
-    volatile ull global_its __attribute__((aligned (CACHELINE_SIZE))) = 0;
-    double short_cs = duration * 1e6 / 100000.; //range in (us)
-    double long_cs = duration * 1e6 / 100.;
-    // int stop_warmup __attribute__((aligned (CACHELINE_SIZE))) = 0;
     for (int i = 0; i < nthreads; i++) {
         tasks[i] = (task_t) {0};
-        tasks[i].stop = &stop;
-        tasks[i].global_its = &global_its;
-        tasks[i].cs = cs == 0 ? (i%2 == 0 ? short_cs : long_cs) : cs;
-        tasks[i].priority = 1;
+        tasks[i].client_id = client;
+        tasks[i].nclients = num_clients;
         tasks[i].id = i;
+        tasks[i].nlocks = nlocks;
+        tasks[i].disa = 'y';
+        tasks[i].stop = &stop;;
+        tasks[i].server_ip = mn_ip;
         tasks[i].duration = duration;
-        // fprintf(stderr, "random cs: %f\n", tasks[i].cs);
-        // int priority = atoi(argv[4+i*2]);
-        // tasks[i].priority = priority;
+        tasks[i].nthreads = nthreads;
     }
     allocate_task_mem(tasks, num_runs, num_mem_runs, nthreads);
     lock_init(&lock);
