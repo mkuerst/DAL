@@ -35,41 +35,10 @@
       ]
     },
     {
-      "name": "C - will-it-scale - pthread_mutex",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/will-it-scale/pthread_mutex1_threads",
-      "args": [
-        "-t",
-        "2",
-        "-s",
-        "3",
-        "-lpapi"
-      ],
-      "stopAtEntry": false,
-      "cwd": "${workspaceFolder}",
-      "environment": [
-        {
-          "name": "LD_PRELOAD",
-          "value": "/nfs/DAL/litl/impl/libcbomcs_spinlock.so"
-        }
-      ],
-      "MIMode": "gdb",
-      "setupCommands": [
-        {
-          "description": "Enable pretty-printing for gdb",
-          "text": "-enable-pretty-printing",
-          "ignoreFailures": true
-        }
-      ],
-      "externalConsole": false,
-      "preLaunchTask": "build"
-    },
-    {
       "name": "orig",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/microbench/main_orig",
+      "program": "${workspaceFolder}/microbench/test_rdma_conn",
       "args": [
         "-t",
         "1",
@@ -99,10 +68,10 @@
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
       "environment": [
-        {
-          "name": "LD_PRELOAD",
-          "value": "${workspaceFolder}/litl2/lib/original/libbackoff_original.so"
-        }
+        // {
+        //   "name": "LD_PRELOAD",
+        //   "value": "${workspaceFolder}/litl2/lib/original/libbackoff_original.so"
+        // }
       ],
       "MIMode": "gdb",
       "setupCommands": [
