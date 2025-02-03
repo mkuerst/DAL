@@ -71,7 +71,7 @@ for i in range(0, params.clientCount):
     node.routable_control_ip = True
 
     node.disk_image = params.osImage
-    iface_nfs = node.addInterface(node.addInterface())  
+    iface_nfs = node.addInterface()  
     iface_nfs.addAddress(pg.IPv4Address(ips1[i], "255.255.255.0"))
     nfsLan.addInterface(iface_nfs)  # Add to nfsLan
 
