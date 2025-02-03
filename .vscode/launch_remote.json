@@ -71,14 +71,29 @@
       "request": "launch",
       "program": "${workspaceFolder}/microbench/main_orig",
       "args": [
-        "16",
+        "-t",
         "1",
-        "1000",
-        "0.0.0.0",
+        "-d",
         "1",
+        "-s",
+        "10.10.2.0",
+        "-p",
+        "10.10.2.0",
+        "-m",
+        "0",
+        "-i",
+        "0",
+        "-c",
+        "1",
+        "-f",
         "/nfs/DAL/microbench/results/test_cum.csv",
+        "-g",
         "/nfs/DAL/microbench/results/test_single.csv",
-        "3",
+        "-l",
+        "1",
+        "-r",
+        "1",
+        "-e",
         "1"
       ],
       "stopAtEntry": false,
@@ -86,7 +101,7 @@
       "environment": [
         {
           "name": "LD_PRELOAD",
-          "value": "/nfs/DAL/litl2/lib/original/libalockepfl_original.so"
+          "value": "/home/mihi/Desktop/DAL/litl2/lib/original/libbackoff_original.so"
         }
       ],
       "MIMode": "gdb",
