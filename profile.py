@@ -73,24 +73,21 @@ for i in range(0, params.clientCount):
     iface_nfs = node.addInterface("nfs%d" % i)  
     iface_nfs.addAddress(pg.IPv4Address(ips[i], "255.255.255.0"))
     
-    # iface_link = node.addInterface("eth1")  
+    # iface_link = node.addInterface("node" % i)  
     # iface_link.addAddress(pg.IPv4Address(ips[i], "255.255.255.0"))
     
     nfsLan.addInterface(iface_nfs)  # Add to nfsLan
     # link_0.addInterface(iface_link)  # Add to link_0
 
-
     if i == 0:
-        # nfsServer = request.RawPC(nfsServerName)
         node.disk_image = params.osServerImage
         nfsBS = node.Blockstore("nfsBS", nfsDirectory)
         nfsBS.size = params.nfsSize
         node.addService(pg.Execute(shell="sh", command="sudo /bin/bash /local/repository/nfs-server.sh"))
-        # node.addService(pg.Execute(shell="sh", command="sudo /bin/bash /local/repository/nfs-client.sh"))
     else:
         node.disk_image = params.osImage
         node.addService(pg.Execute(shell="sh", command="sudo /bin/bash /local/repository/nfs-client.sh"))
 
-    node.addService(pg.Execute(shell="sh", command="sudo /bin/bash /local/repository/installLibs.sh"))
+    # node.addService(pg.Execute(shell="sh", command="sudo /bin/bash /local/repository/installLibs.sh"))
 
 pc.printRequestRSpec(request)
