@@ -730,25 +730,25 @@ int pthread_rwlock_destroy(pthread_rwlock_t *rwlock) {
 #endif
 }
 
-int pthread_rwlock_rdlock(pthread_rwlock_t *rwlock) {
-    DEBUG_PTHREAD("[p] pthread_rwlock_rdlock\n");
-#if !NO_INDIRECTION
-    lock_transparent_mutex_t *impl = ht_lock_get((void*)rwlock);
-    return lock_mutex_lock(impl->lock_lock, get_node(impl));
-#else
-    assert(0 && "rwlock not supported without indirection");
-#endif
-}
+// int pthread_rwlock_rdlock(pthread_rwlock_t *rwlock) {
+//     DEBUG_PTHREAD("[p] pthread_rwlock_rdlock\n");
+// #if !NO_INDIRECTION
+//     lock_transparent_mutex_t *impl = ht_lock_get((void*)rwlock);
+//     return lock_mutex_lock(impl->lock_lock, get_node(impl));
+// #else
+//     assert(0 && "rwlock not supported without indirection");
+// #endif
+// }
 
-int pthread_rwlock_wrlock(pthread_rwlock_t *rwlock) {
-    DEBUG_PTHREAD("[p] pthread_rwlock_wrlock\n");
-#if !NO_INDIRECTION
-    lock_transparent_mutex_t *impl = ht_lock_get((void*)rwlock);
-    return lock_mutex_lock(impl->lock_lock, get_node(impl));
-#else
-    assert(0 && "rwlock not supported without indirection");
-#endif
-}
+// int pthread_rwlock_wrlock(pthread_rwlock_t *rwlock) {
+//     DEBUG_PTHREAD("[p] pthread_rwlock_wrlock\n");
+// #if !NO_INDIRECTION
+//     lock_transparent_mutex_t *impl = ht_lock_get((void*)rwlock);
+//     return lock_mutex_lock(impl->lock_lock, get_node(impl));
+// #else
+//     assert(0 && "rwlock not supported without indirection");
+// #endif
+// }
 
 int pthread_rwlock_timedrdlock(pthread_rwlock_t *lock,
                             const struct timespec *abstime) {
@@ -781,13 +781,13 @@ int pthread_rwlock_wrtrylock(pthread_rwlock_t *rwlock) {
 #endif
 }
 
-int pthread_rwlock_unlock(pthread_rwlock_t *rwlock) {
-    DEBUG_PTHREAD("[p] pthread_rwlock_unlock\n");
-#if !NO_INDIRECTION
-    lock_transparent_mutex_t *impl = ht_lock_get((void*)rwlock);
-    lock_mutex_unlock(impl->lock_lock, get_node(impl));
-    return 0;
-#else
-    assert(0 && "rwlock not supported without indirection");
-#endif
-}
+// int pthread_rwlock_unlock(pthread_rwlock_t *rwlock) {
+//     DEBUG_PTHREAD("[p] pthread_rwlock_unlock\n");
+// #if !NO_INDIRECTION
+//     lock_transparent_mutex_t *impl = ht_lock_get((void*)rwlock);
+//     lock_mutex_unlock(impl->lock_lock, get_node(impl));
+//     return 0;
+// #else
+//     assert(0 && "rwlock not supported without indirection");
+// #endif
+// }
