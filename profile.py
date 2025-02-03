@@ -66,6 +66,7 @@ ips = ["10.10.2.%d" % i for i in range(0, num_nodes+1)]
 
 for i in range(0, params.clientCount):
     node = request.RawPC("node%d" % i)
+    node.installRootKeys(True, True)
     node.hardware_type = params.hardware
     node.routable_control_ip = True
 
@@ -79,14 +80,12 @@ for i in range(0, params.clientCount):
     # link_0.addInterface(iface_link)  # Add to link_0
 
     if i == 0:
-        node.installRootKeys(True, True)
         node.disk_image = params.osServerImage
         nfsBS = node.Blockstore("nfsBS", nfsDirectory)
         nfsBS.size = params.nfsSize
         node.addService(pg.Execute(shell="sh", command="sudo /bin/bash /local/repository/nfs-server.sh"))
     else:
         node.disk_image = params.osImage
-        node.installRootKeys(False, True)
         node.addService(pg.Execute(shell="sh", command="sudo /bin/bash /local/repository/nfs-client.sh"))
 
     # node.addService(pg.Execute(shell="sh", command="sudo /bin/bash /local/repository/installLibs.sh"))
