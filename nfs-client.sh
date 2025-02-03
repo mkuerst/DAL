@@ -112,6 +112,7 @@ echo "Mount of $NFSSERVER:$NFSDIR is ready."
 # sudo /bin/bash /local/repository/installLibs.sh
 cd /local/repository/
 sudo bash installLibs.sh
+sudo bash /local/repository/Sherman/script/hugepage.sh
 
 exit 0
 

@@ -171,8 +171,6 @@ cd /nfs
 sudo git clone https://github.com/mkuerst/DAL.git
 cd /nfs/DAL/
 
-git config --global user.name "mkuerst"
-git config --global user.email "michael.kuersteiner@outlook.com"
 
 sudo chown -R mkuerst:dal-PG0 /nfs/
 
@@ -181,5 +179,9 @@ sudo mkdir build
 cd build/
 sudo cmake ..
 sudo make -j
+sudo bash /nfs/DAL/Sherman/script/hugepage.sh
 
 sudo chown -R mkuerst:dal-PG0 /nfs/
+
+sudo git config --global user.name "mkuerst"
+sudo git config --global user.email "michael.kuersteiner@outlook.com"

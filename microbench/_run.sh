@@ -79,7 +79,7 @@ REMOTE_CLIENTS=("r630-11" "r630-03" "r630-04" "r630-06")
 REMOTE_USER="root"
 REMOTE_SERVER="node1"
 REMOTE_CLIENTS=("node1" "node2" "node3" "node4" "node5")
-server_ip=10.10.2.1
+server_ip=10.10.1.1
 
 # eval "$(ssh-agent -s)"
 

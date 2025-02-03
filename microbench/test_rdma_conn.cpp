@@ -34,6 +34,4 @@ int main(int argc, char *argv[]) {
     DSMConfig config;
     config.machineNR = kNodeCount;
     dsm = DSM::getInstance(config);
-
-
 }
