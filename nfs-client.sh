@@ -30,7 +30,7 @@ NFSDIR="/nfs"
 # change profile.py also.
 #
 NFSNETNAME="nfsLan"
-NFSSERVER="node0-$NFSNETNAME"
+NFSSERVER="node1-$NFSNETNAME"
 
 #
 # The name of the "prepare" for image snapshot hook.
