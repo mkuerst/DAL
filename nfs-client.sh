@@ -109,6 +109,7 @@ fi
 echo ""
 echo "Mount of $NFSSERVER:$NFSDIR is ready."
 
+# sudo /bin/bash /local/repository/installLibs.sh
 
 exit 0
 

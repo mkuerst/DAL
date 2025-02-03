@@ -165,7 +165,7 @@ fi
 sleep 5
 
 # cd /local/repository/
-# sudo bash /local/repository/installLibs.sh
+# sudo /bin/bash /local/repository/installLibs.sh
 
 # cd /nfs
 # sudo git clone https://github.com/mkuerst/DAL.git

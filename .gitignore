@@ -1,6 +1,7 @@
 microbench/results*
 litl/impl/*
-# .vscode
+.vscode/launch.json
+settings.json
 *.o
 *.so
 litl/Makefile
@@ -19,3 +20,4 @@ litl2/make.log
 microbench/__pycache__
 sherman_deps/
 c_cpp_properties.json
+
