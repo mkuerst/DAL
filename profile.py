@@ -70,7 +70,7 @@ for i in range(0, params.clientCount):
     node.routable_control_ip = True
     node.installRootKeys(True, True)
 
-    iface_nfs = node.addInterface("nfs%d" % i)  
+    iface_nfs = node.addInterface()  
     # iface_nfs.addAddress(pg.IPv4Address(ips[i], "255.255.255.0"))
     
     # iface_link = node.addInterface("node" % i)  
