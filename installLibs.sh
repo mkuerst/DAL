@@ -62,11 +62,11 @@ sudo apt install -y gh
 sudo apt install -y pdsh 
 sudo apt install -y htop
 sudo apt install -y dsh
+
+cd /local/repository/
+sudo bash installMLNX.sh
+
 sudo apt install -y openmpi-bin openmpi-common libopenmpi-dev
-
-cd /tmp/
-sudo bash /local/repository/installMLNX.sh
-
 
 # echo -e "Host *\n    StrictHostKeyChecking accept-new" >> ~/.ssh/config
 # sudo systemctl restart sshd

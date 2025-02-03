@@ -77,9 +77,9 @@ server_ip=10.233.0.21
 REMOTE_CLIENTS=("r630-11" "r630-03" "r630-04" "r630-06")
 
 REMOTE_USER="root"
-REMOTE_SERVER="node0"
-REMOTE_CLIENTS=("node0" "node1" "node2" "node3" "node4")
-server_ip=10.10.2.0
+REMOTE_SERVER="node1"
+REMOTE_CLIENTS=("node1" "node2" "node3" "node4" "node5")
+server_ip=10.10.2.1
 
 # eval "$(ssh-agent -s)"
 
@@ -136,7 +136,7 @@ rm -rf barrier_files/*
 
 comm_prot="rdma"
 microbenches=("empty_cs2n" "empty_cs1n" "lat" "mem2n" "mem1n" "mlocks2n" "mlocks1n" "correctness")
-node_ids=(1 2 3 4)
+node_ids=(2 3 4)
 peer_ips=(    ""
     "10.233.0.10"
     "10.233.0.11"
@@ -152,12 +152,13 @@ peer_ips=(    ""
     "10.233.0.21"    
 )
 peer_ips=(
-    "10.10.2.0"
-    "10.10.2.1"
-    "10.10.2.2"
-    "10.10.2.3"
-    "10.10.2.4"
-    "10.10.2.5"
+    ""
+    ""
+    "10.10.1.2"
+    "10.10.1.3"
+    "10.10.1.4"
+    "10.10.1.5"
+    "10.10.1.6"
 )
 
 opts=("spinlock")
