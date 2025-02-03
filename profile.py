@@ -79,7 +79,7 @@ for i in range(1, params.clientCount+1):
     
     # link_0.addInterface(iface_link)  # Add to link_0
 
-    if i == 0:
+    if i == 1:
         nfsBS = node.Blockstore("nfsBS", nfsDirectory)
         nfsBS.size = params.nfsSize
         node.addService(pg.Execute(shell="sh", command="sudo /bin/bash /local/repository/nfs-server.sh"))
