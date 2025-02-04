@@ -23,47 +23,19 @@
       "console": "integratedTerminal"
     },
     {
-      "name": "will-it-scale runtest.py w/ specific testcase & impl",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "/nfs/DAL/will-it-scale/runtest.py",
-      "console": "integratedTerminal",
-      "cwd": "/nfs/DAL/will-it-scale/",
-      "args": [
-        "pthread_mutex1",
-        "/nfs/DAL/litl/impl/libcbomcs_spinlock.so"
-      ]
-    },
-    {
       "name": "orig",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/microbench/test_rdma_conn",
       "args": [
-        "-t",
-        "1",
-        "-d",
-        "1",
-        "-s",
-        "10.10.2.0",
-        "-p",
-        "10.10.2.0",
+        "-t", "1",
+        "-d", "1",
         "-m",
         "0",
-        "-i",
-        "0",
-        "-c",
-        "1",
-        "-f",
-        "/nfs/DAL/microbench/results/test_cum.csv",
-        "-g",
-        "/nfs/DAL/microbench/results/test_single.csv",
-        "-l",
-        "1",
-        "-r",
-        "1",
-        "-e",
-        "1"
+        "-f", "/nfs/DAL/microbench/results/test_cum.csv",
+        "-g", "/nfs/DAL/microbench/results/test_single.csv",
+        "-l", "1",
+        "-r", "1",
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
@@ -83,42 +55,63 @@
       ],
       "externalConsole": false
     },
+{
+      "name": "client0",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/microbench/main_disa_",
+      "args": [
+        "-t", "1",
+        "-d", "1",
+        "-m", "0",
+        "-i", "0",
+        "-n", "1",
+        "-f", "/nfs/DAL/microbench/results/test_cum.csv",
+        "-g", "/nfs/DAL/microbench/results/test_single.csv",
+        "-l", "1",
+        "-r", "1",
+      ],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [
+        // {
+        //   "name": "LD_PRELOAD",
+        //   "value": "/nfs/DAL/litl2/lib/client/libbackoff_original_client_spinlock.so"
+        // }
+      ],
+      "MIMode": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ],
+      "externalConsole": false,
+    },
     {
       "name": "client1",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/microbench/main_disa",
+      "program": "${workspaceFolder}/microbench/main_disa_",
       "args": [
-        "-t",
-        "1",
-        "-d",
-        "1",
-        "-s",
-        "192.168.132.61",
-        "-m",
-        "5",
-        "-i",
-        "1",
-        "-c",
-        "2",
-        "-f",
-        "/nfs/DAL/microbench/results/test_cum.csv",
-        "-g",
-        "/nfs/DAL/microbench/results/test_single.csv",
-        "-l",
-        "1",
-        "-r",
-        "1",
-        "-e",
-        "1"
+        "-t", "1",
+        "-d", "1",
+        "-m", "0",
+        "-i", "1",
+        "-n", "2",
+        "-f", "/nfs/DAL/microbench/results/test_cum.csv",
+        "-g", "/nfs/DAL/microbench/results/test_single.csv",
+        "-l", "1",
+        "-r", "1",
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
       "environment": [
-        {
-          "name": "LD_PRELOAD",
-          "value": "/nfs/DAL/litl2/lib/client/libalockepfl_original_client_lease1.so"
-        }
+        // {
+        //   "name": "LD_PRELOAD",
+        //   "value": "/nfs/DAL/litl2/lib/client/libbackoff_original_client_spinlock.so"
+        // }
       ],
       "MIMode": "gdb",
       "setupCommands": [
@@ -129,57 +122,6 @@
         }
       ],
       "externalConsole": false,
-      "preLaunchTask": "wait-for-server"
-    },
-    {
-      "name": "client0",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/microbench/main_disa",
-      "args": [
-        "-t",
-        "1",
-        "-d",
-        "1",
-        "-s",
-        "10.10.1.1",
-        "-p",
-        "10.10.1.1",
-        "-m",
-        "7",
-        "-i",
-        "0",
-        "-c",
-        "1",
-        "-f",
-        "/nfs/DAL/microbench/results/test_cum.csv",
-        "-g",
-        "/nfs/DAL/microbench/results/test_single.csv",
-        "-l",
-        "1",
-        "-r",
-        "1",
-        "-e",
-        "1"
-      ],
-      "stopAtEntry": false,
-      "cwd": "${workspaceFolder}",
-      "environment": [
-        {
-          "name": "LD_PRELOAD",
-          "value": "/nfs/DAL/litl2/lib/client/libbackoff_original_client_spinlock.so"
-        }
-      ],
-      "MIMode": "gdb",
-      "setupCommands": [
-        {
-          "description": "Enable pretty-printing for gdb",
-          "text": "-enable-pretty-printing",
-          "ignoreFailures": true
-        }
-      ],
-      "externalConsole": false,
-      "preLaunchTask": "wait-for-server"
     },
     {
       "name": "tcp server",
@@ -236,95 +178,6 @@
       ],
       "externalConsole": false
     },
-    {
-      "name": "mpi client",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "/usr/bin/mpirun",
-      "args": [
-        "-np",
-        "2",
-        "--mca",
-        "plm_rsh_agent",
-        "sudo ssh -l root",
-        "--mca",
-        "oob_tcp_debug",
-        "1",
-        "--mca",
-        "mpi_debug",
-        "1",
-        "--mca",
-        "mpi_add_procs_verbose",
-        "1",
-        "--mca",
-        "btl",
-        "self,tcp",
-        "--mca",
-        "oob_tcp_if_include",
-        "127.0.0.1/24",
-        "--report-bindings",
-        "-x",
-        "LD_PRELOAD=/nfs/DAL/litl2/lib/client/libbackoff_original_client_spinlock.so",
-        "/nfs/DAL/microbench/main_disa",
-        "-t",
-        "1",
-        "-d",
-        "1",
-        "-s",
-        "10.10.2.0",
-        "-p",
-        "10.10.2.0,10.10.2.0",
-        "-m",
-        "7",
-        "-i",
-        "0",
-        "-c",
-        "2",
-        "-f",
-        "/nfs/DAL/microbench/results/test_cum.csv",
-        "-g",
-        "/nfs/DAL/microbench/results/test_single.csv",
-        "-l",
-        "1",
-        "-r",
-        "1",
-        "-e",
-        "1"
-      ],
-      "stopAtEntry": false,
-      "cwd": "${workspaceFolder}",
-      "environment": [],
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "miDebuggerPath": "/usr/bin/gdb",
-      "setupCommands": [
-        {
-          "description": "Enable pretty-printing for gdb",
-          "text": "-enable-pretty-printing",
-          "ignoreFailures": true
-        }
-      ],
-      "preLaunchTask": "wait-for-server"
-    },
-    {
-      "name": "C/C++ Runner: Debug Session",
-      "type": "cppdbg",
-      "request": "launch",
-      "args": [],
-      "stopAtEntry": false,
-      "externalConsole": false,
-      "cwd": "/home/mihi/Desktop/DAL/microbench",
-      "program": "/home/mihi/Desktop/DAL/microbench/build/Debug/outDebug",
-      "MIMode": "gdb",
-      "miDebuggerPath": "gdb",
-      "setupCommands": [
-        {
-          "description": "Enable pretty-printing for gdb",
-          "text": "-enable-pretty-printing",
-          "ignoreFailures": true
-        }
-      ]
-    }
   ],
   "compounds": [
     {
@@ -350,18 +203,11 @@
       ]
     },
     {
-      "name": "tcp_server + mpi clients",
+      "name": "2 nodes",
       "configurations": [
-        "tcp server",
-        "mpi client"
+        "client0",
+        "client1"
       ]
     },
-    {
-      "name": "rdma_server + mpi clients",
-      "configurations": [
-        "rdma server",
-        "mpi client"
-      ]
-    }
   ]
 }

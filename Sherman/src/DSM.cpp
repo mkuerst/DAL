@@ -110,7 +110,7 @@ void DSM::registerThread() {
 
 void DSM::initRDMAConnection() {
 
-  Debug::notifyInfo("number of clients: %d", conf.machineNR);
+  Debug::notifyInfo("number of nodes: %d", conf.machineNR);
   Debug::notifyInfo("number of mn: %d", conf.mnNR);
 
   remoteInfo = new RemoteConnection[conf.machineNR];

@@ -1,11 +1,26 @@
+#ifndef __MB_UTILS_H__
+#define __MB_UTILS_H__
 
-#ifndef HOST_NAME_MAX
-#define HOST_NAME_MAX 256  // Ensure HOST_NAME_MAX is defined
+#include <pthread.h>
+
+#ifndef CACHELINE_SIZE
+#define CACHELINE_SIZE 64
 #endif
 
-#ifdef DEBUG
-#undef DEBUG
-#define DEBUG(msg, ...) do {\
+#ifndef HOST_NAME_MAX
+#define HOST_NAME_MAX 256 
+#endif
+
+#define KB(x) ((x) * 1024L)
+#define MB(x) (KB(x) * 1024L)
+#define GB(x) (MB(x) * 1024L)
+
+#define MAX_ARRAY_SIZE  KB(512) 
+#define PRIVATE_ARRAY_SZ KB(256) 
+
+#ifdef DE
+#undef DE
+#define DE(msg, ...) do {\
     char host[HOST_NAME_MAX];\
     gethostname(host, sizeof(host));\
     fprintf(stderr, "%s : %s : %d : " msg, host, __FILE__, __LINE__, ##__VA_ARGS__);\
@@ -17,12 +32,9 @@
     fprintf(stderr, "%s : %s : %d : " msg, host, __FILE__, __LINE__, ##__VA_ARGS__);\
 } while(0)
 #else
-#define DEBUG(...)
+#define DE(...)
 #define debug(...)
 #endif
-
-// #define DEBUG_PTHREAD(...) fprintf(stderr, ## __VA_ARGS__)
-#define DEBUG_PTHREAD(...)
 
 #define _error(msg, ...) do {\
     char host[HOST_NAME_MAX];\
@@ -39,12 +51,25 @@
     fprintf(stderr, "\n");\
 } while(0)
 
+struct alignas(CACHELINE_SIZE) Task {
+    volatile int* stop;
+    pthread_t thread;
+    char disa;
+    char* byte_data;
+    int* int_data;
+
+    // MISC
+    int id, run, idx;
+    int private_int_array[PRIVATE_ARRAY_SZ / sizeof(int)];
+};
+
 int getNodeNumber();
 
 void parse_cli_args(
-    int *threadNR, int *nodeNR, int* mnNR,
-    int *lockNR, int *node_id, int* duration,
-    int* mode, int* num_runs, int *num_mem_runs,
+    int *threadNR, int *nodeNR, int* mnNR, int *runNR, int *lockNR,
+    int *node_id, int* duration, int* mode,
     char **res_file_cum, char **res_file_single,
     int argc, char **argv
 );
+
+#endif /* __MB_UTILS_H__ */
