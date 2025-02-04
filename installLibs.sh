@@ -65,7 +65,7 @@ sudo apt install -y dsh
 
 cd /local/repository/
 
-OFED_FILE="/local/repository/MLNX_OFED_LINUX-4.9-5.1.0.0-ubuntu20.04-x86_64"
+OFED_FILE="/local/MLNX_OFED_LINUX-4.9-5.1.0.0-ubuntu20.04-x86_64"
 if [ ! -f "$OFED_FILE" ]; then
     echo "MLNX OFED version is not installed. Running installation script..."
     if [ -x "$INSTALL_SCRIPT" ]; then
