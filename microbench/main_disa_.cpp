@@ -67,8 +67,10 @@ int main(int argc, char *argv[]) {
     &node_id, &duration, &mode,
     &res_file_cum, &res_file_single,
     argc, argv);
+    DE("[%d] HI\n", node_id);
     if (node_id == 1) {
         system("sudo bash /nfs/DAL/restartMemc.sh");
+        DE("[%d] STARTED MEMC SERVER\n", node_id);
     }
     else {
         sleep(3);
@@ -77,8 +79,9 @@ int main(int argc, char *argv[]) {
     config.mnNR = mnNR;
     config.machineNR = nodeNR;
     dsm = DSM::getInstance(config);
-    DE("[%d] HI\n", node_id);
+    DE("[%d] DSM Init DONE\n", node_id);
     if (dsm->getMyNodeID() < mnNR) {
+        DE("[%d] MN will busy spin\n", node_id);
         mn_func();
         fprintf(stderr, "MN [%d] finished\n", node_id);
         dsm->barrier("fin");

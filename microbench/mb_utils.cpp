@@ -33,7 +33,7 @@ void parse_cli_args(
     int option;
 	*node_id = getNodeNumber();
 	while ((option = getopt(argc, argv,
-    "t:l:i:d:s:m:r:f:g:n:")) != -1) 
+    "d:t:l:i:d:s:m:r:f:g:n:")) != -1) 
     {
 		switch (option) {
 			case 's':
