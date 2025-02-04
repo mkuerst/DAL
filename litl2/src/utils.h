@@ -22,14 +22,16 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+#ifndef __UTILS_H__
+#define __UTILS_H__
+
 #ifdef __cplusplus
 #include <atomic>
 using namespace std;
 extern "C" {
-#else
-#include <stdatomic.h>
 #endif
 
+#include <stdatomic.h>
 #include <malloc.h>
 #include <padding.h>
 #include <stdint.h>
@@ -45,8 +47,6 @@ extern "C" {
 #include <sched.h>
 #include <numa.h>
 
-#ifndef __UTILS_H__
-#define __UTILS_H__
 #include <topology.h>
 
 #define MAX_IP_LENGTH 16
@@ -329,9 +329,10 @@ int get_addr(char *dst, struct sockaddr *addr);
 int check_correctness(ull total_acq, ull* lock_acqs, ull* lock_rels, int nlocks);
 
 void parse_cli_args(
-    int *nthreads, int *num_clients, int *nlocks, int *client, int* duration,
+    int *nthreads, int *num_nodes, int* num_mn,
+    int *nlocks, int *node_id, int* duration,
     int* mode, int* num_runs, int *num_mem_runs,
-     char **res_file_cum, char **res_file_single,
+    char **res_file_cum, char **res_file_single,
     char **mn_ip, char peer_ips[MAX_CLIENTS][MAX_IP_LENGTH],
     int argc, char **argv
 );

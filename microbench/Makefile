@@ -39,11 +39,11 @@ target: ../litl2/src/utils.c ../litl2/src/rdma_common.o
 	@echo "USING CYCLE_PER_US = $(CYCLE_PER_US) MHz"
 	@echo "USING CACHELINE_SIZE = $(CACHELINE_SIZE) Bytes"
 	gcc -c ../litl2/src/utils.c -o litl_utils.o ${FLAGS} 
-	g++ -std=c++17 main_disa_.cpp litl_utils.o  ../Sherman/build/libsherman.a ../litl2/src/rdma_common.o -o main_disa_ ${FLAGS} -DMUTEX
+	g++ -std=c++17 main_disa_.cpp litl_utils.o  ../Sherman/build/libsherman.a -o main_disa_ ${FLAGS} -DMUTEX
+# g++ -std=c++17 test_rdma_conn.cpp litl_utils.o  ../Sherman/build/libsherman.a ../litl2/src/rdma_common.o -o test_rdma_conn ${FLAGS} -DMUTEX
 
 # gcc main_orig.c $^ -o main_orig ${FLAGS} -DMUTEX
 # mpicc main_disa.c $^ -o main_disa ${FLAGS} -DMUTEX -D$(DEBUG) -D$(COMM_PROT) -D$(MPI) -D${CORRECTNESS}
-# g++ -std=c++17 test_rdma_conn.cpp litl_utils.o  ../Sherman/build/libsherman.a ../litl2/src/rdma_common.o -o test_rdma_conn ${FLAGS} -DMUTEX
 
 clean:
 	rm main

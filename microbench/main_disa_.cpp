@@ -1,26 +1,8 @@
 #define _GNU_SOURCE
-#include <dlfcn.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <numa.h>
-#include <sched.h>
-#include <sys/syscall.h>
-#include <inttypes.h>
-#include <sys/resource.h>
-#include "rdtsc.h"
-#include "lock.h"
-#include <utils.h>
-#include <tcp_client.c>
-#include <rdma_client.c>
-#include <dirent.h>
-#include <assert.h>
 
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <errno.h>
+#include <numa.h>
+
+#include <DSM.h>
 
 #define gettid() syscall(SYS_gettid)
 
@@ -38,439 +20,77 @@ double zipfan = 0;
 char *array0;
 char *array1;
 char *res_file_cum, *res_file_single;
-char *mn_ip, peer_ips[MAX_CLIENTS][MAX_IP_LENGTH];
-int nthreads, client, num_clients,
+int nthreads, node_id, num_nodes,
 num_runs, num_mem_runs, use_nodes,
-scope, mode, duration, nlocks;
+scope, mode, duration, nlocks, num_mn;
 
-ull *lock_acqs, *lock_rels;
 
-disa_lock_t lock;
-disa_lock_t *locks;
+DSM *dsm;
 pthread_barrier_t global_barrier;
 pthread_barrier_t local_barrier;
 
-int set_prio(int prio) {
-    int ret;
-    pid_t tid = gettid();
-    ret = setpriority(PRIO_PROCESS, tid, prio);
-    if (ret != 0) {
-        perror("setpriority");
-        exit(-1);
-    }
-    return ret;
-}
  
+void mn_func() {
+    for (int i = 0; i < num_runs; i++) {
+        char barrier_key[32] = {0};
+        sprintf(barrier_key, "MB_RUN_%d", i);
+        dsm->barrier(barrier_key);
+    }
+}
 void *empty_cs_worker(void *arg) {
-    task_t *task = (task_t *) arg;
-    int task_id = task->id;
-    pin_thread(task_id, nthreads, use_nodes);
-    ull start;
-    ull lock_acquires;
-    ull lock_hold;
-    ull loop_in_cs;
-    ull wait_rel;
-
-    ull wait_acq;
-    for (int i = 0; i < num_runs; i++) {
-        task->run = i;
-        lock_acquires = 0;
-        lock_hold = 0;
-        loop_in_cs = 0;
-        wait_acq = 0;
-        wait_rel = 0;
-
-        pthread_barrier_wait(&global_barrier);
-        
-        task->cnt = 0;
-        task->idx = 0;
-        while (!*task->stop) {
-            start = rdtscp();
-            lock_acquire((pthread_mutex_t *)&lock);
-            ull s = rdtscp();
-
-            wait_acq += s - start;
-            task->swait_acq[task->idx] = s - start;
-            lock_acquires++;
-            loop_in_cs++;
-
-            start = rdtscp();
-            lock_release((pthread_mutex_t *)&lock);
-            ull end_rel = rdtscp();
-
-            wait_rel += end_rel - start;
-            lock_hold += start - s;
-
-            task->slock_hold[task->idx] = start - s;
-            task->swait_rel[task->idx] = end_rel - start;
-            task->idx = (task->idx + 1) % MAX_MEASUREMENTS;
-            task->cnt++;
-        }
-
-        task->lock_acquires[i] = lock_acquires;
-        task->loop_in_cs[i] = loop_in_cs;
-        task->lock_hold[i] = lock_hold;
-        task->wait_acq[i] = wait_acq;
-        task->wait_rel[i] = wait_rel;
-        pthread_barrier_wait(&global_barrier);
-    }
-    return 0;
-}
-
-void *mem_worker(void *arg) {
-    task_t *task = (task_t *) arg;
-    int task_id = task->id;
-
-    pin_thread(task_id, nthreads, use_nodes);
-    ull start, lock_start;
-    ull lock_acquires, lock_hold, loop_in_cs;
-    ull wait_acq, wait_rel;
+    dsm->registerThread();
+    uint64_t all_thread = nthreads * dsm->getClusterSize();
+    int task_id = nthreads * dsm->getMyNodeID() + task->id;
+    DEBUG("[%d.%d] HI\n", node_id, task->id)
 
     for (int i = 0; i < num_runs; i++) {
-        for (int j = 0; j < num_mem_runs; j++)  {
-            task->run = i*num_mem_runs + j;
-            volatile char sum = 'a'; // Prevent compiler optimizations
-            size_t repeat = array_sizes[num_mem_runs-1] / array_sizes[j];
-            ull array_size = array_sizes[j];
-            lock_acquires = 0;
-            lock_hold = 0;
-            loop_in_cs = 0;
-            wait_acq = 0;
-            wait_rel = 0;
-
-            pthread_barrier_wait(&global_barrier);
-
-            task->cnt = 0;
-            task->idx = 0;
-            while (!*task->stop) {
-                for (int x = 0; x < repeat; x++) {
-                    for (size_t k = 0; k < array_size; k += 1) {
-                        int u = 0;
-                        if(*task->stop)
-                            break;
-
-                        start = rdtscp();
-                        lock_acquire((pthread_mutex_t *)&lock);
-                        lock_start = rdtscp();
-
-                        task->swait_acq[task->idx] = lock_start-start;
-                        wait_acq += lock_start-start;
-                        lock_acquires++;
-                        while (u < CACHELINE_SIZE) {
-                            array0[k] += sum;
-                            u++;
-                            loop_in_cs++;
-                        }
-
-                        ull rel_start = rdtscp();
-                        lock_release((pthread_mutex_t *)&lock);
-                        ull rel_end = rdtscp();
-
-                        task->slock_hold[task->idx] = rel_start - lock_start;
-                        task->swait_rel[task->idx] = rel_end - rel_start;
-                        task->idx = (task->idx + 1) % MAX_MEASUREMENTS;
-                        task->cnt++;
-
-                        lock_hold += rel_start - lock_start;
-                        wait_rel += rel_end - rel_start;
-                    }
-                }
-            }
-            int _idx = i*num_mem_runs + j;
-            task->lock_acquires[_idx] = lock_acquires;
-            task->loop_in_cs[_idx] = loop_in_cs;
-            task->lock_hold[_idx] = lock_hold;
-            task->array_size[_idx] = array_size;
-            task->wait_acq[_idx] = wait_acq;
-            task->wait_rel[_idx] = wait_rel;
-            pthread_barrier_wait(&global_barrier);
+        pthread_barrier_wait(&global_barrier);
+        pthread_barrier_wait(&global_barrier);
+        pthread_barrier_wait(&global_barrier);
     }
-        }
+    DEBUG("[%d.%d] BYE\n", node_id, task->id)
     return 0;
 }
 
-void *debug_worker(void *arg) {
-    task_t *task = (task_t *) arg;
-    pthread_barrier_wait(&global_barrier);
-    // for (int i = 0; i < 2 ; i++) {
-    if (task->client_id == 0) {
-        lock_acquire(&lock);
-    }
-    pthread_barrier_wait(&local_barrier);
-    if (task->client_id == 1) {
-        lock_release(&lock);
-    }
-    pthread_barrier_wait(&local_barrier);
-    // }
-    return 0;
-}
-
-void *correctness_worker(void *arg) {
-    task_t *task = (task_t *) arg;
-    int task_id = task->id;
-    int nlocks = task->nlocks;
-    int *private_int_array = task->private_int_array;
-    // int data_len = MAX_ARRAY_SIZE / sizeof(int);
-
-    pin_thread(task_id, nthreads, use_nodes);
-    ull start, lock_start;
-    ull lock_acquires, lock_hold, loop_in_cs;
-    ull wait_acq, wait_rel;
-
-    volatile int sum = 1;
-
-    for (int i = 0; i < num_runs; i++) {
-        task->run = i;
-        ull array_size = MAX_ARRAY_SIZE;
-        lock_acquires = 0;
-        lock_hold = 0;
-        loop_in_cs = 0;
-        wait_acq = 0;
-        wait_rel = 0;
-        srand(task->client_id*task->nthreads + task_id + 42);
-
-        pthread_barrier_wait(&global_barrier);
-
-        task->cnt = 0;
-        task->idx = 0;
-        while (!*task->stop) {
-            for (int j = 0; j < 400; j++) {
-                int idx = uniform_rand_int(PRIVATE_ARRAY_SZ / sizeof(int));
-                private_int_array[idx] += sum;
-            }
-
-            for (int j = 0; j < 100; j++) {
-                int lock_idx = uniform_rand_int(nlocks);
-                disa_mutex_t *l = &locks[lock_idx];
-                // fprintf(stderr,"[%d.%d] lock_idx: %d\n", client, task_id, lock_idx);
-
-                start = rdtscp();
-                lock_acquire((pthread_mutex_t *)l);
-                lock_acqs[lock_idx]++;
-                lock_start = rdtscp();
-
-                l->int_data[0] += sum;
-                // data[lock_idx*data_len] += sum;
-                // loop_in_cs++;
-
-                ull rel_start = rdtscp();
-                lock_release((pthread_mutex_t *)l);
-                ull rel_end = rdtscp();
-                lock_rels[lock_idx]++;
-
-                lock_acquires++;
-                if (*task->stop) {
-                    break;
-                }
-                task->swait_acq[task->idx] = lock_start-start;
-                task->slock_hold[task->idx] = rel_start - lock_start;
-                task->swait_rel[task->idx] = rel_end - rel_start;
-                task->idx = (task->idx + 1) % MAX_MEASUREMENTS;
-                task->cnt++;
-
-                wait_acq += lock_start-start;
-                lock_hold += rel_start - lock_start;
-                wait_rel += rel_end - rel_start;
-            }
-        }
-        task->lock_acquires[i] = lock_acquires;
-        task->loop_in_cs[i] = loop_in_cs; 
-        task->lock_hold[i] = lock_hold;
-        task->array_size[i] = array_size;
-        task->wait_acq[i] = wait_acq;
-        task->wait_rel[i] = wait_rel;
-        pthread_barrier_wait(&global_barrier);
-    }
-    return 0;
-}
-
-void *mlocks_worker(void *arg) {
-    task_t *task = (task_t *) arg;
-    int task_id = task->id;
-    int nlocks = task->nlocks;
-    int *private_int_array = task->private_int_array;
-    int data_len = MAX_ARRAY_SIZE / sizeof(int);
-
-    pin_thread(task_id, nthreads, use_nodes);
-    ull start, lock_start;
-    ull lock_acquires, lock_hold, loop_in_cs;
-    ull wait_acq, wait_rel;
-
-    volatile int sum = 1;
-
-    for (int i = 0; i < num_runs; i++) {
-        task->run = i;
-        ull array_size = MAX_ARRAY_SIZE;
-        lock_acquires = 0;
-        lock_hold = 0;
-        loop_in_cs = 0;
-        wait_acq = 0;
-        wait_rel = 0;
-        srand(task->client_id*task->nthreads + task_id + 42);
-
-        pthread_barrier_wait(&global_barrier);
-
-        task->cnt = 0;
-        task->idx = 0;
-        while (!*task->stop) {
-            for (int j = 0; j < 400; j++) {
-                int idx = uniform_rand_int(PRIVATE_ARRAY_SZ / sizeof(int));
-                private_int_array[idx] += sum;
-            }
-
-            for (int j = 0; j < 100; j++) {
-                int lock_idx = uniform_rand_int(nlocks);
-                disa_mutex_t *l = &locks[lock_idx];
-                // fprintf(stderr,"[%d.%d] lock_idx: %d\n", client, task_id, lock_idx);
-
-                start = rdtscp();
-                lock_acquire((pthread_mutex_t *)l);
-                lock_start = rdtscp();
-
-                for (int idx = 0; idx < data_len; idx++) {
-                    l->int_data[idx] += sum;
-                    loop_in_cs++;
-                }
-                // data[lock_idx*data_len] += sum;
-                // loop_in_cs++;
-
-                ull rel_start = rdtscp();
-                lock_release((pthread_mutex_t *)l);
-                ull rel_end = rdtscp();
-
-                if (*task->stop) {
-                    break;
-                }
-                task->swait_acq[task->idx] = lock_start-start;
-                task->slock_hold[task->idx] = rel_start - lock_start;
-                task->swait_rel[task->idx] = rel_end - rel_start;
-                task->idx = (task->idx + 1) % MAX_MEASUREMENTS;
-                task->cnt++;
-
-                wait_acq += lock_start-start;
-                lock_hold += rel_start - lock_start;
-                wait_rel += rel_end - rel_start;
-                lock_acquires++;
-
-            }
-        }
-        task->lock_acquires[i] = lock_acquires;
-        task->loop_in_cs[i] = loop_in_cs; 
-        task->lock_hold[i] = lock_hold;
-        task->array_size[i] = array_size;
-        task->wait_acq[i] = wait_acq;
-        task->wait_rel[i] = wait_rel;
-        pthread_barrier_wait(&global_barrier);
-    }
-    return 0;
-}
 
 int main(int argc, char *argv[]) {
-    system("sudo bash /nfs/DAL/restartMemc.sh");
-    parse_cli_args(&nthreads, &num_clients, &nlocks, &client, &duration,
-    &mode, &num_runs, &num_mem_runs, &res_file_cum, &res_file_single,
-    &mn_ip, peer_ips, argc, argv
-    );
+    if (node_id == 1) {
+        system("sudo bash /nfs/DAL/restartMemc.sh");
+    }
+    else {
+        sleep(3);
+    }
     DSMConfig config;
-    config.machineNR = kNodeCount;
+    config.mnNR = 1;
+    config.machineNR = num_nodes;
     dsm = DSM::getInstance(config);
-    DEBUG("[%d] HI\n", client);
+    DEBUG("[%d] HI\n", node_id);
+    if (dsm->getMyNodeID() <= num_mn) {
+        mn_func();
+        fprintf(stderr, "MN [%d] finished\n", node_id);
+        dsm->barrier("fin");
+        return 0;
+    }
+
     scope = MAX_ARRAY_SIZE;
 
     /*WORKER*/
     void* worker; 
-    switch (mode) {
-        case 0:
-            use_nodes = 2;
-            worker = empty_cs_worker;
-            break;
-        case 1:
-            use_nodes = 1;
-            worker = empty_cs_worker;
-            break;
-        case 2:
-            use_nodes = 1;
-            worker = debug_worker;
-            break;
-        case 3:
-            use_nodes = 2;
-            worker = mem_worker;
-            break;
-        case 4:
-            use_nodes = 1;
-            worker = mem_worker;
-            break;
-        case 5:
-            use_nodes = 2;
-            worker = mlocks_worker;
-            break;
-        case 6:
-            use_nodes = 1;
-            worker = mlocks_worker;
-            break;
-        case 7:
-            use_nodes = 2;
-            worker = correctness_worker;
-            break;
-        default:
-            use_nodes = 2;
-            worker = empty_cs_worker;
-            break;
-    }
-    task_t *tasks = malloc(sizeof(task_t) * nthreads);
+    worker = empty_cs_worker;
 
     pthread_attr_t attr;
     pthread_attr_init(&attr);
 
     volatile int stop __attribute__((aligned (CACHELINE_SIZE))) = 0;
 
-    DSMConfig config;
-    config.machineNR = num_clients;
-    config.threadNR = nthreads;
-    dsm = DSM::getInstance(config);
 
-    /*TASK INIT*/
-    for (int i = 0; i < nthreads; i++) {
-        tasks[i] = (task_t) {0};
-        tasks[i].sockfd = tcp_fd;
-        tasks[i].client_id = client;
-        tasks[i].nclients = num_clients;
-        tasks[i].id = i;
-        tasks[i].nlocks = nlocks;
-        tasks[i].disa = 'y';
-        tasks[i].stop = &stop;;
-        tasks[i].server_ip = mn_ip;
-        tasks[i].client_meta = client_meta;
-        tasks[i].duration = duration;
-        tasks[i].nthreads = nthreads;
-    }
-    allocate_task_mem(tasks, num_runs, num_mem_runs, nthreads);
 
-    /*LOCK INIT*/
-    locks = (disa_mutex_t *) numa_alloc_onnode(nlocks * sizeof(disa_mutex_t), 0);
-    lock_acqs = malloc(nlocks*sizeof(ull));
-    lock_rels = malloc(nlocks*sizeof(ull));
-    // locks = (disa_mutex_t *) malloc(nlocks * sizeof(disa_mutex_t));
-    for (int l = 0; l < nlocks; l++) {
-        // lock_init(&locks[l].mutex);
-        locks[l].disa = 'y';
-        locks[l].id = l;
-        locks[l].offset = -1;
-        locks[l].elem_sz = 1;
-        locks[l].data_len = 0;
-        locks[l].turns = 0;
-        locks[l].rlock_addr = client_meta->rlock_addr + l*RLOCK_SIZE;
-        locks[l].data_addr = client_meta->data_addr + l*MAX_ARRAY_SIZE;
-        lock_acqs[l] = 0;
-        lock_rels[l] = 0;
-    }
-    lock = locks[0];
 
     pthread_barrier_init(&global_barrier, NULL, nthreads+1);
     pthread_barrier_init(&local_barrier, NULL, nthreads);
 
     for (int i = 0; i < nthreads; i++) {
-        pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
+        pthread_create(&tasks[i].thread, NULL, worker, NULL);
     }
     /*RUNS*/
     for (int i = 0; i < num_runs; i++) {
@@ -498,18 +118,24 @@ int main(int argc, char *argv[]) {
                 }
             }
             stop = 0;
-            fprintf(stderr, "[%d] RUN %d_%d\n", client, i, k);
+            fprintf(stderr, "[%d] RUN %d_%d\n", node_id, i, k);
+
             pthread_barrier_wait(&global_barrier);
-            dsm->barrier("MB_RUN")
+            char barrier_key[32] = {0};
+            sprintf(barrier_key, "MB_RUN_%d", i);
+            dsm->barrier(barrier_key);
+            pthread_barrier_wait(&global_barrier);
+
             sleep(duration);
             stop = 1;
+
             pthread_barrier_wait(&global_barrier);
             if (mode == 3 || mode == 4) {
                 numa_free(array0, array_sz);
                 numa_free(array1, array_sz);
             }
-            for (int i = 0; i < num_clients; i++) {
-                if (i == client) {
+            for (int i = 0; i < num_nodes; i++) {
+                if (i == node_id) {
                     write_res_single(tasks, nthreads, mode, res_file_single);
                 }
             } 
@@ -519,8 +145,8 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < nthreads; i++) {
         pthread_join(tasks[i].thread, NULL);
     }
-    for (int i = 0; i < num_clients; i++) {
-        if (i == client) {
+    for (int i = 0; i < num_nodes; i++) {
+        if (i == node_id) {
             ull total_acqs = write_res_cum(tasks, nthreads, mode, res_file_cum, num_runs, num_mem_runs);
             if (check_correctness(total_acqs, lock_acqs, lock_rels, nlocks)) {
                 __error("INCORRECT ACQ NUMBERS");
@@ -530,6 +156,7 @@ int main(int argc, char *argv[]) {
 
     numa_free(locks, nlocks*sizeof(disa_mutex_t));
     sleep(2);
-    fprintf(stderr, "CLIENT %d DONE\n", client);
+    fprintf(stderr, "CLIENT %d DONE\n", node_id);
+    dsm->barrier("fin");
     return 0;
 }

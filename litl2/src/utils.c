@@ -346,7 +346,8 @@ int create_sockaddr(char *addr, struct sockaddr_in *sa, uint16_t port)
 }
 
 void parse_cli_args(
-    int *nthreads, int *num_clients, int *nlocks, int *client, int* duration,
+    int *nthreads, int *num_nodes, int *num_mn,
+    int *nlocks, int *node_id, int* duration,
     int* mode, int* num_runs, int *num_mem_runs,
     char **res_file_cum, char **res_file_single,
     char **mn_ip, char peer_ips[MAX_CLIENTS][MAX_IP_LENGTH],
@@ -354,13 +355,14 @@ void parse_cli_args(
 {
     char hostname[256];
     char *ptr;
+    *num_mn = 1;
 
     if (gethostname(hostname, sizeof(hostname)) == 0) {
         DEBUG("Hostname: %s\n", hostname);
         ptr = strstr(hostname, "node");
         if (ptr != NULL) {
-            *client = atoi(ptr + 4) - 1;  // 4 is the length of "node"
-            DEBUG("Extracted node number: %d\n", *client);
+            *node_id = atoi(ptr + 4) - 1;  // 4 is the length of "node"
+            DEBUG("Extracted node number: %d\n", *node_id);
         } else {
             DEBUG("No node found in the hostname.\n");
         }
@@ -399,7 +401,7 @@ void parse_cli_args(
 			// 	mn_sockaddr->sin_port = htons(strtol(optarg, NULL, 0)); 
 			// 	break;
 			case 'c':
-				*num_clients = atoi(optarg);
+				*num_nodes = atoi(optarg);
 				break;
 			case 'r':
 				*num_runs = atoi(optarg);
@@ -414,7 +416,7 @@ void parse_cli_args(
 				*duration = atoi(optarg);
 				break;
             case 'i':
-                *client = atoi(optarg);
+                *node_id = atoi(optarg);
                 break;
 			case 't':
 				*nthreads = atoi(optarg);

@@ -16,10 +16,11 @@ public:
   uint32_t machineNR;
   uint32_t threadNR;
   uint64_t dsmSize; // G
+  uint32_t mnNR;
 
   DSMConfig(const CacheConfig &cacheConfig = CacheConfig(),
-            uint32_t machineNR = 2, uint64_t dsmSize = 8)
-      : cacheConfig(cacheConfig), machineNR(machineNR), dsmSize(dsmSize) {}
+            uint32_t machineNR = 2, uint64_t dsmSize = 8, uint32_t mnNR = 1)
+      : cacheConfig(cacheConfig), machineNR(machineNR), dsmSize(dsmSize), mnNR(mnNR) {}
 };
 
 #endif /* __CONFIG_H__ */
