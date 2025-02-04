@@ -37,11 +37,11 @@ pc.defineParameter("clientCount", "Number of nodes",
 
 pc.defineParameter("osImage", "Select OS image for clients",
                    portal.ParameterType.IMAGE,
-                   imageList[2], imageList)
+                   imageList[0], imageList)
 
 pc.defineParameter("osServerImage", "Select OS image for server",
                    portal.ParameterType.IMAGE,
-                   imageList2[2], imageList2)
+                   imageList2[0], imageList2)
 
 pc.defineParameter("nfsSize", "Size of NFS Storage",
                    portal.ParameterType.STRING, "80GB",
