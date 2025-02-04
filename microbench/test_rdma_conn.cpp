@@ -12,7 +12,7 @@
 
 int kReadRatio;
 int kThreadCount;
-int kNodeCount;
+int kNodeCount = 1;
 uint64_t kKeySpace = 64 * define::MB;
 double kWarmRatio = 0.8;
 double zipfan = 0;
