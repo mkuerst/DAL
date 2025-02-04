@@ -38,18 +38,12 @@ all: target
 target: ../litl2/src/utils.c ../litl2/src/rdma_common.o
 	@echo "USING CYCLE_PER_US = $(CYCLE_PER_US) MHz"
 	@echo "USING CACHELINE_SIZE = $(CACHELINE_SIZE) Bytes"
-	mpicc main_disa.c $^ -o main_disa ${FLAGS} -DMUTEX -D$(DEBUG) -D$(COMM_PROT) -D$(MPI) -D${CORRECTNESS}
-	gcc main_orig.c $^ -o main_orig ${FLAGS} -DMUTEX
 	gcc -c ../litl2/src/utils.c -o litl_utils.o ${FLAGS} 
-	g++ -std=c++17 test_rdma_conn.cpp litl_utils.o  ../Sherman/build/libsherman.a ../litl2/src/rdma_common.o -o test_rdma_conn ${FLAGS} -DMUTEX
+	g++ -std=c++17 main_disa_.cpp litl_utils.o  ../Sherman/build/libsherman.a ../litl2/src/rdma_common.o -o main_disa_ ${FLAGS} -DMUTEX
 
-# mutex:
-# 	gcc main.c -o main ${FLAGS} -DMUTEX
-
-# spin:
-# 	gcc main.c -o main ${FLAGS} -DSPIN
+# gcc main_orig.c $^ -o main_orig ${FLAGS} -DMUTEX
+# mpicc main_disa.c $^ -o main_disa ${FLAGS} -DMUTEX -D$(DEBUG) -D$(COMM_PROT) -D$(MPI) -D${CORRECTNESS}
+# g++ -std=c++17 test_rdma_conn.cpp litl_utils.o  ../Sherman/build/libsherman.a ../litl2/src/rdma_common.o -o test_rdma_conn ${FLAGS} -DMUTEX
 
 clean:
 	rm main
-
-# -L/home/kumichae/my_libs/rdma-core/build/lib/ -lrdmacm

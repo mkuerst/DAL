@@ -6,16 +6,6 @@ fi
 
 cd tmp
 
-# tbb
-# git clone https://github.com/wjakob/tbb.git
-# cd tbb/build
-# cmake ..
-# make -j
-# sudo make install
-# ldconfig
-# cd ../..
-
-# openjdk-8
 
 
 OFED_FILE="/local/MLNX_OFED_LINUX-4.9-5.1.0.0-ubuntu20.04-x86_64"
@@ -54,8 +44,19 @@ if [ ! -f "$OFED_FILE" ]; then
         pip3 install func_timeout
         pip3 install matplotlib
 
-        cd /local/repository/
+        tbb
+        git clone https://github.com/wjakob/tbb.git
+        cd tbb/build
+        cmake ..
+        make -j
+        sudo make install
+        ldconfig
+        cd ../..
+
+        openjdk-8
         sudo apt-get -y --force-yes install openjdk-8-jdk
+
+        cd /local/repository/
 
         sudo apt install -y rdma-core librdmacm-dev libibverbs-dev
         sudo apt-get install -y infiniband-diags
@@ -71,6 +72,3 @@ else
 fi
 
 sudo apt install -y openmpi-bin openmpi-common libopenmpi-dev
-
-# echo -e "Host *\n    StrictHostKeyChecking accept-new" >> ~/.ssh/config
-# sudo systemctl restart sshd

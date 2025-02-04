@@ -14,6 +14,7 @@ class DSMConfig {
 public:
   CacheConfig cacheConfig;
   uint32_t machineNR;
+  uint32_t threadNR;
   uint64_t dsmSize; // G
 
   DSMConfig(const CacheConfig &cacheConfig = CacheConfig(),

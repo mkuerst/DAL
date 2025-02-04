@@ -180,6 +180,7 @@ cd build/
 sudo cmake ..
 sudo make -j
 sudo bash /nfs/DAL/Sherman/script/hugepage.sh
+# sudo bash /nfs/DAL/restartMemc.sh
 
 sudo chown -R mkuerst:dal-PG0 /nfs/
 

@@ -34,28 +34,51 @@ DSM::DSM(const DSMConfig &conf)
   baseAddr = (uint64_t)hugePageAlloc(conf.dsmSize * define::GB);
 
   Debug::notifyInfo("shared memory size: %dGB, 0x%lx", conf.dsmSize, baseAddr);
-  Debug::notifyInfo("cache size: %dGB", conf.cacheConfig.cacheSize);
+  Debug::notifyInfo("rdma cache size: %dGB", conf.cacheConfig.cacheSize);
 
   // warmup
-  // memset((char *)baseAddr, 0, conf.dsmSize * define::GB);
-  for (uint64_t i = baseAddr; i < baseAddr + conf.dsmSize * define::GB;
-       i += 2 * define::MB) {
-    *(char *)i = 0;
-  }
-
-  // clear up first chunk
-  memset((char *)baseAddr, 0, define::kChunkSize);
+  memset((char *)baseAddr, 0, conf.dsmSize * define::GB);
+  memset((char *)cache.data, 0, cache.size * define::GB);
 
   initRDMAConnection();
-
-  Debug::notifyInfo("number of threads on memory node: %d", NR_DIRECTORY);
-  for (int i = 0; i < NR_DIRECTORY; ++i) {
-    dirAgent[i] =
-        new Directory(dirCon[i], remoteInfo, conf.machineNR, i, myNodeID);
+  if (myNodeID < MEMORY_NODE_NUM) {  // start memory server
+    for (int i = 0; i < NR_DIRECTORY; ++i) {
+      dirAgent[i] =
+          new Directory(dirCon[i], remoteInfo, MEMORY_NODE_NUM, i, myNodeID);
+    }
+    Debug::notifyInfo("Memory server %d start up", myNodeID);
   }
-
   keeper->barrier("DSM-init");
 }
+
+// DSM::DSM(const DSMConfig &conf)
+//     : conf(conf), appID(0), cache(conf.cacheConfig) {
+
+//   baseAddr = (uint64_t)hugePageAlloc(conf.dsmSize * define::GB);
+
+//   Debug::notifyInfo("shared memory size: %dGB, 0x%lx", conf.dsmSize, baseAddr);
+//   Debug::notifyInfo("cache size: %dGB", conf.cacheConfig.cacheSize);
+
+//   // warmup
+//   // memset((char *)baseAddr, 0, conf.dsmSize * define::GB);
+//   for (uint64_t i = baseAddr; i < baseAddr + conf.dsmSize * define::GB;
+//        i += 2 * define::MB) {
+//     *(char *)i = 0;
+//   }
+
+//   // clear up first chunk
+//   memset((char *)baseAddr, 0, define::kChunkSize);
+
+//   initRDMAConnection();
+
+//   Debug::notifyInfo("number of threads on memory node: %d", NR_DIRECTORY);
+//   for (int i = 0; i < NR_DIRECTORY; ++i) {
+//     dirAgent[i] =
+//         new Directory(dirCon[i], remoteInfo, conf.machineNR, i, myNodeID);
+//   }
+
+//   keeper->barrier("DSM-init");
+// }
 
 DSM::~DSM() {}
 

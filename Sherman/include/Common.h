@@ -29,6 +29,8 @@
 
 #define MAX_MACHINE 8
 
+#define MEMORY_NODE_NUM 1
+
 #define ADD_ROUND(x, n) ((x) = ((x) + 1) % (n))
 
 #define MESSAGE_SIZE 96 // byte
