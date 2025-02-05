@@ -32,7 +32,8 @@ pthread_barrier_t local_barrier;
  
 void mn_func() {
     for (int i = 0; i < runNR; i++) {
-        std::string barrier_key = "MB_RUN_" + std::to_string(i);
+        DE("RUN %d BARRIER\n", i);
+        string barrier_key = "MB_RUN_" + to_string(i);
         dsm->barrier(barrier_key);
     }
 }
@@ -70,6 +71,7 @@ int main(int argc, char *argv[]) {
     DSMConfig config;
     config.mnNR = mnNR;
     config.machineNR = nodeNR;
+    config.threadNR = threadNR;
     dsm = DSM::getInstance(config);
     DE("[%d] DSM Init DONE\n", node_id);
     if (dsm->getMyNodeID() < mnNR) {
@@ -80,7 +82,6 @@ int main(int argc, char *argv[]) {
         return 0;
     }
     Task *tasks = new Task[threadNR];
-
 
     /*WORKER*/
     void* (*worker)(void*) = empty_cs_worker;
@@ -101,14 +102,18 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "[%d] RUN %d\n", node_id, i);
 
         pthread_barrier_wait(&global_barrier);
-        std::string barrier_key = "MB_RUN_" + std::to_string(i);
+        string barrier_key = "MB_RUN_" + to_string(i);
+        DE("RUN %d BARRIER\n", i);
         dsm->barrier(barrier_key);
+        DE("RUN BARRIER\n");
         pthread_barrier_wait(&global_barrier);
+        DE("BEGIN RUN BARRIER\n");
 
         sleep(duration);
         stop = 1;
 
         pthread_barrier_wait(&global_barrier);
+        DE("END RUN BARRIER\n");
         if (mode == 3 || mode == 4) {
             numa_free(array0, array_sz);
             numa_free(array1, array_sz);

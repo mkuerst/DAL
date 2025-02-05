@@ -56,15 +56,16 @@
       "externalConsole": false
     },
 {
-      "name": "client0",
+      "name": "node1",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/microbench/main_disa_",
       "args": [
         "-t", "1",
         "-d", "1",
+        "-s", "1",
         "-m", "0",
-        "-i", "0",
+        "-i", "1",
         "-n", "1",
         "-f", "/nfs/DAL/microbench/results/test_cum.csv",
         "-g", "/nfs/DAL/microbench/results/test_single.csv",
@@ -90,13 +91,14 @@
       "externalConsole": false,
     },
     {
-      "name": "client1",
+      "name": "node2",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/microbench/main_disa_",
       "args": [
         "-t", "1",
         "-d", "1",
+        "-s", "1",
         "-m", "0",
         "-i", "1",
         "-n", "2",
@@ -184,29 +186,27 @@
       "name": "tcp_server + clients",
       "configurations": [
         "tcp server",
-        "client0"
+        "node1"
       ]
     },
     {
       "name": "rdma_server + 1clients",
       "configurations": [
         "rdma server",
-        "client0"
+        "node1"
       ]
     },
     {
       "name": "rdma_server + 2clients",
       "configurations": [
         "rdma server",
-        "client0",
-        "client1"
+        "node1", "node2"
       ]
     },
     {
       "name": "2 nodes",
       "configurations": [
-        "client0",
-        "client1"
+        "node1", "node2"
       ]
     },
   ]
