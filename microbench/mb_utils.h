@@ -66,7 +66,7 @@ struct alignas(CACHELINE_SIZE) Task {
 int getNodeNumber();
 
 void parse_cli_args(
-    int *threadNR, int *nodeNR, int* mnNR, int *runNR, int *lockNR,
+    int *threadNR, int *nodeNR, int* mnNR, int *lockNR, int *runNR,
     int *node_id, int* duration, int* mode,
     char **res_file_cum, char **res_file_single,
     int argc, char **argv

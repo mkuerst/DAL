@@ -187,8 +187,9 @@ cd /nfs/DAL/
 sudo git config --global user.name "mkuerst"
 sudo git config --global user.email "michael.kuersteiner@outlook.com"
 
-# ssh-keyscan -H node2 >> ~/.ssh/known_hosts
-# ssh-keyscan -H node3 >> ~/.ssh/known_hosts
+ssh-keyscan -H node1 >> ~/.ssh/known_hosts
+ssh-keyscan -H node2 >> ~/.ssh/known_hosts
+ssh-keyscan -H node3 >> ~/.ssh/known_hosts
 # ssh-keyscan -H node4 >> ~/.ssh/known_hosts
 # ssh-keyscan -H node5 >> ~/.ssh/known_hosts
 # ssh-keyscan -H node6 >> ~/.ssh/known_hosts

@@ -80,6 +80,7 @@ void Debug::notifyError(const char *format, ...) {
     sprintf(newFormat, "\033[0;31m%s\033[0m\n",
             format);          /* Wrap format in a style. */
     vprintf(newFormat, args); /* Print string of notify information. */
+    fflush(stdout);
     va_end(args);             /* End of variable arguments. */
 }
 

@@ -17,6 +17,7 @@ public:
   uint32_t threadNR;
   uint64_t dsmSize; // G
   uint32_t mnNR;
+  uint32_t clusterId;
 
   DSMConfig(const CacheConfig &cacheConfig = CacheConfig(),
             uint32_t machineNR = 2, uint32_t threadNR = 1, uint64_t dsmSize = 8, uint32_t mnNR = 1)

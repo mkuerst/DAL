@@ -109,10 +109,10 @@ peer_ips=(
 
 opts=("spinlock")
 duration=5
-runNR=1
+runNR=3
 mnNR=1
 nodeNRs=(2)
-threadNRs=(1)
+threadNRs=(16)
 lockNRs=(1)
 bench_idxs=(0)
 
@@ -156,7 +156,7 @@ do
 
                         echo "START MICROBENCH $impl $microb $opt $nodeNR Nodes & $threadNR T & $lockNR L & $duration s"
                         dsh -M -f <(head -n $nodeNR ./clients.txt) -c \
-                        "sudo $disa_bench -t $threadNR -d $duration -m $mode -n $nodeNR -f $client_rescum_file -g $client_ressingle_file -l $lockNR -r $runNR -s $mnNR"
+                        "sudo $disa_bench -t $threadNR -d $duration -m $mode -n $nodeNR -f $client_rescum_file -g $client_ressingle_file -l $lockNR -r $runNR -s $mnNR 2>&1"
                         # "sudo LD_PRELOAD=$client_so $disa_bench -t $i -d $duration -s $server_ip -p $p_ips -m $j -c $nclients -f $client_rescum_file -g $client_ressingle_file -l $nlocks -r $runs -e $mem_runs"
 
                         cleanup

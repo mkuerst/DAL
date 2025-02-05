@@ -100,7 +100,7 @@
         "-d", "1",
         "-s", "1",
         "-m", "0",
-        "-i", "1",
+        "-i", "2",
         "-n", "2",
         "-f", "/nfs/DAL/microbench/results/test_cum.csv",
         "-g", "/nfs/DAL/microbench/results/test_single.csv",
