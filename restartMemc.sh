@@ -1,7 +1,7 @@
 #!/bin/bash
 
-addr=$(head -1 ./memcached.conf)
-port=$(awk 'NR==2{print}' ./memcached.conf)
+addr=$(head -1 /nfs/DAL/memcached.conf)
+port=$(awk 'NR==2{print}' /nfs/DAL/memcached.conf)
 
 # kill old me
 ssh ${addr} "cat /tmp/memcached.pid | xargs kill"

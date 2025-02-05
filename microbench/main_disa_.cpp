@@ -18,13 +18,6 @@ using namespace std;
 #error Must define CYCLE_PER_US for the current machine in the Makefile or elsewhere
 #endif
 
-int kReadRatio;
-int kThreadCount;
-int kNodeCount = 1;
-uint64_t kKeySpace = 64 * define::MB;
-double kWarmRatio = 0.8;
-double zipfan = 0;
-
 char *array0;
 char *array1;
 char *res_file_cum, *res_file_single;
@@ -39,8 +32,7 @@ pthread_barrier_t local_barrier;
  
 void mn_func() {
     for (int i = 0; i < runNR; i++) {
-        char barrier_key[32] = {0};
-        sprintf(barrier_key, "MB_RUN_%d", i);
+        std::string barrier_key = "MB_RUN_" + std::to_string(i);
         dsm->barrier(barrier_key);
     }
 }
