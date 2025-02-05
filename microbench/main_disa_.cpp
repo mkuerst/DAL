@@ -43,9 +43,9 @@ void *empty_cs_worker(void *arg) {
     // uint64_t all_thread = threadNR * dsm->getClusterSize();
     // int task_id = threadNR * dsm->getMyNodeID() + task->id;
     DE("[%d.%d] HI\n", node_id, task->id);
+    pthread_barrier_wait(&global_barrier);
 
     for (int i = 0; i < runNR; i++) {
-        pthread_barrier_wait(&global_barrier);
         pthread_barrier_wait(&global_barrier);
         pthread_barrier_wait(&global_barrier);
     }
@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
         DE("[%d] STARTED MEMC SERVER\n", node_id);
     }
     else {
-        sleep(3);
+        sleep(1);
     }
     DSMConfig config;
     config.mnNR = mnNR;
@@ -96,12 +96,12 @@ int main(int argc, char *argv[]) {
         pthread_create(&tasks[i].thread, NULL, worker, NULL);
     }
     /*RUNS*/
+    pthread_barrier_wait(&global_barrier);
     for (int i = 0; i < runNR; i++) {
         size_t array_sz = MAX_ARRAY_SIZE;
         stop = 0;
         fprintf(stderr, "[%d] RUN %d\n", node_id, i);
 
-        pthread_barrier_wait(&global_barrier);
         string barrier_key = "MB_RUN_" + to_string(i);
         DE("RUN %d BARRIER\n", i);
         dsm->barrier(barrier_key);
@@ -123,8 +123,6 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < threadNR; i++) {
         pthread_join(tasks[i].thread, NULL);
     }
-
-    sleep(2);
     fprintf(stderr, "CLIENT %d DONE\n", node_id);
     dsm->barrier("fin");
     return 0;

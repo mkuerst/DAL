@@ -62,6 +62,7 @@ void Debug::notifyInfo(const char *format, ...) {
     sprintf(newFormat, "\033[4m%s\033[0m\n",
             format);          /* Wrap format in a style. */
     vprintf(newFormat, args); /* Print string of notify information. */
+    fflush(stdout);
     va_end(args);             /* End of variable arguments. */
 }
 
