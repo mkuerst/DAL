@@ -68,7 +68,7 @@ int main(int argc, char *argv[]) {
     &node_id, &duration, &mode,
     &res_file_cum, &res_file_single,
     argc, argv);
-    dsmSize = KB(512);
+    dsmSize = 1;
     DE("[%d] HI\n", node_id);
     if (node_id == 1) {
         system("sudo bash /nfs/DAL/restartMemc.sh");
