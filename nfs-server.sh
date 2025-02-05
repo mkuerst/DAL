@@ -183,6 +183,7 @@ sudo bash /nfs/DAL/Sherman/script/hugepage.sh
 
 sudo chown -R mkuerst:dal-PG0 /nfs/
 
+cd /nfs/DAL/
 sudo git config --global user.name "mkuerst"
 sudo git config --global user.email "michael.kuersteiner@outlook.com"
 
