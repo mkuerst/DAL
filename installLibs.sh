@@ -73,4 +73,5 @@ fi
 
 sudo apt install -y openmpi-bin openmpi-common libopenmpi-dev
 
+sudo chown -R mkuerst:dal-PG0 $HOME
 sudo touch $HOME/ready.txt
