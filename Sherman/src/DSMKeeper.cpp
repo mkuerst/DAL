@@ -5,7 +5,7 @@
 const char *DSMKeeper::OK = "OK";
 const char *DSMKeeper::ServerPrefix = "SPre";
 
-void DSMKeeper::initLocalMeta(bool on_chip_locks) {
+void DSMKeeper::initLocalMeta() {
   localMeta.dsmBase = (uint64_t)dirCon[0]->dsmPool;
   localMeta.lockBase = (uint64_t)dirCon[0]->lockPool;
   localMeta.cacheBase = (uint64_t)thCon[0]->cachePool;
@@ -24,8 +24,7 @@ void DSMKeeper::initLocalMeta(bool on_chip_locks) {
   for (int i = 0; i < NR_DIRECTORY; ++i) {
     localMeta.dirTh[i].lid = dirCon[i]->ctx.lid;
     localMeta.dirTh[i].rKey = dirCon[i]->dsmMR->rkey;
-    if (on_chip_locks)
-      localMeta.dirTh[i].lock_rkey = dirCon[i]->lockMR->rkey;
+    localMeta.dirTh[i].lock_rkey = dirCon[i]->lockMR->rkey;
     memcpy((char *)localMeta.dirTh[i].gid, (char *)(&dirCon[i]->ctx.gid),
            16 * sizeof(uint8_t));
 

@@ -78,7 +78,7 @@ private:
     LocalLockNode *local_locks[MAX_MACHINE];
     static thread_local uint64_t *curr_cas_buffer;
     static thread_local char *curr_page_buffer;
-
+    static thread_local GlobalAddress curr_lock_addr;
 
     GlobalAddress get_lock_addr(GlobalAddress base_addr);
     void get_bufs();
@@ -86,10 +86,10 @@ private:
                         CoroContext *cxt, int coro_id);
     void unlock_addr(GlobalAddress lock_addr, uint64_t tag, uint64_t *buf,
                     CoroContext *cxt, int coro_id, bool async);
-    void write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
-                                int page_size, uint64_t *cas_buffer,
-                                GlobalAddress lock_addr, uint64_t tag,
-                                CoroContext *cxt, int coro_id, bool async);
+    void write_and_unlock(char *page_buffer, GlobalAddress page_addr,
+                                 int page_size, uint64_t *cas_buffer,
+                                 GlobalAddress lock_addr, uint64_t tag,
+                                 CoroContext *cxt, int coro_id, bool async);
     void lock_and_read_page(char *page_buffer, GlobalAddress page_addr,
                             int page_size, uint64_t *cas_buffer,
                             GlobalAddress lock_addr, uint64_t tag,

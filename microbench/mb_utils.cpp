@@ -5,6 +5,9 @@
 #include <unistd.h>
 #include <regex>
 
+thread_local char* Rlock::curr_page_buffer = nullptr;
+thread_local uint64_t* Rlock::curr_cas_buffer = nullptr;
+thread_local GlobalAddress Rlock::curr_lock_addr;
 
 int getNodeNumber() {
     char hostname[256];
@@ -94,6 +97,7 @@ GlobalAddress Rlock::get_lock_addr(GlobalAddress base_addr) {
 	return lock_addr;
 }
 
+// TODO: MAKE SENSE OF THIS!? HOW DOES THIS BUF BUIS WORK?
 void Rlock::get_bufs() {
 	auto rbuf = dsm->get_rbuf(0);
 	curr_cas_buffer = rbuf.get_cas_buffer();
@@ -101,24 +105,27 @@ void Rlock::get_bufs() {
 }
 
 void Rlock::lock_acquire(GlobalAddress base_addr, int data_size) {
-	GlobalAddress lock_addr = get_lock_addr(base_addr);
+	curr_lock_addr = get_lock_addr(base_addr);
 
-	auto &rbuf = dsm->get_rbuf(0);
-	uint64_t *cas_buffer = rbuf.get_cas_buffer();
-	auto page_buffer = rbuf.get_page_buffer();
-
+	get_bufs();
 	auto tag = dsm->getThreadTag();
 	assert(tag != 0);
 
-
-	try_lock_addr(lock_addr, tag, cas_buffer, NULL, 0);
-	dsm->read_sync(page_buffer, base_addr, data_size, NULL);
-
+	try_lock_addr(curr_lock_addr, tag, curr_cas_buffer, NULL, 0);
+	if (data_size > 0) {
+		dsm->read_sync(curr_page_buffer, base_addr, data_size, NULL);
+	}
 }
+
+// TODO: ASYNC WRITE BACK?!
 void Rlock::lock_release(GlobalAddress base_addr, int data_size) {
-	write_and_unlock();
+	auto tag = dsm->getThreadTag();
+	assert(tag != 0);
+	write_and_unlock(curr_page_buffer, base_addr, data_size, curr_cas_buffer,
+					curr_lock_addr, tag, NULL, 0, false);
 
 }
+
 void Rlock::write_and_unlock(char *page_buffer, GlobalAddress page_addr,
                                  int page_size, uint64_t *cas_buffer,
                                  GlobalAddress lock_addr, uint64_t tag,
@@ -132,22 +139,26 @@ void Rlock::write_and_unlock(char *page_buffer, GlobalAddress page_addr,
 	}
 
 	RdmaOpRegion rs[2];
-	rs[0].source = (uint64_t)page_buffer;
-	rs[0].dest = page_addr;
-	rs[0].size = page_size;
-	rs[0].is_on_chip = false;
+	int idx = 0;
+	if (page_size > 0) {
+		rs[0].source = (uint64_t)page_buffer;
+		rs[0].dest = page_addr;
+		rs[0].size = page_size;
+		rs[0].is_on_chip = false;
+		idx++;
+	}
 
-	rs[1].source = (uint64_t)dsm->get_rbuf(coro_id).get_cas_buffer();
-	rs[1].dest = lock_addr;
-	rs[1].size = sizeof(uint64_t);
+	rs[idx].source = (uint64_t)dsm->get_rbuf(coro_id).get_cas_buffer();
+	rs[idx].dest = lock_addr;
+	rs[idx].size = sizeof(uint64_t);
+	rs[idx].is_on_chip = true;
+	idx++;
 
-	rs[1].is_on_chip = true;
-
-	*(uint64_t *)rs[1].source = 0;
+	*(uint64_t *)rs[idx].source = 0;
 	if (async) {
-		dsm->write_batch(rs, 2, false);
+		dsm->write_batch(rs, idx, false);
 	} else {
-		dsm->write_batch_sync(rs, 2, cxt);
+		dsm->write_batch_sync(rs, idx, cxt);
 	}
 
 	releases_local_lock(lock_addr);

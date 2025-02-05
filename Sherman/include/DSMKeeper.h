@@ -58,7 +58,7 @@ private:
     return std::to_string(remoteID) + "-" + std::to_string(getMyNodeID());
   }
 
-  void initLocalMeta(bool on_chip_locks);
+  void initLocalMeta();
 
   void connectMySelf();
   void initRouteRule();
@@ -71,11 +71,11 @@ protected:
 
 public:
   DSMKeeper(ThreadConnection **thCon, DirectoryConnection **dirCon, RemoteConnection *remoteCon,
-            uint32_t maxServer = 12, bool on_chip_locks = true)
+            uint32_t maxServer = 12)
       : Keeper(maxServer), thCon(thCon), dirCon(dirCon),
         remoteCon(remoteCon) {
 
-    initLocalMeta(on_chip_locks);
+    initLocalMeta();
 
     if (!connectMemcached()) {
       return;

@@ -26,6 +26,7 @@ node_id, duration, mode;
 uint64_t dsmSize;
 
 DSM *dsm;
+Rlock *rlock;
 pthread_barrier_t global_barrier;
  
 
@@ -39,6 +40,9 @@ void mn_worker() {
 void *empty_cs_worker(void *arg) {
     Task *task = (Task *) arg;
     dsm->registerThread();
+    GlobalAddress baseAddr;
+    baseAddr.nodeID = 0;
+    baseAddr.offset = 0;
     // uint64_t all_thread = threadNR * dsm->getClusterSize();
     // int task_id = threadNR * dsm->getMyNodeID() + dsm->getMyThreadID();
     uint64_t acq_tp = 0;
@@ -47,9 +51,13 @@ void *empty_cs_worker(void *arg) {
         pthread_barrier_wait(&global_barrier);
         while (!*task->stop) {
             // TODO: LOCK ACQ!
+            rlock->lock_acquire(baseAddr, 0);
+            acq_tp++;
+            rlock->lock_release(baseAddr, 0);
         }
         pthread_barrier_wait(&global_barrier);
     }
+    DE("[%d.%d] %lu ACQUISITIONS\n", dsm->getMyNodeID(), dsm->getMyThreadID(), acq_tp);
     return 0;
 }
 
@@ -100,7 +108,7 @@ int main(int argc, char *argv[]) {
         tasks[i].stop = &stop;
         pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
     }
-    Rlock rlock = Rlock(dsm);
+    rlock = new Rlock(dsm);
     /*RUNS*/
     pthread_barrier_wait(&global_barrier);
     for (int i = 0; i < runNR; i++) {

@@ -6,9 +6,7 @@ settings.json
 *.so
 litl/Makefile
 litl/src/Makefile
-microbench/main
-microbench/main_disa
-microbench/main_orig
+microbench/main*
 rdma-example
 *.nfs*
 microbench/server_logs
@@ -20,4 +18,3 @@ litl2/make.log
 microbench/__pycache__
 sherman_deps/
 c_cpp_properties.json
-
