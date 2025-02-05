@@ -8,7 +8,7 @@ cd tmp
 
 
 
-OFED_FILE="/local/MLNX_OFED_LINUX-4.9-5.1.0.0-ubuntu20.04-x86_64"
+OFED_FILE="$HOME/ready.txt"
 if [ ! -f "$OFED_FILE" ]; then
     echo "MLNX OFED version is not installed. Running installation script..."
         sudo apt-get -y --force-yes install cmake
@@ -72,3 +72,5 @@ else
 fi
 
 sudo apt install -y openmpi-bin openmpi-common libopenmpi-dev
+
+sudo touch $HOME/ready.txt
