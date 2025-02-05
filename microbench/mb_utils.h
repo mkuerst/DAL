@@ -51,6 +51,55 @@
     fprintf(stderr, "\n");\
 } while(0)
 
+#include "DSM.h"
+#include <atomic>
+#include <city.h>
+#include <functional>
+#include <iostream>
+
+struct LocalLockNode {
+  std::atomic<uint64_t> ticket_lock;
+  bool hand_over;
+  uint8_t hand_time;
+};
+
+class Rlock {
+public:
+    Rlock(DSM *dsm);
+
+    void index_cache_statistics();
+    void clear_statistics();
+
+    void lock_acquire(GlobalAddress base_addr, int data_size);
+    void lock_release(GlobalAddress base_addr, int data_size);
+
+private:
+    DSM *dsm;
+    LocalLockNode *local_locks[MAX_MACHINE];
+    static thread_local uint64_t *curr_cas_buffer;
+    static thread_local char *curr_page_buffer;
+
+
+    GlobalAddress get_lock_addr(GlobalAddress base_addr);
+    void get_bufs();
+    bool try_lock_addr(GlobalAddress lock_addr, uint64_t tag, uint64_t *buf,
+                        CoroContext *cxt, int coro_id);
+    void unlock_addr(GlobalAddress lock_addr, uint64_t tag, uint64_t *buf,
+                    CoroContext *cxt, int coro_id, bool async);
+    void write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
+                                int page_size, uint64_t *cas_buffer,
+                                GlobalAddress lock_addr, uint64_t tag,
+                                CoroContext *cxt, int coro_id, bool async);
+    void lock_and_read_page(char *page_buffer, GlobalAddress page_addr,
+                            int page_size, uint64_t *cas_buffer,
+                            GlobalAddress lock_addr, uint64_t tag,
+                            CoroContext *cxt, int coro_id);
+    bool acquire_local_lock(GlobalAddress lock_addr, CoroContext *cxt,
+                            int coro_id);
+    bool can_hand_over(GlobalAddress lock_addr);
+    void releases_local_lock(GlobalAddress lock_addr);
+};
+
 struct alignas(CACHELINE_SIZE) Task {
     volatile int* stop;
     pthread_t thread;
