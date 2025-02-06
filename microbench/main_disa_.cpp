@@ -107,7 +107,7 @@ void *mlocks_worker(void *arg) {
     int lock_idx = 0;
     uint64_t range = GB(config.dsmSize) / sizeof(uint64_t);
     volatile int sum = 0;
-    int data_len = dsm->get_rbuf(0).getkPageSize();
+    int data_len = dsm->get_rbuf(0).getkPageSize() / sizeof(uint64_t);
 
     pthread_barrier_wait(&global_barrier);
 
