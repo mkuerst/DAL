@@ -1,7 +1,9 @@
 #ifndef __MB_UTILS_H__
 #define __MB_UTILS_H__
 
+using namespace std;
 #include <pthread.h>
+#include <string>
 
 #ifndef CACHELINE_SIZE
 #define CACHELINE_SIZE 64
@@ -17,6 +19,8 @@
 
 #define MAX_ARRAY_SIZE  KB(512) 
 #define PRIVATE_ARRAY_SZ KB(256) 
+
+static string ck = "CORRECTNESS";
 
 #ifdef DE
 #undef DE
@@ -108,11 +112,18 @@ struct alignas(CACHELINE_SIZE) Task {
     char disa;
     char* byte_data;
     int* int_data;
+    uint64_t lock_acqs = 0;
 
     // MISC
     int id, run, idx;
     int private_int_array[PRIVATE_ARRAY_SZ / sizeof(int)];
 };
+
+int check_MN_correctness(DSM *dsm, size_t dsmSize);
+
+int check_CN_correctness(
+	Task* tasks, uint64_t *lock_acqs, uint64_t *lock_rels,
+	uint32_t lockNR, uint32_t threadNR, DSM *dsm);
 
 int getNodeNumber();
 

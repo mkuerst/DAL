@@ -169,8 +169,10 @@ public:
   bool is_register() { return thread_id != -1; }
   void barrier(const std::string &ss) { keeper->barrier(ss); }
 
+  DSMKeeper *get_DSMKeeper() { return keeper; }
   char *get_rdma_buffer() { return rdma_buffer; }
   RdmaBuffer &get_rbuf(int coro_id) { return rbuf[coro_id]; }
+  uint64_t get_baseAddr() { return baseAddr; }
 
   GlobalAddress alloc(size_t size);
   void free(GlobalAddress addr);

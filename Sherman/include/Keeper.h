@@ -52,7 +52,7 @@ public:
 
   void memSet(const char *key, uint32_t klen, const char *val, uint32_t vlen);
   char *memGet(const char *key, uint32_t klen, size_t *v_size = nullptr);
-  uint64_t memFetchAndAdd(const char *key, uint32_t klen);
+  uint64_t memFetchAndAdd(const char *key, uint32_t klen, uint64_t val = 1);
 };
 
 #endif

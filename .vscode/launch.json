@@ -66,7 +66,7 @@
         "-s", "1",
         "-m", "0",
         "-i", "1",
-        "-n", "1",
+        "-n", "2",
         "-f", "/nfs/DAL/microbench/results/test_cum.csv",
         "-g", "/nfs/DAL/microbench/results/test_single.csv",
         "-l", "1",

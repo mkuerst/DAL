@@ -24,16 +24,21 @@ int threadNR, nodeNR, mnNR, lockNR, runNR,
 node_id, duration, mode;
 uint64_t dsmSize;
 uint64_t *lock_acqs;
+uint64_t *lock_rels;
 
 DSM *dsm;
+DSMConfig config;
 Rlock *rlock;
 pthread_barrier_t global_barrier;
- 
 
 void mn_worker() {
+    char val[sizeof(uint64_t)];
+    uint64_t num = 0;
+    memcpy(val, &num, sizeof(uint64_t));
+    dsm->get_DSMKeeper()->memSet(ck.c_str(), ck.size(), val, sizeof(uint64_t));
     for (int i = 0; i < runNR; i++) {
-        string barrier_key = "MB_RUN_" + to_string(i);
-        dsm->barrier(barrier_key);
+        string barrierKey = "MB_RUN_" + to_string(i);
+        dsm->barrier(barrierKey);
     }
 }
 
@@ -43,23 +48,26 @@ void *correctness_worker(void *arg) {
     GlobalAddress baseAddr;
     baseAddr.nodeID = 0;
     baseAddr.offset = 0;
-    int *int_data;
-    // uint64_t all_thread = threadNR * dsm->getClusterSize();
-    // int task_id = threadNR * dsm->getMyNodeID() + dsm->getMyThreadID();
-    uint64_t acq_tp = 0;
+    uint64_t *long_data;
+
     pthread_barrier_wait(&global_barrier);
+
     for (int i = 0; i < runNR; i++) {
         pthread_barrier_wait(&global_barrier);
         while (!*task->stop) {
-            rlock->lock_acquire(baseAddr, 0);
-            acq_tp++;
-            int_data = (int *) rlock->getCurrPB();
-
-            rlock->lock_release(baseAddr, 0);
+            // TODO: Generate rand lock_idx/data_addr
+            int lock_idx = 0;
+            rlock->lock_acquire(baseAddr, sizeof(uint64_t));
+            lock_acqs[lock_idx]++;
+            task->lock_acqs++;
+            long_data = (uint64_t *) rlock->getCurrPB();
+            long_data[0]++;
+            rlock->lock_release(baseAddr, sizeof(uint64_t));
+            lock_rels[lock_idx]++;
         }
         pthread_barrier_wait(&global_barrier);
     }
-    DE("[%d.%d] %lu ACQUISITIONS\n", dsm->getMyNodeID(), dsm->getMyThreadID(), acq_tp);
+    DE("[%d.%d] %lu ACQUISITIONS\n", dsm->getMyNodeID(), dsm->getMyThreadID(), task->lock_acqs);
     return 0;
 }
 
@@ -69,8 +77,6 @@ void *empty_cs_worker(void *arg) {
     GlobalAddress baseAddr;
     baseAddr.nodeID = 0;
     baseAddr.offset = 0;
-    // uint64_t all_thread = threadNR * dsm->getClusterSize();
-    // int task_id = threadNR * dsm->getMyNodeID() + dsm->getMyThreadID();
     uint64_t acq_tp = 0;
     pthread_barrier_wait(&global_barrier);
     for (int i = 0; i < runNR; i++) {
@@ -102,18 +108,23 @@ int main(int argc, char *argv[]) {
     else {
         sleep(1);
     }
-    DSMConfig config;
+
     config.dsmSize = dsmSize;
     config.mnNR = mnNR;
     config.machineNR = nodeNR;
     config.threadNR = threadNR;
     config.clusterID = node_id;
     dsm = DSM::getInstance(config);
-    DE("[%d] DSM Init DONE\n", node_id);
+    DE("DSM Init DONE\n");
+
     if (dsm->getMyNodeID() < mnNR) {
         DE("[%d] MN will busy spin\n", node_id);
         mn_worker();
         fprintf(stderr, "MN [%d] finished\n", node_id);
+        dsm->barrier("MB_END");
+        dsm->barrier("CORRECTNESS");
+        if (check_MN_correctness(dsm, dsmSize))
+            _error("MN LOCK ACQS INCORRECT");
         dsm->barrier("fin");
         return 0;
     }
@@ -127,7 +138,7 @@ int main(int argc, char *argv[]) {
 
     /*TASK INIT*/
     Task *tasks = new Task[threadNR];
-    volatile int alignas(CACHELINE_SIZE) stop = 0;
+    alignas(CACHELINE_SIZE) volatile int stop = 0;
     for (int i = 0; i < threadNR; i++) {
         tasks[i].id = i;
         tasks[i].stop = &stop;
@@ -135,14 +146,16 @@ int main(int argc, char *argv[]) {
     }
     rlock = new Rlock(dsm, lockNR);
     lock_acqs = new uint64_t[lockNR];
+    lock_rels = new uint64_t[lockNR];
     /*RUNS*/
     pthread_barrier_wait(&global_barrier);
     for (int i = 0; i < runNR; i++) {
         stop = 0;
         fprintf(stderr, "[%d] RUN %d\n", node_id, i);
 
-        string barrier_key = "MB_RUN_" + to_string(i);
-        dsm->barrier(barrier_key);
+        string barrierKey = "MB_RUN_" + to_string(i);
+        dsm->barrier(barrierKey);
+        DE("X\n");
         pthread_barrier_wait(&global_barrier);
 
         sleep(duration);
@@ -154,6 +167,10 @@ int main(int argc, char *argv[]) {
         pthread_join(tasks[i].thread, NULL);
     }
     fprintf(stderr, "NODE %d DONE\n", node_id);
+    dsm->barrier("MB_END");
+    if (check_CN_correctness(tasks, lock_acqs, lock_rels, lockNR, threadNR, dsm))
+        _error("CN LOCK_ACQS INCORRECT");
+    dsm->barrier("CORRECTNESS");
     dsm->barrier("fin");
     return 0;
 }
