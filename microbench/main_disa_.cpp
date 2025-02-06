@@ -19,11 +19,11 @@ using namespace std;
 #endif
 
 char *array0;
-char *array1;
 char *res_file_cum, *res_file_single;
 int threadNR, nodeNR, mnNR, lockNR, runNR,
 node_id, duration, mode;
 uint64_t dsmSize;
+uint64_t *lock_acqs;
 
 DSM *dsm;
 Rlock *rlock;
@@ -35,6 +35,32 @@ void mn_worker() {
         string barrier_key = "MB_RUN_" + to_string(i);
         dsm->barrier(barrier_key);
     }
+}
+
+void *correctness_worker(void *arg) {
+    Task *task = (Task *) arg;
+    dsm->registerThread();
+    GlobalAddress baseAddr;
+    baseAddr.nodeID = 0;
+    baseAddr.offset = 0;
+    int *int_data;
+    // uint64_t all_thread = threadNR * dsm->getClusterSize();
+    // int task_id = threadNR * dsm->getMyNodeID() + dsm->getMyThreadID();
+    uint64_t acq_tp = 0;
+    pthread_barrier_wait(&global_barrier);
+    for (int i = 0; i < runNR; i++) {
+        pthread_barrier_wait(&global_barrier);
+        while (!*task->stop) {
+            rlock->lock_acquire(baseAddr, 0);
+            acq_tp++;
+            int_data = (int *) rlock->getCurrPB();
+
+            rlock->lock_release(baseAddr, 0);
+        }
+        pthread_barrier_wait(&global_barrier);
+    }
+    DE("[%d.%d] %lu ACQUISITIONS\n", dsm->getMyNodeID(), dsm->getMyThreadID(), acq_tp);
+    return 0;
 }
 
 void *empty_cs_worker(void *arg) {
@@ -50,7 +76,6 @@ void *empty_cs_worker(void *arg) {
     for (int i = 0; i < runNR; i++) {
         pthread_barrier_wait(&global_barrier);
         while (!*task->stop) {
-            // TODO: LOCK ACQ!
             rlock->lock_acquire(baseAddr, 0);
             acq_tp++;
             rlock->lock_release(baseAddr, 0);
@@ -108,7 +133,8 @@ int main(int argc, char *argv[]) {
         tasks[i].stop = &stop;
         pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
     }
-    rlock = new Rlock(dsm);
+    rlock = new Rlock(dsm, lockNR);
+    lock_acqs = new uint64_t[lockNR];
     /*RUNS*/
     pthread_barrier_wait(&global_barrier);
     for (int i = 0; i < runNR; i++) {

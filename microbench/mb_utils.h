@@ -65,16 +65,18 @@ struct LocalLockNode {
 
 class Rlock {
 public:
-    Rlock(DSM *dsm);
+    Rlock(DSM *dsm, uint32_t lockNR);
 
     void index_cache_statistics();
     void clear_statistics();
 
     void lock_acquire(GlobalAddress base_addr, int data_size);
     void lock_release(GlobalAddress base_addr, int data_size);
+    char *getCurrPB() {return curr_page_buffer;}
 
 private:
     DSM *dsm;
+    uint32_t lockNR;
     LocalLockNode *local_locks[MAX_MACHINE];
     static thread_local uint64_t *curr_cas_buffer;
     static thread_local char *curr_page_buffer;

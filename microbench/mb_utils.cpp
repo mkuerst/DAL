@@ -75,10 +75,10 @@ void parse_cli_args(
 	}
 }
 
-Rlock::Rlock(DSM *dsm) : dsm(dsm) {
+Rlock::Rlock(DSM *dsm, uint32_t lockNR) : dsm(dsm), lockNR(lockNR) {
 	for (int i = 0; i < dsm->getClusterSize(); ++i) {
-		local_locks[i] = new LocalLockNode[define::kNumOfLock];
-		for (size_t k = 0; k < define::kNumOfLock; ++k) {
+		local_locks[i] = new LocalLockNode[lockNR];
+		for (size_t k = 0; k < lockNR; ++k) {
 			auto &n = local_locks[i][k];
 			n.ticket_lock.store(0);
 			n.hand_over = false;
@@ -89,7 +89,7 @@ Rlock::Rlock(DSM *dsm) : dsm(dsm) {
 
 GlobalAddress Rlock::get_lock_addr(GlobalAddress base_addr) {
 	uint64_t lock_index =
-		CityHash64((char *)&base_addr, sizeof(base_addr)) % define::kNumOfLock;
+		CityHash64((char *)&base_addr, sizeof(base_addr)) % lockNR;
 
 	GlobalAddress lock_addr;
 	lock_addr.nodeID = base_addr.nodeID;
