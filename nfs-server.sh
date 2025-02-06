@@ -186,16 +186,3 @@ sudo chown -R mkuerst:dal-PG0 /nfs/
 cd /nfs/DAL/
 sudo git config --global user.name "mkuerst"
 sudo git config --global user.email "michael.kuersteiner@outlook.com"
-
-ssh-keyscan -H node1 >> ~/.ssh/known_hosts
-ssh-keyscan -H node2 >> ~/.ssh/known_hosts
-ssh-keyscan -H node3 >> ~/.ssh/known_hosts
-# ssh-keyscan -H node4 >> ~/.ssh/known_hosts
-# ssh-keyscan -H node5 >> ~/.ssh/known_hosts
-# ssh-keyscan -H node6 >> ~/.ssh/known_hosts
-# ssh-keyscan -H node7 >> ~/.ssh/known_hosts
-# ssh-keyscan -H node8 >> ~/.ssh/known_hosts
-# ssh-keyscan -H node9 >> ~/.ssh/known_hosts
-# ssh-keyscan -H node10 >> ~/.ssh/known_hosts
-# ssh-keyscan -H node11 >> ~/.ssh/known_hosts
-# ssh-keyscan -H node12 >> ~/.ssh/known_hosts

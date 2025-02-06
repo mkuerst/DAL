@@ -109,7 +109,7 @@ peer_ips=(
 )
 
 opts=("spinlock")
-duration=10
+duration=1
 runNR=1
 mnNR=1
 nodeNRs=(3)
