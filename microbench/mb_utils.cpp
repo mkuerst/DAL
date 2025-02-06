@@ -137,7 +137,7 @@ int check_CN_correctness(
 	return 0;
 }
 
-Rlock::Rlock(DSM *dsm, uint32_t lockNR) : dsm(dsm), lockNR(lockNR) {
+Rlock::Rlock(DSM *dsm, uint32_t lockNR, uint64_t page_size) : dsm(dsm), lockNR(lockNR) {
 	for (int i = 0; i < dsm->getClusterSize(); ++i) {
 		local_locks[i] = new LocalLockNode[lockNR];
 		for (size_t k = 0; k < lockNR; ++k) {
@@ -147,6 +147,7 @@ Rlock::Rlock(DSM *dsm, uint32_t lockNR) : dsm(dsm), lockNR(lockNR) {
 			n.hand_time = 0;
 		}
 	}
+	dsm->get_rbuf(0).setPageSize(page_size);
 }
 
 GlobalAddress Rlock::get_lock_addr(GlobalAddress base_addr) {
@@ -159,7 +160,6 @@ GlobalAddress Rlock::get_lock_addr(GlobalAddress base_addr) {
 	return lock_addr;
 }
 
-// TODO: MAKE SENSE OF THIS!? HOW DOES THIS BUF BUIS WORK?
 void Rlock::get_bufs() {
 	auto rbuf = dsm->get_rbuf(0);
 	curr_cas_buffer = rbuf.get_cas_buffer();

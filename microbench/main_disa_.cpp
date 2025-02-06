@@ -62,7 +62,6 @@ void *correctness_worker(void *arg) {
             baseAddr.offset = data_idx * sizeof(uint64_t);
             rlock->lock_acquire(baseAddr, sizeof(uint64_t));
             lock_idx = rlock->getCurrLockAddr().offset / sizeof(uint64_t);
-            DE("[%d.%d] lock_acq: %d\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_idx);
             lock_acqs[lock_idx]++;
             task->lock_acqs++;
             long_data = (uint64_t *) rlock->getCurrPB();
@@ -96,34 +95,51 @@ void *empty_cs_worker(void *arg) {
     return 0;
 }
 
-// void *mlocks_worker(void *arg) {
-//     Task *task = (Task *) arg;
-//     dsm->registerThread();
-//     GlobalAddress baseAddr;
-//     baseAddr.nodeID = 0;
-//     baseAddr.offset = 0;
-//     uint64_t *long_data;
+void *mlocks_worker(void *arg) {
+    Task *task = (Task *) arg;
+    bindCore(task->id);
+    dsm->registerThread();
+    GlobalAddress baseAddr;
+    baseAddr.nodeID = 0;
+    baseAddr.offset = 0;
+    int *private_int_array = task->private_int_array;
+    uint64_t *long_data;
+    int lock_idx = 0;
+    uint64_t range = GB(config.dsmSize) / sizeof(uint64_t);
+    volatile int sum = 0;
+    int data_len = dsm->get_rbuf(0).getkPageSize();
 
-//     pthread_barrier_wait(&global_barrier);
+    pthread_barrier_wait(&global_barrier);
 
-//     for (int i = 0; i < runNR; i++) {
-//         pthread_barrier_wait(&global_barrier);
-//         while (!*task->stop) {
-//             int lock_idx = 0;
-//             rlock->lock_acquire(baseAddr, sizeof(uint64_t));
-//             lock_acqs[lock_idx]++;
-//             task->lock_acqs++;
-//             long_data = (uint64_t *) rlock->getCurrPB();
-//             long_data[0]++;
-//             rlock->lock_release(baseAddr, sizeof(uint64_t));
-//             lock_rels[lock_idx]++;
-//         }
-//         pthread_barrier_wait(&global_barrier);
-//     }
-//     DE("[%d.%d] %lu ACQUISITIONS\n", dsm->getMyNodeID(), dsm->getMyThreadID(), task->lock_acqs);
-//     return 0;
-// }
-
+    for (int i = 0; i < runNR; i++) {
+        srand(node_id*threadNR + dsm->getMyThreadID() + 42);
+        pthread_barrier_wait(&global_barrier);
+        while (!*task->stop) {
+            for (int j = 0; j < 400; j++) {
+                int idx = uniform_rand_int(PRIVATE_ARRAY_SZ / sizeof(int));
+                private_int_array[idx] += sum;
+            }
+            for (int j = 0; j < 100; j++) {
+                int data_idx = uniform_rand_int(range);
+                baseAddr.offset = data_idx * sizeof(uint64_t);
+                rlock->lock_acquire(baseAddr, sizeof(uint64_t));
+                lock_idx = rlock->getCurrLockAddr().offset / sizeof(uint64_t);
+                lock_acqs[lock_idx]++;
+                task->lock_acqs++;
+                long_data = (uint64_t *) rlock->getCurrPB();
+                long_data[0]++;
+                for (int k = 0; k < data_len; k++) {
+                    sum += long_data[k];
+                }
+                rlock->lock_release(baseAddr, sizeof(uint64_t));
+                lock_rels[lock_idx]++;
+            }
+        }
+        pthread_barrier_wait(&global_barrier);
+    }
+    DE("[%d.%d] %lu ACQUISITIONS\n", dsm->getMyNodeID(), dsm->getMyThreadID(), task->lock_acqs);
+    return 0;
+}
 
 int main(int argc, char *argv[]) {
     parse_cli_args(
@@ -165,7 +181,7 @@ int main(int argc, char *argv[]) {
     }
 
     /*WORKER*/
-    void* (*worker)(void*) = correctness_worker;
+    void* (*worker)(void*) = mlocks_worker;
 
     pthread_attr_t attr;
     pthread_attr_init(&attr);
@@ -179,7 +195,8 @@ int main(int argc, char *argv[]) {
         tasks[i].stop = &stop;
         pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
     }
-    rlock = new Rlock(dsm, lockNR);
+    /*LOCK INIT*/
+    rlock = new Rlock(dsm, lockNR, MB(32));
     lock_acqs = new uint64_t[lockNR];
     lock_rels = new uint64_t[lockNR];
     memset(lock_acqs, 0, lockNR*sizeof(uint64_t));

@@ -35,6 +35,12 @@ public:
     cas_buffer_cur = 0;
   }
 
+  int getkPageSize() { return kPageSize; }
+
+  void setPageSize(uint64_t size) {
+    kPageSize = size;
+  }
+
   RdmaBuffer() = default;
 
   void set_buffer(char *buffer) {

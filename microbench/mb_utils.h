@@ -17,8 +17,8 @@ using namespace std;
 #define MB(x) (KB(x) * 1024L)
 #define GB(x) (MB(x) * 1024L)
 
-#define MAX_ARRAY_SIZE  KB(512) 
-#define PRIVATE_ARRAY_SZ KB(256) 
+#define MAX_ARRAY_SIZE  GB(1) 
+#define PRIVATE_ARRAY_SZ MB(64) 
 
 static string ck = "CORRECTNESS";
 
@@ -69,7 +69,7 @@ struct LocalLockNode {
 
 class Rlock {
 public:
-    Rlock(DSM *dsm, uint32_t lockNR);
+    Rlock(DSM *dsm, uint32_t lockNR, uint64_t page_size = 1024);
 
     void index_cache_statistics();
     void clear_statistics();
