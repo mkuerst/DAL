@@ -11,6 +11,9 @@ thread_local char* Rlock::curr_page_buffer = nullptr;
 thread_local uint64_t* Rlock::curr_cas_buffer = nullptr;
 thread_local GlobalAddress Rlock::curr_lock_addr;
 
+int uniform_rand_int(int x) {
+    return rand() % x;
+}
 
 int getNodeNumber() {
     char hostname[256];
@@ -88,7 +91,8 @@ int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int nod
 		char *cn_sum_ptr = dsm->get_DSMKeeper()->memGet(key.c_str(), key.size());
 		uint64_t cn_sum_;
 		memcpy(&cn_sum_, cn_sum_ptr, sizeof(uint64_t));
-		cn_sum =+ cn_sum_;
+		DE("%ld LOCK_ACQS FROM NODE %d\n", cn_sum_, i);
+		cn_sum = cn_sum + cn_sum_;
 	}
 	uint64_t baseAddr = dsm->get_baseAddr();
 	uint64_t *long_data = (uint64_t *) baseAddr;

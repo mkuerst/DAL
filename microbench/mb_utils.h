@@ -119,6 +119,8 @@ struct alignas(CACHELINE_SIZE) Task {
     int private_int_array[PRIVATE_ARRAY_SZ / sizeof(int)];
 };
 
+int uniform_rand_int(int x);
+
 int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int node_id);
 
 int check_CN_correctness(

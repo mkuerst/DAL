@@ -112,8 +112,8 @@ opts=("spinlock")
 duration=2
 runNR=1
 mnNR=1
-nodeNRs=(2)
-threadNRs=(1)
+nodeNRs=(3)
+threadNRs=(16)
 lockNRs=(1)
 bench_idxs=(0)
 

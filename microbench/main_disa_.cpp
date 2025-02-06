@@ -49,6 +49,7 @@ void *correctness_worker(void *arg) {
     baseAddr.nodeID = 0;
     baseAddr.offset = 0;
     uint64_t *long_data;
+    uint64_t range = GB(config.dsmSize) / sizeof(uint64_t);
 
     pthread_barrier_wait(&global_barrier);
 
@@ -91,6 +92,34 @@ void *empty_cs_worker(void *arg) {
     return 0;
 }
 
+// void *mlocks_worker(void *arg) {
+//     Task *task = (Task *) arg;
+//     dsm->registerThread();
+//     GlobalAddress baseAddr;
+//     baseAddr.nodeID = 0;
+//     baseAddr.offset = 0;
+//     uint64_t *long_data;
+
+//     pthread_barrier_wait(&global_barrier);
+
+//     for (int i = 0; i < runNR; i++) {
+//         pthread_barrier_wait(&global_barrier);
+//         while (!*task->stop) {
+//             int lock_idx = 0;
+//             rlock->lock_acquire(baseAddr, sizeof(uint64_t));
+//             lock_acqs[lock_idx]++;
+//             task->lock_acqs++;
+//             long_data = (uint64_t *) rlock->getCurrPB();
+//             long_data[0]++;
+//             rlock->lock_release(baseAddr, sizeof(uint64_t));
+//             lock_rels[lock_idx]++;
+//         }
+//         pthread_barrier_wait(&global_barrier);
+//     }
+//     DE("[%d.%d] %lu ACQUISITIONS\n", dsm->getMyNodeID(), dsm->getMyThreadID(), task->lock_acqs);
+//     return 0;
+// }
+
 
 int main(int argc, char *argv[]) {
     parse_cli_args(
@@ -99,10 +128,10 @@ int main(int argc, char *argv[]) {
     &res_file_cum, &res_file_single,
     argc, argv);
     dsmSize = 1;
-    DE("[%d] HI\n", node_id);
+    DE("HI\n");
     if (node_id == 1) {
         system("sudo bash /nfs/DAL/restartMemc.sh");
-        DE("[%d] STARTED MEMC SERVER\n", node_id);
+        DE("STARTED MEMC SERVER\n");
     }
     else {
         sleep(1);
