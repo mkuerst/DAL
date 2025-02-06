@@ -60,8 +60,8 @@ nfsLan.link_multiplexing = True
 
 ips1 = ["10.10.1.%d" % i for i in range(0, num_nodes+1)]
 ips2 = ["10.10.2.%d" % i for i in range(0, num_nodes+1)]
-link_0 = request.Link('link-0')
-link_0.Site('undefined')
+# link_0 = request.Link('link-0')
+# link_0.Site('undefined')
 
 for i in range(1, params.clientCount+1):
     node = request.RawPC("node%d" % i)
@@ -74,10 +74,10 @@ for i in range(1, params.clientCount+1):
     nfsLan.addInterface(iface_nfs)  # Add to nfsLan
 
     
-    iface_link = node.addInterface("node%d" % i)  
-    iface_link.addAddress(pg.IPv4Address(ips2[i], "255.255.255.0"))
+    # iface_link = node.addInterface("node%d" % i)  
+    # iface_link.addAddress(pg.IPv4Address(ips2[i], "255.255.255.0"))
     
-    link_0.addInterface(iface_link)  # Add to link_0
+    # link_0.addInterface(iface_link)  # Add to link_0
 
     if i == 1:
         nfsBS = node.Blockstore("nfsBS", nfsDirectory)
@@ -87,6 +87,5 @@ for i in range(1, params.clientCount+1):
         node.addService(pg.Execute(shell="sh", command="sudo /bin/bash /local/repository/nfs-client.sh"))
 
     node.installRootKeys(True, True)
-    # node.addService(pg.Execute(shell="sh", command="sudo /bin/bash /local/repository/installLibs.sh"))
 
 pc.printRequestRSpec(request)
