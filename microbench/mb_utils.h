@@ -77,6 +77,7 @@ public:
     void lock_acquire(GlobalAddress base_addr, int data_size);
     void lock_release(GlobalAddress base_addr, int data_size);
     char *getCurrPB() {return curr_page_buffer;}
+    GlobalAddress getCurrLockAddr() { return curr_lock_addr; }
 
 private:
     DSM *dsm;

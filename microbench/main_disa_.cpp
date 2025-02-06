@@ -49,6 +49,7 @@ void *correctness_worker(void *arg) {
     baseAddr.nodeID = 0;
     baseAddr.offset = 0;
     uint64_t *long_data;
+    int lock_idx = 0;
     uint64_t range = GB(config.dsmSize) / sizeof(uint64_t);
 
     pthread_barrier_wait(&global_barrier);
@@ -57,8 +58,11 @@ void *correctness_worker(void *arg) {
         pthread_barrier_wait(&global_barrier);
         while (!*task->stop) {
             // TODO: Generate rand lock_idx/data_addr
-            int lock_idx = 0;
+            int data_idx = uniform_rand_int(range);
+            baseAddr.offset = data_idx * sizeof(uint64_t);
             rlock->lock_acquire(baseAddr, sizeof(uint64_t));
+            lock_idx = rlock->getCurrLockAddr().offset / sizeof(uint64_t);
+            DE("[%d.%d] lock_acq: %d\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_idx);
             lock_acqs[lock_idx]++;
             task->lock_acqs++;
             long_data = (uint64_t *) rlock->getCurrPB();
