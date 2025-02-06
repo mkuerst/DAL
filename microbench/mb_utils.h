@@ -119,11 +119,11 @@ struct alignas(CACHELINE_SIZE) Task {
     int private_int_array[PRIVATE_ARRAY_SZ / sizeof(int)];
 };
 
-int check_MN_correctness(DSM *dsm, size_t dsmSize);
+int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int node_id);
 
 int check_CN_correctness(
 	Task* tasks, uint64_t *lock_acqs, uint64_t *lock_rels,
-	uint32_t lockNR, uint32_t threadNR, DSM *dsm);
+	uint32_t lockNR, uint32_t threadNR, DSM *dsm, int node_id);
 
 int getNodeNumber();
 

@@ -14,7 +14,7 @@ FLAGS=-I../litl2/include/ -I../litl2/src/ -I/usr/include/rdma/ \
 -I../Sherman/include/ -I../Sherman/test/ \
 -I/home/kumichae/my_libs/rdma-core/build/include/rdma \
 -g -Wall -${OFLAG} -DCYCLE_PER_US=${CYCLE_PER_US} -DCACHELINE_SIZE=${CACHELINE_SIZE} -DBOOST_COROUTINES_NO_DEPRECATION_WARNING\
--D$(DE) \
+-D$(DE) -D$(CORRECTNESS)\
 -L/home/kumichae/my_libs/rdma-core/build/lib/ -lrdmacm -libverbs -lnuma -pthread\
 -L../Sherman/build/ -lsherman -lcityhash -lmemcached -lboost_system -lboost_coroutine
 

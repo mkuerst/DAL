@@ -77,18 +77,17 @@ void *empty_cs_worker(void *arg) {
     GlobalAddress baseAddr;
     baseAddr.nodeID = 0;
     baseAddr.offset = 0;
-    uint64_t acq_tp = 0;
     pthread_barrier_wait(&global_barrier);
     for (int i = 0; i < runNR; i++) {
         pthread_barrier_wait(&global_barrier);
         while (!*task->stop) {
             rlock->lock_acquire(baseAddr, 0);
-            acq_tp++;
+            task->lock_acqs++;
             rlock->lock_release(baseAddr, 0);
         }
         pthread_barrier_wait(&global_barrier);
     }
-    DE("[%d.%d] %lu ACQUISITIONS\n", dsm->getMyNodeID(), dsm->getMyThreadID(), acq_tp);
+    DE("[%d.%d] %lu ACQUISITIONS\n", dsm->getMyNodeID(), dsm->getMyThreadID(), task->lock_acqs);
     return 0;
 }
 
@@ -120,17 +119,20 @@ int main(int argc, char *argv[]) {
     if (dsm->getMyNodeID() < mnNR) {
         DE("[%d] MN will busy spin\n", node_id);
         mn_worker();
-        fprintf(stderr, "MN [%d] finished\n", node_id);
         dsm->barrier("MB_END");
+        #ifdef CORRECTNESS
         dsm->barrier("CORRECTNESS");
-        if (check_MN_correctness(dsm, dsmSize))
-            _error("MN LOCK ACQS INCORRECT");
+        DE("MN checking correctness\n");
+        if (check_MN_correctness(dsm, dsmSize, mnNR, nodeNR, node_id))
+            __error("MN LOCK ACQS INCORRECT");
+        #endif
+        fprintf(stderr, "MN [%d] finished\n", node_id);
         dsm->barrier("fin");
         return 0;
     }
 
     /*WORKER*/
-    void* (*worker)(void*) = empty_cs_worker;
+    void* (*worker)(void*) = correctness_worker;
 
     pthread_attr_t attr;
     pthread_attr_init(&attr);
@@ -147,6 +149,8 @@ int main(int argc, char *argv[]) {
     rlock = new Rlock(dsm, lockNR);
     lock_acqs = new uint64_t[lockNR];
     lock_rels = new uint64_t[lockNR];
+    memset(lock_acqs, 0, lockNR*sizeof(uint64_t));
+    memset(lock_rels, 0, lockNR*sizeof(uint64_t));
     /*RUNS*/
     pthread_barrier_wait(&global_barrier);
     for (int i = 0; i < runNR; i++) {
@@ -155,7 +159,6 @@ int main(int argc, char *argv[]) {
 
         string barrierKey = "MB_RUN_" + to_string(i);
         dsm->barrier(barrierKey);
-        DE("X\n");
         pthread_barrier_wait(&global_barrier);
 
         sleep(duration);
@@ -166,11 +169,14 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < threadNR; i++) {
         pthread_join(tasks[i].thread, NULL);
     }
-    fprintf(stderr, "NODE %d DONE\n", node_id);
     dsm->barrier("MB_END");
-    if (check_CN_correctness(tasks, lock_acqs, lock_rels, lockNR, threadNR, dsm))
-        _error("CN LOCK_ACQS INCORRECT");
+    #ifdef CORRECTNESS
+    DE("CN checking correctness\n");
+    if (check_CN_correctness(tasks, lock_acqs, lock_rels, lockNR, threadNR, dsm, node_id))
+        __error("CN LOCK_ACQS INCORRECT");
     dsm->barrier("CORRECTNESS");
+    #endif
+    fprintf(stderr, "NODE %d DONE\n", node_id);
     dsm->barrier("fin");
     return 0;
 }

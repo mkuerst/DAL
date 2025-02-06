@@ -28,6 +28,7 @@ cleanup() {
     pkill -P $$ 
     echo "CLEANUP DONE"
 }
+cleanup
 
 trap cleanup_exit SIGINT
 trap cleanup_exit SIGTERM

@@ -150,8 +150,9 @@ char *Keeper::memGet(const char *key, uint32_t klen, size_t *v_size) {
 
 uint64_t Keeper::memFetchAndAdd(const char *key, uint32_t klen, uint64_t val) {
   uint64_t res;
+  uint32_t val32 = static_cast<uint32_t>(val);
   while (true) {
-    memcached_return rc = memcached_increment(memc, key, klen, val, &res);
+    memcached_return rc = memcached_increment(memc, key, klen, val32, &res);
     if (rc == MEMCACHED_SUCCESS) {
       return res;
     }
