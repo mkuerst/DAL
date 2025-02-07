@@ -135,7 +135,7 @@ void cal_latency(uint64_t latency_th_all[LATENCY_WINDOWS], uint64_t latency[MAX_
 
 void save_measurement(uint64_t arr[MAX_APP_THREAD][LATENCY_WINDOWS]) {
 	auto us_10 = timer.end();
-	DE("%ld ns\n", us_10);
+	// DE("%ld ns\n", us_10);
     if (us_10 >= LATENCY_WINDOWS) {
       us_10 = LATENCY_WINDOWS - 1;
     }

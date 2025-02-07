@@ -22,7 +22,7 @@
 // #define CONFIG_ENABLE_EMBEDDING_LOCK
 // #define CONFIG_ENABLE_CRC
 
-#define LATENCY_WINDOWS 1000000
+#define LATENCY_WINDOWS 10000
 
 #define STRUCT_OFFSET(type, field)                                             \
   (char *)&((type *)(0))->field - (char *)((type *)(0))

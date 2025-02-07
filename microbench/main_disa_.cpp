@@ -31,6 +31,8 @@ DSMConfig config;
 Rlock *rlock;
 pthread_barrier_t global_barrier;
 
+extern Measurements measurement;
+
 void mn_worker() {
     char val[sizeof(uint64_t)];
     uint64_t num = 0;
