@@ -40,10 +40,12 @@ void mn_worker() {
     memcpy(val, &num, sizeof(uint64_t));
     dsm->get_DSMKeeper()->memSet(ck.c_str(), ck.size(), val, sizeof(uint64_t));
     for (int i = 0; i < runNR; i++) {
-        string barrierKey = "MB_RUN_" + to_string(i);
-        string writeResKey = "WRITE_RES_" + to_string(i);
-        dsm->barrier(barrierKey);
-        dsm->barrier(writeResKey);
+        string runKey = "MB_RUN_" + to_string(i);
+        dsm->barrier(runKey);
+        for (int n = 0; n < nodeNR; n++) {
+            string writeResKey = "WRITE_RES_" + to_string(i) + to_string(n);
+            dsm->barrier(writeResKey);
+        }
     }
 }
 
@@ -233,7 +235,7 @@ int main(int argc, char *argv[]) {
                 write_lat(res_file_lat, i, lockNR, n, page_size);
                 clear_measurements();
             }
-            string writeResKey = "WRITE_RES_" + to_string(i);
+            string writeResKey = "WRITE_RES_" + to_string(i) + to_string(n);
             dsm->barrier(writeResKey);
         }
     }
