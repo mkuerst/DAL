@@ -12,7 +12,7 @@ thread_local char* Rlock::curr_page_buffer = nullptr;
 thread_local uint64_t* Rlock::curr_cas_buffer = nullptr;
 thread_local GlobalAddress Rlock::curr_lock_addr;
 thread_local Timer timer;
-thread_local int id;
+thread_local int threadID;
 
 Measurements measurements;
 
@@ -40,12 +40,12 @@ int getNodeNumber() {
 
 void parse_cli_args(
     int *threadNR, int *nodeNR, int* mnNR, int *lockNR, int *runNR,
-    int *node_id, int* duration, int* mode,
+    int *nodeID, int* duration, int* mode,
     char **res_file_tp, char **res_file_lat,
     int argc, char **argv
 ) {
     int option;
-	*node_id = getNodeNumber();
+	*nodeID = getNodeNumber();
 	while ((option = getopt(argc, argv,
     "d:t:l:i:d:s:m:r:f:g:n:")) != -1) 
     {
@@ -72,7 +72,7 @@ void parse_cli_args(
 				*duration = atoi(optarg);
 				break;
             case 'i':
-                *node_id = atoi(optarg);
+                *nodeID = atoi(optarg);
                 break;
 			case 't':
 				*threadNR = atoi(optarg);
@@ -87,10 +87,14 @@ void parse_cli_args(
 }
 
 void set_id(int id) {
-	id = id;
+	threadID = id;
 }
 
-uint64_t* cal_latency(uint64_t latency[MAX_APP_THREAD][LATENCY_WINDOWS]) {
+void clear_measurements() {
+	memset(&measurements, 0, sizeof(Measurements));
+}
+
+uint64_t* cal_latency(uint64_t latency[MAX_APP_THREAD][LATENCY_WINDOWS], const string measurement) {
 	uint64_t latency_th_all[LATENCY_WINDOWS];
 	uint64_t all_lat = 0;
 	for (int i = 0; i < LATENCY_WINDOWS; ++i) {
@@ -110,28 +114,29 @@ uint64_t* cal_latency(uint64_t latency[MAX_APP_THREAD][LATENCY_WINDOWS]) {
 	uint64_t *lats = new uint64_t[2];
 
 	uint64_t cum = 0;
+	auto name = measurement.c_str();
 	for (int i = 0; i < LATENCY_WINDOWS; ++i) {
 		cum += latency_th_all[i];
 
 		if (cum >= th50) {
-			printf("p50 %f\t", i / 10.0);
+			printf("%s : p50 %f\t", name, i / 10.0);
 			th50 = -1;
 			lats[0] = i / 10;
 		}
 		if (cum >= th90) {
-			printf("p90 %f\t", i / 10.0);
+			printf("%s : p90 %f\t", name, i / 10.0);
 			th90 = -1;
 		}
 		if (cum >= th95) {
-			printf("p95 %f\t", i / 10.0);
+			printf("%s : p95 %f\t", name, i / 10.0);
 			th95 = -1;
 		}
 		if (cum >= th99) {
-			printf("p99 %f\t", i / 10.0);
+			printf("%s : p99 %f\t", name, i / 10.0);
 			th99 = -1;
 		}
 		if (cum >= th999) {
-			printf("p999 %f\n", i / 10.0);
+			printf("%s : p999 %f\n", name, i / 10.0);
 			th999 = -1;
 			lats[1] = i / 10;
 			break;
@@ -145,10 +150,10 @@ void save_measurement(uint64_t arr[MAX_APP_THREAD][LATENCY_WINDOWS]) {
     if (us_10 >= LATENCY_WINDOWS) {
       us_10 = LATENCY_WINDOWS - 1;
     }
-    arr[id][us_10]++;
+    arr[threadID][us_10]++;
 }
 
-void write_tp(char* res_file, int run, int threadNR, int lockNR, int node_id, size_t array_size) {
+void write_tp(char* res_file, int run, int threadNR, int lockNR, int nodeID, size_t array_size) {
 	std::ofstream file(res_file, std::ios::app);
 	if (!file)
 		__error("Failed to open %s\n", res_file);
@@ -158,9 +163,9 @@ void write_tp(char* res_file, int run, int threadNR, int lockNR, int node_id, si
 					<< std::setw(8) << measurements.lock_acquires[t] << ","
 					<< std::fixed << std::setprecision(6)
 					<< std::setw(12) << measurements.duration << ","
-					<< std::setw(10) << measurements.glock_tries << ","
+					<< std::setw(10) << measurements.glock_tries[t] << ","
 					<< std::setw(16) << array_size << ","
-					<< std::setfill('0') << std::setw(3) << node_id << ","
+					<< std::setfill('0') << std::setw(3) << nodeID << ","
 					<< std::setw(3) << run << ","
 					<< std::setw(6) << lockNR << "\n";
 
@@ -169,18 +174,19 @@ void write_tp(char* res_file, int run, int threadNR, int lockNR, int node_id, si
 }
 
 // in us
-void write_lat(char* res_file, int run, int nlocks, int node_id, size_t array_size) {
+void write_lat(char* res_file, int run, int nlocks, int nodeID, size_t array_size) {
 	std::ofstream file(res_file, std::ios::app);
 	if (!file)
 		__error("Failed to open %s\n", res_file);
 
-	uint64_t* lock_hold = cal_latency(measurements.lock_hold);
-	uint64_t* lwait_acq = cal_latency(measurements.lwait_acq);
-	uint64_t* lwait_rel = cal_latency(measurements.lwait_rel);
-	uint64_t* gwait_acq = cal_latency(measurements.gwait_acq);
-	uint64_t* gwait_rel = cal_latency(measurements.gwait_rel);
-	uint64_t* data_read = cal_latency(measurements.data_read);
-	uint64_t* data_write = cal_latency(measurements.data_write);
+	uint64_t* lock_hold = cal_latency(measurements.lock_hold, "lock_hold");
+	uint64_t* lwait_acq = cal_latency(measurements.lwait_acq, "lwait_acq");
+	uint64_t* lwait_rel = cal_latency(measurements.lwait_rel, "lwait_rel");
+	uint64_t* gwait_acq = cal_latency(measurements.gwait_acq, "gwait_acq");
+	uint64_t* gwait_rel = cal_latency(measurements.gwait_rel, "gwait_rel");
+	uint64_t* data_read = cal_latency(measurements.data_read, "data_read");
+	uint64_t* data_write = cal_latency(measurements.data_write, "data_write");
+
 	for (int i = 0; i < LATNR; i++) {
 		file << std::setfill('0')
 			<< std::setw(12) << lock_hold[i] << ","
@@ -191,18 +197,18 @@ void write_lat(char* res_file, int run, int nlocks, int node_id, size_t array_si
 			<< std::setw(12) << data_read[i] << ","
 			<< std::setw(12) << data_write[i] << ","
 			<< std::setw(16) << array_size << ","
-			<< std::setfill('0') << std::setw(3) << node_id << ","
+			<< std::setfill('0') << std::setw(3) << nodeID << ","
 			<< std::setw(3) << run << ","
 			<< std::setw(6) << nlocks << "\n";
 	}
 	file.close();
 }
 
-int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int node_id) {
+int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int nodeID) {
 	uint64_t mn_sum = 0;
 	uint64_t cn_sum = 0;
 	for (int i = mnNR; i <= nodeNR; i++) {
-		if (i == node_id)
+		if (i == nodeID)
 			continue;
 		string key = "CORRECTNESS" + to_string(i);
 		char *cn_sum_ptr = dsm->get_DSMKeeper()->memGet(key.c_str(), key.size());
@@ -227,7 +233,7 @@ int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int nod
 
 int check_CN_correctness(
 	Task* tasks, uint64_t *lock_acqs, uint64_t *lock_rels,
-	uint32_t lockNR, uint32_t threadNR, DSM *dsm, int node_id) 
+	uint32_t lockNR, uint32_t threadNR, DSM *dsm, int nodeID) 
 {
 	uint64_t node_sum = 0;
 	uint64_t task_sum = 0;
@@ -247,7 +253,7 @@ int check_CN_correctness(
 		__error("node_sum = %lu", node_sum);
 		return -1;
 	}
-	string key = "CORRECTNESS" + to_string(node_id);
+	string key = "CORRECTNESS" + to_string(nodeID);
     char val[sizeof(uint64_t)];
     memcpy(val, &task_sum, sizeof(uint64_t));
     dsm->get_DSMKeeper()->memSet(key.c_str(), key.size(), val, sizeof(uint64_t));
@@ -291,7 +297,7 @@ void Rlock::lock_acquire(GlobalAddress base_addr, int data_size) {
 	assert(tag != 0);
 
 	try_lock_addr(curr_lock_addr, tag, curr_cas_buffer, NULL, 0);
-	measurements.lock_acquires[id]++;
+	measurements.lock_acquires[threadID]++;
 	timer.begin();
 	if (data_size > 0) {
 		dsm->read_sync(curr_page_buffer, base_addr, data_size, NULL);

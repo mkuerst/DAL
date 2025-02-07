@@ -21,7 +21,7 @@ using namespace std;
 char *array0;
 char *res_file_tp, *res_file_lat;
 int threadNR, nodeNR, mnNR, lockNR, runNR,
-node_id, duration, mode;
+nodeID, duration, mode;
 uint64_t dsmSize;
 uint64_t *lock_acqs;
 uint64_t *lock_rels;
@@ -103,8 +103,8 @@ void *empty_cs_worker(void *arg) {
 void *mlocks_worker(void *arg) {
     Task *task = (Task *) arg;
     bindCore(task->id);
-    set_id(task->id);
     dsm->registerThread(page_size);
+    set_id(dsm->getMyThreadID());
     GlobalAddress baseAddr;
     baseAddr.nodeID = 0;
     baseAddr.offset = 0;
@@ -118,7 +118,7 @@ void *mlocks_worker(void *arg) {
     pthread_barrier_wait(&global_barrier);
 
     for (int i = 0; i < runNR; i++) {
-        srand(node_id*threadNR + dsm->getMyThreadID() + 42);
+        srand(nodeID*threadNR + dsm->getMyThreadID() + 42);
         pthread_barrier_wait(&global_barrier);
         while (!*task->stop) {
             for (int j = 0; j < 400; j++) {
@@ -152,12 +152,12 @@ void *mlocks_worker(void *arg) {
 int main(int argc, char *argv[]) {
     parse_cli_args(
     &threadNR, &nodeNR, &mnNR, &lockNR, &runNR,
-    &node_id, &duration, &mode,
+    &nodeID, &duration, &mode,
     &res_file_tp, &res_file_lat,
     argc, argv);
     dsmSize = 1;
     DE("HI\n");
-    if (node_id == 1) {
+    if (nodeID == 1) {
         system("sudo bash /nfs/DAL/restartMemc.sh");
         DE("STARTED MEMC SERVER\n");
     }
@@ -169,21 +169,22 @@ int main(int argc, char *argv[]) {
     config.mnNR = mnNR;
     config.machineNR = nodeNR;
     config.threadNR = threadNR;
-    config.clusterID = node_id;
+    // config.clusterID = nodeID;
     dsm = DSM::getInstance(config);
-    DE("DSM Init DONE\n");
+    nodeID = dsm->getMyNodeID();
+    DE("DSM INIT DONE: DSM NODE %d\n", nodeID);
 
-    if (dsm->getMyNodeID() < mnNR) {
-        DE("[%d] MN will busy spin\n", node_id);
+    if (nodeID < mnNR) {
+        DE("I AM A MN\n");
         mn_worker();
         dsm->barrier("MB_END");
         #ifdef CORRECTNESS
         dsm->barrier("CORRECTNESS");
         DE("MN checking correctness\n");
-        if (check_MN_correctness(dsm, dsmSize, mnNR, nodeNR, node_id))
+        if (check_MN_correctness(dsm, dsmSize, mnNR, nodeNR, nodeID))
             __error("MN LOCK ACQS INCORRECT");
         #endif
-        fprintf(stderr, "MN [%d] finished\n", node_id);
+        fprintf(stderr, "MN [%d] finished\n", nodeID);
         dsm->barrier("fin");
         return 0;
     }
@@ -204,17 +205,19 @@ int main(int argc, char *argv[]) {
         tasks[i].stop = &stop;
         pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
     }
+    
     /*LOCK INIT*/
     rlock = new Rlock(dsm, lockNR);
     lock_acqs = new uint64_t[lockNR];
     lock_rels = new uint64_t[lockNR];
     memset(lock_acqs, 0, lockNR*sizeof(uint64_t));
     memset(lock_rels, 0, lockNR*sizeof(uint64_t));
+
     /*RUNS*/
     pthread_barrier_wait(&global_barrier);
     for (int i = 0; i < runNR; i++) {
         stop = 0;
-        fprintf(stderr, "[%d] RUN %d\n", node_id, i);
+        fprintf(stderr, "[%d] RUN %d\n", nodeID, i);
 
         string barrierKey = "MB_RUN_" + to_string(i);
         dsm->barrier(barrierKey);
@@ -224,27 +227,29 @@ int main(int argc, char *argv[]) {
         stop = 1;
 
         pthread_barrier_wait(&global_barrier);
-        for (int n = 2; n <= nodeNR; n++) {
+        for (int n = 0; n < nodeNR; n++) {
             if (n == dsm->getMyNodeID()) {
-                write_tp(res_file_tp, i, threadNR, lockNR, dsm->getMyNodeID(), page_size);
-                write_lat(res_file_lat, i, lockNR, dsm->getMyNodeID(), page_size);
+                write_tp(res_file_tp, i, threadNR, lockNR, n, page_size);
+                write_lat(res_file_lat, i, lockNR, n, page_size);
+                clear_measurements();
             }
             string writeResKey = "WRITE_RES_" + to_string(i);
             dsm->barrier(writeResKey);
         }
-         
     }
     for (int i = 0; i < threadNR; i++) {
         pthread_join(tasks[i].thread, NULL);
     }
     dsm->barrier("MB_END");
+
     #ifdef CORRECTNESS
     DE("CN checking correctness\n");
-    if (check_CN_correctness(tasks, lock_acqs, lock_rels, lockNR, threadNR, dsm, node_id))
+    if (check_CN_correctness(tasks, lock_acqs, lock_rels, lockNR, threadNR, dsm, nodeID))
         __error("CN LOCK_ACQS INCORRECT");
     dsm->barrier("CORRECTNESS");
     #endif
-    fprintf(stderr, "NODE %d DONE\n", node_id);
+
+    fprintf(stderr, "DSM NODE %d DONE\n", nodeID);
     dsm->barrier("fin");
     return 0;
 }

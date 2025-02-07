@@ -145,21 +145,23 @@ int uniform_rand_int(int x);
 
 void set_id(int id);
 
-void write_tp(char* res_file, int run, int threadNR, int nlocks, int node_id, size_t array_size);
+void clear_measurements();
 
-void write_lat(char* res_file, int run, int nlocks, int node_id, size_t array_size);
+void write_tp(char* res_file, int run, int threadNR, int nlocks, int nodeID, size_t array_size);
 
-int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int node_id);
+void write_lat(char* res_file, int run, int nlocks, int nodeID, size_t array_size);
+
+int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int nodeID);
 
 int check_CN_correctness(
 	Task* tasks, uint64_t *lock_acqs, uint64_t *lock_rels,
-	uint32_t lockNR, uint32_t threadNR, DSM *dsm, int node_id);
+	uint32_t lockNR, uint32_t threadNR, DSM *dsm, int nodeID);
 
 int getNodeNumber();
 
 void parse_cli_args(
     int *threadNR, int *nodeNR, int* mnNR, int *lockNR, int *runNR,
-    int *node_id, int* duration, int* mode,
+    int *nodeID, int* duration, int* mode,
     char **res_file_tp, char **res_file_lat,
     int argc, char **argv
 );
