@@ -207,7 +207,7 @@ void write_lat(char* res_file, int run, int nlocks, int nodeID, size_t array_siz
 int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int nodeID) {
 	uint64_t mn_sum = 0;
 	uint64_t cn_sum = 0;
-	for (int i = mnNR; i <= nodeNR; i++) {
+	for (int i = 0; i < nodeNR; i++) {
 		if (i == nodeID)
 			continue;
 		string key = "CORRECTNESS" + to_string(i);
