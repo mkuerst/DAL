@@ -22,7 +22,7 @@
 // #define CONFIG_ENABLE_EMBEDDING_LOCK
 // #define CONFIG_ENABLE_CRC
 
-#define LATENCY_WINDOWS 10000
+#define LATENCY_WINDOWS 100000
 
 #define STRUCT_OFFSET(type, field)                                             \
   (char *)&((type *)(0))->field - (char *)((type *)(0))
@@ -40,7 +40,7 @@
 #define RAW_RECV_CQ_COUNT 128
 
 // { app thread
-#define MAX_APP_THREAD 26
+#define MAX_APP_THREAD 32
 
 #define APP_MESSAGE_NR 96
 

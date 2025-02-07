@@ -18,7 +18,7 @@ class DSM {
 
 public:
   // obtain netowrk resources for a thread
-  void registerThread();
+  void registerThread(int page_size = 1024);
 
   // clear the network resources for all threads
   void resetThread() { appID.store(0); }

@@ -82,7 +82,7 @@ DSM::DSM(const DSMConfig &conf)
 
 DSM::~DSM() {}
 
-void DSM::registerThread() {
+void DSM::registerThread(int page_size) {
 
   static bool has_init[MAX_APP_THREAD];
 
@@ -102,9 +102,10 @@ void DSM::registerThread() {
   }
 
   rdma_buffer = (char *)cache.data + thread_id * 12 * define::MB;
+  // rdma_buffer = (char *)cache.data + thread_id * 32 * define::MB;
 
   for (int i = 0; i < define::kMaxCoro; ++i) {
-    rbuf[i].set_buffer(rdma_buffer + i * define::kPerCoroRdmaBuf);
+    rbuf[i].set_buffer(rdma_buffer + i * define::kPerCoroRdmaBuf, page_size);
   }
 }
 

@@ -109,12 +109,12 @@ peer_ips=(
 )
 
 opts=("spinlock")
-duration=1
+duration=10
 runNR=1
 mnNR=1
 nodeNRs=(3)
-threadNRs=(16)
-lockNRs=(512)
+threadNRs=(32)
+lockNRs=(1)
 bench_idxs=(0)
 
 for impl_dir in "$BASE"/original/*

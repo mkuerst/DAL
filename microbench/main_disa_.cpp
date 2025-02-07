@@ -19,19 +19,20 @@ using namespace std;
 #endif
 
 char *array0;
-char *res_file_cum, *res_file_single;
+char *res_file_tp, *res_file_lat;
 int threadNR, nodeNR, mnNR, lockNR, runNR,
 node_id, duration, mode;
 uint64_t dsmSize;
 uint64_t *lock_acqs;
 uint64_t *lock_rels;
 
+int page_size = 1024;
 DSM *dsm;
 DSMConfig config;
 Rlock *rlock;
 pthread_barrier_t global_barrier;
 
-extern Measurements measurement;
+extern Measurements measurements;
 
 void mn_worker() {
     char val[sizeof(uint64_t)];
@@ -40,7 +41,9 @@ void mn_worker() {
     dsm->get_DSMKeeper()->memSet(ck.c_str(), ck.size(), val, sizeof(uint64_t));
     for (int i = 0; i < runNR; i++) {
         string barrierKey = "MB_RUN_" + to_string(i);
+        string writeResKey = "WRITE_RES_" + to_string(i);
         dsm->barrier(barrierKey);
+        dsm->barrier(writeResKey);
     }
 }
 
@@ -101,7 +104,7 @@ void *mlocks_worker(void *arg) {
     Task *task = (Task *) arg;
     bindCore(task->id);
     set_id(task->id);
-    dsm->registerThread();
+    dsm->registerThread(page_size);
     GlobalAddress baseAddr;
     baseAddr.nodeID = 0;
     baseAddr.offset = 0;
@@ -123,9 +126,11 @@ void *mlocks_worker(void *arg) {
                 private_int_array[idx] += sum;
             }
             for (int j = 0; j < 100; j++) {
+                if (*task->stop)
+                    break;
                 int data_idx = uniform_rand_int(range);
                 baseAddr.offset = data_idx * sizeof(uint64_t);
-                rlock->lock_acquire(baseAddr, sizeof(uint64_t));
+                rlock->lock_acquire(baseAddr, data_len * sizeof(uint64_t));
                 lock_idx = rlock->getCurrLockAddr().offset / sizeof(uint64_t);
                 lock_acqs[lock_idx]++;
                 task->lock_acqs++;
@@ -134,7 +139,7 @@ void *mlocks_worker(void *arg) {
                 for (int k = 0; k < data_len; k++) {
                     sum += long_data[k];
                 }
-                rlock->lock_release(baseAddr, sizeof(uint64_t));
+                rlock->lock_release(baseAddr, data_len);
                 lock_rels[lock_idx]++;
             }
         }
@@ -148,7 +153,7 @@ int main(int argc, char *argv[]) {
     parse_cli_args(
     &threadNR, &nodeNR, &mnNR, &lockNR, &runNR,
     &node_id, &duration, &mode,
-    &res_file_cum, &res_file_single,
+    &res_file_tp, &res_file_lat,
     argc, argv);
     dsmSize = 1;
     DE("HI\n");
@@ -192,6 +197,7 @@ int main(int argc, char *argv[]) {
 
     /*TASK INIT*/
     Task *tasks = new Task[threadNR];
+    measurements.duration = duration;
     alignas(CACHELINE_SIZE) volatile int stop = 0;
     for (int i = 0; i < threadNR; i++) {
         tasks[i].id = i;
@@ -199,7 +205,7 @@ int main(int argc, char *argv[]) {
         pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
     }
     /*LOCK INIT*/
-    rlock = new Rlock(dsm, lockNR, MB(32));
+    rlock = new Rlock(dsm, lockNR);
     lock_acqs = new uint64_t[lockNR];
     lock_rels = new uint64_t[lockNR];
     memset(lock_acqs, 0, lockNR*sizeof(uint64_t));
@@ -218,6 +224,15 @@ int main(int argc, char *argv[]) {
         stop = 1;
 
         pthread_barrier_wait(&global_barrier);
+        for (int n = 2; n <= nodeNR; n++) {
+            if (n == dsm->getMyNodeID()) {
+                write_tp(res_file_tp, i, threadNR, lockNR, dsm->getMyNodeID(), page_size);
+                write_lat(res_file_lat, i, lockNR, dsm->getMyNodeID(), page_size);
+            }
+            string writeResKey = "WRITE_RES_" + to_string(i);
+            dsm->barrier(writeResKey);
+        }
+         
     }
     for (int i = 0; i < threadNR; i++) {
         pthread_join(tasks[i].thread, NULL);

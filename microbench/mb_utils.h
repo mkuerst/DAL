@@ -18,6 +18,8 @@
 #define MAX_ARRAY_SIZE  GB(1) 
 #define PRIVATE_ARRAY_SZ MB(64) 
 
+#define LATNR 2
+
 
 #ifdef DE
 #undef DE
@@ -70,8 +72,6 @@ struct LocalLockNode {
 };
 
 struct Measurements {
-    uint64_t loop_in_cs[MAX_APP_THREAD];
-    uint64_t lock_acquires[MAX_APP_THREAD];
     uint64_t lock_hold[MAX_APP_THREAD][LATENCY_WINDOWS];
     uint64_t wait_acq[MAX_APP_THREAD][LATENCY_WINDOWS];
     uint64_t wait_rel[MAX_APP_THREAD][LATENCY_WINDOWS];
@@ -79,15 +79,17 @@ struct Measurements {
     uint64_t lwait_rel[MAX_APP_THREAD][LATENCY_WINDOWS];
     uint64_t gwait_acq[MAX_APP_THREAD][LATENCY_WINDOWS];
     uint64_t gwait_rel[MAX_APP_THREAD][LATENCY_WINDOWS];
-    uint64_t glock_tries[MAX_APP_THREAD];
     uint64_t data_read[MAX_APP_THREAD][LATENCY_WINDOWS];
     uint64_t data_write[MAX_APP_THREAD][LATENCY_WINDOWS];
+    uint64_t loop_in_cs[MAX_APP_THREAD];
+    uint64_t lock_acquires[MAX_APP_THREAD];
+    uint64_t glock_tries[MAX_APP_THREAD];
     uint64_t duration;
 };
 
 class Rlock {
 public:
-    Rlock(DSM *dsm, uint32_t lockNR, uint64_t page_size = 1024);
+    Rlock(DSM *dsm, uint32_t lockNR);
 
     void index_cache_statistics();
     void clear_statistics();
@@ -96,6 +98,7 @@ public:
     void lock_release(GlobalAddress base_addr, int data_size);
     char *getCurrPB() {return curr_page_buffer;}
     GlobalAddress getCurrLockAddr() { return curr_lock_addr; }
+    void setKPageSize(int page_size); 
 
 private:
     DSM *dsm;
@@ -142,6 +145,10 @@ int uniform_rand_int(int x);
 
 void set_id(int id);
 
+void write_tp(char* res_file, int run, int threadNR, int nlocks, int node_id, size_t array_size);
+
+void write_lat(char* res_file, int run, int nlocks, int node_id, size_t array_size);
+
 int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int node_id);
 
 int check_CN_correctness(
@@ -153,7 +160,7 @@ int getNodeNumber();
 void parse_cli_args(
     int *threadNR, int *nodeNR, int* mnNR, int *lockNR, int *runNR,
     int *node_id, int* duration, int* mode,
-    char **res_file_cum, char **res_file_single,
+    char **res_file_tp, char **res_file_lat,
     int argc, char **argv
 );
 

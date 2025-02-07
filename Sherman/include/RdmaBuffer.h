@@ -43,11 +43,12 @@ public:
 
   RdmaBuffer() = default;
 
-  void set_buffer(char *buffer) {
+  void set_buffer(char *buffer, int page_size = 1024) {
 
     // printf("set buffer %p\n", buffer);
 
-    kPageSize = std::max(kLeafPageSize, kInternalPageSize);
+    // kPageSize = std::max(kLeafPageSize, kInternalPageSize);
+    kPageSize = page_size;
     this->buffer = buffer;
     cas_buffer = (uint64_t *)buffer;
     unlock_buffer =
