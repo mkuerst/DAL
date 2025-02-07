@@ -51,8 +51,8 @@
     fprintf(stderr, "\033[1;31m%s : %s : %d : ERROR : \033[0m" msg, host, __FILE__, __LINE__, ##__VA_ARGS__);\
     fprintf(stderr, "\n");\
 } while(0)
-
 using namespace std;
+
 #include <string>
 #include "Timer.h"
 #include "DSM.h"
@@ -70,18 +70,18 @@ struct LocalLockNode {
 };
 
 struct Measurements {
-    uint64_t loop_in_cs;
-    uint64_t lock_acquires;
-    uint64_t lock_hold[LATENCY_WINDOWS];
-    uint64_t wait_acq[LATENCY_WINDOWS];
-    uint64_t wait_rel[LATENCY_WINDOWS];
-    uint64_t lwait_acq[LATENCY_WINDOWS];
-    uint64_t lwait_rel[LATENCY_WINDOWS];
-    uint64_t gwait_acq[LATENCY_WINDOWS];
-    uint64_t gwait_rel[LATENCY_WINDOWS];
-    uint64_t glock_tries;
-    uint64_t data_read[LATENCY_WINDOWS];
-    uint64_t data_write[LATENCY_WINDOWS];
+    uint64_t loop_in_cs[MAX_APP_THREAD];
+    uint64_t lock_acquires[MAX_APP_THREAD];
+    uint64_t lock_hold[MAX_APP_THREAD][LATENCY_WINDOWS];
+    uint64_t wait_acq[MAX_APP_THREAD][LATENCY_WINDOWS];
+    uint64_t wait_rel[MAX_APP_THREAD][LATENCY_WINDOWS];
+    uint64_t lwait_acq[MAX_APP_THREAD][LATENCY_WINDOWS];
+    uint64_t lwait_rel[MAX_APP_THREAD][LATENCY_WINDOWS];
+    uint64_t gwait_acq[MAX_APP_THREAD][LATENCY_WINDOWS];
+    uint64_t gwait_rel[MAX_APP_THREAD][LATENCY_WINDOWS];
+    uint64_t glock_tries[MAX_APP_THREAD];
+    uint64_t data_read[MAX_APP_THREAD][LATENCY_WINDOWS];
+    uint64_t data_write[MAX_APP_THREAD][LATENCY_WINDOWS];
     uint64_t duration;
 };
 
@@ -139,6 +139,8 @@ struct alignas(CACHELINE_SIZE) Task {
 };
 
 int uniform_rand_int(int x);
+
+void set_id(int id);
 
 int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int node_id);
 

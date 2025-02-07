@@ -10,9 +10,10 @@ using namespace std;
 thread_local char* Rlock::curr_page_buffer = nullptr;
 thread_local uint64_t* Rlock::curr_cas_buffer = nullptr;
 thread_local GlobalAddress Rlock::curr_lock_addr;
-
-thread_local Measurements *measurements;
 thread_local Timer timer;
+thread_local int id;
+
+Measurements measurements;
 
 int uniform_rand_int(int x) {
     return rand() % x;
@@ -84,12 +85,61 @@ void parse_cli_args(
 	}
 }
 
-void save_measurement(uint64_t *arr) {
-	auto us_10 = timer.end() / 100;
+void set_id(int id) {
+	id = id;
+}
+
+void cal_latency(uint64_t latency_th_all[LATENCY_WINDOWS], uint64_t latency[MAX_APP_THREAD][LATENCY_WINDOWS]) {
+	uint64_t all_lat = 0;
+	for (int i = 0; i < LATENCY_WINDOWS; ++i) {
+		latency_th_all[i] = 0;
+		for (int k = 0; k < MAX_APP_THREAD; ++k) {
+			latency_th_all[i] += latency[k][i];
+		}
+		all_lat += latency_th_all[i];
+	}
+
+	uint64_t th50 = all_lat / 2;
+	uint64_t th90 = all_lat * 9 / 10;
+	uint64_t th95 = all_lat * 95 / 100;
+	uint64_t th99 = all_lat * 99 / 100;
+	uint64_t th999 = all_lat * 999 / 1000;
+
+	uint64_t cum = 0;
+	for (int i = 0; i < LATENCY_WINDOWS; ++i) {
+		cum += latency_th_all[i];
+
+		if (cum >= th50) {
+			printf("p50 %f\t", i / 10.0);
+			th50 = -1;
+		}
+		if (cum >= th90) {
+			printf("p90 %f\t", i / 10.0);
+			th90 = -1;
+		}
+		if (cum >= th95) {
+			printf("p95 %f\t", i / 10.0);
+			th95 = -1;
+		}
+		if (cum >= th99) {
+			printf("p99 %f\t", i / 10.0);
+			th99 = -1;
+		}
+		if (cum >= th999) {
+			printf("p999 %f\n", i / 10.0);
+			th999 = -1;
+			return;
+		}
+	}
+}
+
+void save_measurement(uint64_t arr[MAX_APP_THREAD][LATENCY_WINDOWS]) {
+	auto us_10 = timer.end();
+	DE("%ld ns\n", us_10);
     if (us_10 >= LATENCY_WINDOWS) {
       us_10 = LATENCY_WINDOWS - 1;
     }
-    arr[us_10]++;
+    arr[id][us_10]++;
 }
 
 int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int node_id) {
@@ -190,8 +240,7 @@ void Rlock::lock_acquire(GlobalAddress base_addr, int data_size) {
 	if (data_size > 0) {
 		dsm->read_sync(curr_page_buffer, base_addr, data_size, NULL);
 	}
-	save_measurement(measurements->data_read);
-
+	save_measurement(measurements.data_read);
 }
 
 // TODO: ASYNC WRITE BACK?!
@@ -245,7 +294,7 @@ inline bool Rlock::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
                                 uint64_t *buf, CoroContext *cxt, int coro_id) {
 
 	bool hand_over = acquire_local_lock(lock_addr, cxt, coro_id);
-	save_measurement(measurements->lwait_acq);
+	save_measurement(measurements.lwait_acq);
 	if (hand_over) {
 		return true;
 	}
@@ -278,7 +327,7 @@ inline bool Rlock::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
 		goto retry;
 	}
 	}
-	save_measurement(measurements->gwait_acq);
+	save_measurement(measurements.gwait_acq);
 
 	return true;
 }

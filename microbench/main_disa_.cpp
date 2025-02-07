@@ -98,6 +98,7 @@ void *empty_cs_worker(void *arg) {
 void *mlocks_worker(void *arg) {
     Task *task = (Task *) arg;
     bindCore(task->id);
+    set_id(task->id);
     dsm->registerThread();
     GlobalAddress baseAddr;
     baseAddr.nodeID = 0;
