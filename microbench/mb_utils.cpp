@@ -145,8 +145,8 @@ uint64_t* cal_latency(uint64_t latency[MAX_APP_THREAD][LATENCY_WINDOWS], const s
 	return lats;
 }
 
-void save_measurement(uint64_t arr[MAX_APP_THREAD][LATENCY_WINDOWS]) {
-	auto us_10 = timer.end() / 100;
+void save_measurement(uint64_t arr[MAX_APP_THREAD][LATENCY_WINDOWS], int factor) {
+	auto us_10 = timer.end() / factor;
     if (us_10 >= LATENCY_WINDOWS) {
       us_10 = LATENCY_WINDOWS - 1;
     }
@@ -159,22 +159,21 @@ void write_tp(char* res_file, int run, int threadNR, int lockNR, int nodeID, siz
 		__error("Failed to open %s\n", res_file);
 	for (int t = 0; t < threadNR; t++) {
 				file << std::setfill('0') << std::setw(3) << t << ","
-					<< std::setw(10) << measurements.loop_in_cs[t] << ","
+					<< std::setw(8) << measurements.loop_in_cs[t] << ","
 					<< std::setw(8) << measurements.lock_acquires[t] << ","
-					<< std::fixed << std::setprecision(6)
-					<< std::setw(12) << measurements.duration << ","
-					<< std::setw(10) << measurements.glock_tries[t] << ","
+					<< std::setw(8) << measurements.duration << ","
+					<< std::setw(8) << measurements.glock_tries[t] << ","
 					<< std::setw(16) << array_size << ","
-					<< std::setfill('0') << std::setw(3) << nodeID << ","
+					<< std::setw(3) << nodeID << ","
 					<< std::setw(3) << run << ","
-					<< std::setw(6) << lockNR << "\n";
+					<< std::setw(4) << lockNR << "\n";
 
 	}
     file.close();	
 }
 
 // in us
-void write_lat(char* res_file, int run, int nlocks, int nodeID, size_t array_size) {
+void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_size) {
 	std::ofstream file(res_file, std::ios::app);
 	if (!file)
 		__error("Failed to open %s\n", res_file);
@@ -189,17 +188,17 @@ void write_lat(char* res_file, int run, int nlocks, int nodeID, size_t array_siz
 
 	for (int i = 0; i < LATNR; i++) {
 		file << std::setfill('0')
-			<< std::setw(12) << lock_hold[i] << ","
-			<< std::setw(12) << lwait_acq[i] << ","
-			<< std::setw(12) << lwait_rel[i] << ","
-			<< std::setw(12) << gwait_acq[i] << ","
-			<< std::setw(12) << gwait_rel[i] << ","
-			<< std::setw(12) << data_read[i] << ","
-			<< std::setw(12) << data_write[i] << ","
-			<< std::setw(16) << array_size << ","
-			<< std::setfill('0') << std::setw(3) << nodeID << ","
+			<< std::setw(6) << lock_hold[i] << ","
+			<< std::setw(6) << lwait_acq[i] << ","
+			<< std::setw(6) << lwait_rel[i] << ","
+			<< std::setw(6) << gwait_acq[i] << ","
+			<< std::setw(6) << gwait_rel[i] << ","
+			<< std::setw(6) << data_read[i] << ","
+			<< std::setw(6) << data_write[i] << ","
+			<< std::setw(6) << array_size << ","
+			<< std::setw(3) << nodeID << ","
 			<< std::setw(3) << run << ","
-			<< std::setw(6) << nlocks << "\n";
+			<< std::setw(4) << lockNR << "\n";
 	}
 	file.close();
 }
@@ -307,6 +306,7 @@ void Rlock::lock_acquire(GlobalAddress base_addr, int data_size) {
 
 // TODO: ASYNC WRITE BACK?!
 void Rlock::lock_release(GlobalAddress base_addr, int data_size) {
+	timer.begin();
 	auto tag = dsm->getThreadTag();
 	assert(tag != 0);
 	write_and_unlock(curr_page_buffer, base_addr, data_size, curr_cas_buffer,
@@ -321,8 +321,13 @@ void Rlock::write_and_unlock(char *page_buffer, GlobalAddress page_addr,
 
 	bool hand_over_other = can_hand_over(lock_addr);
 	if (hand_over_other) {
-		dsm->write_sync(page_buffer, page_addr, page_size, cxt);
+		if (page_size > 0) {
+			dsm->write_sync(page_buffer, page_addr, page_size, cxt);
+			save_measurement(measurements.data_write);
+		}
+		timer.begin();
 		releases_local_lock(lock_addr);
+		save_measurement(measurements.lwait_rel);
 		return;
 	}
 
@@ -348,46 +353,49 @@ void Rlock::write_and_unlock(char *page_buffer, GlobalAddress page_addr,
 	} else {
 		dsm->write_batch_sync(rs, idx, cxt);
 	}
-
+	save_measurement(measurements.data_write);
+	save_measurement(measurements.gwait_rel);
+	timer.begin();
 	releases_local_lock(lock_addr);
+	save_measurement(measurements.lwait_rel);
 }
 
 inline bool Rlock::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
                                 uint64_t *buf, CoroContext *cxt, int coro_id) {
 
 	bool hand_over = acquire_local_lock(lock_addr, cxt, coro_id);
-	save_measurement(measurements.lwait_acq);
+	save_measurement(measurements.lwait_acq, 1000);
 	if (hand_over) {
 		return true;
 	}
 
 	{
+		timer.begin();
+		uint64_t retry_cnt = 0;
+		uint64_t pre_tag = 0;
+		uint64_t conflict_tag = 0;
+		retry:
+		retry_cnt++;
+		if (retry_cnt > 1000000) {
+			std::cout << "Deadlock " << lock_addr << std::endl;
 
-	timer.begin();
-	uint64_t retry_cnt = 0;
-	uint64_t pre_tag = 0;
-	uint64_t conflict_tag = 0;
-	retry:
-	retry_cnt++;
-	if (retry_cnt > 1000000) {
-		std::cout << "Deadlock " << lock_addr << std::endl;
-
-		std::cout << dsm->getMyNodeID() << ", " << dsm->getMyThreadID()
-				<< " locked by " << (conflict_tag >> 32) << ", "
-				<< (conflict_tag << 32 >> 32) << std::endl;
-		assert(false);
-	}
-
-	bool res = dsm->cas_dm_sync(lock_addr, 0, tag, buf, cxt);
-
-	if (!res) {
-		conflict_tag = *buf - 1;
-		if (conflict_tag != pre_tag) {
-			retry_cnt = 0;
-			pre_tag = conflict_tag;
+			std::cout << dsm->getMyNodeID() << ", " << dsm->getMyThreadID()
+					<< " locked by " << (conflict_tag >> 32) << ", "
+					<< (conflict_tag << 32 >> 32) << std::endl;
+			assert(false);
 		}
-		goto retry;
-	}
+
+		bool res = dsm->cas_dm_sync(lock_addr, 0, tag, buf, cxt);
+
+		if (!res) {
+			conflict_tag = *buf - 1;
+			if (conflict_tag != pre_tag) {
+				retry_cnt = 0;
+				pre_tag = conflict_tag;
+			}
+			goto retry;
+		}
+		measurements.glock_tries[threadID] += retry_cnt;
 	}
 	save_measurement(measurements.gwait_acq);
 

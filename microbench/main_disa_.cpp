@@ -26,13 +26,14 @@ uint64_t dsmSize;
 uint64_t *lock_acqs;
 uint64_t *lock_rels;
 
-int page_size = 1024;
+int page_size = KB(1);
 DSM *dsm;
 DSMConfig config;
 Rlock *rlock;
 pthread_barrier_t global_barrier;
 
 extern Measurements measurements;
+extern thread_local Timer timer;
 
 void mn_worker() {
     char val[sizeof(uint64_t)];
@@ -93,7 +94,6 @@ void *empty_cs_worker(void *arg) {
         pthread_barrier_wait(&global_barrier);
         while (!*task->stop) {
             rlock->lock_acquire(baseAddr, 0);
-            task->lock_acqs++;
             rlock->lock_release(baseAddr, 0);
         }
         pthread_barrier_wait(&global_barrier);
@@ -136,11 +136,15 @@ void *mlocks_worker(void *arg) {
                 lock_idx = rlock->getCurrLockAddr().offset / sizeof(uint64_t);
                 lock_acqs[lock_idx]++;
                 task->lock_acqs++;
+
+                timer.begin();
                 long_data = (uint64_t *) rlock->getCurrPB();
                 long_data[0]++;
                 for (int k = 0; k < data_len; k++) {
                     sum += long_data[k];
                 }
+                save_measurement(measurements.lock_hold);
+                
                 rlock->lock_release(baseAddr, data_len);
                 lock_rels[lock_idx]++;
             }
@@ -160,7 +164,8 @@ int main(int argc, char *argv[]) {
     dsmSize = 1;
     DE("HI\n");
     if (nodeID == 1) {
-        system("sudo bash /nfs/DAL/restartMemc.sh");
+        if(system("sudo bash /nfs/DAL/restartMemc.sh"))
+            _error("Failed to start MEMC server\n");
         DE("STARTED MEMC SERVER\n");
     }
     else {
