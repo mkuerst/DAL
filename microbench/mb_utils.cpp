@@ -11,6 +11,9 @@ thread_local char* Rlock::curr_page_buffer = nullptr;
 thread_local uint64_t* Rlock::curr_cas_buffer = nullptr;
 thread_local GlobalAddress Rlock::curr_lock_addr;
 
+thread_local Measurements *measurements;
+thread_local Timer timer;
+
 int uniform_rand_int(int x) {
     return rand() % x;
 }
@@ -79,6 +82,14 @@ void parse_cli_args(
 				break;
 		}
 	}
+}
+
+void save_measurement(uint64_t *arr) {
+	auto us_10 = timer.end() / 100;
+    if (us_10 >= LATENCY_WINDOWS) {
+      us_10 = LATENCY_WINDOWS - 1;
+    }
+    arr[us_10]++;
 }
 
 int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int node_id) {
@@ -167,6 +178,7 @@ void Rlock::get_bufs() {
 }
 
 void Rlock::lock_acquire(GlobalAddress base_addr, int data_size) {
+	timer.begin();
 	curr_lock_addr = get_lock_addr(base_addr);
 
 	get_bufs();
@@ -174,9 +186,12 @@ void Rlock::lock_acquire(GlobalAddress base_addr, int data_size) {
 	assert(tag != 0);
 
 	try_lock_addr(curr_lock_addr, tag, curr_cas_buffer, NULL, 0);
+	timer.begin();
 	if (data_size > 0) {
 		dsm->read_sync(curr_page_buffer, base_addr, data_size, NULL);
 	}
+	save_measurement(measurements->data_read);
+
 }
 
 // TODO: ASYNC WRITE BACK?!
@@ -229,40 +244,43 @@ void Rlock::write_and_unlock(char *page_buffer, GlobalAddress page_addr,
 inline bool Rlock::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
                                 uint64_t *buf, CoroContext *cxt, int coro_id) {
 
-  bool hand_over = acquire_local_lock(lock_addr, cxt, coro_id);
-  if (hand_over) {
-    return true;
-  }
+	bool hand_over = acquire_local_lock(lock_addr, cxt, coro_id);
+	save_measurement(measurements->lwait_acq);
+	if (hand_over) {
+		return true;
+	}
 
-  {
+	{
 
-    uint64_t retry_cnt = 0;
-    uint64_t pre_tag = 0;
-    uint64_t conflict_tag = 0;
-  retry:
-    retry_cnt++;
-    if (retry_cnt > 1000000) {
-      std::cout << "Deadlock " << lock_addr << std::endl;
+	timer.begin();
+	uint64_t retry_cnt = 0;
+	uint64_t pre_tag = 0;
+	uint64_t conflict_tag = 0;
+	retry:
+	retry_cnt++;
+	if (retry_cnt > 1000000) {
+		std::cout << "Deadlock " << lock_addr << std::endl;
 
-      std::cout << dsm->getMyNodeID() << ", " << dsm->getMyThreadID()
-                << " locked by " << (conflict_tag >> 32) << ", "
-                << (conflict_tag << 32 >> 32) << std::endl;
-      assert(false);
-    }
+		std::cout << dsm->getMyNodeID() << ", " << dsm->getMyThreadID()
+				<< " locked by " << (conflict_tag >> 32) << ", "
+				<< (conflict_tag << 32 >> 32) << std::endl;
+		assert(false);
+	}
 
-    bool res = dsm->cas_dm_sync(lock_addr, 0, tag, buf, cxt);
+	bool res = dsm->cas_dm_sync(lock_addr, 0, tag, buf, cxt);
 
-    if (!res) {
-      conflict_tag = *buf - 1;
-      if (conflict_tag != pre_tag) {
-        retry_cnt = 0;
-        pre_tag = conflict_tag;
-      }
-      goto retry;
-    }
-  }
+	if (!res) {
+		conflict_tag = *buf - 1;
+		if (conflict_tag != pre_tag) {
+			retry_cnt = 0;
+			pre_tag = conflict_tag;
+		}
+		goto retry;
+	}
+	}
+	save_measurement(measurements->gwait_acq);
 
-  return true;
+	return true;
 }
 
 inline bool Rlock::acquire_local_lock(GlobalAddress lock_addr, CoroContext *cxt,

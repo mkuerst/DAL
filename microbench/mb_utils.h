@@ -1,9 +1,7 @@
 #ifndef __MB_UTILS_H__
 #define __MB_UTILS_H__
 
-using namespace std;
 #include <pthread.h>
-#include <string>
 
 #ifndef CACHELINE_SIZE
 #define CACHELINE_SIZE 64
@@ -20,7 +18,6 @@ using namespace std;
 #define MAX_ARRAY_SIZE  GB(1) 
 #define PRIVATE_ARRAY_SZ MB(64) 
 
-static string ck = "CORRECTNESS";
 
 #ifdef DE
 #undef DE
@@ -55,16 +52,37 @@ static string ck = "CORRECTNESS";
     fprintf(stderr, "\n");\
 } while(0)
 
+using namespace std;
+#include <string>
+#include "Timer.h"
 #include "DSM.h"
 #include <atomic>
 #include <city.h>
 #include <functional>
 #include <iostream>
 
+static string ck = "CORRECTNESS";
+
 struct LocalLockNode {
   std::atomic<uint64_t> ticket_lock;
   bool hand_over;
   uint8_t hand_time;
+};
+
+struct Measurements {
+    uint64_t loop_in_cs;
+    uint64_t lock_acquires;
+    uint64_t lock_hold[LATENCY_WINDOWS];
+    uint64_t wait_acq[LATENCY_WINDOWS];
+    uint64_t wait_rel[LATENCY_WINDOWS];
+    uint64_t lwait_acq[LATENCY_WINDOWS];
+    uint64_t lwait_rel[LATENCY_WINDOWS];
+    uint64_t gwait_acq[LATENCY_WINDOWS];
+    uint64_t gwait_rel[LATENCY_WINDOWS];
+    uint64_t glock_tries;
+    uint64_t data_read[LATENCY_WINDOWS];
+    uint64_t data_write[LATENCY_WINDOWS];
+    uint64_t duration;
 };
 
 class Rlock {
