@@ -85,10 +85,13 @@ void *correctness_worker(void *arg) {
 
 void *empty_cs_worker(void *arg) {
     Task *task = (Task *) arg;
-    dsm->registerThread();
+    bindCore(task->id);
+    dsm->registerThread(page_size);
+    set_id(dsm->getMyThreadID());
     GlobalAddress baseAddr;
     baseAddr.nodeID = 0;
     baseAddr.offset = 0;
+
     pthread_barrier_wait(&global_barrier);
     for (int i = 0; i < runNR; i++) {
         pthread_barrier_wait(&global_barrier);
@@ -197,7 +200,13 @@ int main(int argc, char *argv[]) {
     }
 
     /*WORKER*/
-    void* (*worker)(void*) = mlocks_worker;
+    void* (*worker)(void*);
+    switch(mode) {
+        case 0: worker = empty_cs_worker; break;
+        case 1: worker = mlocks_worker; break;
+        case 2: worker = correctness_worker; break;
+        default: worker = empty_cs_worker; break;
+    }
 
     pthread_attr_t attr;
     pthread_attr_init(&attr);

@@ -76,14 +76,15 @@ comm_prot=rdma
 
 # MICROBENCH INPUTS
 opts=("spinlock")
-microbenches=("empty_cs2n" "empty_cs1n" "lat" "mem2n" "mem1n" "mlocks2n" "mlocks1n" "correctness")
-duration=10
+# microbenches=("empty_cs2n" "empty_cs1n" "lat" "mem2n" "mem1n" "mlocks2n" "mlocks1n" "correctness")
+microbenches=("empty_cs" "mlocks" "correctness")
+duration=2
 runNR=2
 mnNR=1
-nodeNRs=(3)
-threadNRs=(32)
+nodeNRs=(2 3)
+threadNRs=(1 16 32)
 lockNRs=(1)
-bench_idxs=(0)
+bench_idxs=(1)
 
 for impl_dir in "$BASE"/original/*
 do
@@ -134,8 +135,8 @@ do
                         -g $client_ressingle_file \
                         -l $lockNR \
                         -r $runNR \
-                        -s $mnNR \
-                        2>> $client_log_dir/nclients$n_clients"_nthreads"$i.log"
+                        -s $mnNR"
+                        # 2>> $client_log_dir/nclients$n_clients"_nthreads"$i.log"
                         # "sudo LD_PRELOAD=$client_so $disa_bench -t $i -d $duration -s $server_ip -p $p_ips -m $j -c $nclients -f $client_rescum_file -g $client_ressingle_file -l $nlocks -r $runs -e $mem_runs"
 
                         cleanup
