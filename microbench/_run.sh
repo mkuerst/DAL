@@ -80,7 +80,7 @@ runNR=2
 mnNR=1
 nodeNRs=(3)
 threadNRs=(32)
-lockNRs=(128)
+lockNRs=(512)
 bench_idxs=(1)
 
 for impl_dir in "$BASE"/original/*

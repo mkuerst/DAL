@@ -123,7 +123,7 @@ void *mlocks_worker(void *arg) {
     int *private_int_array = task->private_int_array;
     uint64_t *long_data;
     int lock_idx = 0;
-    uint64_t range = GB(config.dsmSize) / sizeof(uint64_t);
+    uint64_t range = (GB(config.dsmSize) - page_size) / sizeof(uint64_t);
     volatile int sum = 0;
     int data_len = dsm->get_rbuf(0).getkPageSize() / sizeof(uint64_t);
     srand(nodeID*threadNR + dsm->getMyThreadID() + 42);
