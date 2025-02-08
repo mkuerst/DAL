@@ -231,10 +231,9 @@ int main(int argc, char *argv[]) {
 
     pthread_barrier_wait(&global_barrier);
     for (int n = 0; n < nodeNR; n++) {
-        if (n == dsm->getMyNodeID()) {
+        if (n == nodeID) {
             write_tp(res_file_tp, runNR, threadNR, lockNR, n, page_size);
             write_lat(res_file_lat, runNR, lockNR, n, page_size);
-            clear_measurements();
         }
         string writeResKey = "WRITE_RES_" + to_string(n);
         dsm->barrier(writeResKey);
