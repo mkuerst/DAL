@@ -164,7 +164,7 @@ void write_tp(char* res_file, int run, int threadNR, int lockNR, int nodeID, siz
 					<< std::setw(8) << measurements.lock_acquires[t] << ","
 					<< std::setw(8) << measurements.duration << ","
 					<< std::setw(8) << measurements.glock_tries[t] << ","
-					<< std::setw(16) << array_size << ","
+					<< std::setw(6) << array_size << ","
 					<< std::setw(3) << nodeID << ","
 					<< std::setw(3) << run << ","
 					<< std::setw(4) << lockNR << "\n";

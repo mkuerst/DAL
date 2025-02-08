@@ -53,7 +53,7 @@ disa_bench="$PWD/main_disa_"
 
 
 client_filecum_header="tid,\
-loop_in_cs,lock_acquires,duration\
+loop_in_cs,lock_acquires,duration,\
 glock_tries,array_size(B),nodeID,run,lockNR"
 
 client_filesingle_header="lock_hold,\
@@ -76,7 +76,6 @@ comm_prot=rdma
 
 # MICROBENCH INPUTS
 opts=("spinlock")
-# microbenches=("empty_cs2n" "empty_cs1n" "lat" "mem2n" "mem1n" "mlocks2n" "mlocks1n" "correctness")
 microbenches=("empty_cs" "mlocks" "correctness")
 duration=5
 runNR=2
@@ -98,8 +97,8 @@ do
         for mode in ${bench_idxs[@]}
         do
             microb="${microbenches[$mode]}"
-            client_rescum_dir="$PWD/results/$comm_prot/$opt/cn/tp/$impl/$microb"
-            client_ressingle_dir="$PWD/results/$comm_prot/$opt/cn/lat/$impl/$microb"
+            client_tp_dir="$PWD/results/$comm_prot/$opt/cn/tp/$impl/$microb"
+            client_lat_dir="$PWD/results/$comm_prot/$opt/cn/lat/$impl/$microb"
             server_res_dir="./results/$comm_prot/$opt/server/tp/$impl/$microb"
             server_log_dir="$server_logpath/$impl/$opt/$microb"
             client_log_dir="$client_logpath/$impl/$opt/$microb"
@@ -113,12 +112,12 @@ do
             do
                 for threadNR in ${threadNRs[@]}
                 do
-                    client_rescum_file="$client_rescum_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
-                    client_ressingle_file="$client_ressingle_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
+                    client_tp_file="$client_tp_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
+                    client_lat_file="$client_lat_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
                     server_res_file="$server_res_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
                     orig_res_file="$orig_res_dir/threadNR$threadNR.csv"
-                    echo $client_filecum_header > "$client_rescum_file"
-                    echo $client_filesingle_header > "$client_ressingle_file"
+                    echo $client_tp_header > "$client_tp_file"
+                    echo $client_lat_header > "$client_lat_file"
                     echo $server_file_header > "$server_res_file"
 
                     for lockNR in ${lockNRs[@]}
@@ -132,8 +131,8 @@ do
                             -d $duration \
                             -m $mode \
                             -n $nodeNR \
-                            -f $client_rescum_file \
-                            -g $client_ressingle_file \
+                            -f $client_tp_file \
+                            -g $client_lat_file \
                             -l $lockNR \
                             -r $run \
                             -s $mnNR 2>&1"

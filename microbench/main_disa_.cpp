@@ -46,7 +46,6 @@ void mn_worker() {
     for (int n = 0; n < nodeNR; n++) {
         string writeResKey = "WRITE_RES_" + to_string(n);
         dsm->barrier(writeResKey);
-        DE("MN PASSED WIRTE_RES BARRIER %d\n", n);
     }
 
     dsm->barrier("MB_END");
@@ -175,9 +174,6 @@ int main(int argc, char *argv[]) {
             _error("Failed to start MEMC server\n");
         DE("STARTED MEMC SERVER\n");
     }
-    else {
-        sleep(1);
-    }
 
     config.dsmSize = dsmSize;
     config.mnNR = mnNR;
@@ -239,11 +235,9 @@ int main(int argc, char *argv[]) {
             write_tp(res_file_tp, runNR, threadNR, lockNR, n, page_size);
             write_lat(res_file_lat, runNR, lockNR, n, page_size);
             clear_measurements();
-            DE("WRITTEN RESULTS RUN %d\n", runNR);
         }
         string writeResKey = "WRITE_RES_" + to_string(n);
         dsm->barrier(writeResKey);
-        DE("PASSED WRITE_RES BARRIER %d\n", n);
     }
     for (int i = 0; i < threadNR; i++) {
         pthread_join(tasks[i].thread, NULL);
