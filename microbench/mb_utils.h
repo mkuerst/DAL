@@ -139,6 +139,7 @@ struct alignas(CACHELINE_SIZE) Task {
     // MISC
     int id, run, idx;
     int private_int_array[PRIVATE_ARRAY_SZ / sizeof(int)];
+    Timer timer;
 };
 
 int uniform_rand_int(int x);

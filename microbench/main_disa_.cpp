@@ -33,7 +33,6 @@ Rlock *rlock;
 pthread_barrier_t global_barrier;
 
 extern Measurements measurements;
-extern thread_local Timer timer;
 
 void mn_worker() {
     DE("I AM A MN\n");
@@ -46,6 +45,7 @@ void mn_worker() {
     for (int n = 0; n < nodeNR; n++) {
         string writeResKey = "WRITE_RES_" + to_string(n);
         dsm->barrier(writeResKey);
+        DE("[%d] MN WRITE BARRIER %d PASSED\n", nodeID, n);
     }
 
     dsm->barrier("MB_END");
@@ -113,6 +113,7 @@ void *empty_cs_worker(void *arg) {
 
 void *mlocks_worker(void *arg) {
     Task *task = (Task *) arg;
+    Timer timer = task->timer;
     bindCore(task->id);
     dsm->registerThread(page_size);
     set_id(dsm->getMyThreadID());
@@ -237,6 +238,7 @@ int main(int argc, char *argv[]) {
         }
         string writeResKey = "WRITE_RES_" + to_string(n);
         dsm->barrier(writeResKey);
+        DE("[%d] WRITE BARRIER %d PASSED\n", nodeID, n);
     }
     for (int i = 0; i < threadNR; i++) {
         pthread_join(tasks[i].thread, NULL);

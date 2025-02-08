@@ -82,7 +82,7 @@ runNR=2
 mnNR=1
 nodeNRs=(3)
 threadNRs=(32)
-lockNRs=(1)
+lockNRs=(128)
 bench_idxs=(1)
 
 for impl_dir in "$BASE"/original/*
@@ -99,14 +99,14 @@ do
             microb="${microbenches[$mode]}"
             client_tp_dir="$PWD/results/$comm_prot/$opt/cn/tp/$impl/$microb"
             client_lat_dir="$PWD/results/$comm_prot/$opt/cn/lat/$impl/$microb"
-            server_res_dir="./results/$comm_prot/$opt/server/tp/$impl/$microb"
-            server_log_dir="$server_logpath/$impl/$opt/$microb"
-            client_log_dir="$client_logpath/$impl/$opt/$microb"
-            mkdir -p "$client_rescum_dir" 
-            mkdir -p "$client_ressingle_dir" 
-            mkdir -p "$server_res_dir" 
-            mkdir -p "$server_log_dir"
-            mkdir -p "$client_log_dir"
+            # server_res_dir="./results/$comm_prot/$opt/server/tp/$impl/$microb"
+            # server_log_dir="$server_logpath/$impl/$opt/$microb"
+            # client_log_dir="$client_logpath/$impl/$opt/$microb"
+            mkdir -p "$client_tp_dir" 
+            mkdir -p "$client_lat_dir" 
+            # mkdir -p "$server_res_dir" 
+            # mkdir -p "$server_log_dir"
+            # mkdir -p "$client_log_dir"
 
             for nodeNR in ${nodeNRs[@]}
             do
