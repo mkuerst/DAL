@@ -36,18 +36,32 @@ extern Measurements measurements;
 extern thread_local Timer timer;
 
 void mn_worker() {
+    DE("I AM A MN\n");
     char val[sizeof(uint64_t)];
     uint64_t num = 0;
     memcpy(val, &num, sizeof(uint64_t));
     dsm->get_DSMKeeper()->memSet(ck.c_str(), ck.size(), val, sizeof(uint64_t));
-    for (int i = 0; i < runNR; i++) {
-        string runKey = "MB_RUN_" + to_string(i);
-        dsm->barrier(runKey);
-        for (int n = 0; n < nodeNR; n++) {
-            string writeResKey = "WRITE_RES_" + to_string(i) + to_string(n);
-            dsm->barrier(writeResKey);
-        }
+    dsm->barrier("MB_BEGIN");
+
+    for (int n = 0; n < nodeNR; n++) {
+        string writeResKey = "WRITE_RES_" + to_string(n);
+        dsm->barrier(writeResKey);
+        DE("MN PASSED WIRTE_RES BARRIER %d\n", n);
     }
+
+    dsm->barrier("MB_END");
+    #ifdef CORRECTNESS
+        dsm->barrier("CORRECTNESS");
+        DE("MN checking correctness\n");
+        if (check_MN_correctness(dsm, dsmSize, mnNR, nodeNR, nodeID)) {
+            __error("MN LOCK ACQS INCORRECT");
+        }
+        else {
+            DE("MN CORRECTNESS PASSED!\n");
+        }
+    #endif
+    fprintf(stderr, "MN [%d] finished\n", nodeID);
+    dsm->barrier("fin");
 }
 
 void *correctness_worker(void *arg) {
@@ -62,23 +76,19 @@ void *correctness_worker(void *arg) {
 
     pthread_barrier_wait(&global_barrier);
 
-    for (int i = 0; i < runNR; i++) {
-        pthread_barrier_wait(&global_barrier);
-        while (!*task->stop) {
-            // TODO: Generate rand lock_idx/data_addr
-            int data_idx = uniform_rand_int(range);
-            baseAddr.offset = data_idx * sizeof(uint64_t);
-            rlock->lock_acquire(baseAddr, sizeof(uint64_t));
-            lock_idx = rlock->getCurrLockAddr().offset / sizeof(uint64_t);
-            lock_acqs[lock_idx]++;
-            task->lock_acqs++;
-            long_data = (uint64_t *) rlock->getCurrPB();
-            long_data[0]++;
-            rlock->lock_release(baseAddr, sizeof(uint64_t));
-            lock_rels[lock_idx]++;
-        }
-        pthread_barrier_wait(&global_barrier);
+    while (!*task->stop) {
+        int data_idx = uniform_rand_int(range);
+        baseAddr.offset = data_idx * sizeof(uint64_t);
+        rlock->lock_acquire(baseAddr, sizeof(uint64_t));
+        lock_idx = rlock->getCurrLockAddr().offset / sizeof(uint64_t);
+        lock_acqs[lock_idx]++;
+        task->lock_acqs++;
+        long_data = (uint64_t *) rlock->getCurrPB();
+        long_data[0]++;
+        rlock->lock_release(baseAddr, sizeof(uint64_t));
+        lock_rels[lock_idx]++;
     }
+    pthread_barrier_wait(&global_barrier);
     DE("[%d.%d] %lu ACQUISITIONS\n", dsm->getMyNodeID(), dsm->getMyThreadID(), task->lock_acqs);
     return 0;
 }
@@ -93,14 +103,11 @@ void *empty_cs_worker(void *arg) {
     baseAddr.offset = 0;
 
     pthread_barrier_wait(&global_barrier);
-    for (int i = 0; i < runNR; i++) {
-        pthread_barrier_wait(&global_barrier);
-        while (!*task->stop) {
-            rlock->lock_acquire(baseAddr, 0);
-            rlock->lock_release(baseAddr, 0);
-        }
-        pthread_barrier_wait(&global_barrier);
+    while (!*task->stop) {
+        rlock->lock_acquire(baseAddr, 0);
+        rlock->lock_release(baseAddr, 0);
     }
+    pthread_barrier_wait(&global_barrier);
     DE("[%d.%d] %lu ACQUISITIONS\n", dsm->getMyNodeID(), dsm->getMyThreadID(), task->lock_acqs);
     return 0;
 }
@@ -119,41 +126,38 @@ void *mlocks_worker(void *arg) {
     uint64_t range = GB(config.dsmSize) / sizeof(uint64_t);
     volatile int sum = 0;
     int data_len = dsm->get_rbuf(0).getkPageSize() / sizeof(uint64_t);
+    srand(nodeID*threadNR + dsm->getMyThreadID() + 42);
 
     pthread_barrier_wait(&global_barrier);
 
-    for (int i = 0; i < runNR; i++) {
-        srand(nodeID*threadNR + dsm->getMyThreadID() + 42);
-        pthread_barrier_wait(&global_barrier);
-        while (!*task->stop) {
-            for (int j = 0; j < 400; j++) {
-                int idx = uniform_rand_int(PRIVATE_ARRAY_SZ / sizeof(int));
-                private_int_array[idx] += sum;
-            }
-            for (int j = 0; j < 100; j++) {
-                if (*task->stop)
-                    break;
-                int data_idx = uniform_rand_int(range);
-                baseAddr.offset = data_idx * sizeof(uint64_t);
-                rlock->lock_acquire(baseAddr, data_len * sizeof(uint64_t));
-                lock_idx = rlock->getCurrLockAddr().offset / sizeof(uint64_t);
-                lock_acqs[lock_idx]++;
-                task->lock_acqs++;
-
-                timer.begin();
-                long_data = (uint64_t *) rlock->getCurrPB();
-                long_data[0]++;
-                for (int k = 0; k < data_len; k++) {
-                    sum += long_data[k];
-                }
-                save_measurement(measurements.lock_hold);
-                
-                rlock->lock_release(baseAddr, data_len);
-                lock_rels[lock_idx]++;
-            }
+    while (!*task->stop) {
+        for (int j = 0; j < 400; j++) {
+            int idx = uniform_rand_int(PRIVATE_ARRAY_SZ / sizeof(int));
+            private_int_array[idx] += sum;
         }
-        pthread_barrier_wait(&global_barrier);
+        for (int j = 0; j < 100; j++) {
+            if (*task->stop)
+                break;
+            int data_idx = uniform_rand_int(range);
+            baseAddr.offset = data_idx * sizeof(uint64_t);
+            rlock->lock_acquire(baseAddr, data_len * sizeof(uint64_t));
+            lock_idx = rlock->getCurrLockAddr().offset / sizeof(uint64_t);
+            lock_acqs[lock_idx]++;
+            task->lock_acqs++;
+
+            timer.begin();
+            long_data = (uint64_t *) rlock->getCurrPB();
+            long_data[0]++;
+            for (int k = 0; k < data_len; k++) {
+                sum += long_data[k];
+            }
+            save_measurement(measurements.lock_hold);
+            
+            rlock->lock_release(baseAddr, data_len);
+            lock_rels[lock_idx]++;
+        }
     }
+    pthread_barrier_wait(&global_barrier);
     DE("[%d.%d] %lu ACQUISITIONS\n", dsm->getMyNodeID(), dsm->getMyThreadID(), task->lock_acqs);
     return 0;
 }
@@ -184,18 +188,9 @@ int main(int argc, char *argv[]) {
     nodeID = dsm->getMyNodeID();
     DE("DSM INIT DONE: DSM NODE %d\n", nodeID);
 
+    /*MN*/
     if (nodeID < mnNR) {
-        DE("I AM A MN\n");
         mn_worker();
-        dsm->barrier("MB_END");
-        #ifdef CORRECTNESS
-        dsm->barrier("CORRECTNESS");
-        DE("MN checking correctness\n");
-        if (check_MN_correctness(dsm, dsmSize, mnNR, nodeNR, nodeID))
-            __error("MN LOCK ACQS INCORRECT");
-        #endif
-        fprintf(stderr, "MN [%d] finished\n", nodeID);
-        dsm->barrier("fin");
         return 0;
     }
 
@@ -230,28 +225,25 @@ int main(int argc, char *argv[]) {
     memset(lock_rels, 0, lockNR*sizeof(uint64_t));
 
     /*RUNS*/
+    stop = 0;
+    dsm->barrier("MB_BEGIN");
     pthread_barrier_wait(&global_barrier);
-    for (int i = 0; i < runNR; i++) {
-        stop = 0;
-        fprintf(stderr, "[%d] RUN %d\n", nodeID, i);
+    DE("RUN %d\n", runNR);
 
-        string barrierKey = "MB_RUN_" + to_string(i);
-        dsm->barrier(barrierKey);
-        pthread_barrier_wait(&global_barrier);
+    sleep(duration);
+    stop = 1;
 
-        sleep(duration);
-        stop = 1;
-
-        pthread_barrier_wait(&global_barrier);
-        for (int n = 0; n < nodeNR; n++) {
-            if (n == dsm->getMyNodeID()) {
-                write_tp(res_file_tp, i, threadNR, lockNR, n, page_size);
-                write_lat(res_file_lat, i, lockNR, n, page_size);
-                clear_measurements();
-            }
-            string writeResKey = "WRITE_RES_" + to_string(i) + to_string(n);
-            dsm->barrier(writeResKey);
+    pthread_barrier_wait(&global_barrier);
+    for (int n = 0; n < nodeNR; n++) {
+        if (n == dsm->getMyNodeID()) {
+            write_tp(res_file_tp, runNR, threadNR, lockNR, n, page_size);
+            write_lat(res_file_lat, runNR, lockNR, n, page_size);
+            clear_measurements();
+            DE("WRITTEN RESULTS RUN %d\n", runNR);
         }
+        string writeResKey = "WRITE_RES_" + to_string(n);
+        dsm->barrier(writeResKey);
+        DE("PASSED WRITE_RES BARRIER %d\n", n);
     }
     for (int i = 0; i < threadNR; i++) {
         pthread_join(tasks[i].thread, NULL);
@@ -259,10 +251,14 @@ int main(int argc, char *argv[]) {
     dsm->barrier("MB_END");
 
     #ifdef CORRECTNESS
-    DE("CN checking correctness\n");
-    if (check_CN_correctness(tasks, lock_acqs, lock_rels, lockNR, threadNR, dsm, nodeID))
-        __error("CN LOCK_ACQS INCORRECT");
-    dsm->barrier("CORRECTNESS");
+        DE("CN checking correctness\n");
+        if (check_CN_correctness(tasks, lock_acqs, lock_rels, lockNR, threadNR, dsm, nodeID)) {
+            __error("CN LOCK_ACQS INCORRECT");
+        }
+        else {
+            DE("CN CORRECTNESS PASSED!\n");
+        }
+        dsm->barrier("CORRECTNESS");
     #endif
 
     fprintf(stderr, "DSM NODE %d DONE\n", nodeID);

@@ -64,9 +64,9 @@
         "-t", "32",
         "-d", "5",
         "-s", "1",
-        "-m", "0",
+        "-m", "1",
         "-i", "1",
-        "-n", "2",
+        "-n", "3",
         "-f", "/nfs/DAL/microbench/results/test_tp.csv",
         "-g", "/nfs/DAL/microbench/results/test_lat.csv",
         "-l", "1",
@@ -99,9 +99,44 @@
         "-t", "32",
         "-d", "5",
         "-s", "1",
-        "-m", "0",
+        "-m", "1",
         "-i", "2",
-        "-n", "2",
+        "-n", "3",
+        "-f", "/nfs/DAL/microbench/results/test_tp.csv",
+        "-g", "/nfs/DAL/microbench/results/test_lat.csv",
+        "-l", "1",
+        "-r", "2",
+      ],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [
+        // {
+        //   "name": "LD_PRELOAD",
+        //   "value": "/nfs/DAL/litl2/lib/client/libbackoff_original_client_spinlock.so"
+        // }
+      ],
+      "MIMode": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ],
+      "externalConsole": false,
+    },
+    {
+      "name": "node3",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/microbench/main_disa_",
+      "args": [
+        "-t", "32",
+        "-d", "5",
+        "-s", "1",
+        "-m", "1",
+        "-i", "3",
+        "-n", "3",
         "-f", "/nfs/DAL/microbench/results/test_tp.csv",
         "-g", "/nfs/DAL/microbench/results/test_lat.csv",
         "-l", "1",
@@ -207,6 +242,12 @@
       "name": "2 nodes",
       "configurations": [
         "node1", "node2"
+      ]
+    },
+    {
+      "name": "3 nodes",
+      "configurations": [
+        "node1", "node2", "node3"
       ]
     },
   ]

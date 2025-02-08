@@ -91,7 +91,9 @@ void set_id(int id) {
 }
 
 void clear_measurements() {
+	int tmp = measurements.duration;
 	memset(&measurements, 0, sizeof(Measurements));
+	measurements.duration = tmp;
 }
 
 uint64_t* cal_latency(uint64_t latency[MAX_APP_THREAD][LATENCY_WINDOWS], const string measurement) {
@@ -114,29 +116,28 @@ uint64_t* cal_latency(uint64_t latency[MAX_APP_THREAD][LATENCY_WINDOWS], const s
 	uint64_t *lats = new uint64_t[2];
 
 	uint64_t cum = 0;
-	auto name = measurement.c_str();
 	for (int i = 0; i < LATENCY_WINDOWS; ++i) {
 		cum += latency_th_all[i];
 
 		if (cum >= th50) {
-			printf("%s : p50 %f\t", name, i / 10.0);
+			// DE("%s : p50 %f\t", measurement.c_str(), i / 10.0);
 			th50 = -1;
 			lats[0] = i / 10;
 		}
 		if (cum >= th90) {
-			printf("%s : p90 %f\t", name, i / 10.0);
+			// DE("%s : p90 %f\t", measurement.c_str(), i / 10.0);
 			th90 = -1;
 		}
 		if (cum >= th95) {
-			printf("%s : p95 %f\t", name, i / 10.0);
+			// DE("%s : p95 %f\t", measurement.c_str(), i / 10.0);
 			th95 = -1;
 		}
 		if (cum >= th99) {
-			printf("%s : p99 %f\t", name, i / 10.0);
+			// DE("%s : p99 %f\t", measurement.c_str(), i / 10.0);
 			th99 = -1;
 		}
 		if (cum >= th999) {
-			printf("%s : p999 %f\n", name, i / 10.0);
+			// DE("%s : p999 %f\n", measurement.c_str(), i / 10.0);
 			th999 = -1;
 			lats[1] = i / 10;
 			break;
@@ -304,14 +305,43 @@ void Rlock::lock_acquire(GlobalAddress base_addr, int data_size) {
 	save_measurement(measurements.data_read);
 }
 
-// TODO: ASYNC WRITE BACK?!
 void Rlock::lock_release(GlobalAddress base_addr, int data_size) {
 	timer.begin();
 	auto tag = dsm->getThreadTag();
 	assert(tag != 0);
-	write_and_unlock(curr_page_buffer, base_addr, data_size, curr_cas_buffer,
-					curr_lock_addr, tag, NULL, 0, false);
+	if (data_size > 0) {
+		write_and_unlock(curr_page_buffer, base_addr, data_size, curr_cas_buffer,
+			curr_lock_addr, tag, NULL, 0, false);
+	}
+	else {
+		unlock_addr(curr_lock_addr, tag, curr_cas_buffer, NULL, 0, false);
+	}
+	}
+	
+// TODO: ASYNC WRITE BACK?!
+inline void Rlock::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
+                              uint64_t *buf, CoroContext *cxt, int coro_id,
+                              bool async) {
 
+	bool hand_over_other = can_hand_over(lock_addr);
+	if (hand_over_other) {
+		releases_local_lock(lock_addr);
+		save_measurement(measurements.lwait_rel);
+		return;
+	}
+
+	auto cas_buf = dsm->get_rbuf(coro_id).get_cas_buffer();
+
+	*cas_buf = 0;
+	if (async) {
+		dsm->write_dm((char *)cas_buf, lock_addr, sizeof(uint64_t), false);
+	} else {
+		dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
+	}
+	save_measurement(measurements.gwait_rel);
+	timer.begin();
+	releases_local_lock(lock_addr);
+	save_measurement(measurements.lwait_rel);
 }
 
 void Rlock::write_and_unlock(char *page_buffer, GlobalAddress page_addr,
@@ -321,10 +351,8 @@ void Rlock::write_and_unlock(char *page_buffer, GlobalAddress page_addr,
 
 	bool hand_over_other = can_hand_over(lock_addr);
 	if (hand_over_other) {
-		if (page_size > 0) {
-			dsm->write_sync(page_buffer, page_addr, page_size, cxt);
-			save_measurement(measurements.data_write);
-		}
+		dsm->write_sync(page_buffer, page_addr, page_size, cxt);
+		save_measurement(measurements.data_write);
 		timer.begin();
 		releases_local_lock(lock_addr);
 		save_measurement(measurements.lwait_rel);
@@ -332,26 +360,21 @@ void Rlock::write_and_unlock(char *page_buffer, GlobalAddress page_addr,
 	}
 
 	RdmaOpRegion rs[2];
-	int idx = 0;
-	if (page_size > 0) {
-		rs[0].source = (uint64_t)page_buffer;
-		rs[0].dest = page_addr;
-		rs[0].size = page_size;
-		rs[0].is_on_chip = false;
-		idx++;
-	}
+	rs[0].source = (uint64_t)page_buffer;
+	rs[0].dest = page_addr;
+	rs[0].size = page_size;
+	rs[0].is_on_chip = false;
 
-	rs[idx].source = (uint64_t)dsm->get_rbuf(coro_id).get_cas_buffer();
-	rs[idx].dest = lock_addr;
-	rs[idx].size = sizeof(uint64_t);
-	rs[idx].is_on_chip = true;
-	idx++;
+	rs[1].source = (uint64_t)dsm->get_rbuf(coro_id).get_cas_buffer();
+	rs[1].dest = lock_addr;
+	rs[1].size = sizeof(uint64_t);
+	rs[1].is_on_chip = true;
 
 	*(uint64_t *)rs[1].source = 0;
 	if (async) {
-		dsm->write_batch(rs, idx, false);
+		dsm->write_batch(rs, 2, false);
 	} else {
-		dsm->write_batch_sync(rs, idx, cxt);
+		dsm->write_batch_sync(rs, 2, cxt);
 	}
 	save_measurement(measurements.data_write);
 	save_measurement(measurements.gwait_rel);

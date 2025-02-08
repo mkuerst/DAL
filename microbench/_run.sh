@@ -53,7 +53,7 @@ disa_bench="$PWD/main_disa_"
 
 
 client_filecum_header="tid,\
-loop_in_cs,lock_acquires,\
+loop_in_cs,lock_acquires,duration\
 glock_tries,array_size(B),nodeID,run,lockNR"
 
 client_filesingle_header="lock_hold,\
@@ -78,11 +78,11 @@ comm_prot=rdma
 opts=("spinlock")
 # microbenches=("empty_cs2n" "empty_cs1n" "lat" "mem2n" "mem1n" "mlocks2n" "mlocks1n" "correctness")
 microbenches=("empty_cs" "mlocks" "correctness")
-duration=2
+duration=5
 runNR=2
 mnNR=1
-nodeNRs=(2 3)
-threadNRs=(1 16 32)
+nodeNRs=(3)
+threadNRs=(32)
 lockNRs=(1)
 bench_idxs=(1)
 
@@ -98,9 +98,9 @@ do
         for mode in ${bench_idxs[@]}
         do
             microb="${microbenches[$mode]}"
-            client_rescum_dir="$PWD/results/$comm_prot/$opt/cn/cum/$impl/$microb"
-            client_ressingle_dir="$PWD/results/$comm_prot/$opt/cn/single/$impl/$microb"
-            server_res_dir="./results/$comm_prot/$opt/server/cum/$impl/$microb"
+            client_rescum_dir="$PWD/results/$comm_prot/$opt/cn/tp/$impl/$microb"
+            client_ressingle_dir="$PWD/results/$comm_prot/$opt/cn/lat/$impl/$microb"
+            server_res_dir="./results/$comm_prot/$opt/server/tp/$impl/$microb"
             server_log_dir="$server_logpath/$impl/$opt/$microb"
             client_log_dir="$client_logpath/$impl/$opt/$microb"
             mkdir -p "$client_rescum_dir" 
@@ -113,10 +113,10 @@ do
             do
                 for threadNR in ${threadNRs[@]}
                 do
-                    client_rescum_file="$client_rescum_dir"/nodeNR$nodeNR"_threadNR"$i.csv
-                    client_ressingle_file="$client_ressingle_dir"/nodeNR$nodeNR"_threadNR"$i.csv
-                    server_res_file="$server_res_dir"/nodeNR$nodeNR"_threadNR"$i.csv
-                    orig_res_file="$orig_res_dir/threadNR$i.csv"
+                    client_rescum_file="$client_rescum_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
+                    client_ressingle_file="$client_ressingle_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
+                    server_res_file="$server_res_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
+                    orig_res_file="$orig_res_dir/threadNR$threadNR.csv"
                     echo $client_filecum_header > "$client_rescum_file"
                     echo $client_filesingle_header > "$client_ressingle_file"
                     echo $server_file_header > "$server_res_file"
@@ -124,22 +124,24 @@ do
                     for lockNR in ${lockNRs[@]}
                     do
 
-                        echo "START MICROBENCH $impl $microb $opt $nodeNR Ns & $threadNR Ts & $lockNR Ls & $duration s"
-                        dsh -M -f <(head -n $nodeNR ./nodes.txt) -c \
-                        "sudo $disa_bench \
-                        -t $threadNR \
-                        -d $duration \
-                        -m $mode \
-                        -n $nodeNR \
-                        -f $client_rescum_file \
-                        -g $client_ressingle_file \
-                        -l $lockNR \
-                        -r $runNR \
-                        -s $mnNR"
-                        # 2>> $client_log_dir/nclients$n_clients"_nthreads"$i.log"
-                        # "sudo LD_PRELOAD=$client_so $disa_bench -t $i -d $duration -s $server_ip -p $p_ips -m $j -c $nclients -f $client_rescum_file -g $client_ressingle_file -l $nlocks -r $runs -e $mem_runs"
+                        for ((run = 0; run < runNR; run++)); do
+                            echo "START MICROBENCH $impl $microb $opt $nodeNR Ns & $threadNR Ts & $lockNR Ls & $duration s & RUN $run"
+                            dsh -M -f <(head -n $nodeNR ./nodes.txt) -c \
+                            "sudo $disa_bench \
+                            -t $threadNR \
+                            -d $duration \
+                            -m $mode \
+                            -n $nodeNR \
+                            -f $client_rescum_file \
+                            -g $client_ressingle_file \
+                            -l $lockNR \
+                            -r $run \
+                            -s $mnNR 2>&1"
+                            # 2>> $client_log_dir/nclients$n_clients"_nthreads"$i.log"
+                            # "sudo LD_PRELOAD=$client_so $disa_bench -t $i -d $duration -s $server_ip -p $p_ips -m $j -c $nclients -f $client_rescum_file -g $client_ressingle_file -l $nlocks -r $runs -e $mem_runs"
 
-                        cleanup
+                            cleanup
+                        done
                     done
                 done
             done
