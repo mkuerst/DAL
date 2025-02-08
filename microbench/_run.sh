@@ -82,7 +82,7 @@ runNR=2
 mnNR=1
 nodeNRs=(3)
 threadNRs=(32)
-lockNRs=(128)
+lockNRs=(2)
 bench_idxs=(1)
 
 for impl_dir in "$BASE"/original/*
@@ -140,6 +140,7 @@ do
                             # "sudo LD_PRELOAD=$client_so $disa_bench -t $i -d $duration -s $server_ip -p $p_ips -m $j -c $nclients -f $client_rescum_file -g $client_ressingle_file -l $nlocks -r $runs -e $mem_runs"
 
                             cleanup
+                            dsh -M -f ./nodes.txt -c "sudo bash /nfs/DAL/microbench/restartRDMA.sh
                         done
                     done
                 done
