@@ -132,12 +132,10 @@ struct alignas(CACHELINE_SIZE) Task {
     volatile int* stop;
     pthread_t thread;
     char disa;
-    char* byte_data;
-    int* int_data;
     uint64_t lock_acqs = 0;
 
     // MISC
-    int id, run, idx;
+    int id;
     int private_int_array[PRIVATE_ARRAY_SZ / sizeof(int)];
     Timer timer;
 };

@@ -7,15 +7,15 @@ LDFLAGS=-LCLHT/external/lib -LCLHT -lsspfd -lssmem -lclht -lrt -lm -m64 -pthread
 CFLAGS=-Iinclude/
 
 TARGETS=$(addprefix original/lib, $(ALGORITHMS))
-CLIENT_TARGETS=$(addprefix client/lib, $(ALGORITHMS))
+CN_TARGETS=$(addprefix cn/lib, $(ALGORITHMS))
 SERVER_TARGETS=$(addprefix server/lib, $(ALGORITHMS))
 DIR=$(addprefix obj/, $(ALGORITHMS))
 SOS=$(TARGETS:=.so)
 # SOS+=$(SERVER_TARGETS:=_server.so)
-SOS+=$(CLIENT_TARGETS:=_client_spinlock.so)
-# SOS+=$(CLIENT_TARGETS:=_client_lease1.so)
-# SOS+=$(CLIENT_TARGETS:=_client_test.so)
-# SOS+=$(CLIENT_TARGETS:=_client_spinlock_bo.so)
+# SOS+=$(CN_TARGETS:=_cn_spinlock.so)
+# SOS+=$(CN_TARGETS:=_cn_test.so)
+# SOS+=$(CN_TARGETS:=_cn_lease1.so)
+# SOS+=$(CN_TARGETS:=_cn_spinlock_bo.so)
 SHS=$(TARGETS:=.sh)
 NUMA_NODES := $(shell lscpu | grep 'NUMA node(s)' | awk '{print $$3}')
 export COND_VAR=1
@@ -38,7 +38,7 @@ no_cond_var: all
 
 %.so: obj/CLHT/libclht.a obj/
 	mkdir -p lib/original/
-	mkdir -p lib/client/
+	mkdir -p lib/cn/
 	mkdir -p lib/server/
 	$(MAKE) -C src/ ../lib/$@
 

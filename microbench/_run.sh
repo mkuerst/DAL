@@ -22,7 +22,6 @@ cleanup() {
         kill -SIGINT $SERVER_PID
     fi
     dsh -M -f ./nodes.txt -c "rdma resource show mr | awk '{print $12}' | sort -u | xargs -r sudo kill -9"
-    sleep 3
     pkill -P $$ 
     echo "CLEANUP DONE"
 }
@@ -35,26 +34,26 @@ trap cleanup_exit SIGHUP
 
 
 REMOTE_USER="root"
-REMOTE_CLIENTS=("node1" "node2" "node3" "node4" "node5")
+REMOTE_cnS=("node1" "node2" "node3" "node4" "node5")
 
 
 # PATHS
 BASE="$PWD/../litl2/lib"
 server_logpath="$PWD/server_logs"
-client_logpath="$PWD/client_logs"
-client_suffix="_client.so"
+cn_logpath="$PWD/cn_logs"
+cn_suffix="_cn.so"
 server_suffix="_server.so"
 server_libs_dir=$BASE"/server/"
-client_libs_dir=$BASE"/client/"
-spinlock_so="$server_libs_dir/libspinlock_original_server.so"
+cn_libs_dir=$BASE"/cn/"
+llock_libs_dir=$BASE"/orig/"
 disa_bench="$PWD/main_disa_"
 
 
-client_filecum_header="tid,\
+cn_tp_header="tid,\
 loop_in_cs,lock_acquires,duration,\
 glock_tries,array_size(B),nodeID,run,lockNR"
 
-client_filesingle_header="lock_hold,\
+cn_lat_header="lock_hold,\
 lwait_acq,\
 lwait_rel,\
 gwait_acq,\
@@ -66,9 +65,9 @@ nodeID,\
 run,\
 lockNR"
 
-server_file_header="tid,wait_acq(ms),wait_rel(ms),client_id,run"
+server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
 rm -rf server_logs/
-rm -rf client_logs/
+rm -rf cn_logs/
 
 comm_prot=rdma
 
@@ -89,34 +88,35 @@ do
     do
         impl=$(basename $impl_dir)
         impl=${impl%.so}
-        client_opt_suffix=_client_$opt.so
-        client_so=${client_libs_dir}${impl}$client_opt_suffix
+        cn_opt_suffix=_cn_$opt.so
+        cn_so=${cn_libs_dir}${impl}$cn_opt_suffix
+        llock_so=${llock_libs_dir}${impl}.so
         server_so=${server_libs_dir}${impl}$server_suffix
         for mode in ${bench_idxs[@]}
         do
             microb="${microbenches[$mode]}"
-            client_tp_dir="$PWD/results/$comm_prot/$opt/cn/tp/$impl/$microb"
-            client_lat_dir="$PWD/results/$comm_prot/$opt/cn/lat/$impl/$microb"
+            cn_tp_dir="$PWD/results/$comm_prot/$opt/cn/tp/$impl/$microb"
+            cn_lat_dir="$PWD/results/$comm_prot/$opt/cn/lat/$impl/$microb"
             # server_res_dir="./results/$comm_prot/$opt/server/tp/$impl/$microb"
             # server_log_dir="$server_logpath/$impl/$opt/$microb"
-            # client_log_dir="$client_logpath/$impl/$opt/$microb"
-            mkdir -p "$client_tp_dir" 
-            mkdir -p "$client_lat_dir" 
+            # cn_log_dir="$cn_logpath/$impl/$opt/$microb"
+            mkdir -p "$cn_tp_dir" 
+            mkdir -p "$cn_lat_dir" 
             # mkdir -p "$server_res_dir" 
             # mkdir -p "$server_log_dir"
-            # mkdir -p "$client_log_dir"
+            # mkdir -p "$cn_log_dir"
 
             for nodeNR in ${nodeNRs[@]}
             do
                 for threadNR in ${threadNRs[@]}
                 do
-                    client_tp_file="$client_tp_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
-                    client_lat_file="$client_lat_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
+                    cn_tp_file="$cn_tp_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
+                    cn_lat_file="$cn_lat_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
                     server_res_file="$server_res_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
                     orig_res_file="$orig_res_dir/threadNR$threadNR.csv"
-                    echo $client_tp_header > "$client_tp_file"
-                    echo $client_lat_header > "$client_lat_file"
-                    echo $server_file_header > "$server_res_file"
+                    echo $cn_tp_header > "$cn_tp_file"
+                    echo $cn_lat_header > "$cn_lat_file"
+                    # echo $server_file_header > "$server_res_file"
 
                     for lockNR in ${lockNRs[@]}
                     do
@@ -129,13 +129,13 @@ do
                             -d $duration \
                             -m $mode \
                             -n $nodeNR \
-                            -f $client_tp_file \
-                            -g $client_lat_file \
+                            -f $cn_tp_file \
+                            -g $cn_lat_file \
                             -l $lockNR \
                             -r $run \
                             -s $mnNR 2>&1"
-                            # 2>> $client_log_dir/nclients$n_clients"_nthreads"$i.log"
-                            # "sudo LD_PRELOAD=$client_so $disa_bench -t $i -d $duration -s $server_ip -p $p_ips -m $j -c $nclients -f $client_rescum_file -g $client_ressingle_file -l $nlocks -r $runs -e $mem_runs"
+                            # 2>> $cn_log_dir/ncns$n_cns"_nthreads"$i.log"
+                            # "sudo LD_PRELOAD=$cn_so $disa_bench -t $i -d $duration -s $server_ip -p $p_ips -m $j -c $ncns -f $cn_rescum_file -g $cn_ressingle_file -l $nlocks -r $runs -e $mem_runs"
 
                             cleanup
                         done

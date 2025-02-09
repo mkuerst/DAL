@@ -116,7 +116,8 @@ void *mlocks_worker(void *arg) {
     Timer timer = task->timer;
     bindCore(task->id);
     dsm->registerThread(page_size);
-    set_id(dsm->getMyThreadID());
+    int id = dsm->getMyThreadID();
+    set_id(id);
     GlobalAddress baseAddr;
     baseAddr.nodeID = 0;
     baseAddr.offset = 0;
@@ -126,7 +127,7 @@ void *mlocks_worker(void *arg) {
     uint64_t range = (GB(config.dsmSize) - page_size) / page_size;
     volatile int sum = 0;
     int data_len = dsm->get_rbuf(0).getkPageSize() / sizeof(uint64_t);
-    srand(nodeID*threadNR + dsm->getMyThreadID() + 42);
+    srand(nodeID*threadNR + id + 42);
 
     pthread_barrier_wait(&global_barrier);
 
@@ -144,6 +145,7 @@ void *mlocks_worker(void *arg) {
             lock_idx = rlock->getCurrLockAddr().offset / sizeof(uint64_t);
             lock_acqs[lock_idx]++;
             task->lock_acqs++;
+            measurements.loop_in_cs[id]++;
 
             timer.begin();
             long_data = (uint64_t *) rlock->getCurrPB();
@@ -207,6 +209,7 @@ int main(int argc, char *argv[]) {
     /*TASK INIT*/
     Task *tasks = new Task[threadNR];
     measurements.duration = duration;
+    clear_measurements();
     alignas(CACHELINE_SIZE) volatile int stop = 0;
     for (int i = 0; i < threadNR; i++) {
         tasks[i].id = i;

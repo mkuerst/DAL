@@ -60,19 +60,19 @@ all: $(SERVER_TARGETS)
 	$(CC) -shared -o $@ $^ $(LDFLAGS) 
 
 .SECONDEXPANSION:
-../lib/client/lib%_client_spinlock.so: ../obj/%/interpose_client_spinlock.o ../obj/%/utils.o ../obj/%/rdma_common.o $$(subst algo,%,../obj/algo/algo.o)
+../lib/cn/lib%_cn_spinlock.so: ../obj/%/interpose_cn_spinlock.o ../obj/%/utils.o ../obj/%/rdma_common.o $$(subst algo,%,../obj/algo/algo.o)
 	$(CC) -shared -o $@ $^ $(LDFLAGS)
 
 .SECONDEXPANSION:
-../lib/client/lib%_client_lease1.so: ../obj/%/interpose_client_lease1.o ../obj/%/utils.o ../obj/%/rdma_common.o $$(subst algo,%,../obj/algo/algo.o)
+../lib/cn/lib%_cn_lease1.so: ../obj/%/interpose_cn_lease1.o ../obj/%/utils.o ../obj/%/rdma_common.o $$(subst algo,%,../obj/algo/algo.o)
 	$(CC) -shared -o $@ $^ $(LDFLAGS)
 
 .SECONDEXPANSION:
-../lib/client/lib%_client_test.so: ../obj/%/interpose_client_test.o ../obj/%/utils.o ../obj/%/rdma_common.o $$(subst algo,%,../obj/algo/algo.o)
+../lib/cn/lib%_cn_test.so: ../obj/%/interpose_cn_test.o ../obj/%/utils.o ../obj/%/rdma_common.o $$(subst algo,%,../obj/algo/algo.o)
 	$(CC) -shared -o $@ $^ $(LDFLAGS)
 
 .SECONDEXPANSION:
-../lib/client/lib%_client_spinlock_bo.so: ../obj/%/interpose_client_spinlock_bo.o ../obj/%/utils.o ../obj/%/rdma_common.o $$(subst algo,%,../obj/algo/algo.o)
+../lib/cn/lib%_cn_spinlock_bo.so: ../obj/%/interpose_cn_spinlock_bo.o ../obj/%/utils.o ../obj/%/rdma_common.o $$(subst algo,%,../obj/algo/algo.o)
 	$(CC) -shared -o $@ $^ $(LDFLAGS)
 
 .SECONDEXPANSION:
