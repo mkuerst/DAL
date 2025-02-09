@@ -43,8 +43,8 @@ Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB) : dsm(dsm), tre
         }
     }
 
-    assert(dsm->is_register());
     if (!MB) {
+        assert(dsm->is_register());
         print_verbose();
 
         index_cache = new IndexCache(define::kIndexCacheSize);
