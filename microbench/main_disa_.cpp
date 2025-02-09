@@ -123,7 +123,7 @@ void *mlocks_worker(void *arg) {
     int *private_int_array = task->private_int_array;
     uint64_t *long_data;
     int lock_idx = 0;
-    uint64_t range = (GB(config.dsmSize) - page_size) / sizeof(uint64_t);
+    uint64_t range = (GB(config.dsmSize) - page_size) / page_size;
     volatile int sum = 0;
     int data_len = dsm->get_rbuf(0).getkPageSize() / sizeof(uint64_t);
     srand(nodeID*threadNR + dsm->getMyThreadID() + 42);
@@ -139,7 +139,7 @@ void *mlocks_worker(void *arg) {
             if (*task->stop)
                 break;
             int data_idx = uniform_rand_int(range);
-            baseAddr.offset = data_idx * sizeof(uint64_t);
+            baseAddr.offset = data_idx * page_size;
             rlock->lock_acquire(baseAddr, data_len * sizeof(uint64_t));
             lock_idx = rlock->getCurrLockAddr().offset / sizeof(uint64_t);
             lock_acqs[lock_idx]++;
