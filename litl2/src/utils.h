@@ -285,6 +285,12 @@ typedef struct {
     char *byte_data;
 } disa_mutex_t __attribute__ ((aligned (CACHELINE_SIZE)));
 
+typedef struct {
+    pthread_mutex_t mutex;
+    uint64_t safe1, safe2;
+    char disa;
+} llock_t __attribute__ ((aligned (CACHELINE_SIZE)));
+
 /* 
  * We use attribute so that compiler does not step in and try to pad the structure.
  * We use this structure to exchange information between the server and the client. 

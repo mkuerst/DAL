@@ -8,6 +8,7 @@ using namespace std;
 #include <pthread.h>
 
 #include <numa.h>
+#include "Tree.h"
 #include "mb_utils.h"
 
 #include <DSM.h>
@@ -29,7 +30,7 @@ uint64_t *lock_rels;
 int page_size = KB(1);
 DSM *dsm;
 DSMConfig config;
-Rlock *rlock;
+Tree *rlock;
 pthread_barrier_t global_barrier;
 
 extern Measurements measurements;
@@ -78,13 +79,13 @@ void *correctness_worker(void *arg) {
     while (!*task->stop) {
         int data_idx = uniform_rand_int(range);
         baseAddr.offset = data_idx * sizeof(uint64_t);
-        rlock->lock_acquire(baseAddr, sizeof(uint64_t));
+        rlock->mb_lock(baseAddr, sizeof(uint64_t));
         lock_idx = rlock->getCurrLockAddr().offset / sizeof(uint64_t);
         lock_acqs[lock_idx]++;
         task->lock_acqs++;
         long_data = (uint64_t *) rlock->getCurrPB();
         long_data[0]++;
-        rlock->lock_release(baseAddr, sizeof(uint64_t));
+        rlock->mb_unlock(baseAddr, sizeof(uint64_t));
         lock_rels[lock_idx]++;
     }
     pthread_barrier_wait(&global_barrier);
@@ -96,15 +97,15 @@ void *empty_cs_worker(void *arg) {
     Task *task = (Task *) arg;
     bindCore(task->id);
     dsm->registerThread(page_size);
-    set_id(dsm->getMyThreadID());
+    rlock->set_threadID(dsm->getMyThreadID());
     GlobalAddress baseAddr;
     baseAddr.nodeID = 0;
     baseAddr.offset = 0;
 
     pthread_barrier_wait(&global_barrier);
     while (!*task->stop) {
-        rlock->lock_acquire(baseAddr, 0);
-        rlock->lock_release(baseAddr, 0);
+        rlock->mb_lock(baseAddr, 0);
+        rlock->mb_unlock(baseAddr, 0);
     }
     pthread_barrier_wait(&global_barrier);
     DE("[%d.%d] %lu ACQUISITIONS\n", dsm->getMyNodeID(), dsm->getMyThreadID(), task->lock_acqs);
@@ -117,7 +118,7 @@ void *mlocks_worker(void *arg) {
     bindCore(task->id);
     dsm->registerThread(page_size);
     int id = dsm->getMyThreadID();
-    set_id(id);
+    rlock->set_threadID(id);
     GlobalAddress baseAddr;
     baseAddr.nodeID = 0;
     baseAddr.offset = 0;
@@ -141,7 +142,7 @@ void *mlocks_worker(void *arg) {
                 break;
             int data_idx = uniform_rand_int(range);
             baseAddr.offset = data_idx * page_size;
-            rlock->lock_acquire(baseAddr, data_len * sizeof(uint64_t));
+            rlock->mb_lock(baseAddr, data_len * sizeof(uint64_t));
             lock_idx = rlock->getCurrLockAddr().offset / sizeof(uint64_t);
             lock_acqs[lock_idx]++;
             task->lock_acqs++;
@@ -155,7 +156,7 @@ void *mlocks_worker(void *arg) {
             }
             save_measurement(measurements.lock_hold);
             
-            rlock->lock_release(baseAddr, data_len);
+            rlock->mb_unlock(baseAddr, data_len);
             lock_rels[lock_idx]++;
         }
     }
@@ -218,7 +219,7 @@ int main(int argc, char *argv[]) {
     }
     
     /*LOCK INIT*/
-    rlock = new Rlock(dsm, lockNR);
+    rlock = new Tree(dsm, 0, lockNR, true);
     lock_acqs = new uint64_t[lockNR];
     lock_rels = new uint64_t[lockNR];
     memset(lock_acqs, 0, lockNR*sizeof(uint64_t));

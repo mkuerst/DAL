@@ -12,8 +12,8 @@ using namespace std;
 // thread_local char* Rlock::curr_page_buffer = nullptr;
 // thread_local uint64_t* Rlock::curr_cas_buffer = nullptr;
 // thread_local GlobalAddress Rlock::curr_lock_addr;
-thread_local Timer timer;
-thread_local int threadID;
+extern thread_local Timer timer;
+extern thread_local int threadID;
 
 extern Measurements measurements;
 

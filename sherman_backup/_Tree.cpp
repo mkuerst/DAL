@@ -23,50 +23,41 @@ thread_local GlobalAddress path_stack[define::kMaxCoro]
 
 thread_local Timer timer;
 thread_local std::queue<uint16_t> hot_wait_queue;
-thread_local int threadID;
 
-thread_local char* Tree::curr_page_buffer = nullptr;
-thread_local uint64_t* Tree::curr_cas_buffer = nullptr;
-thread_local GlobalAddress Tree::curr_lock_addr;
+Tree::Tree(DSM *dsm, uint16_t tree_id) : dsm(dsm), tree_id(tree_id) {
 
-Measurements measurements;
-
-Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB) : dsm(dsm), tree_id(tree_id), lockNR(lockNR) {
-
-    for (int i = 0; i < dsm->getClusterSize(); ++i) {
-        local_locks[i] = new LocalLockNode[lockNR];
-        for (size_t k = 0; k < lockNR; ++k) {
-            auto &n = local_locks[i][k];
-            n.ticket_lock.store(0);
-            n.hand_over = false;
-            n.hand_time = 0;
-        }
+  for (int i = 0; i < dsm->getClusterSize(); ++i) {
+    local_locks[i] = new LocalLockNode[define::kNumOfLock];
+    for (size_t k = 0; k < define::kNumOfLock; ++k) {
+      auto &n = local_locks[i][k];
+      n.ticket_lock.store(0);
+      n.hand_over = false;
+      n.hand_time = 0;
     }
+  }
 
-    assert(dsm->is_register());
-    if (!MB) {
-        print_verbose();
+  assert(dsm->is_register());
+  print_verbose();
 
-        index_cache = new IndexCache(define::kIndexCacheSize);
+  index_cache = new IndexCache(define::kIndexCacheSize);
 
-        root_ptr_ptr = get_root_ptr_ptr();
+  root_ptr_ptr = get_root_ptr_ptr();
 
-        // try to init tree and install root pointer
-        auto page_buffer = (dsm->get_rbuf(0)).get_page_buffer();
-        auto root_addr = dsm->alloc(kLeafPageSize);
-        auto root_page = new (page_buffer) LeafPage;
+  // try to init tree and install root pointer
+  auto page_buffer = (dsm->get_rbuf(0)).get_page_buffer();
+  auto root_addr = dsm->alloc(kLeafPageSize);
+  auto root_page = new (page_buffer) LeafPage;
 
-        root_page->set_consistent();
-        dsm->write_sync(page_buffer, root_addr, kLeafPageSize);
+  root_page->set_consistent();
+  dsm->write_sync(page_buffer, root_addr, kLeafPageSize);
 
-        auto cas_buffer = (dsm->get_rbuf(0)).get_cas_buffer();
-        bool res = dsm->cas_sync(root_ptr_ptr, 0, root_addr.val, cas_buffer);
-        if (res) {
-            std::cout << "Tree root pointer value " << root_addr << std::endl;
-        } else {
-        // std::cout << "fail\n";
-        }
-    }
+  auto cas_buffer = (dsm->get_rbuf(0)).get_cas_buffer();
+  bool res = dsm->cas_sync(root_ptr_ptr, 0, root_addr.val, cas_buffer);
+  if (res) {
+    std::cout << "Tree root pointer value " << root_addr << std::endl;
+  } else {
+    // std::cout << "fail\n";
+  }
 }
 
 void Tree::print_verbose() {
@@ -1191,54 +1182,4 @@ void Tree::clear_statistics() {
     cache_hit[i][0] = 0;
     cache_miss[i][0] = 0;
   }
-}
-
-GlobalAddress Tree::get_lock_addr(GlobalAddress base_addr) {
-	uint64_t lock_index =
-		CityHash64((char *)&base_addr, sizeof(base_addr)) % lockNR;
-
-	GlobalAddress lock_addr;
-	lock_addr.nodeID = base_addr.nodeID;
-	lock_addr.offset = lock_index * sizeof(uint64_t);
-	return lock_addr;
-}
-
-void Tree::get_bufs() {
-	auto rbuf = dsm->get_rbuf(0);
-	curr_cas_buffer = rbuf.get_cas_buffer();
-	curr_page_buffer = rbuf.get_page_buffer();
-}
-
-void Tree::mb_lock(GlobalAddress base_addr, int data_size) {
-	timer.begin();
-	curr_lock_addr = get_lock_addr(base_addr);
-
-	get_bufs();
-	auto tag = dsm->getThreadTag();
-	assert(tag != 0);
-
-	try_lock_addr(curr_lock_addr, tag, curr_cas_buffer, NULL, 0);
-	measurements.lock_acquires[threadID]++;
-	timer.begin();
-	if (data_size > 0) {
-		dsm->read_sync(curr_page_buffer, base_addr, data_size, NULL);
-	}
-	save_measurement(measurements.data_read);
-}
-
-void Tree::mb_unlock(GlobalAddress base_addr, int data_size) {
-	timer.begin();
-	auto tag = dsm->getThreadTag();
-	assert(tag != 0);
-	if (data_size > 0) {
-		write_page_and_unlock(curr_page_buffer, base_addr, data_size, curr_cas_buffer,
-			curr_lock_addr, tag, NULL, 0, false);
-	}
-	else {
-		unlock_addr(curr_lock_addr, tag, curr_cas_buffer, NULL, 0, false);
-	}
-}
-
-void Tree::set_threadID(int id) {
-    threadID = id;
 }

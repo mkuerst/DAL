@@ -431,6 +431,11 @@ int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
     r->fct = start_routine;
     r->arg = arg;
 
+    // Task *t = (Task *) arg;
+    // if (t->disa == 'y') {
+    //     return REAL(pthread_create)(thread, attr, lp_start_routine, r);
+    // }
+    // return REAL(pthread_create)(thread, attr, start_routine, arg);
     return REAL(pthread_create)(thread, attr, lp_start_routine, r);
 }
 // __asm__(".symver __pthread_create,pthread_create@@" GLIBC_2_2_5);
@@ -465,6 +470,10 @@ int pthread_mutex_destroy(pthread_mutex_t *mutex) {
 
 int pthread_mutex_lock(pthread_mutex_t *mutex) {
     DEBUG_PTHREAD("[p] pthread_mutex_lock\n");
+    llock_t *llock = (llock_t *) mutex;
+    if (llock->disa != 'y') {
+        return REAL(pthread_mutex_lock)(&llock->mutex);
+    }
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get(mutex);
     return lock_mutex_lock(impl->lock_lock, get_node(impl));
@@ -491,6 +500,10 @@ int pthread_mutex_trylock(pthread_mutex_t *mutex) {
 
 int pthread_mutex_unlock(pthread_mutex_t *mutex) {
     DEBUG_PTHREAD("[p] pthread_mutex_unlock\n");
+    llock_t *llock = (llock_t *) mutex;
+    if (llock->disa != 'y') {
+        return REAL(pthread_mutex_unlock)(&llock->mutex);
+    }
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get(mutex);
     lock_mutex_unlock(impl->lock_lock, get_node(impl));

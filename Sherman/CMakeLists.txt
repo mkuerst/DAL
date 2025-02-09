@@ -6,12 +6,13 @@ add_definitions(-DBOOST_COROUTINES_NO_DEPRECATION_WARNING)
 
 #Compiler options
 set(CMAKE_C_FLAGS "-Wall -Wno-deprecated-declarations -Wsign-compare -O0 -g")
-set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17")
 
 # Link Options
 set(LINKS_FLAGS "-lcityhash -lboost_system -lboost_coroutine -lpthread -libverbs -lmemcached")
 
 set(INCLUDE_BASE ${PROJECT_SOURCE_DIR}/include)
+set(INCLUDE_MB_UTILS ${PROJECT_SOURCE_DIR}/../microbench/)
 include_directories(${INCLUDE_BASE})
 
 #Source file define

@@ -26,7 +26,7 @@ all: target
 target: ../litl2/src/utils.c ../litl2/src/rdma_common.o
 	@echo "USING CYCLE_PER_US = $(CYCLE_PER_US) MHz"
 	@echo "USING CACHELINE_SIZE = $(CACHELINE_SIZE) Bytes"
-	g++ -std=c++17 main_disa_.cpp mb_utils.cpp  ../Sherman/build/libsherman.a -o main_disa_ ${FLAGS} -DMUTEX
+	g++ -std=c++17 main_disa_.cpp ../Sherman/build/libsherman.a -o main_disa_ ${FLAGS} -DMUTEX
 # g++ -std=c++17 test_rdma_conn.cpp litl_utils.o  ../Sherman/build/libsherman.a ../litl2/src/rdma_common.o -o test_rdma_conn ${FLAGS} -DMUTEX
 
 # gcc -c ../litl2/src/utils.c -o litl_utils.o ${FLAGS} 
