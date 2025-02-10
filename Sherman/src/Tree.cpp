@@ -33,6 +33,33 @@ Measurements measurements;
 
 Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB) : dsm(dsm), tree_id(tree_id), lockNR(lockNR) {
 
+  measurements.lock_hold = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+  memset(measurements.lock_hold, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+  
+  measurements.wait_acq = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+  memset(measurements.wait_acq, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+  
+  measurements.wait_rel = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+  memset(measurements.wait_rel, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+  
+  measurements.lwait_acq = (uint16_t *) malloc(MAX_APP_THREAD * 2 * LATENCY_WINDOWS * sizeof(uint16_t));
+  memset(measurements.lwait_acq, 0, MAX_APP_THREAD * 2 * LATENCY_WINDOWS * sizeof(uint16_t));
+  
+  measurements.lwait_rel = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+  memset(measurements.lwait_rel, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+  
+  measurements.gwait_acq = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+  memset(measurements.gwait_acq, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+  
+  measurements.gwait_rel = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+  memset(measurements.gwait_rel, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+  
+  measurements.data_read = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+  memset(measurements.data_read, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+  
+  measurements.data_write = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+  memset(measurements.data_write, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+
     for (int i = 0; i < dsm->getClusterSize(); ++i) {
         local_locks[i] = new LocalLockNode[lockNR];
         for (size_t k = 0; k < lockNR; ++k) {
@@ -221,11 +248,11 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   bool hand_over = acquire_local_lock(lock_addr, cxt, coro_id);
   #ifdef HANDOVER
   if (hand_over) {
-    save_measurement(measurements.lwait_acq, 1);
+    save_measurement(measurements.lwait_acq, 1, true);
     return true;
   }
   #endif
-  save_measurement(measurements.lwait_acq, 1);
+  save_measurement(measurements.gwait_acq, 1, true);
   timer.begin();
   {
 
@@ -321,21 +348,21 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   } else {
     dsm->write_batch_sync(rs, 2, cxt);
   }
-  save_measurement(measurements.gwait_rel);
   save_measurement(measurements.data_write);
+  save_measurement(measurements.gwait_rel);
   #else
   if (async) {
     dsm->write_batch(&rs[0], 1, false);
-    save_measurement(measurements.gwait_rel);
+    save_measurement(measurements.data_write);
     timer.begin();
     dsm->write_batch(&rs[1], 1, false);
-    save_measurement(measurements.data_write);
+    save_measurement(measurements.gwait_rel);
   } else {
     dsm->write_batch_sync(&rs[0], 1, cxt);
-    save_measurement(measurements.gwait_rel);
+    save_measurement(measurements.data_write);
     timer.begin();
     dsm->write_batch_sync(&rs[1], 1, cxt);
-    save_measurement(measurements.data_write);
+    save_measurement(measurements.gwait_rel);
   }
   #endif
 

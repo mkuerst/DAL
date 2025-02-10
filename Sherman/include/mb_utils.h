@@ -147,7 +147,7 @@ void write_tp(char* res_file, int run, int threadNR, int lockNR, int nodeID, siz
 
 void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_size);
 
-void save_measurement(uint16_t arr[MAX_APP_THREAD][LATENCY_WINDOWS], int factor = 1);
+void save_measurement(uint16_t *arr, int factor = 1, bool is_lwait = false);
 
 int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int nodeID);
 

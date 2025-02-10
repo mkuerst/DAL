@@ -97,13 +97,13 @@ void clear_measurements() {
 	measurements.duration = tmp;
 }
 
-uint64_t* cal_latency(uint16_t latency[MAX_APP_THREAD][LATENCY_WINDOWS], const string measurement) {
-	uint64_t latency_th_all[LATENCY_WINDOWS];
+uint64_t* cal_latency(uint16_t *latency, const string measurement, int lw = LATENCY_WINDOWS) {
+	uint32_t latency_th_all[lw];
 	uint64_t all_lat = 0;
-	for (int i = 0; i < LATENCY_WINDOWS; ++i) {
+	for (int i = 0; i < lw; ++i) {
 		latency_th_all[i] = 0;
 		for (int k = 0; k < MAX_APP_THREAD; ++k) {
-			latency_th_all[i] += latency[k][i];
+			latency_th_all[i] += latency[k*lw+i];
 		}
 		all_lat += latency_th_all[i];
 	}
@@ -117,7 +117,7 @@ uint64_t* cal_latency(uint16_t latency[MAX_APP_THREAD][LATENCY_WINDOWS], const s
 	uint64_t *lats = new uint64_t[2];
 
 	uint64_t cum = 0;
-	for (int i = 0; i < LATENCY_WINDOWS; ++i) {
+	for (int i = 0; i < lw; ++i) {
 		cum += latency_th_all[i];
 
 		if (cum >= th50) {
@@ -147,15 +147,13 @@ uint64_t* cal_latency(uint16_t latency[MAX_APP_THREAD][LATENCY_WINDOWS], const s
 	return lats;
 }
 
-void save_measurement(uint16_t arr[MAX_APP_THREAD][LATENCY_WINDOWS], int factor) {
+void save_measurement(uint16_t *arr, int factor, bool is_lwait) {
 	auto us_10 = timer.end() / factor;
-    if (us_10 >= LATENCY_WINDOWS) {
-      us_10 = LATENCY_WINDOWS - 1;
+	uint64_t lw = is_lwait ? 2*LATENCY_WINDOWS : LATENCY_WINDOWS;
+    if (us_10 >= lw) {
+      us_10 = lw - 1;
     }
-	// while(us_10 >= LATENCY_WINDOWS) {
-	// 	us_10 = us_10 / 10;
-	// }
-    arr[threadID][us_10]++;
+    arr[threadID*lw + us_10]++;
 }
 
 void write_tp(char* res_file, int run, int threadNR, int lockNR, int nodeID, size_t array_size) {
@@ -184,7 +182,7 @@ void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_siz
 		__error("Failed to open %s\n", res_file);
 
 	uint64_t* lock_hold = cal_latency(measurements.lock_hold, "lock_hold");
-	uint64_t* lwait_acq = cal_latency(measurements.lwait_acq, "lwait_acq");
+	uint64_t* lwait_acq = cal_latency(measurements.lwait_acq, "lwait_acq", 2*LATENCY_WINDOWS);
 	uint64_t* lwait_rel = cal_latency(measurements.lwait_rel, "lwait_rel");
 	uint64_t* gwait_acq = cal_latency(measurements.gwait_acq, "gwait_acq");
 	uint64_t* gwait_rel = cal_latency(measurements.gwait_rel, "gwait_rel");

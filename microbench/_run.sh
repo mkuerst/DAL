@@ -54,8 +54,8 @@ loop_in_cs,lock_acquires,duration,\
 glock_tries,array_size(B),nodeID,run,lockNR"
 
 cn_lat_header="lock_hold,\
-lwait_rel,\
 lwait_acq,\
+lwait_rel,\
 gwait_acq,\
 gwait_rel,\
 data_read,\
@@ -75,11 +75,11 @@ comm_prot=rdma
 opts=("sherman" "litl")
 microbenches=("empty_cs" "mlocks" "correctness")
 duration=5
-runNR=2
+runNR=1
 mnNR=1
 nodeNRs=(3)
 threadNRs=(32)
-lockNRs=(1)
+lockNRs=(32)
 bench_idxs=(1)
 
 mkdir -p results/
@@ -128,9 +128,10 @@ do
                             -g $cn_lat_file \
                             -l $lockNR \
                             -r $run \
-                            -s $mnNR 2>&1"
+                            -s $mnNR 2>&1" \
                             # 2>> $cn_log_dir/ncns$n_cns"_nthreads"$i.log"
                             # "sudo LD_PRELOAD=$cn_so $disa_bench -t $i -d $duration -s $server_ip -p $p_ips -m $j -c $ncns -f $cn_rescum_file -g $cn_ressingle_file -l $nlocks -r $runs -e $mem_runs"
+                            # 2>&1
 
                             cleanup
                         done

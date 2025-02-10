@@ -75,7 +75,7 @@ void Keeper::serverEnter() {
 
       myNodeID = serverNum - 1;
 
-      printf("I am server %d\n", myNodeID);
+      fprintf(stderr, "I am server %d\n", myNodeID);
       return;
     }
     fprintf(stderr, "Server %d Counld't incr value and get ID: %s, retry...\n",
@@ -105,7 +105,7 @@ void Keeper::serverConnect() {
     for (size_t k = curServer; k < serverNum; ++k) {
       if (k != myNodeID) {
         connectNode(k);
-        printf("I connect server %zu\n", k);
+        fprintf(stderr, "I connect server %zu\n", k);
       }
     }
     curServer = serverNum;
