@@ -32,7 +32,7 @@ DSM::DSM(const DSMConfig &conf)
     : conf(conf), appID(0), cache(conf.cacheConfig) {
 
   baseAddr = (uint64_t)hugePageAlloc(conf.dsmSize * define::GB);
-  #if defined(ORIGINAL) || defined(ON_CHIP)
+  #ifdef ON_CHIP
   rlockAddr = define::kLockStartAddr;
   #else
   rlockAddr = (uint64_t) malloc(define::kLockChipMemSize);

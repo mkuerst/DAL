@@ -218,7 +218,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
                                 uint64_t *buf, CoroContext *cxt, int coro_id) {
 
   bool hand_over = acquire_local_lock(lock_addr, cxt, coro_id);
-  #if defined(ORIGINAL) || defined(HANDOVER)
+  #ifdef HANDOVER
   if (hand_over) {
     return true;
   }
@@ -259,7 +259,7 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
                               uint64_t *buf, CoroContext *cxt, int coro_id,
                               bool async) {
 
-  #if defined(ORIGINAL) || defined(HANDOVER)
+  #ifdef HANDOVER
   bool hand_over_other = can_hand_over(lock_addr);
   if (hand_over_other) {
     releases_local_lock(lock_addr);
@@ -284,7 +284,8 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
                                  GlobalAddress lock_addr, uint64_t tag,
                                  CoroContext *cxt, int coro_id, bool async) {
 
-  #if defined(ORIGINAL) || defined(HANDOVER)
+                                
+  #ifdef HANDOVER
   bool hand_over_other = can_hand_over(lock_addr);
   if (hand_over_other) {
     dsm->write_sync(page_buffer, page_addr, page_size, cxt);
@@ -307,7 +308,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   rs[1].is_on_chip = true;
   *(uint64_t *)rs[1].source = 0;
 
-  #if defined(ORIGINAL) || defined(BATCHED_WRITEBACK)
+  #ifdef BATCHED_WRITEBACK
   if (async) {
     dsm->write_batch(rs, 2, false);
   } else {
@@ -1155,7 +1156,7 @@ inline bool Tree::acquire_local_lock(GlobalAddress lock_addr, CoroContext *cxt,
                                      int coro_id) {
   auto &node = local_locks[lock_addr.nodeID][lock_addr.offset / 8];
 
-  #ifdef ORIGINAL
+  #ifdef SHERMAN_LOCK
   uint64_t lock_val = node.ticket_lock.fetch_add(1);
 
   uint32_t ticket = lock_val << 32 >> 32;

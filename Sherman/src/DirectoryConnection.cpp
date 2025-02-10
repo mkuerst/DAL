@@ -25,7 +25,7 @@ DirectoryConnection::DirectoryConnection(uint16_t dirID, void *dsmPool,
   if (dirID == 0) {
     this->lockPool = rlockPool;
     this->lockSize = define::kLockChipMemSize;
-    #if defined(ORIGINAL) || defined(ON_CHIP)
+    #ifdef ON_CHIP
     this->lockMR = createMemoryRegionOnChip((uint64_t)this->lockPool,
                                             this->lockSize, &ctx);
     #else
