@@ -18,3 +18,5 @@ litl2/make.log
 microbench/__pycache__
 sherman_deps/
 c_cpp_properties.json
+libsherman*
+microbench_*

@@ -8,7 +8,7 @@ cleanup_exit() {
         echo "Killing process $pid using RDMA resources..."
         kill -9 "$pid"
     done
-    dsh -M -f ./nodes.txt -c "rdma resource show mr | awk '{print $12}' | sort -u | xargs -r sudo kill -9"
+    dsh -M -f ./nodes.txt -c "sudo rdma resource show mr | awk '{print $12}' | sort -u | xargs -r sudo kill -9"
     echo "CLEANUP DONE"
     echo "EXIT"
     exit 1
@@ -21,7 +21,7 @@ cleanup() {
         echo "Stopping server with PID $SERVER_PID..."
         kill -SIGINT $SERVER_PID
     fi
-    dsh -M -f ./nodes.txt -c "rdma resource show mr | awk '{print $12}' | sort -u | xargs -r sudo kill -9"
+    dsh -M -f ./nodes.txt -c "sudo rdma resource show mr | awk '{print $12}' | sort -u | xargs -r sudo kill -9"
     pkill -P $$ 
     echo "CLEANUP DONE"
 }
@@ -46,7 +46,7 @@ server_suffix="_server.so"
 server_libs_dir=$BASE"/server/"
 cn_libs_dir=$BASE"/cn/"
 llock_libs_dir=$BASE"/orig/"
-disa_bench="$PWD/main_disa_"
+pthread_so="$PWD/../litl2/lib/original/libpthreadinterpose_original.so"
 
 
 cn_tp_header="tid,\
@@ -54,8 +54,8 @@ loop_in_cs,lock_acquires,duration,\
 glock_tries,array_size(B),nodeID,run,lockNR"
 
 cn_lat_header="lock_hold,\
-lwait_acq,\
 lwait_rel,\
+lwait_acq,\
 gwait_acq,\
 gwait_rel,\
 data_read,\
@@ -72,39 +72,33 @@ rm -rf cn_logs/
 comm_prot=rdma
 
 # MICROBENCH INPUTS
-opts=("spinlock")
+opts=("sherman" "shermanLock" "litl")
 microbenches=("empty_cs" "mlocks" "correctness")
 duration=5
 runNR=2
 mnNR=1
 nodeNRs=(3)
 threadNRs=(32)
-lockNRs=(512)
+lockNRs=(32)
 bench_idxs=(1)
 
-for impl_dir in "$BASE"/original/*
+mkdir -p results/
+
+for opt in ${opts[@]}
 do
-    for opt in ${opts[@]}
-    do
-        impl=$(basename $impl_dir)
-        impl=${impl%.so}
-        cn_opt_suffix=_cn_$opt.so
-        cn_so=${cn_libs_dir}${impl}$cn_opt_suffix
-        llock_so=${llock_libs_dir}${impl}.so
-        server_so=${server_libs_dir}${impl}$server_suffix
+    mb_exe="$PWD/microbench_$opt"
+    if echo "$opt" | grep -q "sherman"; then
         for mode in ${bench_idxs[@]}
         do
             microb="${microbenches[$mode]}"
-            cn_tp_dir="$PWD/results/$comm_prot/$opt/cn/tp/$impl/$microb"
-            cn_lat_dir="$PWD/results/$comm_prot/$opt/cn/lat/$impl/$microb"
+            cn_tp_dir="$PWD/results/cn/tp/$comm_prot/$microb/$opt/sherman"
+            cn_lat_dir="$PWD/results/cn/lat/$comm_prot/$microb/$opt/sherman"
             # server_res_dir="./results/$comm_prot/$opt/server/tp/$impl/$microb"
             # server_log_dir="$server_logpath/$impl/$opt/$microb"
-            # cn_log_dir="$cn_logpath/$impl/$opt/$microb"
             mkdir -p "$cn_tp_dir" 
             mkdir -p "$cn_lat_dir" 
             # mkdir -p "$server_res_dir" 
             # mkdir -p "$server_log_dir"
-            # mkdir -p "$cn_log_dir"
 
             for nodeNR in ${nodeNRs[@]}
             do
@@ -122,9 +116,9 @@ do
                     do
 
                         for ((run = 0; run < runNR; run++)); do
-                            echo "START MICROBENCH $impl $microb $opt $nodeNR Ns & $threadNR Ts & $lockNR Ls & $duration s & RUN $run"
+                            echo "START MICROBENCH $microb | $opt $impl | $nodeNR Ns & $threadNR Ts & $lockNR Ls & $duration s & RUN $run"
                             dsh -M -f <(head -n $nodeNR ./nodes.txt) -c \
-                            "sudo $disa_bench \
+                            "sudo $mb_exe \
                             -t $threadNR \
                             -d $duration \
                             -m $mode \
@@ -143,7 +137,63 @@ do
                 done
             done
         done
-    done
+    else
+        for impl_dir in "$BASE"/original/*
+        do
+            impl=$(basename $impl_dir)
+            impl=${impl%.so}
+            llock_so=${llock_libs_dir}${impl}.so
+            for mode in ${bench_idxs[@]}
+            do
+                microb="${microbenches[$mode]}"
+                cn_tp_dir="$PWD/results/cn/tp/$comm_prot/$microb/$opt/$impl"
+                cn_lat_dir="$PWD/results/cn/lat/$comm_prot/$microb/$opt/$impl"
+                # server_res_dir="./results/$comm_prot/$opt/server/tp/$impl/$microb"
+                # server_log_dir="$server_logpath/$impl/$opt/$microb"
+                mkdir -p "$cn_tp_dir" 
+                mkdir -p "$cn_lat_dir" 
+                # mkdir -p "$server_res_dir" 
+                # mkdir -p "$server_log_dir"
+
+                for nodeNR in ${nodeNRs[@]}
+                do
+                    for threadNR in ${threadNRs[@]}
+                    do
+                        cn_tp_file="$cn_tp_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
+                        cn_lat_file="$cn_lat_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
+                        server_res_file="$server_res_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
+                        orig_res_file="$orig_res_dir/threadNR$threadNR.csv"
+                        echo $cn_tp_header > "$cn_tp_file"
+                        echo $cn_lat_header > "$cn_lat_file"
+                        # echo $server_file_header > "$server_res_file"
+
+                        for lockNR in ${lockNRs[@]}
+                        do
+
+                            for ((run = 0; run < runNR; run++)); do
+                                echo "START MICROBENCH $microb | $opt $impl | $nodeNR Ns & $threadNR Ts & $lockNR Ls & $duration s & RUN $run"
+                                dsh -M -f <(head -n $nodeNR ./nodes.txt) -c \
+                                "sudo LD_PRELOAD=$llock_so $mb_exe \
+                                -t $threadNR \
+                                -d $duration \
+                                -m $mode \
+                                -n $nodeNR \
+                                -f $cn_tp_file \
+                                -g $cn_lat_file \
+                                -l $lockNR \
+                                -r $run \
+                                -s $mnNR 2>&1"
+                                # 2>> $cn_log_dir/ncns$n_cns"_nthreads"$i.log"
+                                # "sudo LD_PRELOAD=$cn_so $disa_bench -t $i -d $duration -s $server_ip -p $p_ips -m $j -c $ncns -f $cn_rescum_file -g $cn_ressingle_file -l $nlocks -r $runs -e $mem_runs"
+
+                                cleanup
+                            done
+                        done
+                    done
+                done
+            done
+        done
+    fi
 done
 
 pkill -u $USER ssh-agent 

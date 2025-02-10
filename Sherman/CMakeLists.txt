@@ -30,15 +30,15 @@ set(OPTS
 
 file(GLOB_RECURSE COMMON_FILE ${COMMON_SRC}/*.cpp)
 
-# ORIGINAL W/ OPTS
-add_library(sherman_original STATIC ${COMMON_FILE})
-target_compile_definitions(sherman_original PRIVATE -DSHERMAN_LOCK -DHANDOVER -DON_CHIP -DBATCHED_WRITEBACK)
-set_target_properties(sherman_original PROPERTIES OUTPUT_NAME "sherman_original")
-link_libraries(sherman_original)
+# ORIGINAL SHERMAN W/ OPTS
+add_library(sherman STATIC ${COMMON_FILE})
+target_compile_definitions(sherman PRIVATE -DSHERMAN_LOCK -DHANDOVER -DON_CHIP -DBATCHED_WRITEBACK)
+set_target_properties(sherman PROPERTIES OUTPUT_NAME "sherman")
+link_libraries(sherman)
 
 # SHERMAN_LOCK
 add_library(sherman_shermanLock STATIC ${COMMON_FILE})
-target_compile_definitions(sherman_shermanLock PRIVATE -DSHERMAN_LOCK -DHANDOVER -DON_CHIP -DBATCHED_WRITEBACK)
+target_compile_definitions(sherman_shermanLock PRIVATE -DSHERMAN_LOCK)
 set_target_properties(sherman_shermanLock PROPERTIES OUTPUT_NAME "sherman_shermanLock")
 link_libraries(sherman_shermanLock)
 

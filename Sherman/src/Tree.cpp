@@ -1205,7 +1205,7 @@ inline bool Tree::can_hand_over(GlobalAddress lock_addr) {
 
 inline void Tree::releases_local_lock(GlobalAddress lock_addr) {
   auto &node = local_locks[lock_addr.nodeID][lock_addr.offset / 8];
-  #ifdef ORIGINAL
+  #ifdef SHERMAN_LOCK
   node.ticket_lock.fetch_add((1ull << 32));
   #endif
   #ifdef LITL
