@@ -303,11 +303,8 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   rs[1].dest = lock_addr;
   rs[1].size = sizeof(uint64_t);
 
-  #if defined(ORIGINAL) || defined(ON_CHIP)
+  // Leave always true for lock (doesnt matter if its onchip or not)
   rs[1].is_on_chip = true;
-  #else
-  rs[1].is_on_chip = false;
-  #endif
   *(uint64_t *)rs[1].source = 0;
 
   #if defined(ORIGINAL) || defined(BATCHED_WRITEBACK)
@@ -1156,7 +1153,7 @@ void Tree::coro_master(CoroYield &yield, int coro_cnt) {
 // Local Locks
 inline bool Tree::acquire_local_lock(GlobalAddress lock_addr, CoroContext *cxt,
                                      int coro_id) {
-  auto &node = local_locks[lock_addr.nodeID][(lock_addr.offset-rlockAddr) / 8];
+  auto &node = local_locks[lock_addr.nodeID][lock_addr.offset / 8];
 
   #ifdef ORIGINAL
   uint64_t lock_val = node.ticket_lock.fetch_add(1);
@@ -1233,7 +1230,7 @@ GlobalAddress Tree::get_lock_addr(GlobalAddress base_addr) {
 
 	GlobalAddress lock_addr;
 	lock_addr.nodeID = base_addr.nodeID;
-	lock_addr.offset = rlockAddr + lock_index * sizeof(uint64_t);
+	lock_addr.offset = lock_index * sizeof(uint64_t);
 	return lock_addr;
 }
 

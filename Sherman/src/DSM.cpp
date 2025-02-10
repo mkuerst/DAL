@@ -36,6 +36,7 @@ DSM::DSM(const DSMConfig &conf)
   rlockAddr = define::kLockStartAddr;
   #else
   rlockAddr = (uint64_t) malloc(define::kLockChipMemSize);
+  memset((char *)rlockAddr, 0, define::kLockChipMemSize);
   #endif
 
   Debug::notifyInfo("shared memory size: %dGB, 0x%lx", conf.dsmSize, baseAddr);
@@ -44,7 +45,6 @@ DSM::DSM(const DSMConfig &conf)
   // warmup
   memset((char *)baseAddr, 0, conf.dsmSize * define::GB);
   memset((char *)cache.data, 0, cache.size * define::GB);
-  memset((char *)rlockAddr, 0, define::kLockChipMemSize);
 
   initRDMAConnection();
   if (myNodeID < MEMORY_NODE_NUM) {  // start memory server
