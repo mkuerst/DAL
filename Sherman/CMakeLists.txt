@@ -36,29 +36,18 @@ target_compile_definitions(sherman_original PRIVATE -DSHERMAN_LOCK -DHANDOVER -D
 set_target_properties(sherman_original PROPERTIES OUTPUT_NAME "sherman_original")
 link_libraries(sherman_original)
 
+# SHERMAN_LOCK
+add_library(sherman_shermanLock STATIC ${COMMON_FILE})
+target_compile_definitions(sherman_shermanLock PRIVATE -DSHERMAN_LOCK -DHANDOVER -DON_CHIP -DBATCHED_WRITEBACK)
+set_target_properties(sherman_shermanLock PROPERTIES OUTPUT_NAME "sherman_shermanLock")
+link_libraries(sherman_shermanLock)
+
 # LITL
 add_library(sherman_litl STATIC ${COMMON_FILE})
 target_compile_definitions(sherman_litl PRIVATE -DLITL)
 set_target_properties(sherman_litl PROPERTIES OUTPUT_NAME "sherman_litl")
 link_libraries(sherman_litl)
 
-#Used by both server and clients
-# list(LENGTH OPTS OPTS_LEN)
-# math(EXPR OPTS_LEN "${OPTS_LEN} - 1")
-
-# foreach(index RANGE 0 ${OPTS_LEN} 2)
-#     list(GET OPTS ${index} name)
-#     math(EXPR next_index "${index} + 1")
-#     list(GET OPTS ${next_index} define)
-
-#     file(GLOB_RECURSE COMMON_FILE ${COMMON_SRC}/*.cpp)
-
-#     add_library(sherman_${name} STATIC ${COMMON_FILE})
-#     target_compile_definitions(sherman_${name} PRIVATE -D${define})
-#     set_target_properties(sherman_${name} PROPERTIES OUTPUT_NAME "sherman_${name}")
-
-#     link_libraries(sherman_${name})  # Fix linking issue (see next section)
-# endforeach()
 
 file(GLOB TEST_SRC ${PROJECT_SOURCE_DIR}/test/*.cpp)
 foreach (TEST ${TEST_SRC})
