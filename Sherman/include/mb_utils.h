@@ -127,7 +127,7 @@ static string ck = "CORRECTNESS";
 struct alignas(CACHELINE_SIZE) Task {
     volatile int* stop;
     pthread_t thread;
-    char disa;
+    char disa = 'y';
     uint64_t lock_acqs = 0;
 
     // MISC

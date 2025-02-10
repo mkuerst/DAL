@@ -3,7 +3,8 @@
 #include "Connection.h"
 
 DirectoryConnection::DirectoryConnection(uint16_t dirID, void *dsmPool,
-                                         uint64_t dsmSize, uint32_t machineNR,
+                                         uint64_t dsmSize, void* rlockPool, 
+                                         uint32_t machineNR,
                                          RemoteConnection *remoteInfo)
     : dirID(dirID), remoteInfo(remoteInfo) {
 
@@ -22,10 +23,15 @@ DirectoryConnection::DirectoryConnection(uint16_t dirID, void *dsmPool,
 
   // on-chip lock memory
   if (dirID == 0) {
-    this->lockPool = (void *)define::kLockStartAddr;
+    this->lockPool = rlockPool;
     this->lockSize = define::kLockChipMemSize;
+    #if defined(ORIGINAL) || defined(ON_CHIP)
     this->lockMR = createMemoryRegionOnChip((uint64_t)this->lockPool,
                                             this->lockSize, &ctx);
+    #else
+    this->lockMR = createMemoryRegion((uint64_t)this->lockPool,
+                                            this->lockSize, &ctx);
+    #endif
     this->lockLKey = lockMR->lkey;
   }
 

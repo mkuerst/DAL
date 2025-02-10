@@ -240,6 +240,17 @@ typedef struct {
 
 } task_t __attribute__ ((aligned (CACHELINE_SIZE)));
 
+typedef struct {
+    volatile int* stop;
+    pthread_t thread;
+    char disa;
+    uint64_t lock_acqs;
+
+    // MISC
+    int id;
+    int private_int_array[PRIVATE_ARRAY_SZ / sizeof(int)];
+} pptask_t __attribute__ ((aligned (CACHELINE_SIZE)));
+
 
 typedef struct rdma_server_meta {
     int id;

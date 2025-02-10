@@ -40,8 +40,11 @@ Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB) : dsm(dsm), tre
             n.ticket_lock.store(0);
             n.hand_over = false;
             n.hand_time = 0;
+            pthread_mutex_init(&n.mutex, NULL);
+            n.disa = 'y';
         }
     }
+    rlockAddr = dsm->get_rlockAddr();
 
     if (!MB) {
         assert(dsm->is_register());
@@ -305,13 +308,23 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   #else
   rs[1].is_on_chip = false;
   #endif
-
   *(uint64_t *)rs[1].source = 0;
+
+  #if defined(ORIGINAL) || defined(BATCHED_WRITEBACK)
   if (async) {
     dsm->write_batch(rs, 2, false);
   } else {
     dsm->write_batch_sync(rs, 2, cxt);
   }
+  #else
+  if (async) {
+    dsm->write_batch(&rs[0], 1, false);
+    dsm->write_batch(&rs[1], 1, false);
+  } else {
+    dsm->write_batch_sync(&rs[0], 1, cxt);
+    dsm->write_batch_sync(&rs[1], 1, cxt);
+  }
+  #endif
 
   releases_local_lock(lock_addr);
 }
@@ -1143,7 +1156,7 @@ void Tree::coro_master(CoroYield &yield, int coro_cnt) {
 // Local Locks
 inline bool Tree::acquire_local_lock(GlobalAddress lock_addr, CoroContext *cxt,
                                      int coro_id) {
-  auto &node = local_locks[lock_addr.nodeID][lock_addr.offset / 8];
+  auto &node = local_locks[lock_addr.nodeID][(lock_addr.offset-rlockAddr) / 8];
 
   #ifdef ORIGINAL
   uint64_t lock_val = node.ticket_lock.fetch_add(1);
@@ -1168,7 +1181,7 @@ inline bool Tree::acquire_local_lock(GlobalAddress lock_addr, CoroContext *cxt,
 
   #ifdef LITL
   pthread_mutex_lock((pthread_mutex_t *) &node);
-  return 0;
+  return false;
   #endif
 }
 
@@ -1220,7 +1233,7 @@ GlobalAddress Tree::get_lock_addr(GlobalAddress base_addr) {
 
 	GlobalAddress lock_addr;
 	lock_addr.nodeID = base_addr.nodeID;
-	lock_addr.offset = lock_index * sizeof(uint64_t);
+	lock_addr.offset = rlockAddr + lock_index * sizeof(uint64_t);
 	return lock_addr;
 }
 

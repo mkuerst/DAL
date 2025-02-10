@@ -32,6 +32,11 @@ DSM::DSM(const DSMConfig &conf)
     : conf(conf), appID(0), cache(conf.cacheConfig) {
 
   baseAddr = (uint64_t)hugePageAlloc(conf.dsmSize * define::GB);
+  #if defined(ORIGINAL) || defined(ON_CHIP)
+  rlockAddr = define::kLockStartAddr;
+  #else
+  rlockAddr = (uint64_t) malloc(define::kLockChipMemSize);
+  #endif
 
   Debug::notifyInfo("shared memory size: %dGB, 0x%lx", conf.dsmSize, baseAddr);
   Debug::notifyInfo("rdma cache size: %dGB", conf.cacheConfig.cacheSize);
@@ -39,6 +44,7 @@ DSM::DSM(const DSMConfig &conf)
   // warmup
   memset((char *)baseAddr, 0, conf.dsmSize * define::GB);
   memset((char *)cache.data, 0, cache.size * define::GB);
+  memset((char *)rlockAddr, 0, define::kLockChipMemSize);
 
   initRDMAConnection();
   if (myNodeID < MEMORY_NODE_NUM) {  // start memory server
@@ -121,7 +127,8 @@ void DSM::initRDMAConnection() {
   for (int i = 0; i < NR_DIRECTORY; ++i) {
     dirCon[i] =
         new DirectoryConnection(i, (void *)baseAddr, conf.dsmSize * define::GB,
-                                conf.machineNR, remoteInfo);
+                                (void *) rlockAddr, conf.machineNR,
+                                remoteInfo);
   }
 
   keeper = new DSMKeeper(thCon, dirCon, remoteInfo, conf.machineNR);

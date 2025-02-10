@@ -59,7 +59,7 @@
       "name": "node1",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/microbench/main_disa_",
+      "program": "${workspaceFolder}/microbench/main_disa_litl",
       "args": [
         "-t", "32",
         "-d", "5",
@@ -94,7 +94,7 @@
       "name": "node2",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/microbench/main_disa_",
+      "program": "${workspaceFolder}/microbench/main_disa_litl",
       "args": [
         "-t", "32",
         "-d", "5",

@@ -156,6 +156,7 @@ private:
   static thread_local uint64_t thread_tag;
 
   uint64_t baseAddr;
+  uint64_t rlockAddr;
   uint32_t myNodeID;
 
   RemoteConnection *remoteInfo;
@@ -173,6 +174,7 @@ public:
   char *get_rdma_buffer() { return rdma_buffer; }
   RdmaBuffer &get_rbuf(int coro_id) { return rbuf[coro_id]; }
   uint64_t get_baseAddr() { return baseAddr; }
+  uint64_t get_rlockAddr() { return rlockAddr; }
 
   GlobalAddress alloc(size_t size);
   void free(GlobalAddress addr);

@@ -96,6 +96,9 @@ private:
     DSM *dsm;
     uint64_t tree_id;
     GlobalAddress root_ptr_ptr; // the address which stores root pointer;
+    /*ADDED*/
+    uint64_t rlockAddr;
+    /**/
 
     // static thread_local int coro_id;
     static thread_local CoroCall worker[define::kMaxCoro];

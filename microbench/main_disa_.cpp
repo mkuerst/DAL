@@ -178,6 +178,9 @@ int main(int argc, char *argv[]) {
             _error("Failed to start MEMC server\n");
         DE("STARTED MEMC SERVER\n");
     }
+    else {
+        sleep(1);
+    }
 
     config.dsmSize = dsmSize;
     config.mnNR = mnNR;
