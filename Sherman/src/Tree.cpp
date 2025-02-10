@@ -252,7 +252,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
     return true;
   }
   #endif
-  save_measurement(measurements.gwait_acq, 1, true);
+  save_measurement(measurements.lwait_acq, 1, true);
   timer.begin();
   {
 

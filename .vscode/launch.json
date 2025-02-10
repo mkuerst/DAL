@@ -62,11 +62,11 @@
       "program": "${workspaceFolder}/microbench/microbench_sherman",
       "args": [
         "-t", "32",
-        "-d", "5",
+        "-d", "3",
         "-s", "1",
         "-m", "1",
         "-i", "1",
-        "-n", "2",
+        "-n", "3",
         "-f", "/nfs/DAL/microbench/results/test_tp.csv",
         "-g", "/nfs/DAL/microbench/results/test_lat.csv",
         "-l", "32",
@@ -97,11 +97,11 @@
       "program": "${workspaceFolder}/microbench/microbench_sherman",
       "args": [
         "-t", "32",
-        "-d", "5",
+        "-d", "3",
         "-s", "1",
         "-m", "1",
         "-i", "2",
-        "-n", "2",
+        "-n", "3",
         "-f", "/nfs/DAL/microbench/results/test_tp.csv",
         "-g", "/nfs/DAL/microbench/results/test_lat.csv",
         "-l", "32",
@@ -129,27 +129,27 @@
       "name": "node3",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/microbench/main_disa_",
+      "program": "${workspaceFolder}/microbench/microbench_sherman",
       "args": [
         "-t", "32",
-        "-d", "5",
+        "-d", "3",
         "-s", "1",
         "-m", "1",
         "-i", "3",
         "-n", "3",
         "-f", "/nfs/DAL/microbench/results/test_tp.csv",
         "-g", "/nfs/DAL/microbench/results/test_lat.csv",
-        "-l", "512",
+        "-l", "32",
         "-r", "2",
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      "environment": [
-        {
-          "name": "LD_PRELOAD",
-          "value": "/nfs/DAL/litl2/lib/original/libbackoff_original.so"
-        }
-      ],
+      // "environment": [
+      //   {
+      //     "name": "LD_PRELOAD",
+      //     "value": "/nfs/DAL/litl2/lib/original/libbackoff_original.so"
+      //   }
+      // ],
       "MIMode": "gdb",
       "setupCommands": [
         {
