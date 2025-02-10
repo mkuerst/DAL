@@ -16,7 +16,8 @@ FLAGS=-I../litl2/include/ -I../litl2/src/ -I/usr/include/rdma/ \
 -g -Wall -${OFLAG} -DCYCLE_PER_US=${CYCLE_PER_US} -DCACHELINE_SIZE=${CACHELINE_SIZE} -DBOOST_COROUTINES_NO_DEPRECATION_WARNING\
 -D$(DE) -D$(CORRECTNESS)\
 -L/home/kumichae/my_libs/rdma-core/build/lib/ -lrdmacm -libverbs -lnuma -pthread\
--L../Sherman/build/ -lsherman -lcityhash -lmemcached -lboost_system -lboost_coroutine
+-L../Sherman/build/ -lsherman_original -lcityhash -lmemcached -lboost_system -lboost_coroutine\
+-lsherman_litl
 
 
 .PHONY: all target
@@ -26,7 +27,8 @@ all: target
 target: ../litl2/src/utils.c ../litl2/src/rdma_common.o
 	@echo "USING CYCLE_PER_US = $(CYCLE_PER_US) MHz"
 	@echo "USING CACHELINE_SIZE = $(CACHELINE_SIZE) Bytes"
-	g++ -std=c++17 main_disa_.cpp ../Sherman/build/libsherman.a -o main_disa_ ${FLAGS} -DMUTEX
+	g++ -std=c++17 main_disa_.cpp ../Sherman/build/libsherman_original.a -o main_disa_original ${FLAGS} -DMUTEX
+	g++ -std=c++17 main_disa_.cpp ../Sherman/build/libsherman_litl.a -o main_disa_litl ${FLAGS} -DMUTEX
 # g++ -std=c++17 test_rdma_conn.cpp litl_utils.o  ../Sherman/build/libsherman.a ../litl2/src/rdma_common.o -o test_rdma_conn ${FLAGS} -DMUTEX
 
 # gcc -c ../litl2/src/utils.c -o litl_utils.o ${FLAGS} 

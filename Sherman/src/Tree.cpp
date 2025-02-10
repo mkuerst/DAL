@@ -215,9 +215,11 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
                                 uint64_t *buf, CoroContext *cxt, int coro_id) {
 
   bool hand_over = acquire_local_lock(lock_addr, cxt, coro_id);
+  #if defined(ORIGINAL) || defined(HANDOVER)
   if (hand_over) {
     return true;
   }
+  #endif
 
   {
 
@@ -254,11 +256,13 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
                               uint64_t *buf, CoroContext *cxt, int coro_id,
                               bool async) {
 
+  #if defined(ORIGINAL) || defined(HANDOVER)
   bool hand_over_other = can_hand_over(lock_addr);
   if (hand_over_other) {
     releases_local_lock(lock_addr);
     return;
   }
+  #endif
 
   auto cas_buf = dsm->get_rbuf(coro_id).get_cas_buffer();
 
@@ -277,12 +281,14 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
                                  GlobalAddress lock_addr, uint64_t tag,
                                  CoroContext *cxt, int coro_id, bool async) {
 
+  #if defined(ORIGINAL) || defined(HANDOVER)
   bool hand_over_other = can_hand_over(lock_addr);
   if (hand_over_other) {
     dsm->write_sync(page_buffer, page_addr, page_size, cxt);
     releases_local_lock(lock_addr);
     return;
   }
+  #endif
 
   RdmaOpRegion rs[2];
   rs[0].source = (uint64_t)page_buffer;
@@ -294,7 +300,11 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   rs[1].dest = lock_addr;
   rs[1].size = sizeof(uint64_t);
 
+  #if defined(ORIGINAL) || defined(ON_CHIP)
   rs[1].is_on_chip = true;
+  #else
+  rs[1].is_on_chip = false;
+  #endif
 
   *(uint64_t *)rs[1].source = 0;
   if (async) {
@@ -1135,6 +1145,7 @@ inline bool Tree::acquire_local_lock(GlobalAddress lock_addr, CoroContext *cxt,
                                      int coro_id) {
   auto &node = local_locks[lock_addr.nodeID][lock_addr.offset / 8];
 
+  #ifdef ORIGINAL
   uint64_t lock_val = node.ticket_lock.fetch_add(1);
 
   uint32_t ticket = lock_val << 32 >> 32;
@@ -1153,6 +1164,12 @@ inline bool Tree::acquire_local_lock(GlobalAddress lock_addr, CoroContext *cxt,
   node.hand_time++;
 
   return node.hand_over;
+  #endif
+
+  #ifdef LITL
+  pthread_mutex_lock((pthread_mutex_t *) &node);
+  return 0;
+  #endif
 }
 
 inline bool Tree::can_hand_over(GlobalAddress lock_addr) {
@@ -1177,8 +1194,12 @@ inline bool Tree::can_hand_over(GlobalAddress lock_addr) {
 
 inline void Tree::releases_local_lock(GlobalAddress lock_addr) {
   auto &node = local_locks[lock_addr.nodeID][lock_addr.offset / 8];
-
+  #ifdef ORIGINAL
   node.ticket_lock.fetch_add((1ull << 32));
+  #endif
+  #ifdef LITL
+  pthread_mutex_unlock((pthread_mutex_t *) &node);
+  #endif
 }
 
 void Tree::index_cache_statistics() {
