@@ -97,7 +97,7 @@ void clear_measurements() {
 	measurements.duration = tmp;
 }
 
-uint64_t* cal_latency(uint64_t latency[MAX_APP_THREAD][LATENCY_WINDOWS], const string measurement) {
+uint64_t* cal_latency(uint16_t latency[MAX_APP_THREAD][LATENCY_WINDOWS], const string measurement) {
 	uint64_t latency_th_all[LATENCY_WINDOWS];
 	uint64_t all_lat = 0;
 	for (int i = 0; i < LATENCY_WINDOWS; ++i) {
@@ -147,11 +147,14 @@ uint64_t* cal_latency(uint64_t latency[MAX_APP_THREAD][LATENCY_WINDOWS], const s
 	return lats;
 }
 
-void save_measurement(uint64_t arr[MAX_APP_THREAD][LATENCY_WINDOWS], int factor) {
+void save_measurement(uint16_t arr[MAX_APP_THREAD][LATENCY_WINDOWS], int factor) {
 	auto us_10 = timer.end() / factor;
     if (us_10 >= LATENCY_WINDOWS) {
       us_10 = LATENCY_WINDOWS - 1;
     }
+	// while(us_10 >= LATENCY_WINDOWS) {
+	// 	us_10 = us_10 / 10;
+	// }
     arr[threadID][us_10]++;
 }
 

@@ -20,15 +20,15 @@ struct alignas(CACHELINE_SIZE) LocalLockNode {
 };
 
 struct Measurements {
-    uint64_t lock_hold[MAX_APP_THREAD][LATENCY_WINDOWS];
-    uint64_t wait_acq[MAX_APP_THREAD][LATENCY_WINDOWS];
-    uint64_t wait_rel[MAX_APP_THREAD][LATENCY_WINDOWS];
-    uint64_t lwait_acq[MAX_APP_THREAD][LATENCY_WINDOWS];
-    uint64_t lwait_rel[MAX_APP_THREAD][LATENCY_WINDOWS];
-    uint64_t gwait_acq[MAX_APP_THREAD][LATENCY_WINDOWS];
-    uint64_t gwait_rel[MAX_APP_THREAD][LATENCY_WINDOWS];
-    uint64_t data_read[MAX_APP_THREAD][LATENCY_WINDOWS];
-    uint64_t data_write[MAX_APP_THREAD][LATENCY_WINDOWS];
+    uint16_t lock_hold[MAX_APP_THREAD][LATENCY_WINDOWS];
+    uint16_t wait_acq[MAX_APP_THREAD][LATENCY_WINDOWS];
+    uint16_t wait_rel[MAX_APP_THREAD][LATENCY_WINDOWS];
+    uint16_t lwait_acq[MAX_APP_THREAD][LATENCY_WINDOWS];
+    uint16_t lwait_rel[MAX_APP_THREAD][LATENCY_WINDOWS];
+    uint16_t gwait_acq[MAX_APP_THREAD][LATENCY_WINDOWS];
+    uint16_t gwait_rel[MAX_APP_THREAD][LATENCY_WINDOWS];
+    uint16_t data_read[MAX_APP_THREAD][LATENCY_WINDOWS];
+    uint16_t data_write[MAX_APP_THREAD][LATENCY_WINDOWS];
     uint64_t loop_in_cs[MAX_APP_THREAD];
     uint64_t lock_acquires[MAX_APP_THREAD];
     uint64_t glock_tries[MAX_APP_THREAD];

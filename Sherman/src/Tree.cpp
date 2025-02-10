@@ -217,13 +217,16 @@ next:
 inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
                                 uint64_t *buf, CoroContext *cxt, int coro_id) {
 
+  timer.begin();
   bool hand_over = acquire_local_lock(lock_addr, cxt, coro_id);
   #ifdef HANDOVER
   if (hand_over) {
+    save_measurement(measurements.lwait_acq, 1);
     return true;
   }
   #endif
-
+  save_measurement(measurements.lwait_acq, 1);
+  timer.begin();
   {
 
     uint64_t retry_cnt = 0;
@@ -245,12 +248,15 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
     if (!res) {
       conflict_tag = *buf - 1;
       if (conflict_tag != pre_tag) {
+        measurements.glock_tries[threadID] += retry_cnt;
         retry_cnt = 0;
         pre_tag = conflict_tag;
       }
       goto retry;
     }
+    measurements.glock_tries[threadID] += retry_cnt;
   }
+  save_measurement(measurements.gwait_acq);
 
   return true;
 }
@@ -275,7 +281,7 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
   } else {
     dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
   }
-
+  save_measurement(measurements.gwait_rel);
   releases_local_lock(lock_addr);
 }
 
@@ -284,11 +290,12 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
                                  GlobalAddress lock_addr, uint64_t tag,
                                  CoroContext *cxt, int coro_id, bool async) {
 
-                                
+  timer.begin();
   #ifdef HANDOVER
   bool hand_over_other = can_hand_over(lock_addr);
   if (hand_over_other) {
     dsm->write_sync(page_buffer, page_addr, page_size, cxt);
+    save_measurement(measurements.data_write);
     releases_local_lock(lock_addr);
     return;
   }
@@ -314,13 +321,21 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   } else {
     dsm->write_batch_sync(rs, 2, cxt);
   }
+  save_measurement(measurements.gwait_rel);
+  save_measurement(measurements.data_write);
   #else
   if (async) {
     dsm->write_batch(&rs[0], 1, false);
+    save_measurement(measurements.gwait_rel);
+    timer.begin();
     dsm->write_batch(&rs[1], 1, false);
+    save_measurement(measurements.data_write);
   } else {
     dsm->write_batch_sync(&rs[0], 1, cxt);
+    save_measurement(measurements.gwait_rel);
+    timer.begin();
     dsm->write_batch_sync(&rs[1], 1, cxt);
+    save_measurement(measurements.data_write);
   }
   #endif
 
@@ -332,6 +347,7 @@ void Tree::lock_and_read_page(char *page_buffer, GlobalAddress page_addr,
                               GlobalAddress lock_addr, uint64_t tag,
                               CoroContext *cxt, int coro_id) {
 
+  timer.begin();
   try_lock_addr(lock_addr, tag, cas_buffer, cxt, coro_id);
 
   dsm->read_sync(page_buffer, page_addr, page_size, cxt);
@@ -1204,6 +1220,7 @@ inline bool Tree::can_hand_over(GlobalAddress lock_addr) {
 }
 
 inline void Tree::releases_local_lock(GlobalAddress lock_addr) {
+  timer.begin();
   auto &node = local_locks[lock_addr.nodeID][lock_addr.offset / 8];
   #ifdef SHERMAN_LOCK
   node.ticket_lock.fetch_add((1ull << 32));
@@ -1211,6 +1228,7 @@ inline void Tree::releases_local_lock(GlobalAddress lock_addr) {
   #ifdef LITL
   pthread_mutex_unlock((pthread_mutex_t *) &node);
   #endif
+  save_measurement(measurements.lwait_rel);
 }
 
 void Tree::index_cache_statistics() {
@@ -1242,7 +1260,6 @@ void Tree::get_bufs() {
 }
 
 void Tree::mb_lock(GlobalAddress base_addr, int data_size) {
-	timer.begin();
 	curr_lock_addr = get_lock_addr(base_addr);
 
 	get_bufs();
@@ -1259,7 +1276,6 @@ void Tree::mb_lock(GlobalAddress base_addr, int data_size) {
 }
 
 void Tree::mb_unlock(GlobalAddress base_addr, int data_size) {
-	timer.begin();
 	auto tag = dsm->getThreadTag();
 	assert(tag != 0);
 	if (data_size > 0) {

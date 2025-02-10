@@ -45,7 +45,7 @@ cn_suffix="_cn.so"
 server_suffix="_server.so"
 server_libs_dir=$BASE"/server/"
 cn_libs_dir=$BASE"/cn/"
-llock_libs_dir=$BASE"/orig/"
+llock_libs_dir=$BASE"/original/"
 pthread_so="$PWD/../litl2/lib/original/libpthreadinterpose_original.so"
 
 
@@ -72,17 +72,18 @@ rm -rf cn_logs/
 comm_prot=rdma
 
 # MICROBENCH INPUTS
-opts=("sherman" "shermanLock" "litl")
+opts=("sherman" "litl")
 microbenches=("empty_cs" "mlocks" "correctness")
 duration=5
 runNR=2
 mnNR=1
 nodeNRs=(3)
 threadNRs=(32)
-lockNRs=(32)
+lockNRs=(1)
 bench_idxs=(1)
 
 mkdir -p results/
+sudo chown -R mkuerst:dal-PG0 /nfs/
 
 for opt in ${opts[@]}
 do

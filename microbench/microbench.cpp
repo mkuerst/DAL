@@ -105,6 +105,7 @@ void *empty_cs_worker(void *arg) {
     pthread_barrier_wait(&global_barrier);
     while (!*task->stop) {
         rlock->mb_lock(baseAddr, 0);
+        task->lock_acqs++;
         rlock->mb_unlock(baseAddr, 0);
     }
     pthread_barrier_wait(&global_barrier);

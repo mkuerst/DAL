@@ -136,6 +136,7 @@ struct alignas(CACHELINE_SIZE) Task {
     Timer timer;
 };
 
+
 int uniform_rand_int(int x);
 
 void set_id(int id);
@@ -146,7 +147,7 @@ void write_tp(char* res_file, int run, int threadNR, int lockNR, int nodeID, siz
 
 void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_size);
 
-void save_measurement(uint64_t arr[MAX_APP_THREAD][LATENCY_WINDOWS], int factor = 100);
+void save_measurement(uint16_t arr[MAX_APP_THREAD][LATENCY_WINDOWS], int factor = 1);
 
 int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int nodeID);
 

@@ -5,13 +5,28 @@
 #include <cstdio>
 #include <time.h>
 
+#define CYCLES_PER_US 3L
+
+#include <cstdint>
+
+inline uint64_t rdtscp() {
+    unsigned int lo, hi;
+    asm volatile (
+        "rdtscp"
+        : "=a"(lo), "=d"(hi)
+        :: "rcx");
+    return (static_cast<uint64_t>(hi) << 32) | lo;
+}
+
 class Timer {
 public:
   Timer() = default;
 
   void begin() { clock_gettime(CLOCK_REALTIME, &s); }
+  // void begin() { start = rdtscp(); }
 
-  uint64_t end(uint64_t loop = 1) {
+  uint64_t end(uint64_t loop = 1) { 
+    asm volatile("" ::: "memory");
     this->loop = loop;
     clock_gettime(CLOCK_REALTIME, &e);
     uint64_t ns_all =
@@ -20,6 +35,9 @@ public:
 
     return ns;
   }
+  // uint64_t end(uint64_t loop = 1) {
+  //   return (rdtscp() - start) / CYCLES_PER_US;
+  // }
 
   void print() {
 
@@ -53,6 +71,7 @@ public:
   }
 
 private:
+  uint64_t start;
   timespec s, e;
   uint64_t loop;
   uint64_t ns;
