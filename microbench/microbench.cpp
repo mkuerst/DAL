@@ -23,7 +23,7 @@ char *array0;
 char *res_file_tp, *res_file_lat;
 int threadNR, nodeNR, mnNR, lockNR, runNR,
 nodeID, duration, mode;
-uint64_t dsmSize;
+uint64_t dsmSize = 1;
 uint64_t *lock_acqs;
 uint64_t *lock_rels;
 
@@ -143,7 +143,7 @@ void *mlocks_worker(void *arg) {
                 break;
             int data_idx = uniform_rand_int(range);
             baseAddr.offset = data_idx * page_size;
-            rlock->mb_lock(baseAddr, data_len * sizeof(uint64_t));
+            rlock->mb_lock(baseAddr, page_size);
             lock_idx = rlock->getCurrLockAddr().offset / sizeof(uint64_t);
             lock_acqs[lock_idx]++;
             task->lock_acqs++;
@@ -157,7 +157,7 @@ void *mlocks_worker(void *arg) {
             }
             save_measurement(measurements.lock_hold);
             
-            rlock->mb_unlock(baseAddr, data_len);
+            rlock->mb_unlock(baseAddr, page_size);
             lock_rels[lock_idx]++;
         }
     }
@@ -172,7 +172,6 @@ int main(int argc, char *argv[]) {
     &nodeID, &duration, &mode,
     &res_file_tp, &res_file_lat,
     argc, argv);
-    dsmSize = 1;
     DE("HI\n");
     if (nodeID == 1) {
         if(system("sudo bash /nfs/DAL/restartMemc.sh"))
@@ -229,7 +228,7 @@ int main(int argc, char *argv[]) {
     memset(lock_acqs, 0, lockNR*sizeof(uint64_t));
     memset(lock_rels, 0, lockNR*sizeof(uint64_t));
 
-    /*RUNS*/
+    /*RUN*/
     stop = 0;
     dsm->barrier("MB_BEGIN");
     pthread_barrier_wait(&global_barrier);

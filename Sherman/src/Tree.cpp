@@ -238,7 +238,6 @@ next:
 inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
                                 uint64_t *buf, CoroContext *cxt, int coro_id) {
 
-  timer.begin();
   bool hand_over = acquire_local_lock(lock_addr, cxt, coro_id);
   #ifdef HANDOVER
   if (hand_over) {
@@ -303,6 +302,7 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
     dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
   }
   save_measurement(measurements.gwait_rel);
+  timer.begin();
   releases_local_lock(lock_addr);
 }
 
@@ -311,7 +311,6 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
                                  GlobalAddress lock_addr, uint64_t tag,
                                  CoroContext *cxt, int coro_id, bool async) {
 
-  timer.begin();
   #ifdef HANDOVER
   bool hand_over_other = can_hand_over(lock_addr);
   if (hand_over_other) {
@@ -360,6 +359,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   }
   #endif
 
+  timer.begin();
   releases_local_lock(lock_addr);
 }
 
@@ -1219,7 +1219,7 @@ inline bool Tree::acquire_local_lock(GlobalAddress lock_addr, CoroContext *cxt,
   node.ticket_lock--;
   node.hand_time++;
 
-  return false;
+  return node.hand_over;
   #endif
 }
 
@@ -1247,12 +1247,13 @@ inline bool Tree::can_hand_over(GlobalAddress lock_addr) {
     node.hand_over = false;
     node.hand_time = 0;
   }
+  else {
+    node.hand_over = true;
+  }
   return node.hand_over;
-
 }
 
 inline void Tree::releases_local_lock(GlobalAddress lock_addr) {
-  timer.begin();
   auto &node = local_locks[lock_addr.nodeID][lock_addr.offset / 8];
   #ifdef SHERMAN_LOCK
   node.ticket_lock.fetch_add((1ull << 32));
@@ -1292,6 +1293,7 @@ void Tree::get_bufs() {
 }
 
 void Tree::mb_lock(GlobalAddress base_addr, int data_size) {
+  timer.begin();
 	curr_lock_addr = get_lock_addr(base_addr);
 
 	get_bufs();
@@ -1308,6 +1310,7 @@ void Tree::mb_lock(GlobalAddress base_addr, int data_size) {
 }
 
 void Tree::mb_unlock(GlobalAddress base_addr, int data_size) {
+  timer.begin();
 	auto tag = dsm->getThreadTag();
 	assert(tag != 0);
 	if (data_size > 0) {

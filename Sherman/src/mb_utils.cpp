@@ -134,7 +134,7 @@ uint64_t* cal_latency(uint16_t *latency, const string measurement, int lw = LATE
 		if (cum >= th50) {
 			// DE("%s : p50 %f\t", measurement.c_str(), i / 10.0);
 			th50 = -1;
-			lats[0] = i / 10;
+			lats[0] = i;
 		}
 		if (cum >= th90) {
 			// DE("%s : p90 %f\t", measurement.c_str(), i / 10.0);
@@ -151,7 +151,7 @@ uint64_t* cal_latency(uint16_t *latency, const string measurement, int lw = LATE
 		if (cum >= th999) {
 			// DE("%s : p999 %f\n", measurement.c_str(), i / 10.0);
 			th999 = -1;
-			lats[1] = i / 10;
+			lats[1] = i;
 			break;
 		}
 	}
@@ -160,11 +160,17 @@ uint64_t* cal_latency(uint16_t *latency, const string measurement, int lw = LATE
 }
 
 void save_measurement(uint16_t *arr, int factor, bool is_lwait) {
-	auto us_10 = timer.end() / factor;
+	auto us_10 = timer.end();
 	uint64_t lw = is_lwait ? LWAIT_WINDOWS : LATENCY_WINDOWS;
-    if (us_10 >= lw) {
-      us_10 = lw - 1;
+	if (us_10 >= 1000 && is_lwait) {
+		us_10 = 1000 + us_10 / 1000;
     }
+	// TODO:
+	// IN PLOT.PY MULTIPLY ALL VALUES >= 1000 by 1000 and subtract 1000!
+	// PLEASE DONT HAPPEN
+	if (us_10 >= lw) {
+		us_10 = lw - 1;
+	}
     arr[threadID*lw + us_10]++;
 }
 
