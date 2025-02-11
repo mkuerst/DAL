@@ -164,4 +164,6 @@ void parse_cli_args(
     int argc, char **argv
 );
 
+void free_measurements();
+
 #endif /* __MB_UTILS_H__ */

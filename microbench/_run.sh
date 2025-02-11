@@ -8,7 +8,8 @@ cleanup_exit() {
         echo "Killing process $pid using RDMA resources..."
         kill -9 "$pid"
     done
-    dsh -M -f ./nodes.txt -c "sudo rdma resource show mr | awk '{print $12}' | sort -u | xargs -r sudo kill -9"
+    sudo dsh -M -f ./nodes.txt -c "sudo rdma resource show mr | awk '{print $12}' | sort -u | xargs -r sudo kill -9"
+    sudo dsh -M -f ./nodes.txt -c "sudo rdma resource show mr | awk '{print $16}' | sort -u | xargs -r sudo kill -9"
     echo "CLEANUP DONE"
     echo "EXIT"
     exit 1
@@ -21,7 +22,8 @@ cleanup() {
         echo "Stopping server with PID $SERVER_PID..."
         kill -SIGINT $SERVER_PID
     fi
-    dsh -M -f ./nodes.txt -c "sudo rdma resource show mr | awk '{print $12}' | sort -u | xargs -r sudo kill -9"
+    sudo dsh -M -f ./nodes.txt -c "sudo rdma resource show mr | awk '{print $12}' | sort -u | xargs -r sudo kill -9"
+    sudo dsh -M -f ./nodes.txt -c "sudo rdma resource show mr | awk '{print $16}' | sort -u | xargs -r sudo kill -9"
     pkill -P $$ 
     echo "CLEANUP DONE"
 }

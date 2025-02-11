@@ -21,8 +21,6 @@ struct alignas(CACHELINE_SIZE) LocalLockNode {
 
 struct Measurements {
     uint16_t *lock_hold;
-    uint16_t *wait_acq;
-    uint16_t *wait_rel;
     uint16_t *lwait_acq;
     uint16_t *lwait_rel;
     uint16_t *gwait_acq;

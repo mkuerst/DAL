@@ -97,8 +97,19 @@ void clear_measurements() {
 	measurements.duration = tmp;
 }
 
+void free_measurements() {
+	free(measurements.data_read);
+	free(measurements.data_write);
+	free(measurements.lwait_acq);
+	free(measurements.lwait_rel);
+	free(measurements.gwait_acq);
+	free(measurements.gwait_rel);
+	free(measurements.lock_hold);
+}
+
 uint64_t* cal_latency(uint16_t *latency, const string measurement, int lw = LATENCY_WINDOWS) {
-	uint32_t latency_th_all[lw];
+	// uint16_t latency_th_all[lw]
+	uint32_t* latency_th_all = (uint32_t *) malloc(lw*sizeof(uint32_t));
 	uint64_t all_lat = 0;
 	for (int i = 0; i < lw; ++i) {
 		latency_th_all[i] = 0;
@@ -144,12 +155,13 @@ uint64_t* cal_latency(uint16_t *latency, const string measurement, int lw = LATE
 			break;
 		}
 	}
+	free(latency_th_all);
 	return lats;
 }
 
 void save_measurement(uint16_t *arr, int factor, bool is_lwait) {
 	auto us_10 = timer.end() / factor;
-	uint64_t lw = is_lwait ? 2*LATENCY_WINDOWS : LATENCY_WINDOWS;
+	uint64_t lw = is_lwait ? LWAIT_WINDOWS : LATENCY_WINDOWS;
     if (us_10 >= lw) {
       us_10 = lw - 1;
     }
@@ -182,7 +194,7 @@ void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_siz
 		__error("Failed to open %s\n", res_file);
 
 	uint64_t* lock_hold = cal_latency(measurements.lock_hold, "lock_hold");
-	uint64_t* lwait_acq = cal_latency(measurements.lwait_acq, "lwait_acq", 2*LATENCY_WINDOWS);
+	uint64_t* lwait_acq = cal_latency(measurements.lwait_acq, "lwait_acq", LWAIT_WINDOWS);
 	uint64_t* lwait_rel = cal_latency(measurements.lwait_rel, "lwait_rel");
 	uint64_t* gwait_acq = cal_latency(measurements.gwait_acq, "gwait_acq");
 	uint64_t* gwait_rel = cal_latency(measurements.gwait_rel, "gwait_rel");
@@ -191,13 +203,13 @@ void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_siz
 
 	for (int i = 0; i < LATNR; i++) {
 		file << std::setfill('0')
-			<< std::setw(6) << lock_hold[i] << ","
-			<< std::setw(6) << lwait_acq[i] << ","
-			<< std::setw(6) << lwait_rel[i] << ","
-			<< std::setw(6) << gwait_acq[i] << ","
-			<< std::setw(6) << gwait_rel[i] << ","
-			<< std::setw(6) << data_read[i] << ","
-			<< std::setw(6) << data_write[i] << ","
+			<< std::setw(7) << lock_hold[i] << ","
+			<< std::setw(7) << lwait_acq[i] << ","
+			<< std::setw(7) << lwait_rel[i] << ","
+			<< std::setw(7) << gwait_acq[i] << ","
+			<< std::setw(7) << gwait_rel[i] << ","
+			<< std::setw(7) << data_read[i] << ","
+			<< std::setw(7) << data_write[i] << ","
 			<< std::setw(6) << array_size << ","
 			<< std::setw(3) << nodeID << ","
 			<< std::setw(3) << run << ","

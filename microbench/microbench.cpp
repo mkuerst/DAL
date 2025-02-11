@@ -265,6 +265,7 @@ int main(int argc, char *argv[]) {
     #endif
 
     fprintf(stderr, "DSM NODE %d DONE\n", nodeID);
+    free_measurements();
     dsm->barrier("fin");
     return 0;
 }

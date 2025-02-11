@@ -23,6 +23,7 @@
 // #define CONFIG_ENABLE_CRC
 
 #define LATENCY_WINDOWS 1000000
+#define LWAIT_WINDOWS 10000000
 
 #define STRUCT_OFFSET(type, field)                                             \
   (char *)&((type *)(0))->field - (char *)((type *)(0))
