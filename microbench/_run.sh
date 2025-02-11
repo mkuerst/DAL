@@ -68,14 +68,12 @@ run,\
 lockNR"
 
 server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
-rm -rf server_logs/
-rm -rf cn_logs/
 
 comm_prot=rdma
 
 # MICROBENCH INPUTS
 # opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
-opts=("shermanLock" "litl")
+opts=("shermanHo" "litlHo")
 microbenches=("empty_cs" "mlocks" "correctness")
 duration=20
 runNR=1
@@ -85,6 +83,7 @@ threadNRs=(32)
 lockNRs=(1)
 bench_idxs=(1)
 
+sudo rm -rf logs/
 mkdir -p results/
 sudo chown -R mkuerst:dal-PG0 /nfs/
 

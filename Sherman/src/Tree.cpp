@@ -1192,10 +1192,9 @@ void Tree::coro_master(CoroYield &yield, int coro_cnt) {
 inline bool Tree::acquire_local_lock(GlobalAddress lock_addr, CoroContext *cxt,
                                      int coro_id) {
   auto &node = local_locks[lock_addr.nodeID][lock_addr.offset / 8];
-
-  #ifdef SHERMAN_LOCK
   uint64_t lock_val = node.ticket_lock.fetch_add(1);
 
+  #ifdef SHERMAN_LOCK
   uint32_t ticket = lock_val << 32 >> 32;
   uint32_t current = lock_val >> 32;
 
@@ -1216,14 +1215,18 @@ inline bool Tree::acquire_local_lock(GlobalAddress lock_addr, CoroContext *cxt,
 
   #ifdef LITL
   pthread_mutex_lock((pthread_mutex_t *) &node);
+  // uint64_t lock_val = node.ticket_lock.fetch_add(-1);
+  node.ticket_lock--;
+  node.hand_time++;
+
   return false;
   #endif
 }
 
 inline bool Tree::can_hand_over(GlobalAddress lock_addr) {
-
   auto &node = local_locks[lock_addr.nodeID][lock_addr.offset / 8];
   uint64_t lock_val = node.ticket_lock.load(std::memory_order_relaxed);
+  #ifdef SHERMAN_LOCK
 
   uint32_t ticket = lock_val << 32 >> 32;
   uint32_t current = lock_val >> 32;
@@ -1236,8 +1239,16 @@ inline bool Tree::can_hand_over(GlobalAddress lock_addr) {
   if (!node.hand_over) {
     node.hand_time = 0;
   }
-
+  
   return node.hand_over;
+  #endif
+
+  if (lock_val == 0 || node.hand_time >= define::kMaxHandOverTime) {
+    node.hand_over = false;
+    node.hand_time = 0;
+  }
+  return node.hand_over;
+
 }
 
 inline void Tree::releases_local_lock(GlobalAddress lock_addr) {

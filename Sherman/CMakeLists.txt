@@ -21,12 +21,6 @@ set(COMMON_SRC ${PROJECT_SOURCE_DIR}/src)
 
 file(GLOB_RECURSE COMMON_FILE ${COMMON_SRC}/*.cpp)
 
-# ORIGINAL SHERMAN W/ OPTS
-add_library(sherman STATIC ${COMMON_FILE})
-target_compile_definitions(sherman PRIVATE -DSHERMAN_LOCK -DHANDOVER -DON_CHIP -DBATCHED_WRITEBACK)
-set_target_properties(sherman PROPERTIES OUTPUT_NAME "sherman")
-link_libraries(sherman)
-
 # SHERMAN_LOCK
 add_library(sherman_shermanLock STATIC ${COMMON_FILE})
 target_compile_definitions(sherman_shermanLock PRIVATE -DSHERMAN_LOCK)
@@ -38,6 +32,12 @@ add_library(sherman_shermanHo STATIC ${COMMON_FILE})
 target_compile_definitions(sherman_shermanHo PRIVATE -DSHERMAN_LOCK -DHANDOVER)
 set_target_properties(sherman_shermanHo PROPERTIES OUTPUT_NAME "sherman_shermanHo")
 link_libraries(sherman_shermanHo)
+
+# ORIGINAL SHERMAN W/ OPTS
+add_library(sherman STATIC ${COMMON_FILE})
+target_compile_definitions(sherman PRIVATE -DSHERMAN_LOCK -DHANDOVER -DON_CHIP -DBATCHED_WRITEBACK)
+set_target_properties(sherman PROPERTIES OUTPUT_NAME "sherman")
+link_libraries(sherman)
 
 # LITL
 add_library(sherman_litl STATIC ${COMMON_FILE})
