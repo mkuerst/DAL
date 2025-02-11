@@ -18,15 +18,6 @@ include_directories(${INCLUDE_BASE})
 #Source file define
 set(COMMON_SRC ${PROJECT_SOURCE_DIR}/src)
 
-#Optimizations
-set(OPTS
-    original ORIGINAL
-    spinlock  SPINLOCK
-    litl   LITL
-    handover HANDOVER
-    on_chip ON_CHIP
-    batched_writeback   BATCHED_WRITEBACK
-)
 
 file(GLOB_RECURSE COMMON_FILE ${COMMON_SRC}/*.cpp)
 
@@ -42,11 +33,29 @@ target_compile_definitions(sherman_shermanLock PRIVATE -DSHERMAN_LOCK)
 set_target_properties(sherman_shermanLock PROPERTIES OUTPUT_NAME "sherman_shermanLock")
 link_libraries(sherman_shermanLock)
 
+# SHERMAN_LOCK HO
+add_library(sherman_shermanHo STATIC ${COMMON_FILE})
+target_compile_definitions(sherman_shermanHo PRIVATE -DSHERMAN_LOCK -DHANDOVER)
+set_target_properties(sherman_shermanHo PROPERTIES OUTPUT_NAME "sherman_shermanHo")
+link_libraries(sherman_shermanHo)
+
 # LITL
 add_library(sherman_litl STATIC ${COMMON_FILE})
 target_compile_definitions(sherman_litl PRIVATE -DLITL)
 set_target_properties(sherman_litl PROPERTIES OUTPUT_NAME "sherman_litl")
 link_libraries(sherman_litl)
+
+# LITL HO
+add_library(sherman_litlHo STATIC ${COMMON_FILE})
+target_compile_definitions(sherman_litlHo PRIVATE -DLITL -DHANDOVER)
+set_target_properties(sherman_litlHo PROPERTIES OUTPUT_NAME "sherman_litlHo")
+link_libraries(sherman_litlHo)
+
+# LITL HO OCM BW
+add_library(sherman_litlHoOcmBw STATIC ${COMMON_FILE})
+target_compile_definitions(sherman_litlHo PRIVATE -DLITL -DHANDOVER -DON_CHIP -DBATCHED_WRITEBACK)
+set_target_properties(sherman_litlHoOcmBw PROPERTIES OUTPUT_NAME "sherman_litlHoOcmBw")
+link_libraries(sherman_litlHoOcmBw)
 
 
 file(GLOB TEST_SRC ${PROJECT_SOURCE_DIR}/test/*.cpp)

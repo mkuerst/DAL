@@ -196,7 +196,7 @@ void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_siz
 	uint64_t* lock_hold = cal_latency(measurements.lock_hold, "lock_hold");
 	uint64_t* lwait_acq = cal_latency(measurements.lwait_acq, "lwait_acq", LWAIT_WINDOWS);
 	uint64_t* lwait_rel = cal_latency(measurements.lwait_rel, "lwait_rel");
-	uint64_t* gwait_acq = cal_latency(measurements.gwait_acq, "gwait_acq");
+	uint64_t* gwait_acq = cal_latency(measurements.gwait_acq, "gwait_acq", LWAIT_WINDOWS);
 	uint64_t* gwait_rel = cal_latency(measurements.gwait_rel, "gwait_rel");
 	uint64_t* data_read = cal_latency(measurements.data_read, "data_read");
 	uint64_t* data_write = cal_latency(measurements.data_write, "data_write");

@@ -65,6 +65,7 @@ if [ ! -f "$OFED_FILE" ]; then
         sudo apt install -y pdsh 
         sudo apt install -y htop
         sudo apt install -y dsh
+        sudo apt install -y libpapi-dev papi-tools
 
 		sudo bash installMLNX.sh
 else

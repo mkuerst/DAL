@@ -42,8 +42,8 @@ Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB) : dsm(dsm), tre
   measurements.lwait_rel = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
   memset(measurements.lwait_rel, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
   
-  measurements.gwait_acq = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
-  memset(measurements.gwait_acq, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+  measurements.gwait_acq = (uint16_t *) malloc(MAX_APP_THREAD * LWAIT_WINDOWS * sizeof(uint16_t));
+  memset(measurements.gwait_acq, 0, MAX_APP_THREAD * LWAIT_WINDOWS * sizeof(uint16_t));
   
   measurements.gwait_rel = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
   memset(measurements.gwait_rel, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
@@ -250,12 +250,12 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   timer.begin();
   {
 
-    uint64_t retry_cnt = 0;
+    uint64_t retry_cnt = 1;
     uint64_t pre_tag = 0;
     uint64_t conflict_tag = 0;
   retry:
     retry_cnt++;
-    if (retry_cnt > 1000000) {
+    if (retry_cnt > 1000001) {
       std::cout << "Deadlock " << lock_addr << std::endl;
 
       std::cout << dsm->getMyNodeID() << ", " << dsm->getMyThreadID()
@@ -277,7 +277,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
     }
     measurements.glock_tries[threadID] += retry_cnt;
   }
-  save_measurement(measurements.gwait_acq);
+  save_measurement(measurements.gwait_acq, 1, true);
 
   return true;
 }

@@ -20,3 +20,4 @@ sherman_deps/
 c_cpp_properties.json
 libsherman*
 microbench_*
+microbench/logs

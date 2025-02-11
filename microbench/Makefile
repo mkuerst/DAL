@@ -17,7 +17,8 @@ FLAGS=-I../litl2/include/ -I../litl2/src/ -I/usr/include/rdma/ \
 -D$(DE) -D$(CORRECTNESS)\
 -L/home/kumichae/my_libs/rdma-core/build/lib/ -lrdmacm -libverbs -lnuma -pthread\
 -L../Sherman/build/  -lcityhash -lmemcached -lboost_system -lboost_coroutine\
--lsherman -lsherman_litl -lsherman_shermanLock
+-lsherman -lsherman_litl -lsherman_shermanLock -lsherman_shermanHo -lsherman_litlHo\
+-lsherman_litlHoOcmBw
 
 
 .PHONY: all target
@@ -29,8 +30,11 @@ target: ../litl2/src/utils.c ../litl2/src/rdma_common.o
 	@echo "USING CACHELINE_SIZE = $(CACHELINE_SIZE) Bytes"
 	g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman.a -o microbench_sherman ${FLAGS} -DMUTEX
 	g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_shermanLock.a -o microbench_shermanLock ${FLAGS} -DMUTEX
+	g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_shermanHo.a -o microbench_shermanHo ${FLAGS} -DMUTEX
+
 	g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_litl.a -o microbench_litl ${FLAGS} -DMUTEX
-# g++ -std=c++17 test_rdma_conn.cpp litl_utils.o  ../Sherman/build/libsherman.a ../litl2/src/rdma_common.o -o test_rdma_conn ${FLAGS} -DMUTEX
+	g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_litlHo.a -o microbench_litlHo ${FLAGS} -DMUTEX
+	g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_litlHoOcmBw.a -o microbench_litlHoOcmBw ${FLAGS} -DMUTEX
 
 # gcc -c ../litl2/src/utils.c -o litl_utils.o ${FLAGS} 
 # gcc main_orig.c $^ -o main_orig ${FLAGS} -DMUTEX
