@@ -38,6 +38,8 @@ trap cleanup_exit SIGHUP
 REMOTE_USER="root"
 REMOTE_cnS=("node1" "node2" "node3" "node4" "node5")
 
+SSH_OPTIONS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+
 
 # PATHS
 BASE="$PWD/../litl2/lib"
@@ -73,15 +75,15 @@ comm_prot=rdma
 
 # MICROBENCH INPUTS
 # opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
-opts=("litlHoOcmBw")
+opts=("shermanHo" "litlHo")
 microbenches=("empty_cs" "mlocks" "correctness")
-duration=20
-runNR=5
+duration=5
+runNR=2
 mnNR=1
-zipfan=0
-nodeNRs=(2 5)
-threadNRs=(1 32)
-lockNRs=(1 512)
+zipfan=1
+nodeNRs=(4)
+threadNRs=(64)
+lockNRs=(512)
 bench_idxs=(1)
 
 sudo rm -rf logs/
@@ -118,7 +120,7 @@ do
 
                         for ((run = 0; run < runNR; run++)); do
                             echo "START MICROBENCH $microb | $opt $impl | $nodeNR Ns & $threadNR Ts & $lockNR Ls & $duration s & RUN $run"
-                            dsh -M -f <(head -n $nodeNR ./nodes.txt) -c \
+                            dsh -M -f <(head -n $nodeNR ./nodes.txt) -o "-o StrictHostKeyChecking=no" -c \
                             "sudo $mb_exe \
                             -t $threadNR \
                             -d $duration \
@@ -172,7 +174,7 @@ do
 
                             for ((run = 0; run < runNR; run++)); do
                                 echo "START MICROBENCH $microb | $opt $impl | $nodeNR Ns & $threadNR Ts & $lockNR Ls & $duration s & RUN $run"
-                                dsh -M -f <(head -n $nodeNR ./nodes.txt) -c \
+                                dsh -M -f <(head -n $nodeNR ./nodes.txt) -o "-o StrictHostKeyChecking=no" -c \
                                 "sudo LD_PRELOAD=$llock_so $mb_exe \
                                 -t $threadNR \
                                 -d $duration \
