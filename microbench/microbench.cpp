@@ -27,7 +27,7 @@ uint64_t *lock_acqs;
 uint64_t *lock_rels;
 
 uint64_t dsmSize = 1;
-uint64_t page_size = MB(1);
+uint64_t page_size = KB(1);
 DSM *dsm;
 DSMConfig config;
 Tree *rlock;

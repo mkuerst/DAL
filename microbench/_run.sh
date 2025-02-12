@@ -73,14 +73,14 @@ comm_prot=rdma
 
 # MICROBENCH INPUTS
 # opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
-opts=("shermanHo" "litlHo")
+opts=("litlHoOcmBw")
 microbenches=("empty_cs" "mlocks" "correctness")
-duration=10
-runNR=3
+duration=20
+runNR=5
 mnNR=1
-zipfan=1
-nodeNRs=(4)
-threadNRs=(32)
+zipfan=0
+nodeNRs=(2 5)
+threadNRs=(1 32)
 lockNRs=(1 512)
 bench_idxs=(1)
 

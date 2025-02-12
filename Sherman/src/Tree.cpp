@@ -247,8 +247,29 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   #endif
   save_measurement(measurements.lwait_acq, 1, true);
   timer.begin();
-  {
+  #ifdef CN_HANDOVER
+    bool res;
+    int current_holder = 0;
+    while (!dsm->cas_dm_sync(lock_addr, 0, tag, buf, cxt)) {
+      current_holder = *buf;
+      /*The lock holder already released the lock back to the MN*/
+      if (current_holder = lock_addr.nodeID) {
+        lock_addr.nodeID = 0;
+      }
+      else {
+        lock_addr.nodeID = *buf;
+      }
+    }
+    current_holder = *buf;
+    if (current_holder != 0) {
+      //SPIN ON OWN LOCATION
+      return true;
 
+    }
+
+
+  #else
+  {
     uint64_t retry_cnt = 1;
     uint64_t pre_tag = 0;
     uint64_t conflict_tag = 0;
@@ -276,6 +297,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
     }
     measurements.glock_tries[threadID] += retry_cnt;
   }
+  #endif
   save_measurement(measurements.gwait_acq, 1, true);
 
   return true;
