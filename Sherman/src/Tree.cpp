@@ -285,6 +285,7 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
                               uint64_t *buf, CoroContext *cxt, int coro_id,
                               bool async) {
 
+  timer.begin();
   #ifdef HANDOVER
   bool hand_over_other = can_hand_over(lock_addr);
   if (hand_over_other) {
@@ -311,6 +312,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
                                  GlobalAddress lock_addr, uint64_t tag,
                                  CoroContext *cxt, int coro_id, bool async) {
 
+  timer.begin();
   #ifdef HANDOVER
   bool hand_over_other = can_hand_over(lock_addr);
   if (hand_over_other) {
@@ -371,7 +373,9 @@ void Tree::lock_and_read_page(char *page_buffer, GlobalAddress page_addr,
   timer.begin();
   try_lock_addr(lock_addr, tag, cas_buffer, cxt, coro_id);
 
+  timer.begin();
   dsm->read_sync(page_buffer, page_addr, page_size, cxt);
+  save_measurement(measurements.data_read);
 }
 
 void Tree::lock_bench(const Key &k, CoroContext *cxt, int coro_id) {
@@ -1310,7 +1314,6 @@ void Tree::mb_lock(GlobalAddress base_addr, int data_size) {
 }
 
 void Tree::mb_unlock(GlobalAddress base_addr, int data_size) {
-  timer.begin();
 	auto tag = dsm->getThreadTag();
 	assert(tag != 0);
 	if (data_size > 0) {

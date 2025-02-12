@@ -27,7 +27,7 @@ uint64_t *lock_acqs;
 uint64_t *lock_rels;
 
 uint64_t dsmSize = 1;
-uint64_t page_size = KB(1);
+uint64_t page_size = MB(1);
 DSM *dsm;
 DSMConfig config;
 Tree *rlock;
@@ -101,7 +101,6 @@ void *mlocks_worker(void *arg) {
     uint64_t *long_data;
     int lock_idx = 0;
     uint64_t range = (GB(config.dsmSize) - page_size) / page_size;
-    uint64_t max_idx = GB(config.dsmSize) / page_size;
     volatile int sum = 0;
     int data_len = dsm->get_rbuf(0).getkPageSize() / sizeof(uint64_t);
     srand(nodeID*threadNR + id + 42);
