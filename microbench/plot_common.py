@@ -335,12 +335,12 @@ def save_figs(ax1, ax2, ax3, ax4, fig1, fig2,
         set_legend(a1, hatches, hatch_categories,
                    include_metrics, include_hatch_keys)
             
-    output_path = file_dir+f"/plots/lat_{comm_prot}_{opt}_{bench}_{client_mode}_{nthreads}T_.png"
+    output_path = file_dir+f"/results/plots/lat_{comm_prot}_{opt}_{bench}_{client_mode}_{nthreads}T_.png"
     fig1.suptitle(title1)
     fig1.savefig(output_path, dpi=300, bbox_inches='tight')
 
     if ax3 is not None and ax4 is not None:
-        output_path = file_dir+f"/plots/tpfair_{comm_prot}_{opt}_{bench}_{client_mode}_{nthreads}T_.png"
+        output_path = file_dir+f"/results/plots/tpfair_{comm_prot}_{opt}_{bench}_{client_mode}_{nthreads}T_.png"
         fig2.suptitle(title2)
         fig2.savefig(output_path, dpi=300, bbox_inches='tight')
     
