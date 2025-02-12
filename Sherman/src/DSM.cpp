@@ -13,6 +13,7 @@ thread_local char *DSM::rdma_buffer = nullptr;
 thread_local LocalAllocator DSM::local_allocator;
 thread_local RdmaBuffer DSM::rbuf[define::kMaxCoro];
 thread_local uint64_t DSM::thread_tag = 0;
+thread_local uint64_t *DSM::spin_location = nullptr;
 
 DSM *DSM::getInstance(const DSMConfig &conf) {
   static DSM *dsm = nullptr;
@@ -108,6 +109,7 @@ void DSM::registerThread(int page_size) {
   }
 
   rdma_buffer = (char *)cache.data + thread_id * 12 * define::MB;
+  spin_location = (uint64_t *) cache.data + MAX_APP_THREAD * 12 * define::MB + thread_id * sizeof(uint64_t);
   // rdma_buffer = (char *)cache.data + thread_id * 32 * define::MB;
 
   for (int i = 0; i < define::kMaxCoro; ++i) {
@@ -134,6 +136,12 @@ void DSM::initRDMAConnection() {
   keeper = new DSMKeeper(thCon, dirCon, remoteInfo, conf.machineNR);
 
   myNodeID = keeper->getMyNodeID();
+}
+
+void DSM::spin() {
+  while (!*spin_location) {
+    CPU_PAUSE();
+  }
 }
 
 void DSM::read(char *buffer, GlobalAddress gaddr, size_t size, bool signal,

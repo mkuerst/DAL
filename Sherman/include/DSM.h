@@ -1,6 +1,7 @@
 #ifndef __DSM_H__
 #define __DSM_H__
 
+#define CPU_PAUSE() asm volatile("pause\n" : : : "memory")
 #include <atomic>
 
 #include "Cache.h"
@@ -114,6 +115,8 @@ public:
   uint64_t poll_rdma_cq(int count = 1);
   bool poll_rdma_cq_once(uint64_t &wr_id);
 
+  void spin();
+
   uint64_t sum(uint64_t value) {
     static uint64_t count = 0;
     return keeper->sum(std::string("sum-") + std::to_string(count++), value);
@@ -154,6 +157,7 @@ private:
   static thread_local LocalAllocator local_allocator;
   static thread_local RdmaBuffer rbuf[define::kMaxCoro];
   static thread_local uint64_t thread_tag;
+  static thread_local uint64_t *spin_location;
 
   uint64_t baseAddr;
   uint64_t rlockAddr;

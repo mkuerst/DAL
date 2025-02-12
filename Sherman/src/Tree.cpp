@@ -263,8 +263,8 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
     current_holder = *buf;
     if (current_holder != 0) {
       //SPIN ON OWN LOCATION
-      return true;
-
+      dsm->spin();
+      //WHERE IS THE DATA?
     }
 
 
