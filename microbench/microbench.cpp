@@ -23,11 +23,11 @@ char *array0;
 char *res_file_tp, *res_file_lat;
 int threadNR, nodeNR, mnNR, lockNR, runNR,
 nodeID, duration, mode;
-uint64_t dsmSize = 1;
 uint64_t *lock_acqs;
 uint64_t *lock_rels;
 
-int page_size = KB(1);
+uint64_t dsmSize = 8;
+uint64_t page_size = KB(1);
 DSM *dsm;
 DSMConfig config;
 Tree *rlock;
@@ -141,7 +141,7 @@ void *mlocks_worker(void *arg) {
         for (int j = 0; j < 100; j++) {
             if (*task->stop)
                 break;
-            int data_idx = uniform_rand_int(range);
+            uint64_t data_idx = (uint64_t) uniform_rand_int(range);
             baseAddr.offset = data_idx * page_size;
             rlock->mb_lock(baseAddr, page_size);
             lock_idx = rlock->getCurrLockAddr().offset / sizeof(uint64_t);
@@ -213,7 +213,6 @@ int main(int argc, char *argv[]) {
     /*TASK INIT*/
     Task *tasks = new Task[threadNR];
     measurements.duration = duration;
-    clear_measurements();
     alignas(CACHELINE_SIZE) volatile int stop = 0;
     for (int i = 0; i < threadNR; i++) {
         tasks[i].id = i;
