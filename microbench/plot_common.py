@@ -10,51 +10,65 @@ import matplotlib.lines as mlines
 
 file_dir = os.path.dirname(os.path.realpath(__file__))
 
-REMOTE_LOCKS = ["spinlock", "lease1", "spinlock_bo"]
-N_RLOCKS = len(REMOTE_LOCKS)
-
-COMM_PROTOCOLS = ["rdma", "tcp"]
-ORIG_COLS = [
-"tid", "loop_in_cs", "lock_acquires", 
-"lock_hold", "total_duration", 
-"lwait_acq", "lwait_rel", "array_size",
-"lat_lock_hold", "lat_lwait_acq", "lat_lwait_rel",
+OPTS =  [
+"litl", 
+"litlHo",
+"litlHoOcmBw",
+"sherman",
+"shermanHo",
+"shermanLock"
 ]
 
-CLIENT_TCP_COLS = [
-"tid", "loop_in_cs", "lock_acquires", 
-"lock_hold", "total_duration", 
-"wait_acq", "wait_rel", 
-"lwait_acq", "lwait_rel",
-"gwait_acq", "gwait_rel",
-"array_size", "client_id",
-"run"
+OPT_TO_NAME = {
+"litl": "", 
+"litlHo": "Ho",
+"litlHoOcmBw": "HoOcmBw",
+"sherman": "HoOcmBw",
+"shermanHo": "Ho",
+"shermanLock": "",
+}
+    
+COMM_PROTOCOLS = ["rdma"]
+
+LAT_COLS = [
+"lock_hold",
+"lwait_acq",
+"lwait_rel",
+"gwait_acq",
+"gwait_rel",
+"data_read",
+"data_write",
+"array_size",
+"nodeID",
+"run",
+"lockNR"
 ]
 
-CLIENT_RDMA_COLS = [
-"tid", "loop_in_cs", "lock_acquires", 
-"lock_hold", "total_duration", 
-"wait_acq", "wait_rel", 
-"lwait_acq", "lwait_rel",
-"gwait_acq", "gwait_rel",
-"data_read", "data_write",
+TP_COLS = [
+"tid",
+"loop_in_cs",
+"lock_acquires",
+"duration",
 "glock_tries",
-"array_size", "client_id",
-"run", "nlocks",
+"array_size",
+"nodeID",
+"run",
+"lockNR"
 ]
 
-SERVER_COLS = [
-    "tid", "wait_acq", "wait_rel","client_id","run"
-]
+STAT_TO_COLS = {
+    "tp": TP_COLS,
+    "lat": LAT_COLS,
+}
 
 IMPL = [
 # FLAT
 "alockepfl_original",
+"pthreadinterpose_original",
 "backoff_original",
 "clh_spinlock",
 "clh_spin_then_park",
 "partitioned_original",
-"pthreadinterpose_original",
 "spinlock_original",
 "ticket_original",
 "ttas_original",
@@ -78,6 +92,7 @@ IMPL = [
 "fns_spinlock",
 "fnm_spin_then_park",
 "mutexee_original",
+"shermanLock",
 ]
 
 FLAT = [
@@ -88,6 +103,7 @@ FLAT = [
 "spinlock_original",
 "ticket_original",
 "ttas_original",
+"shermanLock",
 ]
 
 QUEUE = [
@@ -131,14 +147,14 @@ IMPL_DICT = {"flat": FLAT,
             "other": OTHER,
             "delegation": DELEGATION}
 
-MICROBENCHES = ["empty_cs1n", "empty_cs2n", "lat", "mem1n", "mem2n", "mlocks1n", "mlocks2n"]
+MICROBENCHES = [ "empty_cs", "mlocks"]
 
 # TODO: Add "single"
-STATS = ["cum"]
+STATS = ["tp", "lat"]
 
 lat_bar_colors = {
 "gwait_acq": "gray", "lwait_acq": "gold", 
-"gwait_rel": "blue", "lwait_rel": "green",
+"gwait_rel": "cyan", "lwait_rel": "green",
 "lock_hold": "red", 
 "data_read": "white", "data_write": "magenta",
 }
@@ -147,10 +163,9 @@ node_colors = {"empty_cs1n": "gray", "empty_cs2n": "black", "mem1n": "gray", "me
 client_hatches = {1:'/', 2:'\\', 3:'|', 5:'-', 4:'+'}
 mlocks_hatches = {1:'/', 128:'\\', 256:'|', 1024:'-', 512:'+'}
 
-BW_RLOCKS = 0.9 / N_RLOCKS
 FIG_X = 10
 FIG_Y = 6
-DURATION_FACTOR = 1e3
+DURATION_FACTOR = 1e1
 LAT_FACTOR = 1
 
 def jain_fairness_index(x):
@@ -170,38 +185,41 @@ def make_offset(candidates, bw):
     if num_cand == 3:
        return {candidates[0]: -bw, candidates[1]: 0, candidates[2]: bw} 
 
-def add_lat(ax, ax2, values, position, comm_prot, bar_width, inc, hatches={}, hatch_key=0):
-    duration = values["total_duration"].max() * DURATION_FACTOR
-    lock_acquires = values["lock_acquires"]
-    cum = 0
+def add_lat(ax, ax2, values_lat, values_tp, position, comm_prot, bar_width,
+            inc, hatches={}, hatch_key=0, lockNR=1):
+    duration = values_tp["duration"].max() * DURATION_FACTOR
+    lock_acquires = values_tp.loc[values_tp["lockNR"] == lockNR, "lock_acquires"]
+    sum = 0
 
     for measurement in inc:
-        mean = (values[measurement] / lock_acquires).mean() / LAT_FACTOR if (measurement in values) else 0
-        median = (values[measurement] / lock_acquires).median() / LAT_FACTOR if (measurement in values) else 0
-        bars = ax.bar(position, mean, width=bar_width, bottom=cum,
+
+        mean = values_lat[0][measurement].mean() / LAT_FACTOR if (measurement in values_lat[0]) else 0
+        bars = ax.bar(position, mean, width=bar_width, bottom=sum,
             color=lat_bar_colors[measurement], label=f"{comm_prot} ({measurement})" if position == 1 else "",
             edgecolor="black"
         )
         if hatch_key:
             for bar in bars:
                 bar.set_hatch(hatches[hatch_key])
-        # ax.scatter([position], [cum + median], marker="x", color=median_colors[measurement])
-        cum += mean
+
+        ax.scatter([position], [values_lat[1][measurement].mean() + sum],
+                    marker="o", color=lat_bar_colors[measurement], edgecolor="black", zorder=3)
+        sum += mean
         
     ax2.scatter([position], [lock_acquires.mean() / duration], marker="x", color="black")
 
-def add_box(ax1, ax2, position, values, num_clients, bw=0.3):
-    duration = values["total_duration"].max() * DURATION_FACTOR
-    lock_acquires = values["lock_acquires"]
+def add_box(ax1, ax2, position, values, hatch_idx, bw=0.3, hatches=client_hatches, lockNR=1):
+    duration = values["duration"].max() * DURATION_FACTOR
+    lock_acquires = values.loc[values["lockNR"] == lockNR, "lock_acquires"]
     bps = ax1.boxplot(
-        values["lock_acquires"] / duration,
+        lock_acquires / duration,
         positions=[position],
         widths=bw,
         patch_artist=True,
     )
-    if num_clients:
+    if hatch_idx:
         for bp in bps["boxes"]:
-            bp.set_hatch(client_hatches[num_clients])
+            bp.set_hatch(hatches[hatch_idx])
     num_runs = values["run"].max() + 1
     fairness = 0
     for i in range(num_runs):
@@ -214,25 +232,36 @@ def add_vline(axs, position, bw):
         ax.axvline(x=position+2*bw-0.1, color='black', linestyle='--', alpha=0.5)
 
 def set_legend(ax1, hatches, hatch_categories,
-               include_metrics, include_hatch_keys):
+               include_metrics, include_hatch_keys, lat=True):
     legend_lat = {}
-    for metric,color in lat_bar_colors.items():
-        if metric in include_metrics:
-            legend_lat[metric] = mlines.Line2D(
-                                    [], [],
-                                    color=color,
-                                    marker="o",
-                                    markersize=8,
-                                    linestyle="None",
-                                    markeredgecolor='black',
-                                    label=metric)
-    legend_lat["Avg TP"] = mlines.Line2D(
-                            [], [],
-                            color="black",
-                            marker="x",
-                            markersize=8,
-                            linestyle="None",
-                            label="Avg TP")
+    if lat:
+        for metric,color in lat_bar_colors.items():
+            if metric in include_metrics:
+                legend_lat[metric] = mlines.Line2D(
+                                        [], [],
+                                        color=color,
+                                        marker="o",
+                                        markersize=8,
+                                        linestyle="None",
+                                        markeredgecolor='black',
+                                        label=metric)
+        legend_lat["Avg TP"] = mlines.Line2D(
+                                [], [],
+                                color="black",
+                                marker="x",
+                                markersize=8,
+                                linestyle="None",
+                                label="Avg TP")
+    else:
+        legend_lat["Jain's Fairness"]= mlines.Line2D(
+                                [], [],
+                                color="gold",
+                                marker="^",
+                                markersize=8,
+                                linestyle="None",
+                                markeredgecolor='black',
+                                label="Jain's Fairness")
+
     for key, value in hatches.items():
         if key in include_hatch_keys:
             legend_lat[key] =  plt.Rectangle((0, 0), 10, 10, facecolor="white", hatch=value, edgecolor='black', label=hatch_categories[key])  
@@ -276,40 +305,42 @@ def set_ax(ax1, ax2, ax3, ax4, x_positions, x_labels, x1_title, y1_title1, y1_ti
     
 def save_figs(ax1, ax2, ax3, ax4, fig1, fig2,
               x_positions, x_labels, 
-              comm_prot="rdma", remote_lock="spinlock", bench="",
+              comm_prot="rdma", opt="spinlock", bench="",
               client_mode ="MC", nthreads=16, log=1, clients=[1],
               include_metrics=[], hatches=[], hatch_categories={},
               include_hatch_keys=[], multi=0,
               ):
     
     clients_str = "|".join(map(str, clients))
-    title1 = f"Latency Wait+TP {bench} {clients_str} Cs {comm_prot} {remote_lock}"
-    title2 = f"TP+Fairness {bench} {clients_str} Cs {comm_prot} {remote_lock}"
+    title1 = f"Latency+TP | {bench} | {clients_str} CNs | {comm_prot} | {opt}"
+    title2 = f"TP+Fairness | {bench} | {clients_str} CNs | {comm_prot} | {opt}"
 
     if not multi:
         set_ax(ax1, ax2, ax3, ax4, x_positions, x_labels, 
-               "Implementation", "Mean Latencies (ms)", "TP (ops/ms)",
-               "Implementation", "TP (ops/ms)", "Jain's Frainess Index",
+               "Implementation", "Median Latencies (ns)", "Avg TP (ops/s)",
+               "Implementation", "TP (ops/s)", "Jain's Frainess Index",
                log)
         set_legend(ax1, hatches, hatch_categories,
                    include_metrics, include_hatch_keys)
+        set_legend(ax3, hatches, hatch_categories,
+                   [], include_hatch_keys, False)
 
     else:
         for a1,a2,a3,a4 in zip(ax1,ax2,ax3,ax4):
             set_ax(a1, a2, a3, a4, x_positions, x_labels, 
-                "Implementation", "Mean Latencies (ms)", "TP (ops/ms)",
-                "Implementation", "TP (ops/ms)", "Jain's Frainess Index",
+                "Implementation", "Median Latencies (ns)", "Avg TP (ops/s)",
+                "Implementation", "TP (ops/s)", "Jain's Frainess Index",
                 log)
 
         set_legend(a1, hatches, hatch_categories,
                    include_metrics, include_hatch_keys)
             
-    output_path = file_dir+f"/plots/cumlat_{comm_prot}_{remote_lock}_{bench}_{client_mode}_{nthreads}T_.png"
+    output_path = file_dir+f"/plots/lat_{comm_prot}_{opt}_{bench}_{client_mode}_{nthreads}T_.png"
     fig1.suptitle(title1)
     fig1.savefig(output_path, dpi=300, bbox_inches='tight')
 
     if ax3 is not None and ax4 is not None:
-        output_path = file_dir+f"/plots/tpfair_{comm_prot}_{remote_lock}_{bench}_{client_mode}_{nthreads}T_.png"
+        output_path = file_dir+f"/plots/tpfair_{comm_prot}_{opt}_{bench}_{client_mode}_{nthreads}T_.png"
         fig2.suptitle(title2)
         fig2.savefig(output_path, dpi=300, bbox_inches='tight')
     
@@ -330,64 +361,90 @@ def make_ax_fig(x, y, rows=1, cols=1):
 ##########
 ## READ ##
 ##########
-def to_pd(DATA, RES_DIRS, COLS):
-    for mb,dirs in RES_DIRS.items():
-        DATA[mb] = {}
-        for dir in dirs:
-            impl = Path(dir).parent.name.removeprefix("lib")
-            csv_dirs = glob.glob(dir+"nclients*_nthreads*.csv")
-            DATA[mb][impl] = {}
-            for csv_dir in csv_dirs:
-                match = re.search(r"nclients(\d+)_nthreads(\d+).csv", os.path.basename(csv_dir))
-                nclients = int(match.group(1))
-                nthreads = int(match.group(2))
-                if not DATA[mb][impl].get(nclients):
-                    DATA[mb][impl][nclients] = {}
-                cleaned_lines = []
-                with open(csv_dir, 'r') as file:
+def to_pd(DATA, dirs, COLS, stat):
+    for dir in dirs:
+        impl = Path(dir).name.removeprefix("lib")
+        csv_dirs = glob.glob(dir+"/nodeNR*_threadNR*.csv")
+        if impl == "sherman":
+            impl = "shermanLock"
+        DATA[impl] = {}
+        for csv_dir in csv_dirs:
+            match = re.search(r"nodeNR(\d+)_threadNR(\d+).csv", os.path.basename(csv_dir))
+            nodeNR = int(match.group(1))
+            threadNR = int(match.group(2))
+            if not DATA[impl].get(nodeNR):
+                DATA[impl][nodeNR] = {}
+            cleaned_lines = []
+            cleaned_lines_median = []
+            cleaned_lines_99 = []
+
+            with open(csv_dir, 'r') as file:
+                if stat == "lat":
+                    i = 0
                     for line in file:
-                        if line.startswith("---") or line.startswith("RUN") or line == "":
+                        if i == 0:
+                            i += 1
+                            continue
+                        
+                        if i % 2 == 1: 
+                            cleaned_lines_median.append(line)
+                        else:
+                            cleaned_lines_99.append(line)
+
+                        i += 1
+                        
+                    cleaned_median = StringIO("".join(cleaned_lines_median))
+                    cleaned_99 = StringIO("".join(cleaned_lines_99))
+                    pd_median = pd.read_csv(cleaned_median, skiprows=0, names=COLS)
+                    pd_99 = pd.read_csv(cleaned_99, skiprows=0, names=COLS)
+
+                    pd_median.loc[pd_median["lwait_acq"] >= 1000, "lwait_acq"] = (pd_median.loc[pd_median["lwait_acq"] >= 1000, "lwait_acq"] - 1000) * 1000
+                    pd_99.loc[pd_99["lwait_acq"] >= 1000, "lwait_acq"] = (pd_99.loc[pd_99["lwait_acq"] >= 1000, "lwait_acq"] - 1000) * 1000
+
+                    pd_median.loc[pd_median["gwait_acq"] >= 1000, "gwait_acq"] = (pd_median.loc[pd_median["gwait_acq"] >= 1000, "gwait_acq"] - 1000) * 1000
+                    pd_99.loc[pd_99["gwait_acq"] >= 1000, "gwait_acq"] = (pd_99.loc[pd_99["gwait_acq"] >= 1000, "gwait_acq"] - 1000) * 1000
+
+                    DATA[impl][nodeNR][threadNR] = [pd_median, pd_99]
+
+
+                else:
+                    for line in file:
+                        if line == "":
                             continue
                         cleaned_lines.append(line) 
 
-                cleaned_data = StringIO("".join(cleaned_lines))
-                DATA[mb][impl][nclients][nthreads] = pd.read_csv(cleaned_data, skiprows=1, names=COLS)
+                    cleaned_data = StringIO("".join(cleaned_lines))
+                    DATA[impl][nodeNR][threadNR] = pd.read_csv(cleaned_data, skiprows=1, names=COLS)
 
 def read_data(DATA, RES_DIRS):
-    for comm_prot in COMM_PROTOCOLS:
-        CLIENT_COLS = CLIENT_TCP_COLS if comm_prot == "tcp" else CLIENT_RDMA_COLS
-        DATA[comm_prot] = {}
-        for remote_lock in REMOTE_LOCKS:
-            DATA[comm_prot][remote_lock] = {}
-            for stat in STATS:
-                DATA[comm_prot][remote_lock] = {"client": {stat: {}}, "server": {stat: {}}}
-                to_pd(DATA[comm_prot][remote_lock]["client"][stat], RES_DIRS[comm_prot][remote_lock]["client"][stat], CLIENT_COLS)
-                to_pd(DATA[comm_prot][remote_lock]["server"][stat], RES_DIRS[comm_prot][remote_lock]["server"][stat], SERVER_COLS)
-
-    DATA["orig"] = {"none": {"client": {stat: {}}}}
-    to_pd(DATA["orig"]["none"]["client"][stat], RES_DIRS["orig"][stat], CLIENT_RDMA_COLS)
+    for stat in STATS:
+        COLS = STAT_TO_COLS[stat]
+        DATA[stat] = {}
+        for comm_prot in COMM_PROTOCOLS:
+            DATA[stat][comm_prot] = {}
+            for mb in MICROBENCHES:
+                DATA[stat][comm_prot][mb] = {}
+                for opt in RES_DIRS[stat][comm_prot][mb].keys():
+                    DATA[stat][comm_prot][mb][opt] = {}
+                        
+                    to_pd(DATA[stat][comm_prot][mb][opt], RES_DIRS[stat][comm_prot][mb][opt], COLS, stat)
 
 def prep_res_dirs(RES_DIRS):
-    for comm_prot in COMM_PROTOCOLS:
-        RES_DIRS[comm_prot] = {}
-        for remote_lock in REMOTE_LOCKS:
-            RES_DIRS[comm_prot][remote_lock] = {"client" : {}, "server": {}}
-            for stat in STATS:
-                RES_DIRS[comm_prot][remote_lock]["client"][stat] = {}
-                RES_DIRS[comm_prot][remote_lock]["server"][stat] = {}
-                for mb in MICROBENCHES:
-                    client_res_dir = os.path.dirname(os.path.realpath(__file__))+f"/results/{comm_prot}/{remote_lock}/client/{stat}/*/{mb}/"
-                    client_res_dir = glob.glob(client_res_dir)
-                    server_res_dir = os.path.dirname(os.path.realpath(__file__))+f"/results/{comm_prot}/{remote_lock}/server/{stat}/*/{mb}/"
-                    server_res_dir = glob.glob(server_res_dir)
+    for stat in STATS:
+        RES_DIRS[stat] = {}
+        for comm_prot in COMM_PROTOCOLS:
+            RES_DIRS[stat][comm_prot] = {}
+            for mb in MICROBENCHES:
+                RES_DIRS[stat][comm_prot][mb] = {}
+                for opt in OPTS:
+                    res_dir = os.path.dirname(os.path.realpath(__file__))+f"/results/cn/{stat}/{comm_prot}/{mb}/{opt}/*"
+                    res_dir = glob.glob(res_dir)
+                    opt = OPT_TO_NAME[opt]
+                    if not opt in RES_DIRS[stat][comm_prot][mb].keys():
+                        RES_DIRS[stat][comm_prot][mb][opt] = res_dir
+                    else:
+                        RES_DIRS[stat][comm_prot][mb][opt] += res_dir
+                        
 
-                    RES_DIRS[comm_prot][remote_lock]["client"][stat][mb] = client_res_dir
-                    RES_DIRS[comm_prot][remote_lock]["server"][stat][mb] = server_res_dir
-
-    RES_DIRS["orig"] = {stat: {} for stat in STATS}
-    for mb in MICROBENCHES:
-        for stat in STATS:
-            orig_res_dir = os.path.dirname(os.path.realpath(__file__))+f"/results/orig/{stat}/*/{mb}/"
-            orig_res_dir = glob.glob(orig_res_dir)
-            RES_DIRS["orig"][stat][mb] = orig_res_dir
-
+                    
+                

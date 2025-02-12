@@ -2,24 +2,10 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Plot",
+      "name": "Plot3",
       "type": "debugpy",
       "request": "launch",
-      "program": "/nfs/DAL/microbench/plot.py",
-      "console": "integratedTerminal"
-    },
-    {
-      "name": "Plot1",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "/nfs/DAL/microbench/plot1.py",
-      "console": "integratedTerminal"
-    },
-    {
-      "name": "Plot2",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "/nfs/DAL/microbench/plot2.py",
+      "program": "${workspaceFolder}/microbench/plot3.py",
       "console": "integratedTerminal"
     },
     {
