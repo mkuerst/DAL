@@ -72,14 +72,15 @@ server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
 comm_prot=rdma
 
 # MICROBENCH INPUTS
-opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
-# opts=("shermanHo" "litlHo")
+# opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
+opts=("shermanHo" "litlHo")
 microbenches=("empty_cs" "mlocks" "correctness")
-duration=20
-runNR=5
+duration=10
+runNR=3
 mnNR=1
-nodeNRs=(2 5)
-threadNRs=(1 32)
+zipfan=1
+nodeNRs=(2 4)
+threadNRs=(32)
 lockNRs=(1 512)
 bench_idxs=(1)
 
@@ -128,6 +129,7 @@ do
                             -l $lockNR \
                             -r $run \
                             -s $mnNR \
+                            -z $zipfan \
                             2>> $log_file"
                             # "sudo LD_PRELOAD=$cn_so $disa_bench -t $i -d $duration -s $server_ip -p $p_ips -m $j -c $ncns -f $cn_rescum_file -g $cn_ressingle_file -l $nlocks -r $runs -e $mem_runs"
                             # 2>&1
@@ -181,6 +183,7 @@ do
                                 -l $lockNR \
                                 -r $run \
                                 -s $mnNR \
+                                -z $zipfan \
                                 2>> $log_file"
                                 # "sudo LD_PRELOAD=$cn_so $disa_bench -t $i -d $duration -s $server_ip -p $p_ips -m $j -c $ncns -f $cn_rescum_file -g $cn_ressingle_file -l $nlocks -r $runs -e $mem_runs"
                                 # 2>&1"

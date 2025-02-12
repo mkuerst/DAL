@@ -10,8 +10,8 @@ using namespace std;
 #include <numa.h>
 #include "Tree.h"
 #include "mb_utils.h"
-
 #include <DSM.h>
+#include "zipf.h"
 
 #define gettid() syscall(SYS_gettid)
 
@@ -26,12 +26,15 @@ nodeID, duration, mode;
 uint64_t *lock_acqs;
 uint64_t *lock_rels;
 
-uint64_t dsmSize = 8;
+uint64_t dsmSize = 1;
 uint64_t page_size = KB(1);
 DSM *dsm;
 DSMConfig config;
 Tree *rlock;
 pthread_barrier_t global_barrier;
+
+double zipfan = 0;
+int use_zipfan = 0;
 
 extern Measurements measurements;
 
@@ -62,35 +65,6 @@ void mn_worker() {
     #endif
     fprintf(stderr, "MN [%d] finished\n", nodeID);
     dsm->barrier("fin");
-}
-
-void *correctness_worker(void *arg) {
-    Task *task = (Task *) arg;
-    dsm->registerThread();
-    GlobalAddress baseAddr;
-    baseAddr.nodeID = 0;
-    baseAddr.offset = 0;
-    uint64_t *long_data;
-    int lock_idx = 0;
-    uint64_t range = GB(config.dsmSize) / sizeof(uint64_t);
-
-    pthread_barrier_wait(&global_barrier);
-
-    while (!*task->stop) {
-        int data_idx = uniform_rand_int(range);
-        baseAddr.offset = data_idx * sizeof(uint64_t);
-        rlock->mb_lock(baseAddr, sizeof(uint64_t));
-        lock_idx = rlock->getCurrLockAddr().offset / sizeof(uint64_t);
-        lock_acqs[lock_idx]++;
-        task->lock_acqs++;
-        long_data = (uint64_t *) rlock->getCurrPB();
-        long_data[0]++;
-        rlock->mb_unlock(baseAddr, sizeof(uint64_t));
-        lock_rels[lock_idx]++;
-    }
-    pthread_barrier_wait(&global_barrier);
-    DE("[%d.%d] %lu ACQUISITIONS\n", dsm->getMyNodeID(), dsm->getMyThreadID(), task->lock_acqs);
-    return 0;
 }
 
 void *empty_cs_worker(void *arg) {
@@ -127,9 +101,13 @@ void *mlocks_worker(void *arg) {
     uint64_t *long_data;
     int lock_idx = 0;
     uint64_t range = (GB(config.dsmSize) - page_size) / page_size;
+    uint64_t max_idx = GB(config.dsmSize) / page_size;
     volatile int sum = 0;
     int data_len = dsm->get_rbuf(0).getkPageSize() / sizeof(uint64_t);
     srand(nodeID*threadNR + id + 42);
+    struct zipf_gen_state state;
+    mehcached_zipf_init(&state, range, zipfan,
+                        (rdtsc() & (0x0000ffffffffffffull)) ^ id);
 
     pthread_barrier_wait(&global_barrier);
 
@@ -141,7 +119,13 @@ void *mlocks_worker(void *arg) {
         for (int j = 0; j < 100; j++) {
             if (*task->stop)
                 break;
-            uint64_t data_idx = (uint64_t) uniform_rand_int(range);
+            uint64_t data_idx;
+            if (use_zipfan) {
+                data_idx = mehcached_zipf_next(&state);
+            }
+            else {
+                data_idx = (uint64_t) uniform_rand_int(range);
+            }
             baseAddr.offset = data_idx * page_size;
             rlock->mb_lock(baseAddr, page_size);
             lock_idx = rlock->getCurrLockAddr().offset / sizeof(uint64_t);
@@ -169,7 +153,7 @@ void *mlocks_worker(void *arg) {
 int main(int argc, char *argv[]) {
     parse_cli_args(
     &threadNR, &nodeNR, &mnNR, &lockNR, &runNR,
-    &nodeID, &duration, &mode,
+    &nodeID, &duration, &mode, &use_zipfan,
     &res_file_tp, &res_file_lat,
     argc, argv);
     DE("HI\n");
@@ -202,7 +186,6 @@ int main(int argc, char *argv[]) {
     switch(mode) {
         case 0: worker = empty_cs_worker; break;
         case 1: worker = mlocks_worker; break;
-        case 2: worker = correctness_worker; break;
         default: worker = empty_cs_worker; break;
     }
 
