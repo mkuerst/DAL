@@ -81,9 +81,9 @@ duration=20
 runNR=5
 mnNR=1
 zipfan=0
-nodeNRs=(2)
+nodeNRs=(2 5)
 threadNRs=(32)
-lockNRs=(512)
+lockNRs=(1 512)
 bench_idxs=(1)
 
 sudo rm -rf logs/
