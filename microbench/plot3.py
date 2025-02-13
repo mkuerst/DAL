@@ -82,7 +82,7 @@ def plot_MC_rlocks(DATA, comm_prot="rdma", opts=["spinlock"], lat_ecs_inc=[], la
 
     save_figs(ax_ml, ax_ml2, ax_ml_fair, ax_ml_fair2, fig_ml, fig_ml_fair,
               x_positions, x_labels, comm_prot, "OPTS", "MLocks", client_mode=C_str, clients=comp_nodes,
-              nthreads=threadNR, include_metrics=lat_ml_inc, hatches=mlocks_hatches, hatch_categories=mlocks_hatch_categories,
+              nthreads=threadNRs, include_metrics=lat_ml_inc, hatches=mlocks_hatches, hatch_categories=mlocks_hatch_categories,
               include_hatch_keys=lockNRs, log=log)
 
 
@@ -96,7 +96,7 @@ plot_MC_rlocks(
                 DATA, 
                 opts=["Ho"],
                 lat_ecs_inc = ["gwait_acq", "gwait_rel"],
-                lat_ml_inc = ["lock_hold"],
+                lat_ml_inc = ["lwait_acq"],
                 cnNRs=[4], 
                 lockNRs=[512], 
                 threadNRs=32,

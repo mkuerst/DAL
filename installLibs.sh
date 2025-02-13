@@ -67,11 +67,15 @@ if [ ! -f "$OFED_FILE" ]; then
         sudo apt install -y dsh
         sudo apt install -y libpapi-dev papi-tools
 
-        # sudo apt remove --purge python3.8
-        # sudo apt autoremove
-        # sudo apt update
-        # sudo apt install -y python3.9-distutils
-        # curl -sS https://bootstrap.pypa.io/get-pip.py | python3.9
+        sudo apt remove --purge python3.8
+        sudo apt autoremove
+        sudo apt update
+        sudo apt install -y python3.9 python3.9-venv python3.9-dev python3.9-distutils
+        curl -sS https://bootstrap.pypa.io/get-pip.py | python3.9
+        export PATH="/usr/local/bin/python3.9:$PATH"
+        pip3 install matplotlib
+        pip3 install pandas
+
 
 		sudo bash installMLNX.sh
 else
