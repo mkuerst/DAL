@@ -8,8 +8,8 @@ cleanup_exit() {
         echo "Killing process $pid using RDMA resources..."
         kill -9 "$pid"
     done
-    sudo dsh -M -f ./nodes.txt -c "sudo rdma resource show mr | awk '{print $12}' | sort -u | xargs -r sudo kill -9"
-    sudo dsh -M -f ./nodes.txt -c "sudo rdma resource show mr | awk '{print $16}' | sort -u | xargs -r sudo kill -9"
+    sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo rdma resource show mr | awk '{print $12}' | sort -u | xargs -r sudo kill -9"
+    sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo rdma resource show mr | awk '{print $16}' | sort -u | xargs -r sudo kill -9"
     echo "CLEANUP DONE"
     echo "EXIT"
     exit 1
@@ -22,8 +22,8 @@ cleanup() {
         echo "Stopping server with PID $SERVER_PID..."
         kill -SIGINT $SERVER_PID
     fi
-    sudo dsh -M -f ./nodes.txt -c "sudo rdma resource show mr | awk '{print $12}' | sort -u | xargs -r sudo kill -9"
-    sudo dsh -M -f ./nodes.txt -c "sudo rdma resource show mr | awk '{print $16}' | sort -u | xargs -r sudo kill -9"
+    sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo rdma resource show mr | awk '{print $12}' | sort -u | xargs -r sudo kill -9"
+    sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo rdma resource show mr | awk '{print $16}' | sort -u | xargs -r sudo kill -9"
     pkill -P $$ 
     echo "CLEANUP DONE"
 }
@@ -75,14 +75,14 @@ comm_prot=rdma
 
 # MICROBENCH INPUTS
 # opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
-opts=("shermanHo" "litlHo")
+opts=("litlHoOcmBw")
 microbenches=("empty_cs" "mlocks" "correctness")
-duration=5
-runNR=2
+duration=20
+runNR=5
 mnNR=1
-zipfan=1
-nodeNRs=(4)
-threadNRs=(64)
+zipfan=0
+nodeNRs=(5)
+threadNRs=(32)
 lockNRs=(512)
 bench_idxs=(1)
 
