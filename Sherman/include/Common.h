@@ -23,7 +23,7 @@
 // #define CONFIG_ENABLE_CRC
 
 #define LATENCY_WINDOWS 1000000
-#define LWAIT_WINDOWS 10000000
+#define LWAIT_WINDOWS   10000000
 
 #define STRUCT_OFFSET(type, field)                                             \
   (char *)&((type *)(0))->field - (char *)((type *)(0))
@@ -41,7 +41,7 @@
 #define RAW_RECV_CQ_COUNT 128
 
 // { app thread
-#define MAX_APP_THREAD 32
+#define MAX_APP_THREAD 64
 
 #define APP_MESSAGE_NR 96
 

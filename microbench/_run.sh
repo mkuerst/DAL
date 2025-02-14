@@ -80,7 +80,7 @@ comm_prot=rdma
 opts=("sherman" "litlHoOcmBw")
 microbenches=("empty_cs" "mlocks" "correctness")
 duration=10
-runNR=3
+runNR=2
 mnNR=1
 zipfan=1
 nodeNRs=(5)
@@ -89,7 +89,7 @@ lockNRs=(512)
 bench_idxs=(1)
 
 sudo rm -rf logs/
-mkdir -p results/
+mkdir -p results/plots/
 sudo chown -R mkuerst:dal-PG0 /nfs/
 
 for opt in ${opts[@]}

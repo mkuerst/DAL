@@ -94,12 +94,13 @@ read_data(DATA, RES_DIRS)
 
 plot_MC_rlocks(
                 DATA, 
-                opts=["", "Ho", "HoOcmBw"],
+                opts=["HoOcmBw"],
                 lat_ecs_inc = ["gwait_acq", "gwait_rel"],
-                lat_ml_inc = ["lwait_acq"],
-                cnNRs=[1, 4], 
-                lockNRs=[1, 512], 
+                lat_ml_inc = ["lwait_acq", "gwait_acq", "gwait_rel"],
+                # lat_ml_inc = ["data_read", "data_write", "lock_hold"],
+                cnNRs=[4], 
+                lockNRs=[512], 
                 threadNRs=32,
-                log=1
+                log=0
                 )
 pass

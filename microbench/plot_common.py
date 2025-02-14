@@ -192,7 +192,6 @@ def add_lat(ax, ax2, values_lat, values_tp, position, comm_prot, bar_width,
     sum = 0
 
     for measurement in inc:
-
         mean = values_lat[0][measurement].mean() / LAT_FACTOR if (measurement in values_lat[0]) else 0
         bars = ax.bar(position, mean, width=bar_width, bottom=sum,
             color=lat_bar_colors[measurement], label=f"{comm_prot} ({measurement})" if position == 1 else "",
@@ -202,7 +201,7 @@ def add_lat(ax, ax2, values_lat, values_tp, position, comm_prot, bar_width,
             for bar in bars:
                 bar.set_hatch(hatches[hatch_key])
 
-        ax.scatter([position], [values_lat[1][measurement].mean() + sum],
+        ax.scatter([position], [values_lat[1][measurement].mean()],
                     marker="o", color=lat_bar_colors[measurement], edgecolor="black", zorder=3)
         sum += mean
         

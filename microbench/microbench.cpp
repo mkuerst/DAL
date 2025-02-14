@@ -90,9 +90,10 @@ void *empty_cs_worker(void *arg) {
 void *mlocks_worker(void *arg) {
     Task *task = (Task *) arg;
     Timer timer = task->timer;
-    bindCore(task->id);
+    // bindCore(task->id);
     dsm->registerThread(page_size);
     int id = dsm->getMyThreadID();
+    // bindCore(((nodeID-1)*threadNR + id) % 128);
     rlock->set_threadID(id);
     GlobalAddress baseAddr;
     baseAddr.nodeID = 0;
@@ -105,8 +106,10 @@ void *mlocks_worker(void *arg) {
     int data_len = dsm->get_rbuf(0).getkPageSize() / sizeof(uint64_t);
     srand(nodeID*threadNR + id + 42);
     struct zipf_gen_state state;
+    // mehcached_zipf_init(&state, range, zipfan,
+    //                     (rdtsc() & (0x0000ffffffffffffull)) ^ id);
     mehcached_zipf_init(&state, range, zipfan,
-                        (rdtsc() & (0x0000ffffffffffffull)) ^ id);
+                        ((0x0000ffffffffffffull)) ^ id);
 
     pthread_barrier_wait(&global_barrier);
 
