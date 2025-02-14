@@ -1,47 +1,23 @@
 #!/bin/sh
  
-cleanup_exit() {
-    echo ""
-    echo "Cleaning up..."
+cleanup() {
     sudo pkill -P $$ 
     for pid in $(sudo lsof | grep infiniband | awk '{print $2}' | sort -u); do
         echo "Killing process $pid using RDMA resources..."
         sudo kill -9 "$pid"
     done
-    # sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo rdma resource show mr | awk '{print $12}' | sort -u | xargs -r sudo kill -9"
-    # sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo rdma resource show mr | awk '{print $16}' | sort -u | xargs -r sudo kill -9"
     sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo bash /nfs/DAL/cleanup_rdma.sh"
     echo "CLEANUP DONE"
-    echo "EXIT"
-    exit 1
+    if [[ "$1" == "1" || -n "$SIGNAL_CAUGHT" ]]; then
+        echo "EXIT"
+        exit 1
+    fi
 }
 
-cleanup() {
-    echo ""
-    echo "Cleaning up..."
-    for pid in $(sudo lsof | grep infiniband | awk '{print $2}' | sort -u); do
-        echo "Killing process $pid using RDMA resources..."
-        sudo kill -9 "$pid"
-    done
-    # sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo rdma resource show mr | awk '{print $12}' | sort -u | xargs -r sudo kill -9"
-    # sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo rdma resource show mr | awk '{print $16}' | sort -u | xargs -r sudo kill -9"
-    sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo bash /nfs/DAL/cleanup_rdma.sh"
-    sudo pkill -P $$ 
-    echo "CLEANUP DONE"
-}
+trap 'SIGNAL_CAUGHT=1; cleanup 1' SIGINT SIGTERM SIGHUP
 cleanup
 
-trap cleanup_exit SIGINT
-trap cleanup_exit SIGTERM
-trap cleanup_exit SIGKILL
-trap cleanup_exit SIGHUP
-
-
-REMOTE_USER="root"
-REMOTE_cnS=("node1" "node2" "node3" "node4" "node5")
-
 SSH_OPTIONS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-
 
 # PATHS
 BASE="$PWD/../litl2/lib"
@@ -77,16 +53,14 @@ comm_prot=rdma
 
 # MICROBENCH INPUTS
 # opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
-opts=("litlHo" "litlHoOcmBw")
+opts=("sherman")
 microbenches=("empty_cs" "mlocks" "correctness")
 duration=10
-runNR=3
+runNR=1
 mnNR=1
 zipfan=1
-nodeNRs=(2 5)
-threadNRs=(32)
-lockNRs=(256)
-bench_idxs=(1)
+nodeNRs=(2)
+threadNRs=(1)
 
 sudo rm -rf logs/
 mkdir -p results/plots/
@@ -96,15 +70,53 @@ for opt in ${opts[@]}
 do
     mb_exe="$PWD/appbench_$opt"
     if echo "$opt" | grep -q "sherman"; then
-        for mode in ${bench_idxs[@]}
+        cn_tp_dir="$PWD/results/cn/tp/$comm_prot/kvs/$opt/sherman"
+        cn_lat_dir="$PWD/results/cn/lat/$comm_prot/kvs/$opt/sherman"
+        log_dir="$PWD/logs/$comm_prot/kvs/$opt/sherman"
+        mkdir -p "$cn_tp_dir" 
+        mkdir -p "$cn_lat_dir" 
+        mkdir -p "$log_dir"
+
+        for nodeNR in ${nodeNRs[@]}
         do
-            microb="${microbenches[$mode]}"
-            cn_tp_dir="$PWD/results/cn/tp/$comm_prot/$microb/$opt/sherman"
-            cn_lat_dir="$PWD/results/cn/lat/$comm_prot/$microb/$opt/sherman"
-            log_dir="$PWD/logs/$comm_prot/$microb/$opt/sherman"
+            for threadNR in ${threadNRs[@]}
+            do
+                cn_tp_file="$cn_tp_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
+                cn_lat_file="$cn_lat_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
+                echo $cn_tp_header > "$cn_tp_file"
+                echo $cn_lat_header > "$cn_lat_file"
+
+                log_file="$log_dir"/nodeNR$nodeNR"_threadNR"$threadNR.log
+
+                for ((run = 0; run < runNR; run++)); do
+                    echo "START APPBENCH kvs | $opt $impl | $nodeNR Ns & $threadNR Ts & $duration s & RUN $run"
+                    dsh -M -f <(head -n $nodeNR ./nodes.txt) -o "-o StrictHostKeyChecking=no" -c \
+                    "sudo $mb_exe \
+                    -t $threadNR \
+                    -d $duration \
+                    -n $nodeNR \
+                    -f $cn_tp_file \
+                    -g $cn_lat_file \
+                    -r $run \
+                    -s $mnNR \
+                    2>> $log_file"
+                    # 2>&1
+                    cleanup
+                done
+            done
+        done
+    else
+        for impl_dir in "$BASE"/original/*
+        do
+            impl=$(basename $impl_dir)
+            impl=${impl%.so}
+            llock_so=${llock_libs_dir}${impl}.so
+            cn_tp_dir="$PWD/results/cn/tp/$comm_prot/kvs/$opt/$impl"
+            cn_lat_dir="$PWD/results/cn/lat/$comm_prot/$kvs/$opt/$impl"
+            log_dir="$PWD/logs/$comm_prot/kvs/$opt/$impl"
             mkdir -p "$cn_tp_dir" 
             mkdir -p "$cn_lat_dir" 
-            mkdir -p "$log_dir"
+            mkdir -p "$log_dir" 
 
             for nodeNR in ${nodeNRs[@]}
             do
@@ -117,83 +129,20 @@ do
 
                     log_file="$log_dir"/nodeNR$nodeNR"_threadNR"$threadNR.log
 
-                    for lockNR in ${lockNRs[@]}
-                    do
-
-                        for ((run = 0; run < runNR; run++)); do
-                            echo "START MICROBENCH $microb | $opt $impl | $nodeNR Ns & $threadNR Ts & $lockNR Ls & $duration s & RUN $run"
-                            dsh -M -f <(head -n $nodeNR ./nodes.txt) -o "-o StrictHostKeyChecking=no" -c \
-                            "sudo $mb_exe \
-                            -t $threadNR \
-                            -d $duration \
-                            -m $mode \
-                            -n $nodeNR \
-                            -f $cn_tp_file \
-                            -g $cn_lat_file \
-                            -l $lockNR \
-                            -r $run \
-                            -s $mnNR \
-                            -z $zipfan \
-                            2>> $log_file"
-                            # "sudo LD_PRELOAD=$cn_so $disa_bench -t $i -d $duration -s $server_ip -p $p_ips -m $j -c $ncns -f $cn_rescum_file -g $cn_ressingle_file -l $nlocks -r $runs -e $mem_runs"
-                            # 2>&1
-
-                            cleanup
-                        done
-                    done
-                done
-            done
-        done
-    else
-        for impl_dir in "$BASE"/original/*
-        do
-            impl=$(basename $impl_dir)
-            impl=${impl%.so}
-            llock_so=${llock_libs_dir}${impl}.so
-            for mode in ${bench_idxs[@]}
-            do
-                microb="${microbenches[$mode]}"
-                cn_tp_dir="$PWD/results/cn/tp/$comm_prot/$microb/$opt/$impl"
-                cn_lat_dir="$PWD/results/cn/lat/$comm_prot/$microb/$opt/$impl"
-                log_dir="$PWD/logs/$comm_prot/$microb/$opt/sherman"
-                mkdir -p "$cn_tp_dir" 
-                mkdir -p "$cn_lat_dir" 
-                mkdir -p "$log_dir" 
-
-                for nodeNR in ${nodeNRs[@]}
-                do
-                    for threadNR in ${threadNRs[@]}
-                    do
-                        cn_tp_file="$cn_tp_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
-                        cn_lat_file="$cn_lat_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
-                        echo $cn_tp_header > "$cn_tp_file"
-                        echo $cn_lat_header > "$cn_lat_file"
-
-                        log_file="$log_dir"/nodeNR$nodeNR"_threadNR"$threadNR.log
-
-                        for lockNR in ${lockNRs[@]}
-                        do
-
-                            for ((run = 0; run < runNR; run++)); do
-                                echo "START MICROBENCH $microb | $opt $impl | $nodeNR Ns & $threadNR Ts & $lockNR Ls & $duration s & RUN $run"
-                                dsh -M -f <(head -n $nodeNR ./nodes.txt) -o "-o StrictHostKeyChecking=no" -c \
-                                "sudo LD_PRELOAD=$llock_so $mb_exe \
-                                -t $threadNR \
-                                -d $duration \
-                                -m $mode \
-                                -n $nodeNR \
-                                -f $cn_tp_file \
-                                -g $cn_lat_file \
-                                -l $lockNR \
-                                -r $run \
-                                -s $mnNR \
-                                -z $zipfan \
-                                2>> $log_file"
-                                # "sudo LD_PRELOAD=$cn_so $disa_bench -t $i -d $duration -s $server_ip -p $p_ips -m $j -c $ncns -f $cn_rescum_file -g $cn_ressingle_file -l $nlocks -r $runs -e $mem_runs"
-                                # 2>&1"
-                                cleanup
-                            done
-                        done
+                    for ((run = 0; run < runNR; run++)); do
+                        echo "START APPBENCH kvs | $opt $impl | $nodeNR Ns & $threadNR Ts & $duration s & RUN $run"
+                        dsh -M -f <(head -n $nodeNR ./nodes.txt) -o "-o StrictHostKeyChecking=no" -c \
+                        "sudo LD_PRELOAD=$llock_so $mb_exe \
+                        -t $threadNR \
+                        -d $duration \
+                        -n $nodeNR \
+                        -f $cn_tp_file \
+                        -g $cn_lat_file \
+                        -r $run \
+                        -s $mnNR \
+                        2>> $log_file"
+                        # 2>&1"
+                        cleanup
                     done
                 done
             done
@@ -202,4 +151,4 @@ do
 done
 
 pkill -u $USER ssh-agent 
-cleanup_exit
+cleanup

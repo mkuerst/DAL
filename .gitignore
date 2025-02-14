@@ -21,3 +21,4 @@ c_cpp_properties.json
 libsherman*
 microbench_*
 microbench/logs
+appbench_*

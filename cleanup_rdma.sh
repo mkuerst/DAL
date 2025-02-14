@@ -1,5 +1,3 @@
-echo ""
-echo "Cleaning up..."
 for pid in $(sudo lsof | grep infiniband | awk '{print $2}' | sort -u); do
     echo "Killing process $pid using RDMA resources..."
     sudo kill -9 "$pid"

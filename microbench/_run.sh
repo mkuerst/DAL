@@ -1,47 +1,24 @@
 #!/bin/sh
  
-cleanup_exit() {
-    echo ""
-    echo "Cleaning up..."
-    sudo pkill -P $$ 
-    for pid in $(sudo lsof | grep infiniband | awk '{print $2}' | sort -u); do
-        echo "Killing process $pid using RDMA resources..."
-        sudo kill -9 "$pid"
-    done
-    # sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo rdma resource show mr | awk '{print $12}' | sort -u | xargs -r sudo kill -9"
-    # sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo rdma resource show mr | awk '{print $16}' | sort -u | xargs -r sudo kill -9"
-    sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo bash /nfs/DAL/cleanup_rdma.sh"
-    echo "CLEANUP DONE"
-    echo "EXIT"
-    exit 1
-}
-
 cleanup() {
     echo ""
-    echo "Cleaning up..."
+    sudo pkill -P $$ 
     for pid in $(sudo lsof | grep infiniband | awk '{print $2}' | sort -u); do
         echo "Killing process $pid using RDMA resources..."
         sudo kill -9 "$pid"
     done
-    # sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo rdma resource show mr | awk '{print $12}' | sort -u | xargs -r sudo kill -9"
-    # sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo rdma resource show mr | awk '{print $16}' | sort -u | xargs -r sudo kill -9"
     sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo bash /nfs/DAL/cleanup_rdma.sh"
-    sudo pkill -P $$ 
     echo "CLEANUP DONE"
+    if [[ "$1" == "1" || -n "$SIGNAL_CAUGHT" ]]; then
+        echo "EXIT"
+        exit 1
+    fi
 }
+
+trap 'SIGNAL_CAUGHT=1; cleanup 1' SIGINT SIGTERM SIGHUP
 cleanup
 
-trap cleanup_exit SIGINT
-trap cleanup_exit SIGTERM
-trap cleanup_exit SIGKILL
-trap cleanup_exit SIGHUP
-
-
-REMOTE_USER="root"
-REMOTE_cnS=("node1" "node2" "node3" "node4" "node5")
-
 SSH_OPTIONS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-
 
 # PATHS
 BASE="$PWD/../litl2/lib"
@@ -135,7 +112,6 @@ do
                             -s $mnNR \
                             -z $zipfan \
                             2>> $log_file"
-                            # "sudo LD_PRELOAD=$cn_so $disa_bench -t $i -d $duration -s $server_ip -p $p_ips -m $j -c $ncns -f $cn_rescum_file -g $cn_ressingle_file -l $nlocks -r $runs -e $mem_runs"
                             # 2>&1
 
                             cleanup
@@ -189,7 +165,6 @@ do
                                 -s $mnNR \
                                 -z $zipfan \
                                 2>> $log_file"
-                                # "sudo LD_PRELOAD=$cn_so $disa_bench -t $i -d $duration -s $server_ip -p $p_ips -m $j -c $ncns -f $cn_rescum_file -g $cn_ressingle_file -l $nlocks -r $runs -e $mem_runs"
                                 # 2>&1"
                                 cleanup
                             done
@@ -202,4 +177,4 @@ do
 done
 
 pkill -u $USER ssh-agent 
-cleanup_exit
+cleanup 1

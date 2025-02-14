@@ -67,6 +67,10 @@ constexpr int thread_to_cpu[64] = {
 //     28, 60, 29,  61, 30,  62, 31,  63
 // };
 
+inline Key to_key(uint64_t k) {
+  return (CityHash64((char *)&k, sizeof(k)) + 1) % kKeySpace;
+}
+
 void mn_worker() {
     DE("I AM A MN\n");
     char val[sizeof(uint64_t)];
@@ -91,9 +95,6 @@ void mn_worker() {
     dsm->barrier("fin");
 }
 
-inline Key to_key(uint64_t k) {
-  return (CityHash64((char *)&k, sizeof(k)) + 1) % kKeySpace;
-}
 
 class RequsetGenBench : public RequstGen {
 public:
@@ -134,7 +135,6 @@ std::atomic_bool done{false};
 
 void *thread_run(void *arg) {
     Task *task = (Task *) arg;
-    Timer timer = task->timer;
     bindCore(thread_to_cpu[task->id]);
     dsm->registerThread();
     int id = dsm->getMyThreadID();
@@ -201,6 +201,7 @@ void *thread_run(void *arg) {
         }
         latency[id][us_10]++;
     }
+    return 0;
 }
 
 int main(int argc, char *argv[]) {
