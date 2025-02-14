@@ -100,7 +100,7 @@ plot_MC_rlocks(
                 # lat_ml_inc = ["data_read", "data_write", "lock_hold"],
                 cnNRs=[4], 
                 lockNRs=[256], 
-                threadNRs=64,
+                threadNRs=32,
                 log=0
                 )
 pass
