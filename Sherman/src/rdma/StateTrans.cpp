@@ -19,9 +19,9 @@ bool modifyQPtoInit(struct ibv_qp *qp, RdmaContext *context) {
             attr.qp_access_flags = IBV_ACCESS_REMOTE_WRITE;
             break;
 
-        case IBV_EXP_QPT_DC_INI:
-            Debug::notifyError("implement me:)");
-            break;
+        // case IBV_EXP_QPT_DC_INI:
+        //     Debug::notifyError("implement me:)");
+        //     break;
 
         default:
             Debug::notifyError("implement me:)");
@@ -138,6 +138,7 @@ bool modifyUDtoRTS(struct ibv_qp *qp, RdmaContext *context) {
     return true;
 }
 
+#ifdef MLX5
 bool modifyDCtoRTS(struct ibv_qp *qp, uint16_t remoteLid, uint8_t *remoteGid,
                    RdmaContext *context) {
     // assert(qp->qp_type == IBV_EXP_QPT_DC_INI);
@@ -183,3 +184,4 @@ bool modifyDCtoRTS(struct ibv_qp *qp, uint16_t remoteLid, uint8_t *remoteGid,
 
     return true;
 }
+#endif

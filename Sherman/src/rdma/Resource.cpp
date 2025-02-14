@@ -7,6 +7,10 @@ bool createContext(RdmaContext *context, uint8_t port, int gidIndex,
   ibv_context *ctx = NULL;
   ibv_pd *pd = NULL;
   ibv_port_attr portAttr;
+  char mlx = '2';
+  #ifdef MLX4
+  mlx = '0';
+  #endif
 
   // get device names in the system
   int devicesNum;
@@ -25,7 +29,7 @@ bool createContext(RdmaContext *context, uint8_t port, int gidIndex,
 
   for (int i = 0; i < devicesNum; ++i) {
     // printf("Device %d: %s\n", i, ibv_get_device_name(deviceList[i]));
-    if (ibv_get_device_name(deviceList[i])[5] == '2') {
+    if (ibv_get_device_name(deviceList[i])[5] == mlx) {
       devIndex = i;
       break;
     }
@@ -78,9 +82,11 @@ bool createContext(RdmaContext *context, uint8_t port, int gidIndex,
   context->lid = portAttr.lid;
 
   // check device memory support
+  #ifndef MLX4
   if (kMaxDeviceMemorySize == 0) {
     checkDMSupported(ctx);
   }
+  #endif
 
   return true;
 
@@ -136,6 +142,7 @@ ibv_mr *createMemoryRegion(uint64_t mm, uint64_t mmSize, RdmaContext *ctx) {
   return mr;
 }
 
+#ifdef ON_CHIP
 ibv_mr *createMemoryRegionOnChip(uint64_t mm, uint64_t mmSize,
                                  RdmaContext *ctx) {
 
@@ -180,7 +187,9 @@ ibv_mr *createMemoryRegionOnChip(uint64_t mm, uint64_t mmSize,
 
   return mr;
 }
+#endif
 
+#ifdef MLX5
 bool createQueuePair(ibv_qp **qp, ibv_qp_type mode, ibv_cq *send_cq,
                      ibv_cq *recv_cq, RdmaContext *context,
                      uint32_t qpsMaxDepth, uint32_t maxInlineData) {
@@ -218,6 +227,39 @@ bool createQueuePair(ibv_qp **qp, ibv_qp_type mode, ibv_cq *send_cq,
 
   return true;
 }
+#endif
+
+#ifdef MLX4
+bool createQueuePair(ibv_qp **qp, ibv_qp_type mode, ibv_cq *send_cq,
+                     ibv_cq *recv_cq, RdmaContext *context,
+                     uint32_t qpsMaxDepth, uint32_t maxInlineData) {
+
+  struct ibv_qp_init_attr attr;
+  memset(&attr, 0, sizeof(attr));
+
+  attr.qp_type = mode;
+  attr.sq_sig_all = 0;
+  attr.send_cq = send_cq;
+  attr.recv_cq = recv_cq;
+  // attr.pd = context->pd;
+
+  attr.cap.max_send_wr = qpsMaxDepth;
+  attr.cap.max_recv_wr = qpsMaxDepth;
+  attr.cap.max_send_sge = 1;
+  attr.cap.max_recv_sge = 1;
+  attr.cap.max_inline_data = maxInlineData;
+
+  *qp = ibv_create_qp(context->pd, &attr);
+  if (!(*qp)) {
+    Debug::notifyError("Failed to create QP");
+    return false;
+  }
+
+  // Debug::notifyInfo("Create Queue Pair with Num = %d", (*qp)->qp_num);
+
+  return true;
+}
+#endif
 
 bool createQueuePair(ibv_qp **qp, ibv_qp_type mode, ibv_cq *cq,
                      RdmaContext *context, uint32_t qpsMaxDepth,
@@ -225,6 +267,7 @@ bool createQueuePair(ibv_qp **qp, ibv_qp_type mode, ibv_cq *cq,
   return createQueuePair(qp, mode, cq, cq, context, qpsMaxDepth, maxInlineData);
 }
 
+#ifdef MLX5
 bool createDCTarget(ibv_exp_dct **dct, ibv_cq *cq, RdmaContext *context,
                     uint32_t qpsMaxDepth, uint32_t maxInlineData) {
 
@@ -261,6 +304,7 @@ bool createDCTarget(ibv_exp_dct **dct, ibv_cq *cq, RdmaContext *context,
 
   return true;
 }
+#endif
 
 void fillAhAttr(ibv_ah_attr *attr, uint32_t remoteLid, uint8_t *remoteGid,
                 RdmaContext *context) {

@@ -13,7 +13,8 @@ AbstractMessageConnection::AbstractMessageConnection(
   createQueuePair(&message, type, send_cq, cq, &ctx);
   modifyUDtoRTS(message, &ctx);
 
-  messagePool = hugePageAlloc(2 * messageNR * MESSAGE_SIZE);
+  // messagePool = hugePageAlloc(2 * messageNR * MESSAGE_SIZE);
+  messagePool = malloc(2 * messageNR * MESSAGE_SIZE);
   messageMR = createMemoryRegion((uint64_t)messagePool,
                                  2 * messageNR * MESSAGE_SIZE, &ctx);
   sendPool = (char *)messagePool + messageNR * MESSAGE_SIZE;

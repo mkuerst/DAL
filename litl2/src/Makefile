@@ -2,12 +2,10 @@ include ../Makefile.config
 
 CACHELINE_SIZE:=$(shell cat /sys/devices/system/cpu/cpu0/cache/index0/coherency_line_size)
 
-ifeq ($(LOCAL), 0)
-# CLUSTER
+ifeq ($(SYS_GROUP), 1)
 	LDFLAGS=-L../obj/CLHT/external/lib -L../obj/CLHT -Wl,--whole-archive -Wl,--version-script=interpose.map -lsspfd -lssmem -lclht -Wl,--no-whole-archive  -lrt -lm -ldl -L/home/kumichae/my_libs/papi-7.2.0b1/src -lpapi -L/home/kumichae/my_libs/rdma-core/build/lib/ -lrdmacm -m64 -pthread -lnuma -libverbs
 	CFLAGS=-I../include/ -I/home/kumichae/my_libs/rdma-core/build/include/rdma/ -I../obj/CLHT/include/ -I../obj/CLHT/external/include/ -I/home/kumichae/my_libs/papi-7.2.0b1/src -fPIC -Wall -$(OFLAG) -g -DCACHELINE_SIZE=$(CACHELINE_SIZE) -D$(COMM_PROT) -D$(DEBUG) -D$(CORRECTNESS)
 else
-# LOCAL MACHINE
 	LDFLAGS=-L../obj/CLHT/external/lib -L../obj/CLHT -Wl,--whole-archive -Wl,--version-script=interpose.map -lsspfd -lssmem -lclht -Wl,--no-whole-archive  -lrt -lm -ldl -m64 -pthread -lrdmacm -libverbs -lnuma
 	CFLAGS=-I../include/ -I/usr/include/rdma/ -I../obj/CLHT/include/ -I../obj/CLHT/external/include/ -fPIC -Wall -$(OFLAG) -g -DCACHELINE_SIZE=$(CACHELINE_SIZE) -D$(COMM_PROT) -D$(DEBUG) -D$(CORRECTNESS)
 endif

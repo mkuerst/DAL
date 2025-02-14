@@ -32,7 +32,8 @@ DSM *DSM::getInstance(const DSMConfig &conf) {
 DSM::DSM(const DSMConfig &conf)
     : conf(conf), appID(0), cache(conf.cacheConfig) {
 
-  baseAddr = (uint64_t)hugePageAlloc(conf.dsmSize * define::GB);
+  // baseAddr = (uint64_t)hugePageAlloc(conf.dsmSize * define::GB);
+  baseAddr = (uint64_t) malloc(conf.dsmSize * define::GB);
   #ifdef ON_CHIP
   rlockAddr = define::kLockStartAddr;
   #else
@@ -369,6 +370,7 @@ bool DSM::cas_sync(GlobalAddress gaddr, uint64_t equal, uint64_t val,
   return equal == *rdma_buffer;
 }
 
+#ifdef MLX5
 void DSM::cas_mask(GlobalAddress gaddr, uint64_t equal, uint64_t val,
                    uint64_t *rdma_buffer, uint64_t mask, bool signal) {
   rdmaCompareAndSwapMask(iCon->data[0][gaddr.nodeID], (uint64_t)rdma_buffer,
@@ -413,6 +415,7 @@ void DSM::faa_boundary_sync(GlobalAddress gaddr, uint64_t add_val,
     pollWithCQ(iCon->cq, 1, &wc);
   }
 }
+#endif
 
 void DSM::read_dm(char *buffer, GlobalAddress gaddr, size_t size, bool signal,
                   CoroContext *ctx) {
@@ -496,6 +499,7 @@ bool DSM::cas_dm_sync(GlobalAddress gaddr, uint64_t equal, uint64_t val,
   return equal == *rdma_buffer;
 }
 
+#ifdef MLX5
 void DSM::cas_dm_mask(GlobalAddress gaddr, uint64_t equal, uint64_t val,
                       uint64_t *rdma_buffer, uint64_t mask, bool signal) {
   rdmaCompareAndSwapMask(iCon->data[0][gaddr.nodeID], (uint64_t)rdma_buffer,
@@ -541,6 +545,7 @@ void DSM::faa_dm_boundary_sync(GlobalAddress gaddr, uint64_t add_val,
     pollWithCQ(iCon->cq, 1, &wc);
   }
 }
+#endif
 
 uint64_t DSM::poll_rdma_cq(int count) {
   ibv_wc wc;
