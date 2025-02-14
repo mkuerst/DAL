@@ -3,7 +3,7 @@
 cleanup_exit() {
     echo ""
     echo "Cleaning up..."
-    pkill -P $$ 
+    suod pkill -P $$ 
     for pid in $(sudo lsof | grep infiniband | awk '{print $2}' | sort -u); do
         echo "Killing process $pid using RDMA resources..."
         sudo kill -9 "$pid"
@@ -21,7 +21,7 @@ cleanup() {
     echo "Cleaning up..."
     for pid in $(sudo lsof | grep infiniband | awk '{print $2}' | sort -u); do
         echo "Killing process $pid using RDMA resources..."
-        kill -9 "$pid"
+        sudo kill -9 "$pid"
     done
     # sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo rdma resource show mr | awk '{print $12}' | sort -u | xargs -r sudo kill -9"
     # sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo rdma resource show mr | awk '{print $16}' | sort -u | xargs -r sudo kill -9"

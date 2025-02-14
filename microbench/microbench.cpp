@@ -38,6 +38,18 @@ int use_zipfan = 0;
 
 extern Measurements measurements;
 
+constexpr int thread_to_cpu[64] = {
+    0,  32,  1,  33,  2,  34,  3,  35,
+    4,  36,  5,  37,  6,  38,  7,  39,
+    8,  40,  9,  41, 10,  42, 11,  43,
+    12, 44, 13,  45, 14,  46, 15,  47,
+    16, 48, 17,  49, 18,  50, 19,  51,
+    20, 52, 21,  53, 22,  54, 23,  55,
+    24, 56, 25,  57, 26,  58, 27,  59,
+    28, 60, 29,  61, 30,  62, 31,  63
+};
+
+
 void mn_worker() {
     DE("I AM A MN\n");
     char val[sizeof(uint64_t)];
@@ -90,11 +102,9 @@ void *empty_cs_worker(void *arg) {
 void *mlocks_worker(void *arg) {
     Task *task = (Task *) arg;
     Timer timer = task->timer;
-    bindCore(task->id);
-    // bindCore(2*task->id + 1);
+    bindCore(thread_to_cpu[task->id]);
     dsm->registerThread(page_size);
     int id = dsm->getMyThreadID();
-    // bindCore(((nodeID-1)*threadNR + id) % 128);
     rlock->set_threadID(id);
     GlobalAddress baseAddr;
     baseAddr.nodeID = 0;
