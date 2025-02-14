@@ -3,7 +3,7 @@
 cleanup_exit() {
     echo ""
     echo "Cleaning up..."
-    suod pkill -P $$ 
+    sudo pkill -P $$ 
     for pid in $(sudo lsof | grep infiniband | awk '{print $2}' | sort -u); do
         echo "Killing process $pid using RDMA resources..."
         sudo kill -9 "$pid"
