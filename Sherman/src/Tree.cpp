@@ -33,25 +33,25 @@ Measurements measurements;
 
 Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB) : dsm(dsm), tree_id(tree_id), lockNR(lockNR) {
 
-  measurements.lock_hold = (uint16_t *) hugePageAlloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+  measurements.lock_hold = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
   memset(measurements.lock_hold, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
   
-  measurements.lwait_acq = (uint16_t *) hugePageAlloc(MAX_APP_THREAD * LWAIT_WINDOWS * sizeof(uint16_t));
+  measurements.lwait_acq = (uint16_t *) malloc(MAX_APP_THREAD * LWAIT_WINDOWS * sizeof(uint16_t));
   memset(measurements.lwait_acq, 0, MAX_APP_THREAD * LWAIT_WINDOWS * sizeof(uint16_t));
   
-  measurements.lwait_rel = (uint16_t *) hugePageAlloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+  measurements.lwait_rel = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
   memset(measurements.lwait_rel, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
   
-  measurements.gwait_acq = (uint16_t *) hugePageAlloc(MAX_APP_THREAD * LWAIT_WINDOWS * sizeof(uint16_t));
+  measurements.gwait_acq = (uint16_t *) malloc(MAX_APP_THREAD * LWAIT_WINDOWS * sizeof(uint16_t));
   memset(measurements.gwait_acq, 0, MAX_APP_THREAD * LWAIT_WINDOWS * sizeof(uint16_t));
   
-  measurements.gwait_rel = (uint16_t *) hugePageAlloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+  measurements.gwait_rel = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
   memset(measurements.gwait_rel, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
   
-  measurements.data_read = (uint16_t *) hugePageAlloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+  measurements.data_read = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
   memset(measurements.data_read, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
   
-  measurements.data_write = (uint16_t *) hugePageAlloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+  measurements.data_write = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
   memset(measurements.data_write, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
 
     for (int i = 0; i < dsm->getClusterSize(); ++i) {

@@ -152,11 +152,20 @@ MICROBENCHES = [ "empty_cs", "mlocks"]
 # TODO: Add "single"
 STATS = ["tp", "lat"]
 
+# lat_bar_colors = {
+# "gwait_acq": "gray", "lwait_acq": "gold", 
+# "gwait_rel": "cyan", "lwait_rel": "green",
+# "lock_hold": "red", 
+# "data_read": "white", "data_write": "magenta",
+# }
 lat_bar_colors = {
-"gwait_acq": "gray", "lwait_acq": "gold", 
-"gwait_rel": "cyan", "lwait_rel": "green",
-"lock_hold": "red", 
-"data_read": "white", "data_write": "magenta",
+    "gwait_acq": "#1f77b4",  # Muted Blue (commonly used in scientific plots)
+    "lwait_acq": "#ff7f0e",  # Orange
+    "gwait_rel": "#2ca02c",  # Green
+    "lwait_rel": "#d62728",  # Red
+    "lock_hold": "#9467bd",  # Purple
+    "data_read": "#8c564b",  # Brown
+    "data_write": "#e377c2", # Pink
 }
 median_colors = {"gwait_acq": "silver", "lwait_acq": "orange", "gwait_rel": "violet", "lwait_rel": "cyan", "lock_hold": "purple"}
 node_colors = {"empty_cs1n": "gray", "empty_cs2n": "black", "mem1n": "gray", "mem2n": "black"}
