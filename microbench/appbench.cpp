@@ -83,7 +83,7 @@ void mn_worker() {
     }
     dsm->barrier("benchmark");
     dsm->resetThread();
-    dsm->barrier("warmup");
+    dsm->barrier("warm_finish");
 
     for (int n = 0; n < nodeNR; n++) {
         string writeResKey = "WRITE_RES_" + to_string(n);
@@ -235,6 +235,8 @@ int main(int argc, char *argv[]) {
         mn_worker();
         return 0;
     }
+
+    dsm->barrier("benchmark");
     dsm->resetThread();
     
     /*TASK INIT*/
@@ -247,7 +249,7 @@ int main(int argc, char *argv[]) {
 
     while (!ready.load());
     sleep(duration);
-    done.store(true);
+    done = true;
     for (int i = 0; i < threadNR; i++) {
         pthread_join(tasks[i].thread, NULL);
     }

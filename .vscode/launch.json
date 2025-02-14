@@ -45,9 +45,9 @@
       "name": "node1",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/microbench/microbench_sherman",
+      "program": "${workspaceFolder}/microbench/appbench_sherman",
       "args": [
-        "-t", "32",
+        "-t", "1",
         "-d", "3",
         "-s", "1",
         "-m", "1",
@@ -82,9 +82,9 @@
       "name": "node2",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/microbench/microbench_sherman",
+      "program": "${workspaceFolder}/microbench/appbench_sherman",
       "args": [
-        "-t", "32",
+        "-t", "1",
         "-d", "3",
         "-s", "1",
         "-m", "1",
