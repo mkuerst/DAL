@@ -90,7 +90,8 @@ void *empty_cs_worker(void *arg) {
 void *mlocks_worker(void *arg) {
     Task *task = (Task *) arg;
     Timer timer = task->timer;
-    // bindCore(task->id);
+    bindCore(task->id);
+    // bindCore(2*task->id + 1);
     dsm->registerThread(page_size);
     int id = dsm->getMyThreadID();
     // bindCore(((nodeID-1)*threadNR + id) % 128);
@@ -104,12 +105,12 @@ void *mlocks_worker(void *arg) {
     uint64_t range = (GB(config.dsmSize) - page_size) / page_size;
     volatile int sum = 0;
     int data_len = dsm->get_rbuf(0).getkPageSize() / sizeof(uint64_t);
-    srand(nodeID*threadNR + id + 42);
+    uint64_t seed = nodeID*threadNR + id + 42;
+    srand(seed);
     struct zipf_gen_state state;
-    // mehcached_zipf_init(&state, range, zipfan,
-    //                     (rdtsc() & (0x0000ffffffffffffull)) ^ id);
     mehcached_zipf_init(&state, range, zipfan,
-                        ((0x0000ffffffffffffull)) ^ id);
+                        (rdtsc() & (0x0000ffffffffffffull)) ^ id);
+    // mehcached_zipf_init(&state, range, zipfan, seed);
 
     pthread_barrier_wait(&global_barrier);
 

@@ -6,7 +6,7 @@ cleanup_exit() {
     pkill -P $$ 
     for pid in $(sudo lsof | grep infiniband | awk '{print $2}' | sort -u); do
         echo "Killing process $pid using RDMA resources..."
-        kill -9 "$pid"
+        sudo kill -9 "$pid"
     done
     # sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo rdma resource show mr | awk '{print $12}' | sort -u | xargs -r sudo kill -9"
     # sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo rdma resource show mr | awk '{print $16}' | sort -u | xargs -r sudo kill -9"
@@ -26,7 +26,7 @@ cleanup() {
     # sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo rdma resource show mr | awk '{print $12}' | sort -u | xargs -r sudo kill -9"
     # sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo rdma resource show mr | awk '{print $16}' | sort -u | xargs -r sudo kill -9"
     sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo bash /nfs/DAL/cleanup_rdma.sh"
-    pkill -P $$ 
+    sudo pkill -P $$ 
     echo "CLEANUP DONE"
 }
 cleanup
@@ -84,8 +84,8 @@ runNR=2
 mnNR=1
 zipfan=1
 nodeNRs=(5)
-threadNRs=(32)
-lockNRs=(512)
+threadNRs=(64)
+lockNRs=(256)
 bench_idxs=(1)
 
 sudo rm -rf logs/
