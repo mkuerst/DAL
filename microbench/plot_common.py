@@ -316,7 +316,7 @@ def save_figs(ax1, ax2, ax3, ax4, fig1, fig2,
               comm_prot="rdma", opt="spinlock", bench="",
               client_mode ="MC", nthreads=16, log=1, clients=[1],
               include_metrics=[], hatches=[], hatch_categories={},
-              include_hatch_keys=[], multi=0,
+              include_hatch_keys=[], multi=0, latplot_idx=0,
               ):
     
     clients_str = "|".join(map(str, clients))
@@ -343,7 +343,7 @@ def save_figs(ax1, ax2, ax3, ax4, fig1, fig2,
         set_legend(a1, hatches, hatch_categories,
                    include_metrics, include_hatch_keys)
             
-    output_path = file_dir+f"/results/plots/lat_{comm_prot}_{opt}_{bench}_{client_mode}_{nthreads}T_.png"
+    output_path = file_dir+f"/results/plots/lat_{comm_prot}_{opt}_{bench}_{client_mode}_{nthreads}T_{latplot_idx}.png"
     fig1.suptitle(title1)
     fig1.savefig(output_path, dpi=300, bbox_inches='tight')
 
