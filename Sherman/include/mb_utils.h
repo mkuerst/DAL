@@ -91,7 +91,7 @@ int getNodeNumber();
 
 void parse_cli_args(
     int *threadNR, int *nodeNR, int* mnNR, int *lockNR, int *runNR,
-    int *nodeID, int* duration, int* mode, int* use_zipfan,
+    int *nodeID, int* duration, int* mode, int* use_zipfan, int* kReadRatio,
     char **res_file_tp, char **res_file_lat,
     int argc, char **argv
 );

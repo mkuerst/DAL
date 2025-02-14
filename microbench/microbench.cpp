@@ -22,7 +22,7 @@ using namespace std;
 char *array0;
 char *res_file_tp, *res_file_lat;
 int threadNR, nodeNR, mnNR, lockNR, runNR,
-nodeID, duration, mode;
+nodeID, duration, mode, kReadRatio;
 uint64_t *lock_acqs;
 uint64_t *lock_rels;
 
@@ -179,7 +179,7 @@ void *mlocks_worker(void *arg) {
 int main(int argc, char *argv[]) {
     parse_cli_args(
     &threadNR, &nodeNR, &mnNR, &lockNR, &runNR,
-    &nodeID, &duration, &mode, &use_zipfan,
+    &nodeID, &duration, &mode, &use_zipfan, &kReadRatio,
     &res_file_tp, &res_file_lat,
     argc, argv);
     DE("HI\n");

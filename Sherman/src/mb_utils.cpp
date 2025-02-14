@@ -38,14 +38,14 @@ int getNodeNumber() {
 
 void parse_cli_args(
     int *threadNR, int *nodeNR, int* mnNR, int *lockNR, int *runNR,
-    int *nodeID, int* duration, int* mode, int* use_zipfan,
+    int *nodeID, int* duration, int* mode, int* use_zipfan, int* kReadRatio,
     char **res_file_tp, char **res_file_lat,
     int argc, char **argv
 ) {
     int option;
 	*nodeID = getNodeNumber();
 	while ((option = getopt(argc, argv,
-    "d:t:l:i:d:s:m:r:f:g:n:z:")) != -1) 
+    "d:t:l:i:d:s:m:r:f:g:n:z:w:")) != -1) 
     {
 		switch (option) {
 			case 's':
@@ -80,6 +80,9 @@ void parse_cli_args(
 				break;
 			case 'z':
 				*use_zipfan = atoi(optarg);
+				break;
+			case 'w':
+				*kReadRatio = atoi(optarg);
 				break;
 			default:
 				break;
