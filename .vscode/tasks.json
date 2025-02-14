@@ -19,6 +19,12 @@
         "label": "wait-for-server",
         "type": "shell",
         "command": "sleep 3" 
-    }
-    ]
+    },
+        {
+          "label": "Set ulimit",
+          "type": "shell",
+          "command": "ulimit -s unlimited",
+          "problemMatcher": []
+        }
+      ]
   }

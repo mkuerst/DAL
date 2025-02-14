@@ -58,72 +58,6 @@ using namespace std;
 
 static string ck = "CORRECTNESS";
 
-// struct alignas(CACHELINE_SIZE) LocalLockNode {
-//     pthread_mutex_t mutex;
-//     uint64_t safe1, safe2;
-//     char disa = 'y';
-//     std::atomic<uint64_t> ticket_lock;
-//     bool hand_over;
-//     uint8_t hand_time;
-// };
-
-// struct Measurements {
-//     uint64_t lock_hold[MAX_APP_THREAD][LATENCY_WINDOWS];
-//     uint64_t wait_acq[MAX_APP_THREAD][LATENCY_WINDOWS];
-//     uint64_t wait_rel[MAX_APP_THREAD][LATENCY_WINDOWS];
-//     uint64_t lwait_acq[MAX_APP_THREAD][LATENCY_WINDOWS];
-//     uint64_t lwait_rel[MAX_APP_THREAD][LATENCY_WINDOWS];
-//     uint64_t gwait_acq[MAX_APP_THREAD][LATENCY_WINDOWS];
-//     uint64_t gwait_rel[MAX_APP_THREAD][LATENCY_WINDOWS];
-//     uint64_t data_read[MAX_APP_THREAD][LATENCY_WINDOWS];
-//     uint64_t data_write[MAX_APP_THREAD][LATENCY_WINDOWS];
-//     uint64_t loop_in_cs[MAX_APP_THREAD];
-//     uint64_t lock_acquires[MAX_APP_THREAD];
-//     uint64_t glock_tries[MAX_APP_THREAD];
-//     uint64_t duration;
-// };
-
-// class Rlock {
-// public:
-//     Rlock(DSM *dsm, uint32_t lockNR);
-
-//     void index_cache_statistics();
-//     void clear_statistics();
-
-//     void lock_acquire(GlobalAddress base_addr, int data_size);
-//     void lock_release(GlobalAddress base_addr, int data_size);
-//     char *getCurrPB() { return curr_page_buffer; }
-//     GlobalAddress getCurrLockAddr() { return curr_lock_addr; }
-//     void setKPageSize(int page_size); 
-
-// private:
-//     DSM *dsm;
-//     uint32_t lockNR;
-//     LocalLockNode *local_locks[MAX_MACHINE];
-//     static thread_local uint64_t *curr_cas_buffer;
-//     static thread_local char *curr_page_buffer;
-//     static thread_local GlobalAddress curr_lock_addr;
-
-//     GlobalAddress get_lock_addr(GlobalAddress base_addr);
-//     void get_bufs();
-//     bool try_lock_addr(GlobalAddress lock_addr, uint64_t tag, uint64_t *buf,
-//                         CoroContext *cxt, int coro_id);
-//     void unlock_addr(GlobalAddress lock_addr, uint64_t tag, uint64_t *buf,
-//                     CoroContext *cxt, int coro_id, bool async);
-//     void write_and_unlock(char *page_buffer, GlobalAddress page_addr,
-//                                  int page_size, uint64_t *cas_buffer,
-//                                  GlobalAddress lock_addr, uint64_t tag,
-//                                  CoroContext *cxt, int coro_id, bool async);
-//     void lock_and_read_page(char *page_buffer, GlobalAddress page_addr,
-//                             int page_size, uint64_t *cas_buffer,
-//                             GlobalAddress lock_addr, uint64_t tag,
-//                             CoroContext *cxt, int coro_id);
-//     bool acquire_local_lock(GlobalAddress lock_addr, CoroContext *cxt,
-//                             int coro_id);
-//     bool can_hand_over(GlobalAddress lock_addr);
-//     void releases_local_lock(GlobalAddress lock_addr);
-// };
-
 struct alignas(CACHELINE_SIZE) Task {
     volatile int* stop;
     pthread_t thread;
@@ -139,15 +73,13 @@ struct alignas(CACHELINE_SIZE) Task {
 
 int uniform_rand_int(int x);
 
-void set_id(int id);
-
 void clear_measurements();
 
 void write_tp(char* res_file, int run, int threadNR, int lockNR, int nodeID, size_t array_size);
 
 void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_size);
 
-void save_measurement(uint16_t *arr, int factor = 1, bool is_lwait = false);
+void save_measurement(int threadID, uint16_t *arr, int factor = 1, bool is_lwait = false);
 
 int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int nodeID);
 

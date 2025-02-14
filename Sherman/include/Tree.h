@@ -18,6 +18,14 @@ struct alignas(CACHELINE_SIZE) LocalLockNode {
     bool hand_over;
     uint8_t hand_time;
 };
+// struct LocalLockNode {
+//     pthread_mutex_t mutex;
+//     uint64_t safe1, safe2;
+//     char disa = 'y';
+//     std::atomic<uint64_t> ticket_lock;
+//     bool hand_over;
+//     uint8_t hand_time;
+// };
 
 struct Measurements {
     uint16_t *lock_hold;
@@ -111,6 +119,7 @@ private:
     static thread_local uint64_t *curr_cas_buffer;
     static thread_local char *curr_page_buffer;
     static thread_local GlobalAddress curr_lock_addr;
+    static thread_local int threadID;
     /**/
 
     void print_verbose();

@@ -5,7 +5,7 @@ project(Sherman)
 add_definitions(-DBOOST_COROUTINES_NO_DEPRECATION_WARNING)
 
 #Compiler options
-set(CMAKE_C_FLAGS "-Wall -Wno-deprecated-declarations -Wsign-compare -O0 -g")
+set(CMAKE_C_FLAGS  "-Wall -Wno-class-memaccess -Wno-deprecated-declarations -Wsign-compare -O3 -g")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17")
 
 # Link Options
@@ -53,7 +53,7 @@ link_libraries(sherman_litlHo)
 
 # LITL HO OCM BW
 add_library(sherman_litlHoOcmBw STATIC ${COMMON_FILE})
-target_compile_definitions(sherman_litlHo PRIVATE -DLITL -DHANDOVER -DON_CHIP -DBATCHED_WRITEBACK)
+target_compile_definitions(sherman_litlHoOcmBw PRIVATE -DLITL -DHANDOVER -DON_CHIP -DBATCHED_WRITEBACK)
 set_target_properties(sherman_litlHoOcmBw PROPERTIES OUTPUT_NAME "sherman_litlHoOcmBw")
 link_libraries(sherman_litlHoOcmBw)
 

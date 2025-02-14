@@ -9,11 +9,8 @@ using namespace std;
 #include <regex>
 #include <fstream>
 
-// thread_local char* Rlock::curr_page_buffer = nullptr;
-// thread_local uint64_t* Rlock::curr_cas_buffer = nullptr;
-// thread_local GlobalAddress Rlock::curr_lock_addr;
 extern thread_local Timer timer;
-extern thread_local int threadID;
+// extern thread_local int Tree::threadID;
 
 extern Measurements measurements;
 
@@ -90,10 +87,6 @@ void parse_cli_args(
 	}
 }
 
-void set_id(int id) {
-	threadID = id;
-}
-
 void clear_measurements() {
 	int tmp = measurements.duration;
 	memset(&measurements, 0, sizeof(Measurements));
@@ -162,7 +155,7 @@ uint64_t* cal_latency(uint16_t *latency, const string measurement, int lw = LATE
 	return lats;
 }
 
-void save_measurement(uint16_t *arr, int factor, bool is_lwait) {
+void save_measurement(int threadID, uint16_t *arr, int factor, bool is_lwait) {
 	auto us_10 = timer.end();
 	uint64_t lw = is_lwait ? LWAIT_WINDOWS : LATENCY_WINDOWS;
 	if (us_10 >= 1000 && is_lwait) {
@@ -282,220 +275,3 @@ int check_CN_correctness(
     dsm->get_DSMKeeper()->memSet(key.c_str(), key.size(), val, sizeof(uint64_t));
 	return 0;
 }
-
-// Rlock::Rlock(DSM *dsm, uint32_t lockNR) : dsm(dsm), lockNR(lockNR) {
-// 	for (int i = 0; i < dsm->getClusterSize(); ++i) {
-// 		local_locks[i] = new LocalLockNode[lockNR];
-// 		for (size_t k = 0; k < lockNR; ++k) {
-// 			auto &n = local_locks[i][k];
-// 			n.ticket_lock.store(0);
-// 			n.hand_over = false;
-// 			n.hand_time = 0;
-// 		}
-// 	}
-// }
-
-// GlobalAddress Rlock::get_lock_addr(GlobalAddress base_addr) {
-// 	uint64_t lock_index =
-// 		CityHash64((char *)&base_addr, sizeof(base_addr)) % lockNR;
-
-// 	GlobalAddress lock_addr;
-// 	lock_addr.nodeID = base_addr.nodeID;
-// 	lock_addr.offset = lock_index * sizeof(uint64_t);
-// 	return lock_addr;
-// }
-
-// void Rlock::get_bufs() {
-// 	auto rbuf = dsm->get_rbuf(0);
-// 	curr_cas_buffer = rbuf.get_cas_buffer();
-// 	curr_page_buffer = rbuf.get_page_buffer();
-// }
-
-// void Rlock::lock_acquire(GlobalAddress base_addr, int data_size) {
-// 	timer.begin();
-// 	curr_lock_addr = get_lock_addr(base_addr);
-
-// 	get_bufs();
-// 	auto tag = dsm->getThreadTag();
-// 	assert(tag != 0);
-
-// 	try_lock_addr(curr_lock_addr, tag, curr_cas_buffer, NULL, 0);
-// 	measurements.lock_acquires[threadID]++;
-// 	timer.begin();
-// 	if (data_size > 0) {
-// 		dsm->read_sync(curr_page_buffer, base_addr, data_size, NULL);
-// 	}
-// 	save_measurement(measurements.data_read);
-// }
-
-// void Rlock::lock_release(GlobalAddress base_addr, int data_size) {
-// 	timer.begin();
-// 	auto tag = dsm->getThreadTag();
-// 	assert(tag != 0);
-// 	if (data_size > 0) {
-// 		write_and_unlock(curr_page_buffer, base_addr, data_size, curr_cas_buffer,
-// 			curr_lock_addr, tag, NULL, 0, false);
-// 	}
-// 	else {
-// 		unlock_addr(curr_lock_addr, tag, curr_cas_buffer, NULL, 0, false);
-// 	}
-// }
-	
-// // TODO: ASYNC WRITE BACK?!
-// inline void Rlock::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
-//                               uint64_t *buf, CoroContext *cxt, int coro_id,
-//                               bool async) {
-
-// 	bool hand_over_other = can_hand_over(lock_addr);
-// 	if (hand_over_other) {
-// 		releases_local_lock(lock_addr);
-// 		save_measurement(measurements.lwait_rel);
-// 		return;
-// 	}
-
-// 	auto cas_buf = dsm->get_rbuf(coro_id).get_cas_buffer();
-
-// 	*cas_buf = 0;
-// 	if (async) {
-// 		dsm->write_dm((char *)cas_buf, lock_addr, sizeof(uint64_t), false);
-// 	} else {
-// 		dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
-// 	}
-// 	save_measurement(measurements.gwait_rel);
-// 	timer.begin();
-// 	releases_local_lock(lock_addr);
-// 	save_measurement(measurements.lwait_rel);
-// }
-
-// void Rlock::write_and_unlock(char *page_buffer, GlobalAddress page_addr,
-//                                  int page_size, uint64_t *cas_buffer,
-//                                  GlobalAddress lock_addr, uint64_t tag,
-//                                  CoroContext *cxt, int coro_id, bool async) {
-
-// 	bool hand_over_other = can_hand_over(lock_addr);
-// 	if (hand_over_other) {
-// 		dsm->write_sync(page_buffer, page_addr, page_size, cxt);
-// 		save_measurement(measurements.data_write);
-// 		timer.begin();
-// 		releases_local_lock(lock_addr);
-// 		save_measurement(measurements.lwait_rel);
-// 		return;
-// 	}
-
-// 	RdmaOpRegion rs[2];
-// 	rs[0].source = (uint64_t)page_buffer;
-// 	rs[0].dest = page_addr;
-// 	rs[0].size = page_size;
-// 	rs[0].is_on_chip = false;
-
-// 	rs[1].source = (uint64_t)dsm->get_rbuf(coro_id).get_cas_buffer();
-// 	rs[1].dest = lock_addr;
-// 	rs[1].size = sizeof(uint64_t);
-// 	rs[1].is_on_chip = true;
-
-// 	*(uint64_t *)rs[1].source = 0;
-// 	if (async) {
-// 		dsm->write_batch(rs, 2, false);
-// 	} else {
-// 		dsm->write_batch_sync(rs, 2, cxt);
-// 	}
-// 	save_measurement(measurements.data_write);
-// 	save_measurement(measurements.gwait_rel);
-// 	timer.begin();
-// 	releases_local_lock(lock_addr);
-// 	save_measurement(measurements.lwait_rel);
-// }
-
-// inline bool Rlock::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
-//                                 uint64_t *buf, CoroContext *cxt, int coro_id) {
-
-// 	// bool hand_over = acquire_local_lock(lock_addr, cxt, coro_id);
-// 	// if (hand_over) {
-// 	// 	return true;
-// 	// }
-// 	auto &node = local_locks[lock_addr.nodeID][lock_addr.offset / 8];
-// 	pthread_mutex_lock((pthread_mutex_t *) &node);
-// 	save_measurement(measurements.lwait_acq, 1000);
-
-// 	{
-// 		timer.begin();
-// 		uint64_t retry_cnt = 0;
-// 		uint64_t pre_tag = 0;
-// 		uint64_t conflict_tag = 0;
-// 		retry:
-// 		retry_cnt++;
-// 		if (retry_cnt > 1000000) {
-// 			std::cout << "Deadlock " << lock_addr << std::endl;
-
-// 			std::cout << dsm->getMyNodeID() << ", " << dsm->getMyThreadID()
-// 					<< " locked by " << (conflict_tag >> 32) << ", "
-// 					<< (conflict_tag << 32 >> 32) << std::endl;
-// 			assert(false);
-// 		}
-
-// 		bool res = dsm->cas_dm_sync(lock_addr, 0, tag, buf, cxt);
-
-// 		if (!res) {
-// 			conflict_tag = *buf - 1;
-// 			if (conflict_tag != pre_tag) {
-// 				retry_cnt = 0;
-// 				pre_tag = conflict_tag;
-// 			}
-// 			goto retry;
-// 		}
-// 		measurements.glock_tries[threadID] += retry_cnt;
-// 	}
-// 	save_measurement(measurements.gwait_acq);
-
-// 	return true;
-// }
-
-// inline bool Rlock::acquire_local_lock(GlobalAddress lock_addr, CoroContext *cxt,
-//                                      int coro_id) {
-//   auto &node = local_locks[lock_addr.nodeID][lock_addr.offset / 8];
-
-//   uint64_t lock_val = node.ticket_lock.fetch_add(1);
-
-//   uint32_t ticket = lock_val << 32 >> 32;
-//   uint32_t current = lock_val >> 32;
-
-//   while (ticket != current) { // lock failed
-
-//     // if (cxt != nullptr) {
-//     //   hot_wait_queue.push(coro_id);
-//     //   (*cxt->yield)(*cxt->master);
-//     // }
-
-//     current = node.ticket_lock.load(std::memory_order_relaxed) >> 32;
-//   }
-
-//   node.hand_time++;
-
-//   return node.hand_over;
-// }
-
-// inline bool Rlock::can_hand_over(GlobalAddress lock_addr) {
-
-//   auto &node = local_locks[lock_addr.nodeID][lock_addr.offset / 8];
-//   uint64_t lock_val = node.ticket_lock.load(std::memory_order_relaxed);
-
-//   uint32_t ticket = lock_val << 32 >> 32;
-//   uint32_t current = lock_val >> 32;
-
-//   if (ticket <= current + 1) { // no pending locks
-//     node.hand_over = false;
-//   } else {
-//     node.hand_over = node.hand_time < define::kMaxHandOverTime;
-//   }
-//   if (!node.hand_over) {
-//     node.hand_time = 0;
-//   }
-
-//   return node.hand_over;
-// }
-
-// inline void Rlock::releases_local_lock(GlobalAddress lock_addr) {
-// 	auto &node = local_locks[lock_addr.nodeID][lock_addr.offset / 8];
-// 	// node.ticket_lock.fetch_add((1ull << 32));
-// 	pthread_mutex_unlock((pthread_mutex_t *) &node);
-// }

@@ -47,7 +47,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/microbench/microbench_sherman",
       "args": [
-        "-t", "32",
+        "-t", "1",
         "-d", "3",
         "-s", "1",
         "-m", "1",
@@ -56,7 +56,7 @@
         "-f", "/nfs/DAL/microbench/results/test_tp.csv",
         "-g", "/nfs/DAL/microbench/results/test_lat.csv",
         "-l", "32",
-        "-r", "2",
+        "-r", "0",
         "-z", "1",
       ],
       "stopAtEntry": false,
@@ -64,10 +64,11 @@
       // "environment": [
       //   {
       //     "name": "LD_PRELOAD",
-      //     "value": "/nfs/DAL/litl2/lib/original/libbackoff_original.so"
+      //     "value": "/nfs/DAL/litl2/lib/original/libhmcs_original.so"
       //   }
       // ],
       "MIMode": "gdb",
+      // "preLaunchTask": "Set ulimit",
       "setupCommands": [
         {
           "description": "Enable pretty-printing for gdb",
@@ -83,7 +84,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/microbench/microbench_sherman",
       "args": [
-        "-t", "32",
+        "-t", "1",
         "-d", "3",
         "-s", "1",
         "-m", "1",
@@ -92,7 +93,7 @@
         "-f", "/nfs/DAL/microbench/results/test_tp.csv",
         "-g", "/nfs/DAL/microbench/results/test_lat.csv",
         "-l", "32",
-        "-r", "2",
+        "-r", "0",
         "-z", "1",
       ],
       "stopAtEntry": false,
@@ -100,10 +101,11 @@
       // "environment": [
       //   {
       //     "name": "LD_PRELOAD",
-      //     "value": "/nfs/DAL/litl2/lib/original/libbackoff_original.so"
+      //     "value": "/nfs/DAL/litl2/lib/original/libhmcs_original.so"
       //   }
       // ],
       "MIMode": "gdb",
+      // "preLaunchTask": "Set ulimit",
       "setupCommands": [
         {
           "description": "Enable pretty-printing for gdb",

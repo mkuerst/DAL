@@ -23,7 +23,7 @@ thread_local GlobalAddress path_stack[define::kMaxCoro]
 
 thread_local Timer timer;
 thread_local std::queue<uint16_t> hot_wait_queue;
-thread_local int threadID;
+thread_local int Tree::threadID;
 
 thread_local char* Tree::curr_page_buffer = nullptr;
 thread_local uint64_t* Tree::curr_cas_buffer = nullptr;
@@ -241,12 +241,13 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   bool hand_over = acquire_local_lock(lock_addr, cxt, coro_id);
   #ifdef HANDOVER
   if (hand_over) {
-    save_measurement(measurements.lwait_acq, 1, true);
+    save_measurement(threadID, measurements.lwait_acq, 1, true);
     return true;
   }
   #endif
-  save_measurement(measurements.lwait_acq, 1, true);
+  save_measurement(threadID, measurements.lwait_acq, 1, true);
   timer.begin();
+
   #ifdef CN_HANDOVER
     bool res;
     int current_holder = 0;
@@ -298,7 +299,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
     measurements.glock_tries[threadID] += retry_cnt;
   }
   #endif
-  save_measurement(measurements.gwait_acq, 1, true);
+  save_measurement(threadID, measurements.gwait_acq, 1, true);
 
   return true;
 }
@@ -324,7 +325,7 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
   } else {
     dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
   }
-  save_measurement(measurements.gwait_rel);
+  save_measurement(threadID, measurements.gwait_rel);
   timer.begin();
   releases_local_lock(lock_addr);
 }
@@ -334,12 +335,13 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
                                  GlobalAddress lock_addr, uint64_t tag,
                                  CoroContext *cxt, int coro_id, bool async) {
 
-  timer.begin();
   #ifdef HANDOVER
   bool hand_over_other = can_hand_over(lock_addr);
   if (hand_over_other) {
+    timer.begin();
     dsm->write_sync(page_buffer, page_addr, page_size, cxt);
-    save_measurement(measurements.data_write);
+    save_measurement(threadID, measurements.data_write);
+    timer.begin();
     releases_local_lock(lock_addr);
     return;
   }
@@ -365,21 +367,21 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   } else {
     dsm->write_batch_sync(rs, 2, cxt);
   }
-  save_measurement(measurements.data_write);
-  save_measurement(measurements.gwait_rel);
+  save_measurement(threadID, measurements.data_write);
+  save_measurement(threadID, measurements.gwait_rel);
   #else
   if (async) {
     dsm->write_batch(&rs[0], 1, false);
-    save_measurement(measurements.data_write);
+    save_measurement(threadID, measurements.data_write);
     timer.begin();
     dsm->write_batch(&rs[1], 1, false);
-    save_measurement(measurements.gwait_rel);
+    save_measurement(threadID, measurements.gwait_rel);
   } else {
     dsm->write_batch_sync(&rs[0], 1, cxt);
-    save_measurement(measurements.data_write);
+    save_measurement(threadID, measurements.data_write);
     timer.begin();
     dsm->write_batch_sync(&rs[1], 1, cxt);
-    save_measurement(measurements.gwait_rel);
+    save_measurement(threadID, measurements.gwait_rel);
   }
   #endif
 
@@ -397,7 +399,7 @@ void Tree::lock_and_read_page(char *page_buffer, GlobalAddress page_addr,
 
   timer.begin();
   dsm->read_sync(page_buffer, page_addr, page_size, cxt);
-  save_measurement(measurements.data_read);
+  save_measurement(threadID, measurements.data_read);
 }
 
 void Tree::lock_bench(const Key &k, CoroContext *cxt, int coro_id) {
@@ -1217,19 +1219,19 @@ void Tree::coro_master(CoroYield &yield, int coro_cnt) {
 // Local Locks
 inline bool Tree::acquire_local_lock(GlobalAddress lock_addr, CoroContext *cxt,
                                      int coro_id) {
+
   auto &node = local_locks[lock_addr.nodeID][lock_addr.offset / 8];
   uint64_t lock_val = node.ticket_lock.fetch_add(1);
-
   #ifdef SHERMAN_LOCK
   uint32_t ticket = lock_val << 32 >> 32;
   uint32_t current = lock_val >> 32;
 
   while (ticket != current) { // lock failed
 
-    if (cxt != nullptr) {
-      hot_wait_queue.push(coro_id);
-      (*cxt->yield)(*cxt->master);
-    }
+    // if (cxt != nullptr) {
+    //   hot_wait_queue.push(coro_id);
+    //   (*cxt->yield)(*cxt->master);
+    // }
 
     current = node.ticket_lock.load(std::memory_order_relaxed) >> 32;
   }
@@ -1284,10 +1286,12 @@ inline void Tree::releases_local_lock(GlobalAddress lock_addr) {
   #ifdef SHERMAN_LOCK
   node.ticket_lock.fetch_add((1ull << 32));
   #endif
+
   #ifdef LITL
   pthread_mutex_unlock((pthread_mutex_t *) &node);
   #endif
-  save_measurement(measurements.lwait_rel);
+
+  save_measurement(threadID, measurements.lwait_rel);
 }
 
 void Tree::index_cache_statistics() {
@@ -1332,7 +1336,7 @@ void Tree::mb_lock(GlobalAddress base_addr, int data_size) {
 	if (data_size > 0) {
 		dsm->read_sync(curr_page_buffer, base_addr, data_size, NULL);
 	}
-	save_measurement(measurements.data_read);
+	save_measurement(threadID, measurements.data_read);
 }
 
 void Tree::mb_unlock(GlobalAddress base_addr, int data_size) {

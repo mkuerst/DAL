@@ -30,7 +30,7 @@ export COND_VAR=1
 
 all: clean $(DIR) include/topology.h $(SOS) #$(SHS)
 	$(MAKE) -C ./src/ all -j
-	$(MAKE) -C ../Sherman/build -j
+	$(MAKE) -C ../Sherman/build -j $(nproc)
 	$(MAKE) -C ../microbench/ all -j
 
 no_cond_var: COND_VAR=0

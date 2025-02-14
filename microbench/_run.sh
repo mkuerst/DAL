@@ -4,12 +4,13 @@ cleanup_exit() {
     echo ""
     echo "Cleaning up..."
     pkill -P $$ 
-    for pid in $(lsof | grep infiniband | awk '{print $2}' | sort -u); do
+    for pid in $(sudo lsof | grep infiniband | awk '{print $2}' | sort -u); do
         echo "Killing process $pid using RDMA resources..."
         kill -9 "$pid"
     done
-    sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo rdma resource show mr | awk '{print $12}' | sort -u | xargs -r sudo kill -9"
-    sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo rdma resource show mr | awk '{print $16}' | sort -u | xargs -r sudo kill -9"
+    # sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo rdma resource show mr | awk '{print $12}' | sort -u | xargs -r sudo kill -9"
+    # sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo rdma resource show mr | awk '{print $16}' | sort -u | xargs -r sudo kill -9"
+    sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo bash /nfs/DAL/cleanup_rdma.sh"
     echo "CLEANUP DONE"
     echo "EXIT"
     exit 1
@@ -18,12 +19,13 @@ cleanup_exit() {
 cleanup() {
     echo ""
     echo "Cleaning up..."
-    if kill -0 $SERVER_PID 2>/dev/null; then
-        echo "Stopping server with PID $SERVER_PID..."
-        kill -SIGINT $SERVER_PID
-    fi
-    sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo rdma resource show mr | awk '{print $12}' | sort -u | xargs -r sudo kill -9"
-    sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo rdma resource show mr | awk '{print $16}' | sort -u | xargs -r sudo kill -9"
+    for pid in $(sudo lsof | grep infiniband | awk '{print $2}' | sort -u); do
+        echo "Killing process $pid using RDMA resources..."
+        kill -9 "$pid"
+    done
+    # sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo rdma resource show mr | awk '{print $12}' | sort -u | xargs -r sudo kill -9"
+    # sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo rdma resource show mr | awk '{print $16}' | sort -u | xargs -r sudo kill -9"
+    sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo bash /nfs/DAL/cleanup_rdma.sh"
     pkill -P $$ 
     echo "CLEANUP DONE"
 }
@@ -75,15 +77,15 @@ comm_prot=rdma
 
 # MICROBENCH INPUTS
 # opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
-opts=("litlHoOcmBw")
+opts=("sherman" "litlHoOcmBw")
 microbenches=("empty_cs" "mlocks" "correctness")
-duration=20
-runNR=5
+duration=10
+runNR=3
 mnNR=1
-zipfan=0
-nodeNRs=(2 5)
+zipfan=1
+nodeNRs=(5)
 threadNRs=(32)
-lockNRs=(1 512)
+lockNRs=(512)
 bench_idxs=(1)
 
 sudo rm -rf logs/

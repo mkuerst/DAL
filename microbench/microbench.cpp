@@ -26,7 +26,7 @@ nodeID, duration, mode;
 uint64_t *lock_acqs;
 uint64_t *lock_rels;
 
-uint64_t dsmSize = 1;
+uint64_t dsmSize = 8;
 uint64_t page_size = KB(1);
 DSM *dsm;
 DSMConfig config;
@@ -138,7 +138,7 @@ void *mlocks_worker(void *arg) {
             for (int k = 0; k < data_len; k++) {
                 sum += long_data[k];
             }
-            save_measurement(measurements.lock_hold);
+            save_measurement(id, measurements.lock_hold);
             
             rlock->mb_unlock(baseAddr, page_size);
             lock_rels[lock_idx]++;
