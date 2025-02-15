@@ -179,7 +179,7 @@ ibv_mr *createMemoryRegionOnChip(uint64_t mm, uint64_t mmSize,
   free(buffer);
 
   return mr;
-}
+} 
 
 bool createQueuePair(ibv_qp **qp, ibv_qp_type mode, ibv_cq *send_cq,
                      ibv_cq *recv_cq, RdmaContext *context,
