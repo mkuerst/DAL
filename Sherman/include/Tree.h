@@ -24,7 +24,7 @@ struct LocalLockNode {
     uint8_t hand_time;
 };
 
-struct litl_lock {
+struct alignas(CACHELINE_SIZE) litl_lock {
     pthread_mutex_t mutex;
     uint64_t safe1, safe2;
     char disa = 'y';

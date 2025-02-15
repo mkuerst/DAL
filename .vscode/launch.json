@@ -64,7 +64,7 @@
       "environment": [
         {
           "name": "LD_PRELOAD",
-          "value": "/nfs/DAL/litl2/lib/original/libhmcs_original.so"
+          "value": "/nfs/DAL/litl2/lib/original/libbackoff_original.so"
         }
       ],
       "MIMode": "gdb",
@@ -101,7 +101,7 @@
       "environment": [
         {
           "name": "LD_PRELOAD",
-          "value": "/nfs/DAL/litl2/lib/original/libhmcs_original.so"
+          "value": "/nfs/DAL/litl2/lib/original/libbackoff_original.so"
         }
       ],
       "MIMode": "gdb",
