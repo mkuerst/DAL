@@ -31,7 +31,7 @@ DSM *DSM::getInstance(const DSMConfig &conf) {
 
 DSM::DSM(const DSMConfig &conf)
     : conf(conf), appID(0), cache(conf.cacheConfig) {
-
+      
   baseAddr = (uint64_t)hugePageAlloc(conf.dsmSize * define::GB);
   #ifdef ON_CHIP
   rlockAddr = define::kLockStartAddr;
@@ -39,14 +39,14 @@ DSM::DSM(const DSMConfig &conf)
   rlockAddr = (uint64_t) malloc(define::kLockChipMemSize);
   memset((char *)rlockAddr, 0, define::kLockChipMemSize);
   #endif
-
+  
   Debug::notifyInfo("shared memory size: %dGB, 0x%lx", conf.dsmSize, baseAddr);
   Debug::notifyInfo("rdma cache size: %dGB", conf.cacheConfig.cacheSize);
-
+  
   // warmup
-  memset((char *)baseAddr, 0, conf.dsmSize * define::GB);
   memset((char *)cache.data, 0, cache.size * define::GB);
-
+  memset((char *)baseAddr, 0, conf.dsmSize * define::GB);
+  
   initRDMAConnection();
   if (myNodeID < MEMORY_NODE_NUM) {  // start memory server
     for (int i = 0; i < NR_DIRECTORY; ++i) {
@@ -58,36 +58,13 @@ DSM::DSM(const DSMConfig &conf)
   keeper->barrier("DSM-init");
 }
 
-// DSM::DSM(const DSMConfig &conf)
-//     : conf(conf), appID(0), cache(conf.cacheConfig) {
-
-//   baseAddr = (uint64_t)hugePageAlloc(conf.dsmSize * define::GB);
-
-//   Debug::notifyInfo("shared memory size: %dGB, 0x%lx", conf.dsmSize, baseAddr);
-//   Debug::notifyInfo("cache size: %dGB", conf.cacheConfig.cacheSize);
-
-//   // warmup
-//   // memset((char *)baseAddr, 0, conf.dsmSize * define::GB);
-//   for (uint64_t i = baseAddr; i < baseAddr + conf.dsmSize * define::GB;
-//        i += 2 * define::MB) {
-//     *(char *)i = 0;
-//   }
-
-//   // clear up first chunk
-//   memset((char *)baseAddr, 0, define::kChunkSize);
-
-//   initRDMAConnection();
-
-//   Debug::notifyInfo("number of threads on memory node: %d", NR_DIRECTORY);
-//   for (int i = 0; i < NR_DIRECTORY; ++i) {
-//     dirAgent[i] =
-//         new Directory(dirCon[i], remoteInfo, conf.machineNR, i, myNodeID);
-//   }
-
-//   keeper->barrier("DSM-init");
-// }
 
 DSM::~DSM() {}
+
+void DSM::free_dsm() {
+  munmap((void*)baseAddr, conf.dsmSize * define::GB);
+  munmap((void*)cache.data, cache.size * define::GB);
+}
 
 void DSM::registerThread(int page_size) {
 

@@ -186,3 +186,5 @@ sudo chown -R mkuerst:dal-PG0 /nfs/
 cd /nfs/DAL/
 sudo git config --global user.name "mkuerst"
 sudo git config --global user.email "michael.kuersteiner@outlook.com"
+
+sudo dsh -M -f /nfs/DAL/microbench/nodes.txt -o "-o StrictHostKeyChecking=no" -c "echo hi"

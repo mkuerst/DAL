@@ -182,6 +182,7 @@ public:
 
   GlobalAddress alloc(size_t size);
   void free(GlobalAddress addr);
+  void free_dsm();
 
   void rpc_call_dir(const RawMessage &m, uint16_t node_id,
                     uint16_t dir_id = 0) {
