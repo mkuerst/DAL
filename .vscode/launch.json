@@ -45,14 +45,14 @@
       "name": "node1",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/microbench/microbench_sherman",
+      "program": "${workspaceFolder}/microbench/microbench_litlHo",
       "args": [
-        "-t", "1",
-        "-d", "3",
+        "-t", "32",
+        "-d", "60",
         "-s", "1",
         "-m", "1",
         "-i", "1",
-        "-n", "2",
+        "-n", "5",
         "-f", "/nfs/DAL/microbench/results/test_tp.csv",
         "-g", "/nfs/DAL/microbench/results/test_lat.csv",
         "-l", "256",
@@ -61,12 +61,12 @@
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      // "environment": [
-      //   {
-      //     "name": "LD_PRELOAD",
-      //     "value": "/nfs/DAL/litl2/lib/original/libhmcs_original.so"
-      //   }
-      // ],
+      "environment": [
+        {
+          "name": "LD_PRELOAD",
+          "value": "/nfs/DAL/litl2/lib/original/libhmcs_original.so"
+        }
+      ],
       "MIMode": "gdb",
       // "preLaunchTask": "Set ulimit",
       "setupCommands": [
@@ -82,14 +82,14 @@
       "name": "node2",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/microbench/microbench_sherman",
+      "program": "${workspaceFolder}/microbench/microbench_litlHo",
       "args": [
-        "-t", "1",
-        "-d", "3",
+        "-t", "32",
+        "-d", "60",
         "-s", "1",
         "-m", "1",
         "-i", "2",
-        "-n", "2",
+        "-n", "5",
         "-f", "/nfs/DAL/microbench/results/test_tp.csv",
         "-g", "/nfs/DAL/microbench/results/test_lat.csv",
         "-l", "256",
@@ -98,12 +98,12 @@
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      // "environment": [
-      //   {
-      //     "name": "LD_PRELOAD",
-      //     "value": "/nfs/DAL/litl2/lib/original/libhmcs_original.so"
-      //   }
-      // ],
+      "environment": [
+        {
+          "name": "LD_PRELOAD",
+          "value": "/nfs/DAL/litl2/lib/original/libhmcs_original.so"
+        }
+      ],
       "MIMode": "gdb",
       // "preLaunchTask": "Set ulimit",
       "setupCommands": [
@@ -119,14 +119,88 @@
       "name": "node3",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/microbench/microbench_sherman",
+      "program": "${workspaceFolder}/microbench/microbench_litlHo",
       "args": [
         "-t", "32",
-        "-d", "3",
+        "-d", "60",
         "-s", "1",
         "-m", "1",
         "-i", "3",
-        "-n", "3",
+        "-n", "5",
+        "-f", "/nfs/DAL/microbench/results/test_tp.csv",
+        "-g", "/nfs/DAL/microbench/results/test_lat.csv",
+        "-l", "256",
+        "-r", "0",
+        "-z", "1",
+      ],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [
+        {
+          "name": "LD_PRELOAD",
+          "value": "/nfs/DAL/litl2/lib/original/libhmcs_original.so"
+        }
+      ],
+      "MIMode": "gdb",
+      // "preLaunchTask": "Set ulimit",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ],
+      "externalConsole": false,
+    },
+    {
+      "name": "node4",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/microbench/microbench_litlHo",
+      "args": [
+        "-t", "32",
+        "-d", "60",
+        "-s", "1",
+        "-m", "1",
+        "-i", "4",
+        "-n", "5",
+        "-f", "/nfs/DAL/microbench/results/test_tp.csv",
+        "-g", "/nfs/DAL/microbench/results/test_lat.csv",
+        "-l", "256",
+        "-r", "0",
+        "-z", "1",
+      ],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [
+        {
+          "name": "LD_PRELOAD",
+          "value": "/nfs/DAL/litl2/lib/original/libhmcs_original.so"
+        }
+      ],
+      "MIMode": "gdb",
+      // "preLaunchTask": "Set ulimit",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ],
+      "externalConsole": false,
+    },
+    {
+      "name": "node5",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/microbench/microbench_litlHo",
+      "args": [
+        "-t", "32",
+        "-d", "60",
+        "-s", "1",
+        "-m", "1",
+        "-i", "5",
+        "-n", "5",
         "-f", "/nfs/DAL/microbench/results/test_tp.csv",
         "-g", "/nfs/DAL/microbench/results/test_lat.csv",
         "-l", "32",
@@ -135,12 +209,12 @@
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      // "environment": [
-      //   {
-      //     "name": "LD_PRELOAD",
-      //     "value": "/nfs/DAL/litl2/lib/original/libbackoff_original.so"
-      //   }
-      // ],
+      "environment": [
+        {
+          "name": "LD_PRELOAD",
+          "value": "/nfs/DAL/litl2/lib/original/libhmcs_original.so"
+        }
+      ],
       "MIMode": "gdb",
       "setupCommands": [
         {
@@ -239,6 +313,12 @@
       "name": "3 nodes",
       "configurations": [
         "node1", "node2", "node3"
+      ]
+    },
+    {
+      "name": "5 nodes",
+      "configurations": [
+        "node1", "node2", "node3", "node4", "node5"
       ]
     },
   ]

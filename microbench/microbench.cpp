@@ -11,7 +11,8 @@ using namespace std;
 #include "Tree.h"
 #include "mb_utils.h"
 #include <DSM.h>
-#include "zipf.h"
+// #include "zipf.h"
+
 
 #define gettid() syscall(SYS_gettid)
 
@@ -19,7 +20,6 @@ using namespace std;
 #error Must define CYCLE_PER_US for the current machine in the Makefile or elsewhere
 #endif
 
-char *array0;
 char *res_file_tp, *res_file_lat;
 int threadNR, nodeNR, mnNR, lockNR, runNR,
 nodeID, duration, mode, kReadRatio;
@@ -62,6 +62,45 @@ constexpr int thread_to_cpu[64] = {
     28, 60, 29,  61, 30,  62, 31,  63
 };
 
+#include <iostream>
+#include <random>
+#include <cmath>
+#include <vector>
+class ZipfianGenerator {
+    public:
+        // Constructor now accepts a seed for the random number generator
+        ZipfianGenerator(double alpha, int range, unsigned int seed = std::random_device{}())
+            : alpha(alpha), range(range), harmonic_sum(0), rng(seed), dist(0.0, 1.0) {
+            // Precompute the harmonic numbers and their sum
+            harmonic_numbers.resize(range);
+            for (int i = 1; i <= range; ++i) {
+                harmonic_sum += 1.0 / std::pow(i, alpha);
+                harmonic_numbers[i - 1] = harmonic_sum;
+            }
+        }
+    
+        int generate() {
+            // Generate a random number between 0 and harmonic_sum
+            double rand_val = dist(rng) * harmonic_sum;
+            
+            // Find the index corresponding to this random value (inverse transform sampling)
+            for (int i = 0; i < range; ++i) {
+                if (rand_val <= harmonic_numbers[i]) {
+                    return i + 1; // Returning the index (1-based)
+                }
+            }
+            
+            return range; // If no match, return the last element
+        }
+    
+    private:
+        double alpha; // Zipfian exponent
+        int range; // Range of integers
+        double harmonic_sum; // The sum of the harmonic numbers for normalization
+        std::vector<double> harmonic_numbers; // Precomputed harmonic numbers
+        std::mt19937 rng; // Random number generator with custom seed
+        std::uniform_real_distribution<> dist; // Uniform distribution between [0, 1)
+};
 
 void mn_worker() {
     DE("I AM A MN\n");
@@ -81,7 +120,7 @@ void mn_worker() {
     #ifdef CORRECTNESS
         dsm->barrier("CORRECTNESS");
         DE("MN checking correctness\n");
-        if (check_MN_correctness(dsm, dsmSize, mnNR, nodeNR, nodeID)) {
+        if (check_MN_correctness(dsm, dsmSize, mnNR, nodeNR, nodeID, page_size)) {
             __error("MN LOCK ACQS INCORRECT");
         }
         else {
@@ -89,7 +128,7 @@ void mn_worker() {
         }
     #endif
     fprintf(stderr, "MN [%d] finished\n", nodeID);
-    dsm->free_dsm();
+    // dsm->free_dsm();
     dsm->barrier("fin");
 }
 
@@ -115,7 +154,7 @@ void *empty_cs_worker(void *arg) {
 
 void *mlocks_worker(void *arg) {
     Task *task = (Task *) arg;
-    Timer timer = task->timer;
+    Timer timer;
     bindCore(thread_to_cpu[task->id]);
     dsm->registerThread(page_size);
     int id = dsm->getMyThreadID();
@@ -127,14 +166,17 @@ void *mlocks_worker(void *arg) {
     uint64_t *long_data;
     int lock_idx = 0;
     uint64_t range = (GB(config.dsmSize) - page_size) / page_size;
-    volatile int sum = 0;
-    int data_len = dsm->get_rbuf(0).getkPageSize() / sizeof(uint64_t);
+    volatile int sum = 1;
+    // int data_len = dsm->get_rbuf(0).getkPageSize() / sizeof(uint64_t);
+    int data_len = page_size / sizeof(uint64_t);
     uint64_t seed = nodeID*threadNR + id + 42;
     srand(seed);
-    struct zipf_gen_state state;
-    mehcached_zipf_init(&state, range, zipfan,
-                        (rdtsc() & (0x0000ffffffffffffull)) ^ id);
-    // mehcached_zipf_init(&state, range, zipfan, seed);
+    // struct zipf_gen_state state;
+    // mehcached_zipf_init(&state, range, zipfan,
+    //                     (rdtsc() & (0x0000ffffffffffffull)) ^ id);
+
+    ZipfianGenerator zipfian(1.2, range, seed);
+
 
     pthread_barrier_wait(&global_barrier);
 
@@ -148,7 +190,11 @@ void *mlocks_worker(void *arg) {
                 break;
             uint64_t data_idx;
             if (use_zipfan) {
-                data_idx = mehcached_zipf_next(&state);
+                // data_idx = mehcached_zipf_next(&state);
+                data_idx = zipfian.generate();
+                if (data_idx > range) {
+                    _error("ZIPFIAN GENERATED DATA_IDX TOO LARGE\n");
+                }
             }
             else {
                 data_idx = (uint64_t) uniform_rand_int(range);
@@ -162,9 +208,15 @@ void *mlocks_worker(void *arg) {
 
             timer.begin();
             long_data = (uint64_t *) rlock->getCurrPB();
-            long_data[0]++;
+            // long_data[0]++;
+            // for (int k = 0; k < data_len; k++) {
+            //     sum += long_data[k];
+            // }
+            // long_data[0]++;
             for (int k = 0; k < data_len; k++) {
-                sum += long_data[k];
+                // fprintf(stderr, "%ld\n", long_data[k]);
+                long_data[k] += 1;
+                task->inc++;
             }
             save_measurement(id, measurements.lock_hold);
             
@@ -274,7 +326,7 @@ int main(int argc, char *argv[]) {
 
     fprintf(stderr, "DSM NODE %d DONE\n", nodeID);
     free_measurements();
-    dsm->free_dsm();
+    // dsm->free_dsm();
     dsm->barrier("fin");
     return 0;
 }

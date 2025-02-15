@@ -245,6 +245,7 @@ typedef struct {
     pthread_t thread;
     char disa;
     uint64_t lock_acqs;
+    uint64_t inc;
 
     // MISC
     int id;

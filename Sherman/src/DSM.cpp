@@ -62,6 +62,16 @@ DSM::DSM(const DSMConfig &conf)
 DSM::~DSM() {}
 
 void DSM::free_dsm() {
+  if (myNodeID < MEMORY_NODE_NUM) {
+      if (ibv_dereg_mr(dirCon[myNodeID]->dsmMR) != 0) {
+        perror("ibv_dereg_mr failed");
+      }
+  }
+  for (int i = 0; i < MAX_APP_THREAD; i++) {
+      if (ibv_dereg_mr(thCon[i]->cacheMR) != 0) {
+        perror("ibv_dereg_mr failed");
+      }
+  }
   munmap((void*)baseAddr, conf.dsmSize * define::GB);
   munmap((void*)cache.data, cache.size * define::GB);
 }
@@ -142,7 +152,7 @@ void DSM::read_sync(char *buffer, GlobalAddress gaddr, size_t size,
 
   if (ctx == nullptr) {
     ibv_wc wc;
-    pollWithCQ(iCon->cq, 1, &wc);
+    pollWithCQ(iCon->cq, 1, &wc, gaddr.offset, size);
   }
 }
 
@@ -168,7 +178,7 @@ void DSM::write_sync(const char *buffer, GlobalAddress gaddr, size_t size,
 
   if (ctx == nullptr) {
     ibv_wc wc;
-    pollWithCQ(iCon->cq, 1, &wc);
+    pollWithCQ(iCon->cq, 1, &wc, gaddr.offset, size);
   }
 }
 
@@ -413,7 +423,7 @@ void DSM::read_dm_sync(char *buffer, GlobalAddress gaddr, size_t size,
 
   if (ctx == nullptr) {
     ibv_wc wc;
-    pollWithCQ(iCon->cq, 1, &wc);
+    pollWithCQ(iCon->cq, 1, &wc, gaddr.offset, size);
   }
 }
 
@@ -439,7 +449,7 @@ void DSM::write_dm_sync(const char *buffer, GlobalAddress gaddr, size_t size,
 
   if (ctx == nullptr) {
     ibv_wc wc;
-    pollWithCQ(iCon->cq, 1, &wc);
+    pollWithCQ(iCon->cq, 1, &wc, gaddr.offset, size);
   }
 }
 
@@ -467,7 +477,7 @@ bool DSM::cas_dm_sync(GlobalAddress gaddr, uint64_t equal, uint64_t val,
 
   if (ctx == nullptr) {
     ibv_wc wc;
-    pollWithCQ(iCon->cq, 1, &wc);
+    pollWithCQ(iCon->cq, 1, &wc, gaddr.offset, 64);
   }
 
   return equal == *rdma_buffer;

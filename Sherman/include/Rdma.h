@@ -87,7 +87,7 @@ bool modifyUDtoRTS(struct ibv_qp *qp, RdmaContext *context);
 
 
 //// Operation.cpp
-int pollWithCQ(ibv_cq *cq, int pollNumber, struct ibv_wc *wc);
+int pollWithCQ(ibv_cq *cq, int pollNumber, struct ibv_wc *wc, uint64_t addr = 0, uint64_t size = 0);
 int pollOnce(ibv_cq *cq, int pollNumber, struct ibv_wc *wc);
 
 bool rdmaSend(ibv_qp *qp, uint64_t source, uint64_t size, uint32_t lkey,

@@ -63,11 +63,11 @@ struct alignas(CACHELINE_SIZE) Task {
     pthread_t thread;
     char disa = 'y';
     uint64_t lock_acqs = 0;
+    uint64_t inc = 0;
 
     // MISC
     int id;
     int private_int_array[PRIVATE_ARRAY_SZ / sizeof(int)];
-    Timer timer;
 };
 
 
@@ -81,7 +81,7 @@ void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_siz
 
 void save_measurement(int threadID, uint16_t *arr, int factor = 1, bool is_lwait = false);
 
-int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int nodeID);
+int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int nodeID, uint64_t page_size = 1);
 
 int check_CN_correctness(
 	Task* tasks, uint64_t *lock_acqs, uint64_t *lock_rels,

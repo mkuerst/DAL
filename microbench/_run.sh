@@ -62,14 +62,14 @@ server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
 comm_prot=rdma
 
 # MICROBENCH INPUTS
-opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
-# opts=("litlHo" "litlHoOcmBw")
+# opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
+opts=("litlHo" "litlHoOcmBw")
 microbenches=("empty_cs" "mlocks" "correctness")
-duration=10
+duration=60
 runNR=3
 mnNR=1
 zipfan=1
-nodeNRs=(2 5)
+nodeNRs=(5)
 threadNRs=(32)
 lockNRs=(256)
 bench_idxs=(1)
@@ -140,7 +140,7 @@ do
                 microb="${microbenches[$mode]}"
                 cn_tp_dir="$PWD/results/cn/tp/$comm_prot/$microb/$opt/$impl"
                 cn_lat_dir="$PWD/results/cn/lat/$comm_prot/$microb/$opt/$impl"
-                log_dir="$PWD/logs/$comm_prot/$microb/$opt/sherman"
+                log_dir="$PWD/logs/$comm_prot/$microb/$opt/$impl"
                 mkdir -p "$cn_tp_dir" 
                 mkdir -p "$cn_lat_dir" 
                 mkdir -p "$log_dir" 

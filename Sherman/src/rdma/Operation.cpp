@@ -1,6 +1,6 @@
 #include "Rdma.h"
 
-int pollWithCQ(ibv_cq *cq, int pollNumber, struct ibv_wc *wc) {
+int pollWithCQ(ibv_cq *cq, int pollNumber, struct ibv_wc *wc, uint64_t addr, uint64_t size) {
   int count = 0;
 
   do {
@@ -20,6 +20,7 @@ int pollWithCQ(ibv_cq *cq, int pollNumber, struct ibv_wc *wc) {
     Debug::notifyError("Failed status %s (%d) for wr_id %d",
                        ibv_wc_status_str(wc->status), wc->status,
                        (int)wc->wr_id);
+    Debug::notifyError("addr: %lu\n size: %lu", addr, size);
     sleep(5);
     return -1;
   }

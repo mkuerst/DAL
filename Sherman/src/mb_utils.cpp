@@ -223,9 +223,10 @@ void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_siz
 	file.close();
 }
 
-int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int nodeID) {
+int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int nodeID, uint64_t page_size) {
 	uint64_t mn_sum = 0;
 	uint64_t cn_sum = 0;
+	uint64_t cn_inc = 0;
 	for (int i = 0; i < nodeNR; i++) {
 		if (i == nodeID)
 			continue;
@@ -235,6 +236,13 @@ int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int nod
 		memcpy(&cn_sum_, cn_sum_ptr, sizeof(uint64_t));
 		DE("%ld LOCK_ACQS FROM NODE %d\n", cn_sum_, i);
 		cn_sum = cn_sum + cn_sum_;
+
+		string key_inc = "CORRECTNESS_INC" + to_string(i);
+		char *cn_inc_ptr = dsm->get_DSMKeeper()->memGet(key_inc.c_str(), key_inc.size());
+		uint64_t cn_inc_;
+		memcpy(&cn_inc_, cn_inc_ptr, sizeof(uint64_t));
+		DE("%ld INCREMENTS FROM NODE %d\n", cn_inc_, i);
+		cn_inc = cn_inc + cn_inc_;
 	}
 	uint64_t baseAddr = dsm->get_baseAddr();
 	uint64_t *long_data = (uint64_t *) baseAddr;
@@ -242,11 +250,17 @@ int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int nod
 	for (size_t i = 0; i < GB(dsmSize) / sizeof(uint64_t); i++) {
 		mn_sum += long_data[i];
 	}
-	if (mn_sum != cn_sum) {
+	// mn_sum = mn_sum / page_size;
+	if (mn_sum != cn_inc) {
 		__error("mn_sum = %lu", mn_sum);
-		__error("cn_sum = %lu", cn_sum);
+		__error("cn_inc = %lu", cn_inc);
 		return -1;
 	}
+	// if (mn_sum != cn_sum) {
+	// 	__error("mn_sum = %lu", mn_sum);
+	// 	__error("cn_sum = %lu", cn_sum);
+	// 	return -1;
+	// }
 	return 0;
 }
 
@@ -256,25 +270,34 @@ int check_CN_correctness(
 {
 	uint64_t node_sum = 0;
 	uint64_t task_sum = 0;
+	uint64_t node_inc_sum = 0;
+	int ret = 0;
 	for (uint32_t i = 0; i < lockNR; i++) {
 		if (lock_acqs[i] != lock_rels[i]) {
 			__error("lock_acqs[%d] = %ld", i, lock_acqs[i]);
 			__error("lock_rels[%d] = %ld", i, lock_rels[i]);
-			return -1;
+			ret = 1;
 		}
 		node_sum += lock_acqs[i];
 	}
 	for (uint32_t i = 0; i < threadNR; i++) {
 		task_sum += tasks[i].lock_acqs;
+		node_inc_sum += tasks[i].inc;
 	}
 	if (task_sum != node_sum) {
 		__error("task_sum = %lu", task_sum);
 		__error("node_sum = %lu", node_sum);
-		return -1;
+		ret = 2;
 	}
 	string key = "CORRECTNESS" + to_string(nodeID);
     char val[sizeof(uint64_t)];
     memcpy(val, &task_sum, sizeof(uint64_t));
     dsm->get_DSMKeeper()->memSet(key.c_str(), key.size(), val, sizeof(uint64_t));
-	return 0;
+
+	string key_inc = "CORRECTNESS_INC" + to_string(nodeID);
+    char val_inc[sizeof(uint64_t)];
+    memcpy(val_inc, &node_inc_sum, sizeof(uint64_t));
+    dsm->get_DSMKeeper()->memSet(key_inc.c_str(), key_inc.size(), val_inc, sizeof(uint64_t));
+
+	return ret;
 }

@@ -24,7 +24,8 @@ FLAGS=-I../litl2/include/ -I../litl2/src/ -I/usr/include/rdma/ \
 
 all: target
 
-target: ../litl2/src/utils.c ../litl2/src/rdma_common.o
+
+target:
 	@echo "USING CYCLE_PER_US = $(CYCLE_PER_US) MHz"
 	@echo "USING CACHELINE_SIZE = $(CACHELINE_SIZE) Bytes"
 	g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman.a -o microbench_sherman ${FLAGS}
