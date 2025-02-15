@@ -53,6 +53,11 @@ Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB) : dsm(dsm), tre
   
   measurements.data_write = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
   memset(measurements.data_write, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+    litl_locks = new litl_lock[lockNR];
+    for (size_t i = 0; i < lockNR; i++) {
+      pthread_mutex_init(&litl_locks[i].mutex, NULL);
+      litl_locks[i].disa = 'y';
+    }
 
     for (int i = 0; i < dsm->getClusterSize(); ++i) {
         local_locks[i] = new LocalLockNode[lockNR];
@@ -61,8 +66,6 @@ Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB) : dsm(dsm), tre
             n.ticket_lock.store(0);
             n.hand_over = false;
             n.hand_time = 0;
-            pthread_mutex_init(&n.mutex, NULL);
-            n.disa = 'y';
         }
     }
     rlockAddr = dsm->get_rlockAddr();
@@ -242,7 +245,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   #ifdef HANDOVER
   if (hand_over) {
     save_measurement(threadID, measurements.lwait_acq, 1, true);
-    fprintf(stderr, "[%d.%d] was handed over the global lock: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_addr.offset);
+    // fprintf(stderr, "[%d.%d] was handed over the global lock: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_addr.offset);
     return true;
   }
   #endif
@@ -300,7 +303,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
     measurements.glock_tries[threadID] += retry_cnt;
   }
   save_measurement(threadID, measurements.gwait_acq, 1, true);
-  fprintf(stderr, "[%d.%d] got the global lock via rdma: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_addr.offset);
+  // fprintf(stderr, "[%d.%d] got the global lock via rdma: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_addr.offset);
 
   return true;
 }
@@ -314,7 +317,7 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
   bool hand_over_other = can_hand_over(lock_addr);
   if (hand_over_other) {
     releases_local_lock(lock_addr);
-    fprintf(stderr, "[%d.%d] unlocked the global lock for handover: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), curr_lock_addr.offset);
+    // fprintf(stderr, "[%d.%d] unlocked the global lock for handover: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), curr_lock_addr.offset);
     return;
   }
   #endif
@@ -330,7 +333,7 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
   save_measurement(threadID, measurements.gwait_rel);
   timer.begin();
   releases_local_lock(lock_addr);
-  fprintf(stderr, "[%d.%d] unlocked global lock remotely: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), curr_lock_addr.offset);
+  // fprintf(stderr, "[%d.%d] unlocked global lock remotely: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), curr_lock_addr.offset);
 }
 
 void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
@@ -346,7 +349,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     save_measurement(threadID, measurements.data_write);
     timer.begin();
     releases_local_lock(lock_addr);
-    fprintf(stderr, "[%d.%d] unlocked global lock for handover: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), curr_lock_addr.offset);
+    // fprintf(stderr, "[%d.%d] unlocked global lock for handover: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), curr_lock_addr.offset);
     return;
   }
   #endif
@@ -392,7 +395,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
 
   timer.begin();
   releases_local_lock(lock_addr);
-  fprintf(stderr, "[%d.%d] unlocked global lock remotely: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_addr.offset);
+  // fprintf(stderr, "[%d.%d] unlocked global lock remotely: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_addr.offset);
 }
 
 void Tree::lock_and_read_page(char *page_buffer, GlobalAddress page_addr,
@@ -1247,20 +1250,21 @@ inline bool Tree::acquire_local_lock(GlobalAddress lock_addr, CoroContext *cxt,
   #endif
 
   #ifdef LITL
-  pthread_mutex_lock((pthread_mutex_t *) &node);
+  litl_lock llock = litl_locks[lock_addr.offset / 8];
+  pthread_mutex_lock((pthread_mutex_t *) &llock);
   // uint64_t lock_val = node.ticket_lock.fetch_add(-1);
   node.ticket_lock.fetch_add(-1, std::memory_order_acq_rel);
   node.hand_time++;
 
   #endif
-  fprintf(stderr, "[%d.%d] acquired the local lock: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_addr.offset);
+  // fprintf(stderr, "[%d.%d] acquired the local lock: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_addr.offset);
   return node.hand_over;
 }
 
 inline bool Tree::can_hand_over(GlobalAddress lock_addr) {
   auto &node = local_locks[lock_addr.nodeID][lock_addr.offset / 8];
-  uint64_t lock_val = node.ticket_lock.load(std::memory_order_relaxed);
   #ifdef SHERMAN_LOCK
+  uint64_t lock_val = node.ticket_lock.load(std::memory_order_relaxed);
 
   uint32_t ticket = lock_val << 32 >> 32;
   uint32_t current = lock_val >> 32;
@@ -1277,24 +1281,19 @@ inline bool Tree::can_hand_over(GlobalAddress lock_addr) {
   return node.hand_over;
   #endif
 
-  if (lock_val == 0 || node.hand_time >= define::kMaxHandOverTime) {
-    node.hand_over = false;
-    node.hand_time = 0;
-  }
-  else {
-    node.hand_over = true;
-  }
+  bool hand_over_other = node.ticket_lock.load(std::memory_order_acquire) > 0 && node.hand_time < define::kMaxHandOverTime;
   return node.hand_over;
 }
 
 inline void Tree::releases_local_lock(GlobalAddress lock_addr) {
-  auto &node = local_locks[lock_addr.nodeID][lock_addr.offset / 8];
   #ifdef SHERMAN_LOCK
+  auto &node = local_locks[lock_addr.nodeID][lock_addr.offset / 8];
   node.ticket_lock.fetch_add((1ull << 32));
   #endif
 
   #ifdef LITL
-  pthread_mutex_unlock((pthread_mutex_t *) &node);
+  litl_lock llock = litl_locks[lock_addr.offset / 8];
+  pthread_mutex_unlock((pthread_mutex_t *) &llock);
   #endif
 
   save_measurement(threadID, measurements.lwait_rel);

@@ -10,15 +10,7 @@
 
 class IndexCache;
 
-struct alignas(CACHELINE_SIZE) LocalLockNode {
-    pthread_mutex_t mutex;
-    uint64_t safe1, safe2;
-    char disa = 'y';
-    std::atomic<uint64_t> ticket_lock;
-    bool hand_over;
-    uint8_t hand_time;
-};
-// struct LocalLockNode {
+// struct alignas(CACHELINE_SIZE) LocalLockNode {
 //     pthread_mutex_t mutex;
 //     uint64_t safe1, safe2;
 //     char disa = 'y';
@@ -26,6 +18,17 @@ struct alignas(CACHELINE_SIZE) LocalLockNode {
 //     bool hand_over;
 //     uint8_t hand_time;
 // };
+struct LocalLockNode {
+    std::atomic<uint64_t> ticket_lock;
+    bool hand_over;
+    uint8_t hand_time;
+};
+
+struct litl_lock {
+    pthread_mutex_t mutex;
+    uint64_t safe1, safe2;
+    char disa = 'y';
+};
 
 struct Measurements {
     uint16_t *lock_hold;
@@ -111,6 +114,7 @@ private:
     static thread_local CoroCall master;
 
     LocalLockNode *local_locks[MAX_MACHINE];
+    litl_lock *litl_locks;
 
     IndexCache *index_cache;
 

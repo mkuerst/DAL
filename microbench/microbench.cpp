@@ -26,7 +26,7 @@ nodeID, duration, mode, kReadRatio;
 uint64_t *lock_acqs;
 uint64_t *lock_rels;
 
-uint64_t dsmSize = 8;
+uint64_t dsmSize = 1;
 uint64_t page_size = KB(1);
 DSM *dsm;
 DSMConfig config;
@@ -128,7 +128,8 @@ void mn_worker() {
         }
     #endif
     fprintf(stderr, "MN [%d] finished\n", nodeID);
-    // dsm->free_dsm();
+    dsm->free_dsm();
+    free_measurements();
     dsm->barrier("fin");
 }
 
@@ -279,6 +280,7 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < threadNR; i++) {
         tasks[i].id = i;
         tasks[i].stop = &stop;
+        tasks[i].disa = 'y';
         pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
     }
     
@@ -326,7 +328,7 @@ int main(int argc, char *argv[]) {
 
     fprintf(stderr, "DSM NODE %d DONE\n", nodeID);
     free_measurements();
-    // dsm->free_dsm();
+    dsm->free_dsm();
     dsm->barrier("fin");
     return 0;
 }

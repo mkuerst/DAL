@@ -8,6 +8,8 @@ cleanup() {
         sudo kill -9 "$pid"
     done
     sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo bash /nfs/DAL/cleanup_rdma.sh"
+    # sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo bash /nfs/DAL/Sherman/script/clear_hugepage.sh"
+    # sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo bash /nfs/DAL/Sherman/script/hugepage.sh"
     echo "CLEANUP DONE"
     if [[ "$1" == "1" || -n "$SIGNAL_CAUGHT" ]]; then
         echo "EXIT"
@@ -63,9 +65,9 @@ comm_prot=rdma
 
 # MICROBENCH INPUTS
 # opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
-opts=("litlHo" "litlHoOcmBw")
+opts=("litl" "litlHo" "litlHoOcmBw")
 microbenches=("empty_cs" "mlocks" "correctness")
-duration=60
+duration=10
 runNR=3
 mnNR=1
 zipfan=1

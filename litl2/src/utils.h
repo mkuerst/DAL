@@ -297,11 +297,19 @@ typedef struct {
     char *byte_data;
 } disa_mutex_t __attribute__ ((aligned (CACHELINE_SIZE)));
 
+// typedef struct {
+//     pthread_mutex_t mutex;
+//     uint64_t safe1, safe2;
+//     char disa;
+//     uint64_t ticket_lock;
+//     bool hand_over;
+//     uint8_t hand_time;
+// } llock_t __attribute__ ((aligned (CACHELINE_SIZE)));
 typedef struct {
     pthread_mutex_t mutex;
     uint64_t safe1, safe2;
     char disa;
-} llock_t __attribute__ ((aligned (CACHELINE_SIZE)));
+} llock_t;
 
 /* 
  * We use attribute so that compiler does not step in and try to pad the structure.
