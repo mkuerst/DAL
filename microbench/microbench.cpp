@@ -284,7 +284,7 @@ int main(int argc, char *argv[]) {
     }
     
     /*LOCK INIT*/
-    rlock = new Tree(dsm, 0, lockNR, true);
+    rlock = new Tree(dsm, 0, define::kNumOfLock, true);
     lock_acqs = new uint64_t[lockNR];
     lock_rels = new uint64_t[lockNR];
     memset(lock_acqs, 0, lockNR*sizeof(uint64_t));

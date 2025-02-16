@@ -73,7 +73,7 @@ mnNR=1
 zipfan=1
 nodeNRs=(2 5)
 threadNRs=(32)
-lockNRs=(256)
+lockNRs=(512)
 bench_idxs=(1)
 
 sudo rm -rf logs/

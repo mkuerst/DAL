@@ -45,14 +45,14 @@
       "name": "node1",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/microbench/microbench_litlHo",
+      "program": "${workspaceFolder}/microbench/microbench_shermanLock",
       "args": [
-        "-t", "2",
-        "-d", "3",
+        "-t", "32",
+        "-d", "10",
         "-s", "1",
         "-m", "1",
         "-i", "1",
-        "-n", "2",
+        "-n", "5",
         "-f", "/nfs/DAL/microbench/results/test_tp.csv",
         "-g", "/nfs/DAL/microbench/results/test_lat.csv",
         "-l", "256",
@@ -61,12 +61,12 @@
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      "environment": [
-        {
-          "name": "LD_PRELOAD",
-          "value": "/nfs/DAL/litl2/lib/original/libbackoff_original.so"
-        }
-      ],
+      // "environment": [
+      //   {
+      //     "name": "LD_PRELOAD",
+      //     "value": "/nfs/DAL/litl2/lib/original/libbackoff_original.so"
+      //   }
+      // ],
       "MIMode": "gdb",
       // "preLaunchTask": "Set ulimit",
       "setupCommands": [
@@ -82,14 +82,14 @@
       "name": "node2",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/microbench/microbench_litlHo",
+      "program": "${workspaceFolder}/microbench/microbench_shermanLock",
       "args": [
-        "-t", "2",
-        "-d", "3",
+        "-t", "32",
+        "-d", "10",
         "-s", "1",
         "-m", "1",
         "-i", "2",
-        "-n", "2",
+        "-n", "5",
         "-f", "/nfs/DAL/microbench/results/test_tp.csv",
         "-g", "/nfs/DAL/microbench/results/test_lat.csv",
         "-l", "256",
@@ -98,12 +98,12 @@
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      "environment": [
-        {
-          "name": "LD_PRELOAD",
-          "value": "/nfs/DAL/litl2/lib/original/libbackoff_original.so"
-        }
-      ],
+      // "environment": [
+      //   {
+      //     "name": "LD_PRELOAD",
+      //     "value": "/nfs/DAL/litl2/lib/original/libbackoff_original.so"
+      //   }
+      // ],
       "MIMode": "gdb",
       // "preLaunchTask": "Set ulimit",
       "setupCommands": [
@@ -119,10 +119,10 @@
       "name": "node3",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/microbench/microbench_litlHo",
+      "program": "${workspaceFolder}/microbench/microbench_shermanLock",
       "args": [
         "-t", "32",
-        "-d", "60",
+        "-d", "10",
         "-s", "1",
         "-m", "1",
         "-i", "3",
@@ -135,12 +135,12 @@
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      "environment": [
-        {
-          "name": "LD_PRELOAD",
-          "value": "/nfs/DAL/litl2/lib/original/libhmcs_original.so"
-        }
-      ],
+      // "environment": [
+      //   {
+      //     "name": "LD_PRELOAD",
+      //     "value": "/nfs/DAL/litl2/lib/original/libhmcs_original.so"
+      //   }
+      // ],
       "MIMode": "gdb",
       // "preLaunchTask": "Set ulimit",
       "setupCommands": [
@@ -156,10 +156,10 @@
       "name": "node4",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/microbench/microbench_litlHo",
+      "program": "${workspaceFolder}/microbench/microbench_shermanLock",
       "args": [
         "-t", "32",
-        "-d", "60",
+        "-d", "10",
         "-s", "1",
         "-m", "1",
         "-i", "4",
@@ -172,12 +172,12 @@
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      "environment": [
-        {
-          "name": "LD_PRELOAD",
-          "value": "/nfs/DAL/litl2/lib/original/libhmcs_original.so"
-        }
-      ],
+      // "environment": [
+      //   {
+      //     "name": "LD_PRELOAD",
+      //     "value": "/nfs/DAL/litl2/lib/original/libhmcs_original.so"
+      //   }
+      // ],
       "MIMode": "gdb",
       // "preLaunchTask": "Set ulimit",
       "setupCommands": [
@@ -193,10 +193,10 @@
       "name": "node5",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/microbench/microbench_litlHo",
+      "program": "${workspaceFolder}/microbench/microbench_shermanLock",
       "args": [
         "-t", "32",
-        "-d", "60",
+        "-d", "10",
         "-s", "1",
         "-m", "1",
         "-i", "5",
@@ -209,12 +209,12 @@
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      "environment": [
-        {
-          "name": "LD_PRELOAD",
-          "value": "/nfs/DAL/litl2/lib/original/libhmcs_original.so"
-        }
-      ],
+      // "environment": [
+      //   {
+      //     "name": "LD_PRELOAD",
+      //     "value": "/nfs/DAL/litl2/lib/original/libhmcs_original.so"
+      //   }
+      // ],
       "MIMode": "gdb",
       "setupCommands": [
         {

@@ -1229,8 +1229,8 @@ inline bool Tree::acquire_local_lock(GlobalAddress lock_addr, CoroContext *cxt,
                                      int coro_id) {
 
   auto &node = local_locks[lock_addr.nodeID][lock_addr.offset / 8];
-  uint64_t lock_val = node.ticket_lock.fetch_add(1, std::memory_order_acq_rel);
   #ifdef SHERMAN_LOCK
+  uint64_t lock_val = node.ticket_lock.fetch_add(1);
   uint32_t ticket = lock_val << 32 >> 32;
   uint32_t current = lock_val >> 32;
 
@@ -1249,9 +1249,8 @@ inline bool Tree::acquire_local_lock(GlobalAddress lock_addr, CoroContext *cxt,
   #endif
 
   #ifdef LITL
-  // LitlLock llock = litl_locks[lock_addr.offset / 8];
+  node.ticket_lock.fetch_add(1, std::memory_order_acq_rel);
   pthread_mutex_lock((pthread_mutex_t *) &node.litl_lock);
-  // uint64_t lock_val = node.ticket_lock.fetch_add(-1);
   node.ticket_lock.fetch_add(-1, std::memory_order_acq_rel);
   node.hand_time++;
 
