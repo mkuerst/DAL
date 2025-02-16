@@ -26,7 +26,7 @@ nodeID, duration, mode, kReadRatio;
 uint64_t *lock_acqs;
 uint64_t *lock_rels;
 
-uint64_t dsmSize = 1;
+uint64_t dsmSize = 8;
 uint64_t page_size = KB(1);
 DSM *dsm;
 DSMConfig config;
@@ -37,6 +37,7 @@ double zipfan = 0;
 int use_zipfan = 0;
 
 extern Measurements measurements;
+std::atomic_bool stop{false};
 
 // SAME NUMA NODES
 // constexpr int thread_to_cpu[64] = {
@@ -143,7 +144,7 @@ void *empty_cs_worker(void *arg) {
     baseAddr.offset = 0;
 
     pthread_barrier_wait(&global_barrier);
-    while (!*task->stop) {
+    while (!stop.load()) {
         rlock->mb_lock(baseAddr, 0);
         task->lock_acqs++;
         rlock->mb_unlock(baseAddr, 0);
@@ -181,13 +182,13 @@ void *mlocks_worker(void *arg) {
 
     pthread_barrier_wait(&global_barrier);
 
-    while (!*task->stop) {
+    while (!stop.load()) {
         for (int j = 0; j < 400; j++) {
             int idx = uniform_rand_int(PRIVATE_ARRAY_SZ / sizeof(int));
             private_int_array[idx] += sum;
         }
         for (int j = 0; j < 100; j++) {
-            if (*task->stop)
+            if (stop.load())
                 break;
             uint64_t data_idx;
             if (use_zipfan) {
@@ -276,10 +277,8 @@ int main(int argc, char *argv[]) {
     /*TASK INIT*/
     Task *tasks = new Task[threadNR];
     measurements.duration = duration;
-    alignas(CACHELINE_SIZE) volatile int stop = 0;
     for (int i = 0; i < threadNR; i++) {
         tasks[i].id = i;
-        tasks[i].stop = &stop;
         tasks[i].disa = 'y';
         pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
     }
@@ -292,13 +291,12 @@ int main(int argc, char *argv[]) {
     memset(lock_rels, 0, lockNR*sizeof(uint64_t));
 
     /*RUN*/
-    stop = 0;
     dsm->barrier("MB_BEGIN");
     pthread_barrier_wait(&global_barrier);
     DE("RUN %d\n", runNR);
 
     sleep(duration);
-    stop = 1;
+    stop.store(true);
 
     pthread_barrier_wait(&global_barrier);
     for (int n = 0; n < nodeNR; n++) {

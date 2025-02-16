@@ -422,7 +422,6 @@ static void *lp_start_routine(void *_arg) {
     return res;
 }
 
-#undef pthread_create
 int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                    void *(*start_routine)(void *), void *arg) {
     DEBUG_PTHREAD("[p] pthread_create\n");
@@ -472,7 +471,7 @@ int pthread_mutex_lock(pthread_mutex_t *mutex) {
     DEBUG_PTHREAD("[p] pthread_mutex_lock\n");
     llock_t *llock = (llock_t *) mutex;
     if (llock->disa != 'y') {
-        return REAL(pthread_mutex_lock)(&llock->mutex);
+        return REAL(pthread_mutex_lock)(mutex);
     }
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get(mutex);
@@ -502,7 +501,7 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex) {
     DEBUG_PTHREAD("[p] pthread_mutex_unlock\n");
     llock_t *llock = (llock_t *) mutex;
     if (llock->disa != 'y') {
-        return REAL(pthread_mutex_unlock)(&llock->mutex);
+        return REAL(pthread_mutex_unlock)(mutex);
     }
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get(mutex);

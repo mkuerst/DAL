@@ -53,11 +53,11 @@ Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB) : dsm(dsm), tre
   
   measurements.data_write = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
   memset(measurements.data_write, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
-    litl_locks = (litl_lock*) malloc(lockNR*sizeof(litl_lock));
-    for (size_t i = 0; i < lockNR; i++) {
-      litl_locks[i].disa = 'y';
-    }
-
+  // for (size_t i = 0; i < lockNR; i++) {
+    //   litl_locks[i].disa = 'y';
+    // }
+    
+    // litl_locks = new LitlLock[lockNR];
     for (int i = 0; i < dsm->getClusterSize(); ++i) {
         local_locks[i] = new LocalLockNode[lockNR];
         for (size_t k = 0; k < lockNR; ++k) {
@@ -1249,8 +1249,8 @@ inline bool Tree::acquire_local_lock(GlobalAddress lock_addr, CoroContext *cxt,
   #endif
 
   #ifdef LITL
-  litl_lock llock = litl_locks[lock_addr.offset / 8];
-  pthread_mutex_lock((pthread_mutex_t *) &llock);
+  // LitlLock llock = litl_locks[lock_addr.offset / 8];
+  pthread_mutex_lock((pthread_mutex_t *) &node.litl_lock);
   // uint64_t lock_val = node.ticket_lock.fetch_add(-1);
   node.ticket_lock.fetch_add(-1, std::memory_order_acq_rel);
   node.hand_time++;
@@ -1285,14 +1285,14 @@ inline bool Tree::can_hand_over(GlobalAddress lock_addr) {
 }
 
 inline void Tree::releases_local_lock(GlobalAddress lock_addr) {
-  #ifdef SHERMAN_LOCK
   auto &node = local_locks[lock_addr.nodeID][lock_addr.offset / 8];
+  #ifdef SHERMAN_LOCK
   node.ticket_lock.fetch_add((1ull << 32));
   #endif
 
   #ifdef LITL
-  litl_lock llock = litl_locks[lock_addr.offset / 8];
-  pthread_mutex_unlock((pthread_mutex_t *) &llock);
+  // LitlLock llock = litl_locks[lock_addr.offset / 8];
+  pthread_mutex_unlock((pthread_mutex_t *) &node.litl_lock);
   #endif
 
   save_measurement(threadID, measurements.lwait_rel);

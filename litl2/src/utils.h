@@ -127,8 +127,8 @@ extern "C" {
 #define BO (1 << 9)
 #define MAX_BO ((1 << 24) - 1)
 
-#define MAX_THREADS 128
-#define MAX_CLIENTS 12
+#define MAX_THREADS 128 
+#define MAX_CLIENTS 8
 #define MAX_MEASUREMENTS 10
 #define NUM_MEASUREMENTS 10
 #define IDX_NONCYCLE_MEASURES 9
@@ -241,7 +241,6 @@ typedef struct {
 } task_t __attribute__ ((aligned (CACHELINE_SIZE)));
 
 typedef struct {
-    volatile int* stop;
     pthread_t thread;
     char disa;
     uint64_t lock_acqs;

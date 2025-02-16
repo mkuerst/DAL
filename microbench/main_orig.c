@@ -11,7 +11,7 @@
 #include <sys/resource.h>
 #include "rdtsc.h"
 #include "lock.h"
-#include <utils.h>
+#include utils.h>
 #include <tcp_client.c>
 
 #define gettid() syscall(SYS_gettid)

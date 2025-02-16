@@ -7,9 +7,15 @@
 #include <functional>
 #include <iostream>
 #include "mb_utils.h"
+#include <pthread.h>
 
 class IndexCache;
 
+// struct alignas(CACHELINE_SIZE) LitlLock {
+//     pthread_mutex_t mutex;
+//     uint64_t safe1, safe2;
+//     char disa = 'y';
+// };
 // struct alignas(CACHELINE_SIZE) LocalLockNode {
 //     pthread_mutex_t mutex;
 //     uint64_t safe1, safe2;
@@ -18,17 +24,19 @@ class IndexCache;
 //     bool hand_over;
 //     uint8_t hand_time;
 // };
-struct LocalLockNode {
-    std::atomic<uint64_t> ticket_lock;
-    bool hand_over;
-    uint8_t hand_time;
-};
-
-struct alignas(CACHELINE_SIZE) litl_lock {
+struct alignas(CACHELINE_SIZE) LitlLock {
     pthread_mutex_t mutex;
     uint64_t safe1, safe2;
     char disa = 'y';
 };
+
+struct LocalLockNode {
+    std::atomic<uint64_t> ticket_lock;
+    bool hand_over;
+    uint8_t hand_time;
+    LitlLock litl_lock;
+};
+
 
 struct Measurements {
     uint16_t *lock_hold;
@@ -114,7 +122,7 @@ private:
     static thread_local CoroCall master;
 
     LocalLockNode *local_locks[MAX_MACHINE];
-    litl_lock *litl_locks;
+    LitlLock *litl_locks;
 
     IndexCache *index_cache;
 
