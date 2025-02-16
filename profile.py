@@ -44,7 +44,7 @@ pc.defineParameter("osServerImage", "Select OS image for server",
                    imageList2[0], imageList2)
 
 pc.defineParameter("nfsSize", "Size of NFS Storage",
-                   portal.ParameterType.STRING, "40GB",
+                   portal.ParameterType.STRING, "20GB",
                    longDescription="Size of disk partition to allocate on NFS server")
 
 pc.defineParameter("hardware", "Node HW",

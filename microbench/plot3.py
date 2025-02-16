@@ -120,7 +120,7 @@ plot_MC_rlocks(
                 lat_ecs_inc = [["gwait_acq", "gwait_rel"]],
                 lat_ml_inc = [["lwait_acq"], ["lwait_acq", "gwait_acq", "gwait_rel"], ["data_read", "data_write", "lock_hold"]],
                 cnNRs=[1, 4], 
-                lockNRs=[256], 
+                lockNRs=[512], 
                 threadNRs=32,
                 log=[1,1,0],
                 )

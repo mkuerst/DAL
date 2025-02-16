@@ -30,6 +30,7 @@ public:
   uint16_t getMyThreadID() { return thread_id; }
   uint16_t getClusterSize() { return conf.machineNR; }
   uint64_t getThreadTag() { return thread_tag; }
+  uint64_t getDsmSize() { return conf.dsmSize * define::GB; }
 
   // RDMA operations
   // buffer is registered memory

@@ -6,6 +6,17 @@
 #ifndef DEBUG_HEADER
 #define DEBUG_HEADER
 
+#ifdef DEB
+#undef DEB
+#define DEB(msg, ...) do {\
+    char host[HOST_NAME_MAX];\
+    gethostname(host, sizeof(host));\
+    fprintf(stderr, "%s : %s : %d : " msg, host, __FILE__, __LINE__, ##__VA_ARGS__);\
+} while(0)
+#else
+#define DEB(...)
+#endif
+
 /** Included files. **/
 #include <stdio.h>                      /* Standard I/O operations. E.g. vprintf() */
 #include <stdarg.h>                     /* Standard argument operations. E.g. va_list */

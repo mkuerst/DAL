@@ -142,7 +142,7 @@ void DSM::read(char *buffer, GlobalAddress gaddr, size_t size, bool signal,
              remoteInfo[gaddr.nodeID].dsmBase + gaddr.offset, size,
              iCon->cacheLKey, remoteInfo[gaddr.nodeID].dsmRKey[0], true,
              ctx->coro_id);
-    // (*ctx->yield)(*ctx->master);
+    (*ctx->yield)(*ctx->master);
   }
 }
 
@@ -168,7 +168,7 @@ void DSM::write(const char *buffer, GlobalAddress gaddr, size_t size,
               remoteInfo[gaddr.nodeID].dsmBase + gaddr.offset, size,
               iCon->cacheLKey, remoteInfo[gaddr.nodeID].dsmRKey[0], -1, true,
               ctx->coro_id);
-    // (*ctx->yield)(*ctx->master);
+    (*ctx->yield)(*ctx->master);
   }
 }
 
@@ -208,7 +208,7 @@ void DSM::write_batch(RdmaOpRegion *rs, int k, bool signal, CoroContext *ctx) {
     rdmaWriteBatch(iCon->data[0][node_id], rs, k, signal);
   } else {
     rdmaWriteBatch(iCon->data[0][node_id], rs, k, true, ctx->coro_id);
-    // (*ctx->yield)(*ctx->master);
+    (*ctx->yield)(*ctx->master);
   }
 }
 
@@ -242,7 +242,7 @@ void DSM::write_faa(RdmaOpRegion &write_ror, RdmaOpRegion &faa_ror,
   } else {
     rdmaWriteFaa(iCon->data[0][node_id], write_ror, faa_ror, add_val, true,
                  ctx->coro_id);
-    // (*ctx->yield)(*ctx->master);
+    (*ctx->yield)(*ctx->master);
   }
 }
 void DSM::write_faa_sync(RdmaOpRegion &write_ror, RdmaOpRegion &faa_ror,
@@ -277,7 +277,7 @@ void DSM::write_cas(RdmaOpRegion &write_ror, RdmaOpRegion &cas_ror,
   } else {
     rdmaWriteCas(iCon->data[0][node_id], write_ror, cas_ror, equal, val, true,
                  ctx->coro_id);
-    // (*ctx->yield)(*ctx->master);
+    (*ctx->yield)(*ctx->master);
   }
 }
 void DSM::write_cas_sync(RdmaOpRegion &write_ror, RdmaOpRegion &cas_ror,
@@ -311,7 +311,7 @@ void DSM::cas_read(RdmaOpRegion &cas_ror, RdmaOpRegion &read_ror,
   } else {
     rdmaCasRead(iCon->data[0][node_id], cas_ror, read_ror, equal, val, true,
                 ctx->coro_id);
-    // (*ctx->yield)(*ctx->master);
+    (*ctx->yield)(*ctx->master);
   }
 }
 
@@ -340,7 +340,7 @@ void DSM::cas(GlobalAddress gaddr, uint64_t equal, uint64_t val,
                        remoteInfo[gaddr.nodeID].dsmBase + gaddr.offset, equal,
                        val, iCon->cacheLKey,
                        remoteInfo[gaddr.nodeID].dsmRKey[0], true, ctx->coro_id);
-    // (*ctx->yield)(*ctx->master);
+    (*ctx->yield)(*ctx->master);
   }
 }
 
@@ -387,7 +387,7 @@ void DSM::faa_boundary(GlobalAddress gaddr, uint64_t add_val,
                             add_val, iCon->cacheLKey,
                             remoteInfo[gaddr.nodeID].dsmRKey[0], mask, true,
                             ctx->coro_id);
-    // (*ctx->yield)(*ctx->master);
+    (*ctx->yield)(*ctx->master);
   }
 }
 
@@ -413,7 +413,7 @@ void DSM::read_dm(char *buffer, GlobalAddress gaddr, size_t size, bool signal,
              remoteInfo[gaddr.nodeID].lockBase + gaddr.offset, size,
              iCon->cacheLKey, remoteInfo[gaddr.nodeID].lockRKey[0], true,
              ctx->coro_id);
-    // (*ctx->yield)(*ctx->master);
+    (*ctx->yield)(*ctx->master);
   }
 }
 
@@ -439,7 +439,7 @@ void DSM::write_dm(const char *buffer, GlobalAddress gaddr, size_t size,
               remoteInfo[gaddr.nodeID].lockBase + gaddr.offset, size,
               iCon->cacheLKey, remoteInfo[gaddr.nodeID].lockRKey[0], -1, true,
               ctx->coro_id);
-    // (*ctx->yield)(*ctx->master);
+    (*ctx->yield)(*ctx->master);
   }
 }
 
@@ -467,7 +467,7 @@ void DSM::cas_dm(GlobalAddress gaddr, uint64_t equal, uint64_t val,
                        val, iCon->cacheLKey,
                        remoteInfo[gaddr.nodeID].lockRKey[0], true,
                        ctx->coro_id);
-    // (*ctx->yield)(*ctx->master);
+    (*ctx->yield)(*ctx->master);
   }
 }
 
@@ -515,7 +515,7 @@ void DSM::faa_dm_boundary(GlobalAddress gaddr, uint64_t add_val,
                             add_val, iCon->cacheLKey,
                             remoteInfo[gaddr.nodeID].lockRKey[0], mask, true,
                             ctx->coro_id);
-    // (*ctx->yield)(*ctx->master);
+    (*ctx->yield)(*ctx->master);
   }
 }
 

@@ -140,12 +140,15 @@ void *empty_cs_worker(void *arg) {
     dsm->registerThread(page_size);
     rlock->set_threadID(dsm->getMyThreadID());
     GlobalAddress baseAddr;
+    GlobalAddress lockAddr;
     baseAddr.nodeID = 0;
     baseAddr.offset = 0;
+    lockAddr.nodeID = 0;
+    lockAddr.offset = 0;
 
     pthread_barrier_wait(&global_barrier);
     while (!stop.load()) {
-        rlock->mb_lock(baseAddr, 0);
+        rlock->mb_lock(baseAddr, lockAddr, 0);
         task->lock_acqs++;
         rlock->mb_unlock(baseAddr, 0);
     }
@@ -161,24 +164,24 @@ void *mlocks_worker(void *arg) {
     dsm->registerThread(page_size);
     int id = dsm->getMyThreadID();
     rlock->set_threadID(id);
+
     GlobalAddress baseAddr;
+    GlobalAddress lockAddr;
     baseAddr.nodeID = 0;
     baseAddr.offset = 0;
+    lockAddr.nodeID = 0;
+    lockAddr.offset = 0;
+
     int *private_int_array = task->private_int_array;
     uint64_t *long_data;
     int lock_idx = 0;
-    uint64_t range = (GB(config.dsmSize) - page_size) / page_size;
-    volatile int sum = 1;
-    // int data_len = dsm->get_rbuf(0).getkPageSize() / sizeof(uint64_t);
+    uint64_t range = rlock->getLockNR()-1;
+    uint64_t chunk_size = GB(dsmSize) / rlock->getLockNR();
+    int sum = 1;
     int data_len = page_size / sizeof(uint64_t);
     uint64_t seed = nodeID*threadNR + id + 42;
     srand(seed);
-    // struct zipf_gen_state state;
-    // mehcached_zipf_init(&state, range, zipfan,
-    //                     (rdtsc() & (0x0000ffffffffffffull)) ^ id);
-
     ZipfianGenerator zipfian(1.2, range, seed);
-
 
     pthread_barrier_wait(&global_barrier);
 
@@ -190,33 +193,24 @@ void *mlocks_worker(void *arg) {
         for (int j = 0; j < 100; j++) {
             if (stop.load())
                 break;
-            uint64_t data_idx;
+            // uint64_t data_idx;
             if (use_zipfan) {
-                // data_idx = mehcached_zipf_next(&state);
-                data_idx = zipfian.generate();
-                if (data_idx > range) {
-                    _error("ZIPFIAN GENERATED DATA_IDX TOO LARGE\n");
-                }
+                lock_idx = zipfian.generate();
             }
             else {
-                data_idx = (uint64_t) uniform_rand_int(range);
+                lock_idx = (uint64_t) uniform_rand_int(range);
             }
-            baseAddr.offset = data_idx * page_size;
-            rlock->mb_lock(baseAddr, page_size);
-            lock_idx = rlock->getCurrLockAddr().offset / sizeof(uint64_t);
+            baseAddr.offset = chunk_size * lock_idx;
+            lockAddr.offset = lock_idx * sizeof(uint64_t);
+            rlock->mb_lock(baseAddr, lockAddr, page_size);
+            // lock_idx = rlock->getCurrLockAddr().offset / sizeof(uint64_t);
             lock_acqs[lock_idx]++;
             task->lock_acqs++;
             measurements.loop_in_cs[id]++;
 
             timer.begin();
             long_data = (uint64_t *) rlock->getCurrPB();
-            // long_data[0]++;
-            // for (int k = 0; k < data_len; k++) {
-            //     sum += long_data[k];
-            // }
-            // long_data[0]++;
             for (int k = 0; k < data_len; k++) {
-                // fprintf(stderr, "%ld\n", long_data[k]);
                 long_data[k] += 1;
                 task->inc++;
             }
@@ -274,6 +268,13 @@ int main(int argc, char *argv[]) {
     pthread_attr_init(&attr);
     pthread_barrier_init(&global_barrier, NULL, threadNR+1);
 
+    /*LOCK INIT*/
+    rlock = new Tree(dsm, 0, define::kNumOfLock, true);
+    lock_acqs = new uint64_t[define::kNumOfLock];
+    lock_rels = new uint64_t[define::kNumOfLock];
+    memset(lock_acqs, 0, lockNR*sizeof(uint64_t));
+    memset(lock_rels, 0, lockNR*sizeof(uint64_t));
+
     /*TASK INIT*/
     Task *tasks = new Task[threadNR];
     measurements.duration = duration;
@@ -283,12 +284,6 @@ int main(int argc, char *argv[]) {
         pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
     }
     
-    /*LOCK INIT*/
-    rlock = new Tree(dsm, 0, define::kNumOfLock, true);
-    lock_acqs = new uint64_t[lockNR];
-    lock_rels = new uint64_t[lockNR];
-    memset(lock_acqs, 0, lockNR*sizeof(uint64_t));
-    memset(lock_rels, 0, lockNR*sizeof(uint64_t));
 
     /*RUN*/
     dsm->barrier("MB_BEGIN");

@@ -101,12 +101,13 @@ public:
     void clear_statistics();
 
     /*ADDED*/
-    void mb_lock(GlobalAddress base_addr, int data_size);
+    void mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_size);
     void mb_unlock(GlobalAddress base_addr, int data_size);
     char *getCurrPB() { return curr_page_buffer; }
     GlobalAddress getCurrLockAddr() { return curr_lock_addr; }
     void setKPageSize(int page_size); 
     void set_threadID(int id);
+    uint32_t getLockNR() { return lockNR; }
     /**/
 
 private:
