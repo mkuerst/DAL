@@ -21,6 +21,10 @@ set(COMMON_SRC ${PROJECT_SOURCE_DIR}/src)
 
 file(GLOB_RECURSE COMMON_FILE ${COMMON_SRC}/*.cpp)
 
+#################################################################################################################
+#################################################################################################################
+#################################################################################################################
+
 # SHERMAN_LOCK
 add_library(sherman_shermanLock STATIC ${COMMON_FILE})
 target_compile_definitions(sherman_shermanLock PRIVATE -DSHERMAN_LOCK)
@@ -33,11 +37,21 @@ target_compile_definitions(sherman_shermanHo PRIVATE -DSHERMAN_LOCK -DHANDOVER)
 set_target_properties(sherman_shermanHo PROPERTIES OUTPUT_NAME "sherman_shermanHo")
 link_libraries(sherman_shermanHo)
 
+# SHERMAN HOD
+add_library(sherman_shermanHod STATIC ${COMMON_FILE})
+target_compile_definitions(sherman_shermanHod PRIVATE -DSHERMAN_LCOK -DHANDOVER -DHANDOVER_DATA)
+set_target_properties(sherman_shermanHod PROPERTIES OUTPUT_NAME "sherman_shermanHod")
+link_libraries(sherman_shermanHod)
+
 # ORIGINAL SHERMAN W/ OPTS
 add_library(sherman STATIC ${COMMON_FILE})
 target_compile_definitions(sherman PRIVATE -DSHERMAN_LOCK -DHANDOVER -DON_CHIP -DBATCHED_WRITEBACK)
 set_target_properties(sherman PROPERTIES OUTPUT_NAME "sherman")
 link_libraries(sherman)
+
+#################################################################################################################
+#################################################################################################################
+#################################################################################################################
 
 # LITL
 add_library(sherman_litl STATIC ${COMMON_FILE})
@@ -52,12 +66,21 @@ target_compile_definitions(sherman_litlHo PRIVATE -DLITL -DHANDOVER)
 set_target_properties(sherman_litlHo PROPERTIES OUTPUT_NAME "sherman_litlHo")
 link_libraries(sherman_litlHo)
 
+# LITL HOD
+add_library(sherman_litlHod STATIC ${COMMON_FILE})
+target_compile_definitions(sherman_litlHod PRIVATE -DLITL -DHANDOVER -DHANDOVER_DATA)
+set_target_properties(sherman_litlHod PROPERTIES OUTPUT_NAME "sherman_litlHod")
+link_libraries(sherman_litlHod)
+
 # LITL HO OCM BW
 add_library(sherman_litlHoOcmBw STATIC ${COMMON_FILE})
 target_compile_definitions(sherman_litlHoOcmBw PRIVATE -DLITL -DHANDOVER -DON_CHIP -DBATCHED_WRITEBACK)
 set_target_properties(sherman_litlHoOcmBw PROPERTIES OUTPUT_NAME "sherman_litlHoOcmBw")
 link_libraries(sherman_litlHoOcmBw)
 
+#################################################################################################################
+#################################################################################################################
+#################################################################################################################
 
 file(GLOB TEST_SRC ${PROJECT_SOURCE_DIR}/test/*.cpp)
 foreach (TEST ${TEST_SRC})

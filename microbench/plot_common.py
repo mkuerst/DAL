@@ -22,10 +22,13 @@ OPTS =  [
 OPT_TO_NAME = {
 "litl": "", 
 "litlHo": "Ho",
+"litlHod": "Hod",
 "litlHoOcmBw": "HoOcmBw",
-"sherman": "HoOcmBw",
-"shermanHo": "Ho",
+
 "shermanLock": "",
+"shermanHo": "Ho",
+"shermanHod": "Hod",
+"sherman": "HoOcmBw",
 }
     
 COMM_PROTOCOLS = ["rdma"]

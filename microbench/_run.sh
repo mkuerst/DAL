@@ -55,14 +55,14 @@ server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
 comm_prot=rdma
 
 # MICROBENCH INPUTS
-opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
-# opts=("litl")
+# opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
+opts=("litlHoOcmBw")
 microbenches=("empty_cs" "mlocks" "correctness")
 duration=10
 runNR=3
 mnNR=1
 zipfan=1
-nodeNRs=(2 5)
+nodeNRs=(5)
 threadNRs=(32)
 lockNRs=(512)
 bench_idxs=(1)
