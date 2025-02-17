@@ -22,6 +22,7 @@ using namespace std;
 char *res_file_tp, *res_file_lat;
 int threadNR, nodeNR, mnNR, lockNR, runNR,
 nodeID, duration, mode;
+int pinning = 1;
 
 uint64_t dsmSize = 8;
 uint64_t page_size = KB(1);
@@ -43,29 +44,6 @@ uint64_t latency_th_all[LATENCY_WINDOWS];
 
 extern Measurements measurements;
 
-// SAME NUMA NODES
-constexpr int thread_to_cpu[64] = {
-    0,  1,  2,  3,  4,  5,  6,  7,
-    8,  9, 10, 11, 12, 13, 14, 15,
-    16, 17, 18, 19, 20, 21, 22, 23,
-    24, 25, 26, 27, 28, 29, 30, 31,
-    64, 65, 66, 67, 68, 69, 70, 71,
-    72, 73, 74, 75, 76, 77, 78, 79,
-    80, 81, 82, 83, 84, 85, 86, 87,
-    88, 89, 90, 91, 92, 93, 94, 95
-};
-
-// DIFFERENT NUMA NODES
-// constexpr int thread_to_cpu[64] = {
-//     0,  32,  1,  33,  2,  34,  3,  35,
-//     4,  36,  5,  37,  6,  38,  7,  39,
-//     8,  40,  9,  41, 10,  42, 11,  43,
-//     12, 44, 13,  45, 14,  46, 15,  47,
-//     16, 48, 17,  49, 18,  50, 19,  51,
-//     20, 52, 21,  53, 22,  54, 23,  55,
-//     24, 56, 25,  57, 26,  58, 27,  59,
-//     28, 60, 29,  61, 30,  62, 31,  63
-// };
 
 inline Key to_key(uint64_t k) {
   return (CityHash64((char *)&k, sizeof(k)) + 1) % kKeySpace;
@@ -135,7 +113,12 @@ std::atomic_bool done{false};
 
 void *thread_run(void *arg) {
     Task *task = (Task *) arg;
-    bindCore(thread_to_cpu[task->id]);
+    if (pinning == 1) {
+        bindCore(thread_to_cpu_1n[task->id]);
+    }
+    else {
+        bindCore(thread_to_cpu_2n[task->id]);
+    }
     dsm->registerThread();
     int id = dsm->getMyThreadID();
     tree->set_threadID(id);
@@ -207,8 +190,9 @@ void *thread_run(void *arg) {
 int main(int argc, char *argv[]) {
     parse_cli_args(
     &threadNR, &nodeNR, &mnNR, &lockNR, &runNR,
-    &nodeID, &duration, &mode, &use_zipfan, &kReadRatio,
-    &res_file_tp, &res_file_lat,
+    &nodeID, &duration, &mode, &use_zipfan, 
+    &kReadRatio, &pinning,
+    &res_file_tp, &res_file_lat, 
     argc, argv);
     DE("HI\n");
     if (nodeID == 1) {
