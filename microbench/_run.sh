@@ -36,7 +36,7 @@ pthread_so="$PWD/../litl2/lib/original/libpthreadinterpose_original.so"
 
 cn_tp_header="tid,\
 loop_in_cs,lock_acquires,duration,\
-glock_tries,array_size(B),nodeID,run,lockNR"
+glock_tries,handovers,array_size(B),nodeID,run,lockNR"
 
 cn_lat_header="lock_hold,\
 lwait_acq,\
@@ -55,8 +55,8 @@ server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
 comm_prot=rdma
 
 # MICROBENCH INPUTS
-opts=("litl" "litlHo" "litlHoOcmBw")
-# opts=("sherman")
+opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
+# opts=("litl")
 microbenches=("empty_cs" "mlocks" "correctness")
 duration=10
 runNR=3

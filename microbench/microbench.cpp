@@ -129,9 +129,11 @@ void mn_worker() {
             DE("MN CORRECTNESS PASSED!\n");
         }
     #endif
+    dsm->stopDirThread();
+    sleep(3);
     fprintf(stderr, "MN [%d] finished\n", nodeID);
     free_measurements();
-    // dsm->free_dsm();
+    dsm->free_dsm();
     dsm->barrier("fin");
 }
 

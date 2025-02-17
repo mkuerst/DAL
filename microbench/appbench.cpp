@@ -78,11 +78,11 @@ void mn_worker() {
     memcpy(val, &num, sizeof(uint64_t));
 
     dsm->get_DSMKeeper()->memSet(ck.c_str(), ck.size(), val, sizeof(uint64_t));
-    for (uint64_t i = 1; i < 1024000; ++i) {
-        tree->insert(to_key(i), i * 2);
-    }
+    // for (uint64_t i = 1; i < 1024000; ++i) {
+    //     tree->insert(to_key(i), i * 2);
+    // }
     dsm->barrier("benchmark");
-    dsm->resetThread();
+    // dsm->resetThread();
     dsm->barrier("warm_finish");
 
     for (int n = 0; n < nodeNR; n++) {
@@ -229,12 +229,12 @@ int main(int argc, char *argv[]) {
     DE("DSM INIT DONE: DSM NODE %d\n", nodeID);
 
     /*MN*/
-    dsm->registerThread();
-    tree = new Tree(dsm, 0, define::kNumOfLock, false);
     if (nodeID < mnNR) {
         mn_worker();
         return 0;
     }
+    dsm->registerThread();
+    tree = new Tree(dsm, 0, define::kNumOfLock, false);
 
     dsm->barrier("benchmark");
     dsm->resetThread();

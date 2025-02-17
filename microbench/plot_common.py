@@ -50,6 +50,7 @@ TP_COLS = [
 "lock_acquires",
 "duration",
 "glock_tries",
+"handovers",
 "array_size",
 "nodeID",
 "run",

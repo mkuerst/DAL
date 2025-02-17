@@ -34,6 +34,7 @@ struct LocalLockNode {
     std::atomic<uint64_t> ticket_lock;
     bool hand_over;
     uint8_t hand_time;
+    char *page_buffer = nullptr;
     LitlLock litl_lock;
 };
 
@@ -49,6 +50,7 @@ struct Measurements {
     uint64_t loop_in_cs[MAX_APP_THREAD];
     uint64_t lock_acquires[MAX_APP_THREAD];
     uint64_t glock_tries[MAX_APP_THREAD];
+    uint64_t handovers[MAX_APP_THREAD];
     uint64_t duration;
 };
 

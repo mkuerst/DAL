@@ -18,6 +18,7 @@ public:
 
   ~Directory();
   std::atomic_bool stopDirThread{false};
+  DirectoryConnection *getDCon() { return dCon; }
 
 private:
   DirectoryConnection *dCon;
