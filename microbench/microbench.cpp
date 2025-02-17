@@ -105,6 +105,7 @@ class ZipfianGenerator {
 
 void mn_worker() {
     DE("I AM A MN\n");
+    // dsm->resetThread();
     char val[sizeof(uint64_t)];
     uint64_t num = 0;
     memcpy(val, &num, sizeof(uint64_t));
@@ -129,8 +130,8 @@ void mn_worker() {
         }
     #endif
     fprintf(stderr, "MN [%d] finished\n", nodeID);
-    dsm->free_dsm();
     free_measurements();
+    // dsm->free_dsm();
     dsm->barrier("fin");
 }
 
@@ -164,6 +165,7 @@ void *mlocks_worker(void *arg) {
     dsm->registerThread(page_size);
     int id = dsm->getMyThreadID();
     rlock->set_threadID(id);
+    // fprintf(stderr, "MLOCKS THREAD [%d.%d]\n", dsm->getMyNodeID(), dsm->getMyThreadID());
 
     GlobalAddress baseAddr;
     GlobalAddress lockAddr;
@@ -248,6 +250,7 @@ int main(int argc, char *argv[]) {
     // config.clusterID = nodeID;
     dsm = DSM::getInstance(config);
     nodeID = dsm->getMyNodeID();
+    // dsm->registerThread();
     DE("DSM INIT DONE: DSM NODE %d\n", nodeID);
 
     /*MN*/
@@ -270,6 +273,7 @@ int main(int argc, char *argv[]) {
 
     /*LOCK INIT*/
     rlock = new Tree(dsm, 0, define::kNumOfLock, true);
+    // dsm->resetThread();
     lock_acqs = new uint64_t[define::kNumOfLock];
     lock_rels = new uint64_t[define::kNumOfLock];
     memset(lock_acqs, 0, lockNR*sizeof(uint64_t));

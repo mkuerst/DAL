@@ -32,6 +32,7 @@ void Directory::dirThread() {
 
   while (true) {
     struct ibv_wc wc;
+
     pollWithCQ(dCon->cq, 1, &wc);
 
     switch (int(wc.opcode)) {

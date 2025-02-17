@@ -576,6 +576,10 @@ int pthread_spin_init(pthread_spinlock_t *spin,
     if (init_spinlock != 2) {
         REAL(interpose_init)();
     }
+    llock_t *llock = (llock_t *) spin;
+    if (llock->disa != 'y') {
+        return REAL(pthread_spin_init)(spin, pshared);
+    }
 
 #if !NO_INDIRECTION
     ht_lock_create((void*)spin, NULL);
@@ -603,6 +607,10 @@ int pthread_spin_destroy(pthread_spinlock_t *spin) {
 
 int pthread_spin_lock(pthread_spinlock_t *spin) {
     DEBUG_PTHREAD("[p] pthread_spin_lock\n");
+    llock_t *llock = (llock_t *) spin;
+    if (llock->disa != 'y') {
+        return REAL(pthread_spin_lock)(spin);
+    }
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get((void*)spin);
     return lock_mutex_lock(impl->lock_lock, get_node(impl));
@@ -613,6 +621,10 @@ int pthread_spin_lock(pthread_spinlock_t *spin) {
 
 int pthread_spin_trylock(pthread_spinlock_t *spin) {
     DEBUG_PTHREAD("[p] pthread_spin_trylock\n");
+    llock_t *llock = (llock_t *) spin;
+    if (llock->disa != 'y') {
+        return REAL(pthread_spin_trylock)(spin);
+    }
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get((void*)spin);
     return lock_mutex_trylock(impl->lock_lock, get_node(impl));
@@ -623,6 +635,10 @@ int pthread_spin_trylock(pthread_spinlock_t *spin) {
 
 int pthread_spin_unlock(pthread_spinlock_t *spin) {
     DEBUG_PTHREAD("[p] pthread_spin_unlock\n");
+    llock_t *llock = (llock_t *) spin;
+    if (llock->disa != 'y') {
+        return REAL(pthread_spin_unlock)(spin);
+    }
 #if !NO_INDIRECTION
     lock_transparent_mutex_t *impl = ht_lock_get((void*)spin);
     lock_mutex_unlock(impl->lock_lock, get_node(impl));

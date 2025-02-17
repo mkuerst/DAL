@@ -17,6 +17,7 @@ public:
             uint32_t machineNR, uint16_t dirID, uint16_t nodeID);
 
   ~Directory();
+  std::atomic_bool stopDirThread{false};
 
 private:
   DirectoryConnection *dCon;

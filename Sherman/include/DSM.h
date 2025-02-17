@@ -11,6 +11,7 @@
 #include "GlobalAddress.h"
 #include "LocalAllocator.h"
 #include "RdmaBuffer.h"
+#include "Directory.h"
 
 class DSMKeeper;
 class Directory;
@@ -180,6 +181,7 @@ public:
   RdmaBuffer &get_rbuf(int coro_id) { return rbuf[coro_id]; }
   uint64_t get_baseAddr() { return baseAddr; }
   uint64_t get_rlockAddr() { return rlockAddr; }
+  void stopDirThread() { dirAgent[0]->stopDirThread.store(true); }
 
   GlobalAddress alloc(size_t size);
   void free(GlobalAddress addr);

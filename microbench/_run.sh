@@ -20,15 +20,6 @@ cleanup() {
 trap 'SIGNAL_CAUGHT=1; cleanup 1' SIGINT SIGTERM SIGHUP
 cleanup
 
-# START=1
-# END=5
-# for i in $(seq $START $END); do
-#     NODE="node$i"
-#     echo "Connecting to $NODE..."
-#     yes "yes" | sudo ssh root@$NODE "exit"
-
-# done
-
 SSH_OPTIONS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 
 # PATHS
@@ -64,7 +55,7 @@ server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
 comm_prot=rdma
 
 # MICROBENCH INPUTS
-opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
+opts=("litl" "litlHo" "litlHoOcmBw")
 # opts=("sherman")
 microbenches=("empty_cs" "mlocks" "correctness")
 duration=10

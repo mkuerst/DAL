@@ -1241,8 +1241,8 @@ inline bool Tree::acquire_local_lock(GlobalAddress lock_addr, CoroContext *cxt,
                                      int coro_id) {
 
   auto &node = local_locks[lock_addr.nodeID][lock_addr.offset / 8];
-  #ifdef SHERMAN_LOCK
   uint64_t lock_val = node.ticket_lock.fetch_add(1);
+  #ifdef SHERMAN_LOCK
   uint32_t ticket = lock_val << 32 >> 32;
   uint32_t current = lock_val >> 32;
 
@@ -1261,9 +1261,9 @@ inline bool Tree::acquire_local_lock(GlobalAddress lock_addr, CoroContext *cxt,
   #endif
 
   #ifdef LITL
-  node.ticket_lock.fetch_add(1, std::memory_order_acq_rel);
+  // node.ticket_lock.fetch_add(1, std::memory_order_acq_rel);
   pthread_mutex_lock((pthread_mutex_t *) &node.litl_lock);
-  node.ticket_lock.fetch_add(-1, std::memory_order_acq_rel);
+  node.ticket_lock.fetch_add(-1);
   node.hand_time++;
 
   #endif
@@ -1291,7 +1291,7 @@ inline bool Tree::can_hand_over(GlobalAddress lock_addr) {
   return node.hand_over;
   #endif
 
-  bool hand_over_other = node.ticket_lock.load(std::memory_order_acquire) > 0 && node.hand_time < define::kMaxHandOverTime;
+  bool hand_over_other = node.ticket_lock.load(std::memory_order_relaxed) > 0 && node.hand_time < define::kMaxHandOverTime;
   return node.hand_over;
 }
 
@@ -1349,6 +1349,7 @@ void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_si
 	get_bufs();
 	auto tag = dsm->getThreadTag();
 	assert(tag != 0);
+  assert(tag >> 32 != 0);
 
 	try_lock_addr(curr_lock_addr, tag, curr_cas_buffer, NULL, 0);
 	measurements.lock_acquires[threadID]++;

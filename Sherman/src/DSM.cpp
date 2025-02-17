@@ -62,18 +62,58 @@ DSM::DSM(const DSMConfig &conf)
 DSM::~DSM() {}
 
 void DSM::free_dsm() {
-  if (myNodeID < MEMORY_NODE_NUM) {
-      if (ibv_dereg_mr(dirCon[myNodeID]->dsmMR) != 0) {
-        perror("ibv_dereg_mr failed");
-      }
-  }
-  for (int i = 0; i < MAX_APP_THREAD; i++) {
-      if (ibv_dereg_mr(thCon[i]->cacheMR) != 0) {
-        perror("ibv_dereg_mr failed");
-      }
-  }
   munmap((void*)baseAddr, conf.dsmSize * define::GB);
   munmap((void*)cache.data, cache.size * define::GB);
+
+  if (myNodeID < MEMORY_NODE_NUM) {
+    if (ibv_dereg_mr(dirCon[myNodeID]->dsmMR)) {
+      perror("ibv_dereg_mr failed");
+    }
+    // for (int i = 0; i < MAX_APP_THREAD; ++i) {
+    //   for (size_t k = 0; k < conf.machineNR; ++k) {
+    //     if (ibv_destroy_qp(dirCon[myNodeID]->data2app[i][k])) {
+    //       Debug::notifyError("ibv_destroy_qp dirCon[%d] failed\n", myNodeID);
+    //     }
+    //   }
+    // }
+    if (dirCon[myNodeID]->ctx.pd) {
+      if (ibv_dealloc_pd(dirCon[myNodeID]->ctx.pd)) {
+        Debug::notifyError("Failed to deallocate PD dirCon[%d]", myNodeID);
+      }
+    }
+    if (dirCon[myNodeID]->ctx.ctx) {
+      if (ibv_close_device(dirCon[myNodeID]->ctx.ctx)) {
+        Debug::notifyError("failed to close device context dirCon[%d]", myNodeID);
+      }
+    }
+  }
+
+  else {
+    for (int i = 0; i < MAX_APP_THREAD; ++i) {
+      if (ibv_dereg_mr(thCon[i]->cacheMR)) {
+        Debug::notifyError("ibv_dereg_mr failed thCon[%d]->cacheMR", i);
+      }
+      // for (int j = 0; j < NR_DIRECTORY; ++j) {
+      //   for (size_t k = 0; k < conf.machineNR; ++k) {
+      //     if (thCon[i]->data[j][k]) {
+      //       if (ibv_destroy_qp(thCon[i]->data[j][k])) {
+      //         Debug::notifyError("ibv_destroy_qp thCon[%d] failed\n", i);
+      //       }
+      //     }
+      //   }
+      // }
+      // if (thCon[i]->ctx.pd) {
+      //   if (ibv_dealloc_pd(thCon[i]->ctx.pd)) {
+      //     Debug::notifyError("Failed to deallocate PD for thCon %d", i);
+      //   }
+      // }
+      if (thCon[i]->ctx.ctx) {
+        if (ibv_close_device(thCon[i]->ctx.ctx)) {
+          Debug::notifyError("failed to close device context for thCon %d", i);
+        }
+      }
+    }
+  }
 }
 
 void DSM::registerThread(int page_size) {
