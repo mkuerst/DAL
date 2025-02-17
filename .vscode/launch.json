@@ -47,7 +47,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/microbench/appbench_sherman",
       "args": [
-        "-t", "4",
+        "-t", "2",
         "-d", "10",
         "-s", "1",
         "-m", "1",
@@ -84,7 +84,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/microbench/appbench_sherman",
       "args": [
-        "-t", "4",
+        "-t", "2",
         "-d", "10",
         "-s", "1",
         "-m", "1",

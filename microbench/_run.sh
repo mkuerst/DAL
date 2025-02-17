@@ -61,11 +61,12 @@ microbenches=("empty_cs" "mlocks" "correctness")
 duration=10
 runNR=3
 mnNR=1
-zipfan=1
+zipfan=0
 nodeNRs=(2 5)
 threadNRs=(32)
 lockNRs=(512)
 bench_idxs=(1)
+pinning=2
 
 sudo rm -rf logs/
 mkdir -p results/plots/
@@ -113,6 +114,7 @@ do
                             -r $run \
                             -s $mnNR \
                             -z $zipfan \
+                            -p $pinning \
                             2>> $log_file"
                             # 2>&1
 
@@ -166,6 +168,7 @@ do
                                 -r $run \
                                 -s $mnNR \
                                 -z $zipfan \
+                                -p $pinning \
                                 2>> $log_file"
                                 # 2>&1"
                                 cleanup
