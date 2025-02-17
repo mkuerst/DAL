@@ -39,7 +39,7 @@ int use_zipfan = 0;
 extern Measurements measurements;
 std::atomic_bool stop{false};
 
-// SAME NUMA NODES
+// SAME NUMA NODE
 // constexpr int thread_to_cpu[64] = {
 //     0,  1,  2,  3,  4,  5,  6,  7,
 //     8,  9, 10, 11, 12, 13, 14, 15,
@@ -129,8 +129,7 @@ void mn_worker() {
             DE("MN CORRECTNESS PASSED!\n");
         }
     #endif
-    dsm->stopDirThread();
-    sleep(3);
+    // dsm->stopDirThread();
     fprintf(stderr, "MN [%d] finished\n", nodeID);
     free_measurements();
     dsm->free_dsm();

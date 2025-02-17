@@ -242,7 +242,9 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
     save_measurement(threadID, measurements.lwait_acq, 1, true);
     DEB("[%d.%d] was handed over the global lock: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_addr.offset);
     measurements.handovers[threadID]++;
-    curr_page_buffer = local_locks[lock_addr.nodeID][lock_addr.offset / 8].page_buffer
+    #ifdef HANDOVER_DATA
+    curr_page_buffer = local_locks[lock_addr.nodeID][lock_addr.offset / 8].page_buffer;
+    #endif
     return true;
   }
   #endif

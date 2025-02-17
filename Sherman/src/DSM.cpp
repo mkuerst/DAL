@@ -102,11 +102,11 @@ void DSM::free_dsm() {
           }
         }
       }
-      // if (thCon[i]->ctx.pd) {
-      //   if (ibv_dealloc_pd(thCon[i]->ctx.pd)) {
-      //     Debug::notifyError("Failed to deallocate PD for thCon %d", i);
-      //   }
-      // }
+      if (thCon[i]->ctx.pd) {
+        if (ibv_dealloc_pd(thCon[i]->ctx.pd)) {
+          Debug::notifyError("Failed to deallocate PD for thCon %d", i);
+        }
+      }
       if (thCon[i]->ctx.ctx) {
         if (ibv_close_device(thCon[i]->ctx.ctx)) {
           Debug::notifyError("failed to close device context for thCon %d", i);
