@@ -45,6 +45,7 @@ gwait_acq,\
 gwait_rel,\
 data_read,\
 data_write,\
+end_to_end,\
 array_size,\
 nodeID,\
 run,\

@@ -437,7 +437,7 @@ void Tree::lock_and_read_page(char *page_buffer, GlobalAddress page_addr,
 }
 
 void Tree::lock_bench(const Key &k, CoroContext *cxt, int coro_id) {
-  uint64_t lock_index = CityHash64((char *)&k, sizeof(k)) % define::kNumOfLock;
+  uint64_t lock_index = CityHash64((char *)&k, sizeof(k)) % lockNR;
 
   GlobalAddress lock_addr;
   lock_addr.nodeID = 0;
@@ -829,7 +829,7 @@ void Tree::internal_page_store(GlobalAddress page_addr, const Key &k,
                                GlobalAddress v, GlobalAddress root, int level,
                                CoroContext *cxt, int coro_id) {
   uint64_t lock_index =
-      CityHash64((char *)&page_addr, sizeof(page_addr)) % define::kNumOfLock;
+      CityHash64((char *)&page_addr, sizeof(page_addr)) % lockNR;
 
   GlobalAddress lock_addr;
   lock_addr.nodeID = page_addr.nodeID;
@@ -959,7 +959,7 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
                            CoroContext *cxt, int coro_id, bool from_cache) {
 
   uint64_t lock_index =
-      CityHash64((char *)&page_addr, sizeof(page_addr)) % define::kNumOfLock;
+      CityHash64((char *)&page_addr, sizeof(page_addr)) % lockNR;
 
   GlobalAddress lock_addr;
 
@@ -1122,7 +1122,7 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
 bool Tree::leaf_page_del(GlobalAddress page_addr, const Key &k, int level,
                          CoroContext *cxt, int coro_id, bool from_cache) {
   uint64_t lock_index =
-      CityHash64((char *)&page_addr, sizeof(page_addr)) % define::kNumOfLock;
+      CityHash64((char *)&page_addr, sizeof(page_addr)) % lockNR;
 
   GlobalAddress lock_addr;
 

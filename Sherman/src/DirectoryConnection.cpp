@@ -4,7 +4,7 @@
 
 DirectoryConnection::DirectoryConnection(uint16_t dirID, void *dsmPool,
                                          uint64_t dsmSize, void* rlockPool, 
-                                         uint32_t machineNR,
+                                         uint32_t machineNR, uint64_t chipSize,
                                          RemoteConnection *remoteInfo)
     : dirID(dirID), remoteInfo(remoteInfo) {
 
@@ -24,7 +24,7 @@ DirectoryConnection::DirectoryConnection(uint16_t dirID, void *dsmPool,
   // on-chip lock memory
   if (dirID == 0) {
     this->lockPool = rlockPool;
-    this->lockSize = define::kLockChipMemSize;
+    this->lockSize = chipSize;
     #ifdef ON_CHIP
     this->lockMR = createMemoryRegionOnChip((uint64_t)this->lockPool,
                                             this->lockSize, &ctx);

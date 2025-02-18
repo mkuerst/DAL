@@ -29,6 +29,7 @@ uint64_t *lock_rels;
 
 uint64_t dsmSize = 4;
 uint64_t page_size = KB(1);
+uint64_t chipSize = 128;
 DSM *dsm;
 DSMConfig config;
 Tree *rlock;
@@ -219,7 +220,7 @@ int main(int argc, char *argv[]) {
     parse_cli_args(
     &threadNR, &nodeNR, &mnNR, &lockNR, &runNR,
     &nodeID, &duration, &mode, &use_zipfan, 
-    &kReadRatio, &pinning,
+    &kReadRatio, &pinning, &chipSize,
     &res_file_tp, &res_file_lat,
     argc, argv);
     mnNR = nodeNR == 1 ? 1 : mnNR;
@@ -261,11 +262,12 @@ int main(int argc, char *argv[]) {
     pthread_attr_init(&attr);
     pthread_barrier_init(&global_barrier, NULL, threadNR+1);
 
+    lockNR = chipSize * 1024 / sizeof(uint64_t);
     /*LOCK INIT*/
-    rlock = new Tree(dsm, 0, define::kNumOfLock, true);
+    rlock = new Tree(dsm, 0, lockNR, true);
     dsm->resetThread();
-    lock_acqs = new uint64_t[define::kNumOfLock];
-    lock_rels = new uint64_t[define::kNumOfLock];
+    lock_acqs = new uint64_t[lockNR];
+    lock_rels = new uint64_t[lockNR];
     memset(lock_acqs, 0, lockNR*sizeof(uint64_t));
     memset(lock_rels, 0, lockNR*sizeof(uint64_t));
 

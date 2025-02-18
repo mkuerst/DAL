@@ -13,5 +13,3 @@ pkill -9 perftest
 pkill -9 rdma
 pkill -9 infiniband
 # echo 1 | sudo tee /sys/class/infiniband/mlx5_2/device/reset
-
-echo "CLEANUP DONE"

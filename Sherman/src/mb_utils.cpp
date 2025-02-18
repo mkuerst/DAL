@@ -39,14 +39,14 @@ int getNodeNumber() {
 void parse_cli_args(
     int *threadNR, int *nodeNR, int* mnNR, int *lockNR, int *runNR,
     int *nodeID, int* duration, int* mode, int* use_zipfan, 
-	int* kReadRatio, int* pinning,
+	int* kReadRatio, int* pinning, uint64_t* chipSize,
     char **res_file_tp, char **res_file_lat,
     int argc, char **argv
 ) {
     int option;
 	*nodeID = getNodeNumber();
 	while ((option = getopt(argc, argv,
-    "d:t:l:i:d:s:m:r:f:g:n:z:w:p:")) != -1) 
+    "d:t:l:i:d:s:m:r:f:g:n:z:w:p:c:")) != -1) 
     {
 		switch (option) {
 			case 's':
@@ -88,6 +88,8 @@ void parse_cli_args(
 			case 'p':
 				*pinning = atoi(optarg);
 				break;
+			case 'c':
+				*chipSize = atoi(optarg);
 			default:
 				break;
 		}
@@ -204,7 +206,7 @@ void write_tp(char* res_file, int run, int threadNR, int lockNR, int nodeID, siz
 					<< std::setw(6) << array_size << ","
 					<< std::setw(3) << nodeID << ","
 					<< std::setw(3) << run << ","
-					<< std::setw(4) << lockNR << "\n";
+					<< std::setw(8) << lockNR << "\n";
 
 	}
     file.close();	

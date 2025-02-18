@@ -43,6 +43,7 @@ gwait_acq,\
 gwait_rel,\
 data_read,\
 data_write,\
+end_to_end,\
 array_size,\
 nodeID,\
 run,\
@@ -57,12 +58,13 @@ comm_prot=rdma
 opts=("sherman")
 microbenches=("empty_cs" "mlocks" "correctness")
 duration=10
-runNR=2
+runNR=1
 mnNR=4
 zipfan=1
 nodeNRs=(4)
 threadNRs=(32)
 pinning=1
+chipSize=128
 
 sudo rm -rf logs/
 mkdir -p results/plots/
@@ -102,8 +104,9 @@ do
                     -r $run \
                     -s $nodeNR \
                     -p $pinning \
-                    2>> $log_file"
-                    # 2>&1
+                    -c $chipSize \
+                    2>&1"
+                    # 2>> $log_file"
                     cleanup
                 done
             done
@@ -142,10 +145,11 @@ do
                         -f $cn_tp_file \
                         -g $cn_lat_file \
                         -r $run \
-                        -s $mnNR \
+                        -s $nodeNR \
                         -p $pinning \
-                        2>> $log_file"
-                        # 2>&1"
+                        -c $chipSize \
+                        2>&1"
+                        # 2>> $log_file"
                         cleanup
                     done
                 done
@@ -155,4 +159,3 @@ do
 done
 
 pkill -u $USER ssh-agent 
-cleanup

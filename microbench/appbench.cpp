@@ -26,6 +26,7 @@ int pinning = 1;
 
 uint64_t dsmSize = 32;
 uint64_t page_size = KB(1);
+uint64_t chipSize = 128;
 DSM *dsm;
 DSMConfig config;
 Tree *tree;
@@ -195,7 +196,7 @@ int main(int argc, char *argv[]) {
     parse_cli_args(
     &threadNR, &nodeNR, &mnNR, &lockNR, &runNR,
     &nodeID, &duration, &mode, &use_zipfan, 
-    &kReadRatio, &pinning,
+    &kReadRatio, &pinning, &chipSize,
     &res_file_tp, &res_file_lat, 
     argc, argv);
     mnNR = nodeNR;
@@ -210,16 +211,18 @@ int main(int argc, char *argv[]) {
         sleep(1);
     }
 
-    config.dsmSize = dsmSize;
+    // config.dsmSize = 4;
     config.mnNR = mnNR;
     config.machineNR = nodeNR;
     config.threadNR = threadNR;
+    config.chipSize = chipSize;
+    lockNR = chipSize * 1024 / sizeof(uint64_t);
     dsm = DSM::getInstance(config);
     nodeID = dsm->getMyNodeID();
     DE("DSM INIT DONE: DSM NODE %d\n", nodeID);
 
     dsm->registerThread();
-    tree = new Tree(dsm);
+    tree = new Tree(dsm, 0, lockNR, false);
 
     // if (dsm->getMyNodeID() == 0) {
     //     for (uint64_t i = 1; i < 1024000; ++i) {
@@ -267,6 +270,7 @@ int main(int argc, char *argv[]) {
 
     fprintf(stderr, "DSM NODE %d DONE\n", nodeID);
     free_measurements();
+    // dsm->free_dsm();
     dsm->barrier("fin");
     return 0;
 }

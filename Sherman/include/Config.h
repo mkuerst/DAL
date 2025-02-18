@@ -17,11 +17,11 @@ public:
   uint32_t threadNR;
   uint64_t dsmSize; // G
   uint32_t mnNR;
-  uint32_t clusterID;
+  uint64_t chipSize;
 
   DSMConfig(const CacheConfig &cacheConfig = CacheConfig(),
-            uint32_t machineNR = 2, uint32_t threadNR = 1, uint64_t dsmSize = 8, uint32_t mnNR = 1)
-      : cacheConfig(cacheConfig), machineNR(machineNR), threadNR(threadNR), dsmSize(dsmSize), mnNR(mnNR) {}
+            uint32_t machineNR = 2, uint32_t threadNR = 1, uint64_t dsmSize = 8, uint32_t mnNR = 1, uint64_t chipSize = 128*1024)
+      : cacheConfig(cacheConfig), machineNR(machineNR), threadNR(threadNR), dsmSize(dsmSize), mnNR(mnNR), chipSize(chipSize) {}
 };
 
 #endif /* __CONFIG_H__ */

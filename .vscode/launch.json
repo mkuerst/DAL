@@ -48,7 +48,7 @@
       "program": "${workspaceFolder}/microbench/appbench_sherman",
       // "program": "${workspaceFolder}/Sherman/build/benchmark",
       "args": [
-        "-t", "32",
+        "-t", "16",
         "-d", "3",
         "-s", "2",
         "-m", "1",
@@ -59,6 +59,7 @@
         "-l", "256",
         "-r", "0",
         "-z", "1",
+        "-c", "64"
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
@@ -86,7 +87,7 @@
       "program": "${workspaceFolder}/microbench/appbench_sherman",
       // "program": "${workspaceFolder}/Sherman/build/benchmark",
       "args": [
-        "-t", "4",
+        "-t", "16",
         "-d", "3",
         "-s", "2",
         "-m", "1",
@@ -97,6 +98,7 @@
         "-l", "256",
         "-r", "0",
         "-z", "1",
+        "-c", "64"
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
