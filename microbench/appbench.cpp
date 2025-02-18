@@ -211,7 +211,7 @@ int main(int argc, char *argv[]) {
         sleep(1);
     }
 
-    // config.dsmSize = 4;
+    config.dsmSize = dsmSize;
     config.mnNR = mnNR;
     config.machineNR = nodeNR;
     config.threadNR = threadNR;
@@ -224,12 +224,11 @@ int main(int argc, char *argv[]) {
     dsm->registerThread();
     tree = new Tree(dsm, 0, lockNR, false);
 
-    // if (dsm->getMyNodeID() == 0) {
-    //     for (uint64_t i = 1; i < 1024000; ++i) {
-    //         tree->insert(to_key(i), i * 2);
-    //         DE("INSERTING KEY %ld\n", i);
-    //     }
-    // }
+    if (dsm->getMyNodeID() == 0) {
+        for (uint64_t i = 1; i < 1024000; ++i) {
+            tree->insert(to_key(i), i * 2);
+        }
+    }
 
     dsm->barrier("benchmark");
     dsm->resetThread();
