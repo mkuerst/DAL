@@ -36,8 +36,8 @@ DSM::DSM(const DSMConfig &conf)
   #ifdef ON_CHIP
   rlockAddr = define::kLockStartAddr;
   #else
-  rlockAddr = (uint64_t) malloc(define::kLockChipMemSize);
-  memset((char *)rlockAddr, 0, define::kLockChipMemSize);
+  rlockAddr = (uint64_t) malloc(conf.chipSize * 1024);
+  memset((char *)rlockAddr, 0, conf.chipSize * 1024);
   #endif
   
   Debug::notifyInfo("shared memory size: %dGB, 0x%lx", conf.dsmSize, baseAddr);
@@ -65,31 +65,31 @@ void DSM::free_dsm() {
   munmap((void*)baseAddr, conf.dsmSize * define::GB);
   munmap((void*)cache.data, cache.size * define::GB);
 
-  if (myNodeID < MEMORY_NODE_NUM) {
-    if (ibv_dereg_mr(dirCon[myNodeID]->dsmMR)) {
-      perror("ibv_dereg_mr dmsMR failed");
-    }
-    if (ibv_dereg_mr(dirCon[myNodeID]->lockMR)) {
-      perror("ibv_dereg_mr failed");
-    }
-    // for (int i = 0; i < MAX_APP_THREAD; ++i) {
-    //   for (size_t k = 0; k < conf.machineNR; ++k) {
-    //     if (ibv_destroy_qp(dirCon[myNodeID]->data2app[i][k])) {
-    //       Debug::notifyError("ibv_destroy_qp dirCon[%d] failed\n", myNodeID);
-    //     }
-    //   }
-    // }
-    // if (dirCon[myNodeID]->ctx.pd) {
-    //   if (ibv_dealloc_pd(dirCon[myNodeID]->ctx.pd)) {
-    //     Debug::notifyError("Failed to deallocate PD dirCon[%d]", myNodeID);
-    //   }
-    // }
-    if (dirCon[myNodeID]->ctx.ctx) {
-      if (ibv_close_device(dirCon[myNodeID]->ctx.ctx)) {
-        Debug::notifyError("failed to close device context dirCon[%d]", myNodeID);
-      }
-    }
-  }
+  // if (myNodeID < MEMORY_NODE_NUM) {
+  //   if (ibv_dereg_mr(dirCon[myNodeID]->dsmMR)) {
+  //     perror("ibv_dereg_mr dmsMR failed");
+  //   }
+  //   if (ibv_dereg_mr(dirCon[myNodeID]->lockMR)) {
+  //     perror("ibv_dereg_mr failed");
+  //   }
+  //   // for (int i = 0; i < MAX_APP_THREAD; ++i) {
+  //   //   for (size_t k = 0; k < conf.machineNR; ++k) {
+  //   //     if (ibv_destroy_qp(dirCon[myNodeID]->data2app[i][k])) {
+  //   //       Debug::notifyError("ibv_destroy_qp dirCon[%d] failed\n", myNodeID);
+  //   //     }
+  //   //   }
+  //   // }
+  //   // if (dirCon[myNodeID]->ctx.pd) {
+  //   //   if (ibv_dealloc_pd(dirCon[myNodeID]->ctx.pd)) {
+  //   //     Debug::notifyError("Failed to deallocate PD dirCon[%d]", myNodeID);
+  //   //   }
+  //   // }
+  //   if (dirCon[myNodeID]->ctx.ctx) {
+  //     if (ibv_close_device(dirCon[myNodeID]->ctx.ctx)) {
+  //       Debug::notifyError("failed to close device context dirCon[%d]", myNodeID);
+  //     }
+  //   }
+  // }
 
     for (int i = 0; i < MAX_APP_THREAD; ++i) {
       if (ibv_dereg_mr(thCon[i]->cacheMR)) {

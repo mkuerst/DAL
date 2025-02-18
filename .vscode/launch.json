@@ -45,7 +45,7 @@
       "name": "node1",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/microbench/appbench_sherman",
+      "program": "${workspaceFolder}/microbench/appbench_shermanLock",
       // "program": "${workspaceFolder}/Sherman/build/benchmark",
       "args": [
         "-t", "16",
@@ -59,7 +59,8 @@
         "-l", "256",
         "-r", "0",
         "-z", "1",
-        "-c", "64"
+        "-c", "64",
+        "-y", "8",
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
@@ -84,7 +85,7 @@
       "name": "node2",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/microbench/appbench_sherman",
+      "program": "${workspaceFolder}/microbench/appbench_shermanLock",
       // "program": "${workspaceFolder}/Sherman/build/benchmark",
       "args": [
         "-t", "16",
@@ -98,7 +99,8 @@
         "-l", "256",
         "-r", "0",
         "-z", "1",
-        "-c", "64"
+        "-c", "64",
+        "-y", "8",
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",

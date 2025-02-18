@@ -68,6 +68,8 @@ threadNRs=(32)
 lockNRs=(512)
 bench_idxs=(1)
 pinning=1
+chipSize=128
+dsmSize=8
 
 sudo rm -rf logs/
 mkdir -p results/plots/
@@ -116,6 +118,8 @@ do
                             -s $mnNR \
                             -z $zipfan \
                             -p $pinning \
+                            -c $chipSize \
+                            -y $dsmSize \
                             2>> $log_file"
                             # 2>&1
 
@@ -170,6 +174,8 @@ do
                                 -s $mnNR \
                                 -z $zipfan \
                                 -p $pinning \
+                                -c $chipSize \
+                                -y $dsmSize \
                                 2>> $log_file"
                                 # 2>&1"
                                 cleanup

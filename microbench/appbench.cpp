@@ -24,9 +24,9 @@ int threadNR, nodeNR, mnNR, lockNR, runNR,
 nodeID, duration, mode;
 int pinning = 1;
 
-uint64_t dsmSize = 32;
+uint64_t dsmSize = 8;
 uint64_t page_size = KB(1);
-uint64_t chipSize = 128;
+int chipSize = 128;
 DSM *dsm;
 DSMConfig config;
 Tree *tree;
@@ -196,11 +196,10 @@ int main(int argc, char *argv[]) {
     parse_cli_args(
     &threadNR, &nodeNR, &mnNR, &lockNR, &runNR,
     &nodeID, &duration, &mode, &use_zipfan, 
-    &kReadRatio, &pinning, &chipSize,
+    &kReadRatio, &pinning, &chipSize, &dsmSize,
     &res_file_tp, &res_file_lat, 
     argc, argv);
     mnNR = nodeNR;
-    dsmSize = 64 / mnNR;
     DE("HI\n");
     if (nodeID == 1) {
         if(system("sudo bash /nfs/DAL/restartMemc.sh"))
@@ -269,7 +268,7 @@ int main(int argc, char *argv[]) {
 
     fprintf(stderr, "DSM NODE %d DONE\n", nodeID);
     free_measurements();
-    // dsm->free_dsm();
+    dsm->free_dsm();
     dsm->barrier("fin");
     return 0;
 }

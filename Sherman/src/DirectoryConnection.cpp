@@ -34,6 +34,7 @@ DirectoryConnection::DirectoryConnection(uint16_t dirID, void *dsmPool,
     #endif
     this->lockLKey = lockMR->lkey;
   }
+  DEB("Allocated %lu Bytes for lock\n", this->lockSize);
 
   // app, RC
   for (int i = 0; i < MAX_APP_THREAD; ++i) {

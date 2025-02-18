@@ -294,7 +294,8 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
       assert(false);
     }
 
-    // assert(tag >> 32 != 0);
+    assert(tag >> 32 < MAX_MACHINE);
+    assert(tag << 32 >> 32 < MAX_APP_THREAD);
     bool res = dsm->cas_dm_sync(lock_addr, 0, tag, buf, nullptr);
 
     if (!res) {

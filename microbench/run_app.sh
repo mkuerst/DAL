@@ -54,17 +54,18 @@ server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
 comm_prot=rdma
 
 # MICROBENCH INPUTS
-opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
-# opts=("sherman")
+# opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
+opts=("shermanLock")
 microbenches=("empty_cs" "mlocks" "correctness")
 duration=10
 runNR=3
 mnNR=4
 zipfan=1
-nodeNRs=(1 4)
+nodeNRs=(4)
 threadNRs=(32)
 pinning=1
 chipSize=128
+dsmSize=8
 
 sudo rm -rf logs/
 mkdir -p results/plots/
@@ -105,6 +106,7 @@ do
                     -s $nodeNR \
                     -p $pinning \
                     -c $chipSize \
+                    -y $dsmSize \
                     2>&1"
                     # 2>> $log_file"
                     cleanup
@@ -148,6 +150,7 @@ do
                         -s $nodeNR \
                         -p $pinning \
                         -c $chipSize \
+                        -y $dsmSize \
                         2>&1"
                         # 2>> $log_file"
                         cleanup

@@ -29,7 +29,7 @@ uint64_t *lock_rels;
 
 uint64_t dsmSize = 4;
 uint64_t page_size = KB(1);
-uint64_t chipSize = 128;
+int chipSize = 128;
 DSM *dsm;
 DSMConfig config;
 Tree *rlock;
@@ -220,7 +220,7 @@ int main(int argc, char *argv[]) {
     parse_cli_args(
     &threadNR, &nodeNR, &mnNR, &lockNR, &runNR,
     &nodeID, &duration, &mode, &use_zipfan, 
-    &kReadRatio, &pinning, &chipSize,
+    &kReadRatio, &pinning, &chipSize, &dsmSize,
     &res_file_tp, &res_file_lat,
     argc, argv);
     mnNR = nodeNR == 1 ? 1 : mnNR;
