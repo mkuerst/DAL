@@ -46,10 +46,11 @@
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/microbench/appbench_sherman",
+      // "program": "${workspaceFolder}/Sherman/build/benchmark",
       "args": [
-        "-t", "2",
-        "-d", "10",
-        "-s", "1",
+        "-t", "32",
+        "-d", "3",
+        "-s", "2",
         "-m", "1",
         "-i", "1",
         "-n", "2",
@@ -83,10 +84,11 @@
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/microbench/appbench_sherman",
+      // "program": "${workspaceFolder}/Sherman/build/benchmark",
       "args": [
-        "-t", "2",
-        "-d", "10",
-        "-s", "1",
+        "-t", "4",
+        "-d", "3",
+        "-s", "2",
         "-m", "1",
         "-i", "2",
         "-n", "2",
@@ -119,11 +121,11 @@
       "name": "node3",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/microbench/microbench_litl",
+      "program": "${workspaceFolder}/Sherman/build/benchmark",
       "args": [
-        "-t", "32",
+        "-t", "16",
         "-d", "10",
-        "-s", "1",
+        "-s", "2",
         "-m", "1",
         "-i", "3",
         "-n", "5",
@@ -135,12 +137,12 @@
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      "environment": [
-        {
-          "name": "LD_PRELOAD",
-          "value": "/nfs/DAL/litl2/lib/original/libfns_spinlock.so"
-        }
-      ],
+      // "environment": [
+      //   {
+      //     "name": "LD_PRELOAD",
+      //     "value": "/nfs/DAL/litl2/lib/original/libfns_spinlock.so"
+      //   }
+      // ],
       "MIMode": "gdb",
       // "preLaunchTask": "Set ulimit",
       "setupCommands": [
@@ -156,11 +158,11 @@
       "name": "node4",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/microbench/microbench_litl",
+      "program": "${workspaceFolder}/Sherman/build/benchmark",
       "args": [
-        "-t", "32",
+        "-t", "16",
         "-d", "10",
-        "-s", "1",
+        "-s", "2",
         "-m", "1",
         "-i", "4",
         "-n", "5",
@@ -172,12 +174,12 @@
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      "environment": [
-        {
-          "name": "LD_PRELOAD",
-          "value": "/nfs/DAL/litl2/lib/original/libfns_spinlock.so"
-        }
-      ],
+      // "environment": [
+      //   {
+      //     "name": "LD_PRELOAD",
+      //     "value": "/nfs/DAL/litl2/lib/original/libfns_spinlock.so"
+      //   }
+      // ],
       "MIMode": "gdb",
       // "preLaunchTask": "Set ulimit",
       "setupCommands": [
@@ -193,11 +195,11 @@
       "name": "node5",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/microbench/microbench_litl",
+      "program": "${workspaceFolder}/Sherman/build/benchmark",
       "args": [
-        "-t", "32",
+        "-t", "16",
         "-d", "10",
-        "-s", "1",
+        "-s", "2",
         "-m", "1",
         "-i", "5",
         "-n", "5",
@@ -209,12 +211,12 @@
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      "environment": [
-        {
-          "name": "LD_PRELOAD",
-          "value": "/nfs/DAL/litl2/lib/original/libfns_spinlock.so"
-        }
-      ],
+      // "environment": [
+      //   {
+      //     "name": "LD_PRELOAD",
+      //     "value": "/nfs/DAL/litl2/lib/original/libfns_spinlock.so"
+      //   }
+      // ],
       "MIMode": "gdb",
       "setupCommands": [
         {

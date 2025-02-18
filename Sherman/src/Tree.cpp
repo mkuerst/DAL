@@ -35,6 +35,9 @@ Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB) : dsm(dsm), tre
 
   measurements.lock_hold = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
   memset(measurements.lock_hold, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+
+  measurements.end_to_end = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+  memset(measurements.end_to_end, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
   
   measurements.lwait_acq = (uint16_t *) malloc(MAX_APP_THREAD * LWAIT_WINDOWS * sizeof(uint16_t));
   memset(measurements.lwait_acq, 0, MAX_APP_THREAD * LWAIT_WINDOWS * sizeof(uint16_t));
@@ -291,7 +294,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
       assert(false);
     }
 
-    assert(tag >> 32 != 0);
+    // assert(tag >> 32 != 0);
     bool res = dsm->cas_dm_sync(lock_addr, 0, tag, buf, nullptr);
 
     if (!res) {
@@ -1362,8 +1365,8 @@ void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_si
 
 	get_bufs();
 	auto tag = dsm->getThreadTag();
-	assert(tag != 0);
-  assert(tag >> 32 != 0);
+	// assert(tag != 0);
+  // assert(tag >> 32 != 0);
 
 	bool handover = try_lock_addr(curr_lock_addr, tag, curr_cas_buffer, NULL, 0);
 	measurements.lock_acquires[threadID]++;

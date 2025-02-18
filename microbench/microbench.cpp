@@ -27,7 +27,7 @@ int pinning = 1;
 uint64_t *lock_acqs;
 uint64_t *lock_rels;
 
-uint64_t dsmSize = 8;
+uint64_t dsmSize = 4;
 uint64_t page_size = KB(1);
 DSM *dsm;
 DSMConfig config;
@@ -132,11 +132,11 @@ void *empty_cs_worker(void *arg) {
 
     pthread_barrier_wait(&global_barrier);
     while (!stop.load()) {
+        baseAddr.nodeID = uniform_rand_int(mnNR);
         rlock->mb_lock(baseAddr, lockAddr, 0);
         task->lock_acqs++;
         rlock->mb_unlock(baseAddr, 0);
     }
-    pthread_barrier_wait(&global_barrier);
     DE("[%d.%d] %lu ACQUISITIONS\n", dsm->getMyNodeID(), dsm->getMyThreadID(), task->lock_acqs);
     return 0;
 }
@@ -170,7 +170,7 @@ void *mlocks_worker(void *arg) {
     int data_len = page_size / sizeof(uint64_t);
     uint64_t seed = nodeID*threadNR + id + 42;
     srand(seed);
-    ZipfianGenerator zipfian(1.2, range, seed);
+    ZipfianGenerator zipfian(0.99, range, seed);
 
     pthread_barrier_wait(&global_barrier);
 
@@ -189,7 +189,9 @@ void *mlocks_worker(void *arg) {
             else {
                 lock_idx = (uint64_t) uniform_rand_int(range);
             }
+            baseAddr.nodeID = uniform_rand_int(mnNR);
             baseAddr.offset = chunk_size * lock_idx;
+            lockAddr.nodeID = baseAddr.nodeID;
             lockAddr.offset = lock_idx * sizeof(uint64_t);
             rlock->mb_lock(baseAddr, lockAddr, page_size);
             // lock_idx = rlock->getCurrLockAddr().offset / sizeof(uint64_t);
@@ -209,7 +211,6 @@ void *mlocks_worker(void *arg) {
             lock_rels[lock_idx]++;
         }
     }
-    pthread_barrier_wait(&global_barrier);
     DE("[%d.%d] %lu ACQUISITIONS\n", dsm->getMyNodeID(), dsm->getMyThreadID(), task->lock_acqs);
     return 0;
 }
@@ -221,6 +222,8 @@ int main(int argc, char *argv[]) {
     &kReadRatio, &pinning,
     &res_file_tp, &res_file_lat,
     argc, argv);
+    mnNR = nodeNR == 1 ? 1 : mnNR;
+    dsmSize = 64 / mnNR;
     DE("HI\n");
     if (nodeID == 1) {
         if(system("sudo bash /nfs/DAL/restartMemc.sh"))
@@ -235,16 +238,15 @@ int main(int argc, char *argv[]) {
     config.mnNR = mnNR;
     config.machineNR = nodeNR;
     config.threadNR = threadNR;
-    // config.clusterID = nodeID;
     dsm = DSM::getInstance(config);
     nodeID = dsm->getMyNodeID();
-    // dsm->registerThread();
-    DE("DSM INIT DONE: DSM NODE %d\n", nodeID);
+    DE("DSM INIT DONE: NODE %d\n", nodeID);
 
-    /*MN*/
-    if (nodeID < mnNR) {
-        mn_worker();
-        return 0;
+    if (nodeID == 0) {
+        char val[sizeof(uint64_t)];
+        uint64_t num = 0;
+        memcpy(val, &num, sizeof(uint64_t));
+        dsm->get_DSMKeeper()->memSet(ck.c_str(), ck.size(), val, sizeof(uint64_t));
     }
 
     /*WORKER*/
@@ -261,7 +263,7 @@ int main(int argc, char *argv[]) {
 
     /*LOCK INIT*/
     rlock = new Tree(dsm, 0, define::kNumOfLock, true);
-    // dsm->resetThread();
+    dsm->resetThread();
     lock_acqs = new uint64_t[define::kNumOfLock];
     lock_rels = new uint64_t[define::kNumOfLock];
     memset(lock_acqs, 0, lockNR*sizeof(uint64_t));
@@ -285,7 +287,9 @@ int main(int argc, char *argv[]) {
     sleep(duration);
     stop.store(true);
 
-    pthread_barrier_wait(&global_barrier);
+    for (int i = 0; i < threadNR; i++) {
+        pthread_join(tasks[i].thread, NULL);
+    }
     for (int n = 0; n < nodeNR; n++) {
         if (n == nodeID) {
             write_tp(res_file_tp, runNR, threadNR, lockNR, n, page_size);
@@ -294,9 +298,6 @@ int main(int argc, char *argv[]) {
         string writeResKey = "WRITE_RES_" + to_string(n);
         dsm->barrier(writeResKey);
         DE("[%d] WRITE BARRIER %d PASSED\n", nodeID, n);
-    }
-    for (int i = 0; i < threadNR; i++) {
-        pthread_join(tasks[i].thread, NULL);
     }
     dsm->barrier("MB_END");
 
@@ -308,7 +309,16 @@ int main(int argc, char *argv[]) {
         else {
             DE("CN CORRECTNESS PASSED!\n");
         }
-        dsm->barrier("CORRECTNESS");
+        dsm->barrier("CN_CORRECTNESS");
+
+        if(nodeID < mnNR) {
+            if (check_MN_correctness(dsm, dsmSize, mnNR, nodeNR, nodeID, page_size)) {
+                __error("MN CORRECTNESS CHECK FAILED\n");
+            }
+            else {
+                DE("MN CORRECTNESS PASSED!\n");
+            }
+        }
     #endif
 
     fprintf(stderr, "DSM NODE %d DONE\n", nodeID);

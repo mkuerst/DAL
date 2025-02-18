@@ -48,10 +48,10 @@ DSM::DSM(const DSMConfig &conf)
   memset((char *)baseAddr, 0, conf.dsmSize * define::GB);
   
   initRDMAConnection();
-  if (myNodeID < MEMORY_NODE_NUM) {  // start memory server
+  if (myNodeID < conf.mnNR) {  // start memory server
     for (int i = 0; i < NR_DIRECTORY; ++i) {
       dirAgent[i] =
-          new Directory(dirCon[i], remoteInfo, MEMORY_NODE_NUM, i, myNodeID);
+          new Directory(dirCon[i], remoteInfo, conf.mnNR, i, myNodeID);
     }
     Debug::notifyInfo("Memory server %d start up", myNodeID);
   }
@@ -102,11 +102,11 @@ void DSM::free_dsm() {
           }
         }
       }
-      if (thCon[i]->ctx.pd) {
-        if (ibv_dealloc_pd(thCon[i]->ctx.pd)) {
-          Debug::notifyError("Failed to deallocate PD for thCon %d", i);
-        }
-      }
+      // if (thCon[i]->ctx.pd) {
+      //   if (ibv_dealloc_pd(thCon[i]->ctx.pd)) {
+      //     Debug::notifyError("Failed to deallocate PD for thCon %d", i);
+      //   }
+      // }
       if (thCon[i]->ctx.ctx) {
         if (ibv_close_device(thCon[i]->ctx.ctx)) {
           Debug::notifyError("failed to close device context for thCon %d", i);

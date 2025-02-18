@@ -33,7 +33,8 @@ pthread_so="$PWD/../litl2/lib/original/libpthreadinterpose_original.so"
 
 cn_tp_header="tid,\
 loop_in_cs,lock_acquires,duration,\
-glock_tries,array_size(B),nodeID,run,lockNR"
+glock_tries,handovers,array_size(B),\
+nodeID,run,lockNR"
 
 cn_lat_header="lock_hold,\
 lwait_acq,\
@@ -56,11 +57,12 @@ comm_prot=rdma
 opts=("sherman")
 microbenches=("empty_cs" "mlocks" "correctness")
 duration=10
-runNR=1
-mnNR=1
+runNR=2
+mnNR=4
 zipfan=1
-nodeNRs=(2)
-threadNRs=(1)
+nodeNRs=(4)
+threadNRs=(32)
+pinning=1
 
 sudo rm -rf logs/
 mkdir -p results/plots/
@@ -98,7 +100,8 @@ do
                     -f $cn_tp_file \
                     -g $cn_lat_file \
                     -r $run \
-                    -s $mnNR \
+                    -s $nodeNR \
+                    -p $pinning \
                     2>> $log_file"
                     # 2>&1
                     cleanup
@@ -140,6 +143,7 @@ do
                         -g $cn_lat_file \
                         -r $run \
                         -s $mnNR \
+                        -p $pinning \
                         2>> $log_file"
                         # 2>&1"
                         cleanup

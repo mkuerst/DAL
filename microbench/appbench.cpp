@@ -24,18 +24,18 @@ int threadNR, nodeNR, mnNR, lockNR, runNR,
 nodeID, duration, mode;
 int pinning = 1;
 
-uint64_t dsmSize = 8;
+uint64_t dsmSize = 32;
 uint64_t page_size = KB(1);
 DSM *dsm;
 DSMConfig config;
 Tree *tree;
 
-double zipfan = 0;
+double zipfan = 0.99;
 int use_zipfan = 0;
 
 int kReadRatio = 50;
-uint64_t kKeySpace = 64 * define::MB;
-double kWarmRatio = 0.8;
+uint64_t kKeySpace = 60 * define::MB;
+double kWarmRatio = 0.2;
 
 extern uint64_t cache_miss[MAX_APP_THREAD][8];
 extern uint64_t cache_hit[MAX_APP_THREAD][8];
@@ -54,13 +54,14 @@ void mn_worker() {
     char val[sizeof(uint64_t)];
     uint64_t num = 0;
     memcpy(val, &num, sizeof(uint64_t));
-
     dsm->get_DSMKeeper()->memSet(ck.c_str(), ck.size(), val, sizeof(uint64_t));
-    // for (uint64_t i = 1; i < 1024000; ++i) {
-    //     tree->insert(to_key(i), i * 2);
-    // }
+
+    for (uint64_t i = 1; i < 1024000; ++i) {
+        tree->insert(to_key(i), i * 2);
+        // DE("MN INSERTED KEY %ld / 1024000\n", i);
+    }
     dsm->barrier("benchmark");
-    // dsm->resetThread();
+    dsm->resetThread();
     dsm->barrier("warm_finish");
 
     for (int n = 0; n < nodeNR; n++) {
@@ -134,6 +135,7 @@ void *thread_run(void *arg) {
     for (uint64_t i = 1; i < end_warm_key; ++i) {
         if (i % all_thread == my_id) {
             tree->insert(to_key(i), i * 2);
+            // DE("INSERTED WARMUP KEY %ld -> %ld\n", i, i*2);
         }
     }
 
@@ -149,6 +151,7 @@ void *thread_run(void *arg) {
 
         tree->index_cache_statistics();
         tree->clear_statistics();
+        clear_measurements();
 
         ready = true;
 
@@ -182,7 +185,8 @@ void *thread_run(void *arg) {
         if (us_10 >= LATENCY_WINDOWS) {
             us_10 = LATENCY_WINDOWS - 1;
         }
-        latency[id][us_10]++;
+        measurements.lock_acquires[id]++;
+        measurements.end_to_end[id*LATENCY_WINDOWS + us_10]++;
     }
     return 0;
 }
@@ -194,6 +198,8 @@ int main(int argc, char *argv[]) {
     &kReadRatio, &pinning,
     &res_file_tp, &res_file_lat, 
     argc, argv);
+    mnNR = nodeNR;
+    dsmSize = 64 / mnNR;
     DE("HI\n");
     if (nodeID == 1) {
         if(system("sudo bash /nfs/DAL/restartMemc.sh"))
@@ -212,13 +218,15 @@ int main(int argc, char *argv[]) {
     nodeID = dsm->getMyNodeID();
     DE("DSM INIT DONE: DSM NODE %d\n", nodeID);
 
-    /*MN*/
-    if (nodeID < mnNR) {
-        mn_worker();
-        return 0;
-    }
     dsm->registerThread();
-    tree = new Tree(dsm, 0, define::kNumOfLock, false);
+    tree = new Tree(dsm);
+
+    // if (dsm->getMyNodeID() == 0) {
+    //     for (uint64_t i = 1; i < 1024000; ++i) {
+    //         tree->insert(to_key(i), i * 2);
+    //         DE("INSERTING KEY %ld\n", i);
+    //     }
+    // }
 
     dsm->barrier("benchmark");
     dsm->resetThread();

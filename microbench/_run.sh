@@ -55,18 +55,18 @@ server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
 comm_prot=rdma
 
 # MICROBENCH INPUTS
-# opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
-opts=("litlHo" "litlHoOcmBw")
+opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
+# opts=("litlHo" "litlHoOcmBw")
 microbenches=("empty_cs" "mlocks" "correctness")
 duration=10
 runNR=3
-mnNR=1
-zipfan=0
-nodeNRs=(2 5)
+mnNR=2
+zipfan=1
+nodeNRs=(1 5)
 threadNRs=(32)
 lockNRs=(512)
 bench_idxs=(1)
-pinning=2
+pinning=1
 
 sudo rm -rf logs/
 mkdir -p results/plots/

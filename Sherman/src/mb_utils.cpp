@@ -95,9 +95,20 @@ void parse_cli_args(
 }
 
 void clear_measurements() {
-	int tmp = measurements.duration;
-	memset(&measurements, 0, sizeof(Measurements));
-	measurements.duration = tmp;
+	memset(measurements.lock_hold, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+	memset(measurements.lwait_acq, 0, MAX_APP_THREAD * LWAIT_WINDOWS * sizeof(uint16_t));
+	memset(measurements.lwait_rel, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+	memset(measurements.gwait_acq, 0, MAX_APP_THREAD * LWAIT_WINDOWS * sizeof(uint16_t));
+	memset(measurements.gwait_rel, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+	memset(measurements.data_read, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+	memset(measurements.data_write, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+	memset(measurements.end_to_end, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+	for (int i = 0; i < MAX_APP_THREAD; i++) {
+		measurements.handovers[i] = 0;
+		measurements.glock_tries[i] = 0;
+		measurements.lock_acquires[i] = 0;
+		measurements.loop_in_cs[i] = 0;
+	}
 }
 
 void free_measurements() {
@@ -110,7 +121,7 @@ void free_measurements() {
 	free(measurements.lock_hold);
 }
 
-uint64_t* cal_latency(uint16_t *latency, const string measurement, int lw = LATENCY_WINDOWS) {
+uint64_t* cal_latency(uint16_t *latency, const string measurement, int lw = LATENCY_WINDOWS, uint64_t factor = 1.0) {
 	// uint16_t latency_th_all[lw]
 	uint32_t* latency_th_all = (uint32_t *) malloc(lw*sizeof(uint32_t));
 	uint64_t all_lat = 0;
@@ -137,7 +148,7 @@ uint64_t* cal_latency(uint16_t *latency, const string measurement, int lw = LATE
 		if (cum >= th50) {
 			// DE("%s : p50 %f\t", measurement.c_str(), i / 10.0);
 			th50 = -1;
-			lats[0] = i;
+			lats[0] = i / factor;
 		}
 		if (cum >= th90) {
 			// DE("%s : p90 %f\t", measurement.c_str(), i / 10.0);
@@ -154,7 +165,7 @@ uint64_t* cal_latency(uint16_t *latency, const string measurement, int lw = LATE
 		if (cum >= th999) {
 			// DE("%s : p999 %f\n", measurement.c_str(), i / 10.0);
 			th999 = -1;
-			lats[1] = i;
+			lats[1] = i / factor;
 			break;
 		}
 	}
@@ -213,6 +224,7 @@ void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_siz
 	uint64_t* gwait_rel = cal_latency(measurements.gwait_rel, "gwait_rel");
 	uint64_t* data_read = cal_latency(measurements.data_read, "data_read");
 	uint64_t* data_write = cal_latency(measurements.data_write, "data_write");
+	uint64_t* end_to_end = cal_latency(measurements.end_to_end, "end_to_end", LATENCY_WINDOWS, 10);
 
 	for (int i = 0; i < LATNR; i++) {
 		file << std::setfill('0')
@@ -223,6 +235,7 @@ void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_siz
 			<< std::setw(7) << gwait_rel[i] << ","
 			<< std::setw(7) << data_read[i] << ","
 			<< std::setw(7) << data_write[i] << ","
+			<< std::setw(7) << end_to_end[i] << ","
 			<< std::setw(6) << array_size << ","
 			<< std::setw(3) << nodeID << ","
 			<< std::setw(3) << run << ","
