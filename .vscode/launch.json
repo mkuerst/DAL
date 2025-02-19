@@ -68,7 +68,7 @@
       "environment": [
         {
           "name": "LD_PRELOAD",
-          "value": "/nfs/DAL/litl2/lib/original/libmalthusian_spinlock.so"
+          "value": "/nfs/DAL/litl2/lib/original/libfns_spinlock.so"
         }
       ],
       "MIMode": "gdb",
@@ -109,7 +109,7 @@
       "environment": [
         {
           "name": "LD_PRELOAD",
-          "value": "/nfs/DAL/litl2/lib/original/libmalthusian_spinlock.so"
+          "value": "/nfs/DAL/litl2/lib/original/libfns_spinlock.so"
         }
       ],
       "MIMode": "gdb",
