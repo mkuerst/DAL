@@ -269,6 +269,7 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "DSM NODE %d DONE\n", nodeID);
     free_measurements();
     dsm->free_dsm();
+    sleep(1);
     dsm->barrier("fin");
     return 0;
 }

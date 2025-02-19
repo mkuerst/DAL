@@ -65,42 +65,45 @@ void DSM::free_dsm() {
   munmap((void*)baseAddr, conf.dsmSize * define::GB);
   munmap((void*)cache.data, cache.size * define::GB);
 
-  // if (myNodeID < MEMORY_NODE_NUM) {
-  //   if (ibv_dereg_mr(dirCon[myNodeID]->dsmMR)) {
-  //     perror("ibv_dereg_mr dmsMR failed");
-  //   }
-  //   if (ibv_dereg_mr(dirCon[myNodeID]->lockMR)) {
-  //     perror("ibv_dereg_mr failed");
-  //   }
-  //   // for (int i = 0; i < MAX_APP_THREAD; ++i) {
-  //   //   for (size_t k = 0; k < conf.machineNR; ++k) {
-  //   //     if (ibv_destroy_qp(dirCon[myNodeID]->data2app[i][k])) {
-  //   //       Debug::notifyError("ibv_destroy_qp dirCon[%d] failed\n", myNodeID);
-  //   //     }
-  //   //   }
-  //   // }
-  //   // if (dirCon[myNodeID]->ctx.pd) {
-  //   //   if (ibv_dealloc_pd(dirCon[myNodeID]->ctx.pd)) {
-  //   //     Debug::notifyError("Failed to deallocate PD dirCon[%d]", myNodeID);
-  //   //   }
-  //   // }
-  //   if (dirCon[myNodeID]->ctx.ctx) {
-  //     if (ibv_close_device(dirCon[myNodeID]->ctx.ctx)) {
-  //       Debug::notifyError("failed to close device context dirCon[%d]", myNodeID);
-  //     }
-  //   }
-  // }
+  stopDirThread();
+  RawMessage m;
+  m.type = RpcType::END;
+  auto buffer = (RawMessage *)iCon->message->getSendPool();
+  this->rpc_call_dir(m, myNodeID, 0);
+  memcpy(buffer, &m, sizeof(RawMessage));
+  buffer->node_id = myNodeID;
+  buffer->app_id = thread_id;
+
+  if (myNodeID < MEMORY_NODE_NUM) {
+    if (ibv_dereg_mr(dirCon[myNodeID]->dsmMR)) {
+      perror("ibv_dereg_mr dmsMR failed");
+    }
+    if (ibv_dereg_mr(dirCon[myNodeID]->lockMR)) {
+      perror("ibv_dereg_mr failed");
+    }
+    for (int i = 0; i < MAX_APP_THREAD; ++i) {
+      for (size_t k = 0; k < conf.machineNR; ++k) {
+        if (ibv_destroy_qp(dirCon[myNodeID]->data2app[i][k])) {
+          Debug::notifyError("ibv_destroy_qp dirCon[%d] failed\n", myNodeID);
+        }
+      }
+    }
+    // if (dirCon[myNodeID]->ctx.pd) {
+    //   if (ibv_dealloc_pd(dirCon[myNodeID]->ctx.pd)) {
+    //     Debug::notifyError("Failed to deallocate PD dirCon[%d]", myNodeID);
+    //   }
+    // }
+    // if (dirCon[myNodeID]->ctx.ctx) {
+    //   if (ibv_close_device(dirCon[myNodeID]->ctx.ctx)) {
+    //     Debug::notifyError("failed to close device context dirCon[%d]", myNodeID);
+    //   }
+    // }
+  }
 
     for (int i = 0; i < MAX_APP_THREAD; ++i) {
       if (ibv_dereg_mr(thCon[i]->cacheMR)) {
         Debug::notifyError("ibv_dereg_mr failed thCon[%d]->cacheMR", i);
       }
-      // if (ibv_dereg_mr(dirCon[i]->dsmMR)) {
-      //   Debug::notifyError("ibv_dereg_mr failed dirCon[%d]->dsmMR", i);
-      // }
-      // if (ibv_dereg_mr(dirCon[i]->lockMR)) {
-      //   Debug::notifyError("ibv_dereg_mr failed dirCon[%d]->lockMR", i);
-      // }
       for (int j = 0; j < NR_DIRECTORY; ++j) {
         for (size_t k = 0; k < conf.machineNR; ++k) {
           if (thCon[i]->data[j][k]) {
@@ -108,11 +111,6 @@ void DSM::free_dsm() {
               Debug::notifyError("ibv_destroy_qp thCon[%d] failed\n", i);
             }
           }
-          // if (dirCon[i]->data2app[j][k]) {
-          //   if (ibv_destroy_qp(dirCon[i]->data2app[j][k])) {
-          //     Debug::notifyError("ibv_destroy_qp dirCon[%d] failed\n", i);
-          //   }
-          // }
         }
       }
       // if (thCon[i]->ctx.pd) {
@@ -120,14 +118,9 @@ void DSM::free_dsm() {
       //     Debug::notifyError("Failed to deallocate PD for thCon %d", i);
       //   }
       // }
-      if (thCon[i]->ctx.ctx) {
-        if (ibv_close_device(thCon[i]->ctx.ctx)) {
-          Debug::notifyError("failed to close device context for thCon %d", i);
-        }
-      }
-      // if (dirCon[i]->ctx.ctx) {
-      //   if (ibv_close_device(dirCon[i]->ctx.ctx)) {
-      //     Debug::notifyError("failed to close device context for dirCon %d", i);
+      // if (thCon[i]->ctx.ctx) {
+      //   if (ibv_close_device(thCon[i]->ctx.ctx)) {
+      //     Debug::notifyError("failed to close device context for thCon %d", i);
       //   }
       // }
     }

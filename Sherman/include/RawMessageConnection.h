@@ -11,6 +11,7 @@ enum RpcType : uint8_t {
   FREE,
   NEW_ROOT,
   NOP,
+  END,
 };
 
 struct RawMessage {
