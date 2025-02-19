@@ -188,7 +188,7 @@ void *mlocks_worker(void *arg) {
                 lock_idx = zipfian.generate();
             }
             else {
-                lock_idx = (uint64_t) uniform_rand_int(range);
+                lock_idx = (uint64_t) uniform_rand_int(range+1);
             }
             baseAddr.nodeID = uniform_rand_int(mnNR);
             baseAddr.offset = chunk_size * lock_idx;

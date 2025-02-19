@@ -283,7 +283,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
     uint64_t ttag = 0;
   retry:
     retry_cnt++;
-    if (retry_cnt > 1000001) {
+    if (retry_cnt > 10000001) {
       std::cout << "Deadlock " << lock_addr << std::endl;
 
       std::cout << dsm->getMyNodeID() << ", " << dsm->getMyThreadID()

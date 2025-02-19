@@ -68,11 +68,7 @@ void DSM::free_dsm() {
   stopDirThread();
   RawMessage m;
   m.type = RpcType::END;
-  auto buffer = (RawMessage *)iCon->message->getSendPool();
   this->rpc_call_dir(m, myNodeID, 0);
-  memcpy(buffer, &m, sizeof(RawMessage));
-  buffer->node_id = myNodeID;
-  buffer->app_id = thread_id;
 
   if (myNodeID < MEMORY_NODE_NUM) {
     if (ibv_dereg_mr(dirCon[myNodeID]->dsmMR)) {
@@ -88,6 +84,11 @@ void DSM::free_dsm() {
         }
       }
     }
+    // if (dirCon[myNodeID]->cq) {
+    //   if (ibv_destroy_cq(dirCon[myNodeID]->cq)) {
+    //     Debug::notifyError("ibv_destroy_cq dirCon[%d] failed\n", myNodeID);
+    //   }
+    // }
     // if (dirCon[myNodeID]->ctx.pd) {
     //   if (ibv_dealloc_pd(dirCon[myNodeID]->ctx.pd)) {
     //     Debug::notifyError("Failed to deallocate PD dirCon[%d]", myNodeID);
@@ -111,6 +112,11 @@ void DSM::free_dsm() {
               Debug::notifyError("ibv_destroy_qp thCon[%d] failed\n", i);
             }
           }
+        }
+      }
+      if (thCon[i]->cq) {
+        if (ibv_destroy_cq(thCon[i]->cq)) {
+          Debug::notifyError("ibv_destroy_cq thCon[%d] failed\n", i);
         }
       }
       // if (thCon[i]->ctx.pd) {

@@ -97,7 +97,17 @@ inline int current_numa_node() {
     __asm__ volatile("rdtscp" : "=a"(a), "=d"(d), "=c"(c));
     core = c & 0xFFF;
     // return core / (CPU_NUMBER / NUMA_NODES);
-    return core % 2;
+    // return core % 2;
+    if (core < 32) {
+        return 0;
+    }
+    else if (core < 64) {
+        return 1;
+    }
+    else if (core < 96) {
+        return 0;
+    }
+    return 1;
 }
 
 int uniform_rand_int(int x) {

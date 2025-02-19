@@ -259,7 +259,7 @@ int main(int argc, char *argv[]) {
     tree = new Tree(dsm, 0, lockNR, false);
 
     if (dsm->getMyNodeID() == 0) {
-        for (uint64_t i = 1; i < 1024000; ++i) {
+        for (uint64_t i = 1; i < 1024000 / 2; ++i) {
             tree->insert(to_key(i), i * 2);
         }
     }
@@ -304,7 +304,7 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "DSM NODE %d DONE\n", nodeID);
     free_measurements();
     dsm->free_dsm();
-    sleep(1);
+    sleep(2);
     dsm->barrier("fin");
     return 0;
 }
