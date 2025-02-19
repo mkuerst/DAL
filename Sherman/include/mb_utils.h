@@ -97,7 +97,7 @@ int uniform_rand_int(int x);
 
 void clear_measurements();
 
-void write_tp(char* res_file, int run, int threadNR, int lockNR, int nodeID, size_t array_size);
+void write_tp(char* res_file, int run, int threadNR, int lockNR, int nodeID, size_t array_size, uint64_t *lock_acqs);
 
 void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_size);
 

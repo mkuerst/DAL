@@ -192,23 +192,29 @@ void save_measurement(int threadID, uint16_t *arr, int factor, bool is_lwait) {
     arr[threadID*lw + us_10]++;
 }
 
-void write_tp(char* res_file, int run, int threadNR, int lockNR, int nodeID, size_t array_size) {
+void write_tp(char* res_file, int run, int threadNR, int lockNR, int nodeID, size_t array_size, uint64_t *lock_acqs) {
 	std::ofstream file(res_file, std::ios::app);
 	uint64_t total_handovers = 0;
 	if (!file)
 		__error("Failed to open %s\n", res_file);
 	for (int t = 0; t < threadNR; t++) {
 		total_handovers += measurements.handovers[t];
-				file << std::setfill('0') << std::setw(3) << t << ","
-					<< std::setw(8) << measurements.loop_in_cs[t] << ","
-					<< std::setw(8) << measurements.lock_acquires[t] << ","
-					<< std::setw(3) << measurements.duration << ","
-					<< std::setw(8) << measurements.glock_tries[t] << ","
-					<< std::setw(8) << measurements.handovers[t] << ","
-					<< std::setw(6) << array_size << ","
-					<< std::setw(3) << nodeID << ","
-					<< std::setw(3) << run << ","
-					<< std::setw(8) << lockNR << "\n";
+		file << std::setfill('0') << std::setw(3) << t << ","
+			<< std::setw(8) << measurements.loop_in_cs[t] << ","
+			<< std::setw(8) << measurements.lock_acquires[t] << ","
+			<< std::setw(3) << measurements.duration << ","
+			<< std::setw(8) << measurements.glock_tries[t] << ","
+			<< std::setw(8) << measurements.handovers[t] << ","
+			<< std::setw(6) << array_size << ","
+			<< std::setw(3) << nodeID << ","
+			<< std::setw(3) << run << ","
+			<< std::setw(8) << lockNR << "\n";
+
+	}
+
+	for (int l = 0; l < lockNR; l++) {
+		file << std::setfill('0') << std::setw(3) <<
+		std::setw(8) << lock_acqs[l] << std::endl;
 
 	}
     file.close();	

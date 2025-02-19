@@ -294,7 +294,7 @@ int main(int argc, char *argv[]) {
     }
     for (int n = 0; n < nodeNR; n++) {
         if (n == nodeID) {
-            write_tp(res_file_tp, runNR, threadNR, lockNR, n, page_size);
+            write_tp(res_file_tp, runNR, threadNR, lockNR, n, page_size, lock_acqs);
             write_lat(res_file_lat, runNR, lockNR, n, page_size);
         }
         string writeResKey = "WRITE_RES_" + to_string(n);

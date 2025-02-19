@@ -6,6 +6,10 @@ using namespace std;
 #include <string>
 #include <cstdio>
 #include <pthread.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include <numa.h>
 #include "Tree.h"
@@ -23,6 +27,8 @@ char *res_file_tp, *res_file_lat;
 int threadNR, nodeNR, mnNR, lockNR, runNR,
 nodeID, duration, mode;
 int pinning = 1;
+uint64_t *lock_acqs;
+uint64_t *lock_rels;
 
 uint64_t dsmSize = 8;
 uint64_t page_size = KB(1);
@@ -45,6 +51,32 @@ uint64_t latency_th_all[LATENCY_WINDOWS];
 
 extern Measurements measurements;
 
+
+struct sigaction sa;
+
+void cleanup() {
+    printf("Cleaning up resources before exit...\n");
+    dsm->free_dsm();
+}
+
+void signal_handler(int sig) {
+    printf("Received signal %d (%s)\n", sig, strsignal(sig));
+    cleanup();
+    exit(EXIT_FAILURE);
+}
+
+void register_sighandler() {
+    sa.sa_handler = signal_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    int signals[] = {SIGINT, SIGTERM, SIGQUIT, SIGHUP, SIGABRT, SIGSEGV, SIGBUS, SIGFPE, SIGILL};
+    for (size_t i = 0; i < sizeof(signals) / sizeof(signals[0]); i++) {
+        if (sigaction(signals[i], &sa, NULL) == -1) {
+            perror("sigaction");
+            exit(EXIT_FAILURE);
+        }
+    }
+}
 
 inline Key to_key(uint64_t k) {
   return (CityHash64((char *)&k, sizeof(k)) + 1) % kKeySpace;
@@ -193,6 +225,7 @@ void *thread_run(void *arg) {
 }
 
 int main(int argc, char *argv[]) {
+    register_sighandler();
     parse_cli_args(
     &threadNR, &nodeNR, &mnNR, &lockNR, &runNR,
     &nodeID, &duration, &mode, &use_zipfan, 
@@ -216,6 +249,8 @@ int main(int argc, char *argv[]) {
     config.threadNR = threadNR;
     config.chipSize = chipSize;
     lockNR = chipSize * 1024 / sizeof(uint64_t);
+    lock_acqs = new uint64_t[lockNR];
+    lock_rels = new uint64_t[lockNR];
     dsm = DSM::getInstance(config);
     nodeID = dsm->getMyNodeID();
     DE("DSM INIT DONE: DSM NODE %d\n", nodeID);
@@ -258,7 +293,7 @@ int main(int argc, char *argv[]) {
 
     for (int n = 0; n < nodeNR; n++) {
         if (n == nodeID) {
-            write_tp(res_file_tp, runNR, threadNR, lockNR, n, page_size);
+            write_tp(res_file_tp, runNR, threadNR, lockNR, n, page_size, lock_acqs);
             write_lat(res_file_lat, runNR, lockNR, n, page_size);
         }
         string writeResKey = "WRITE_RES_" + to_string(n);
