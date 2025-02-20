@@ -119,6 +119,11 @@ void DSM::free_dsm() {
           Debug::notifyError("ibv_destroy_cq thCon[%d] failed\n", i);
         }
       }
+      // if (thCon[i]->rpc_cq) {
+      //   if (ibv_destroy_cq(thCon[i]->rpc_cq)) {
+      //     Debug::notifyError("ibv_destroy_cq rpc_cq thCon[%d] failed\n", i);
+      //   }
+      // }
       // if (thCon[i]->ctx.pd) {
       //   if (ibv_dealloc_pd(thCon[i]->ctx.pd)) {
       //     Debug::notifyError("Failed to deallocate PD for thCon %d", i);

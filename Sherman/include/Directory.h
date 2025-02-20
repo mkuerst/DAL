@@ -2,6 +2,7 @@
 #define __DIRECTORY_H__
 
 #include <thread>
+#include <pthread.h>
 
 #include <unordered_map>
 
@@ -20,6 +21,11 @@ public:
   std::atomic_bool stopDirThread{false};
   DirectoryConnection *getDCon() { return dCon; }
 
+  static void* dirThreadWrapper(void* arg) {
+    static_cast<Directory*>(arg)->dirThread();
+    return nullptr;
+}
+
 private:
   DirectoryConnection *dCon;
   RemoteConnection *remoteInfo;
@@ -28,7 +34,8 @@ private:
   uint16_t dirID;
   uint16_t nodeID;
 
-  std::thread *dirTh;
+  // std::thread *dirTh;
+  pthread_t dirTh;
 
   GlobalAllocator *chunckAlloc;
 

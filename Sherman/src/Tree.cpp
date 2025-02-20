@@ -57,6 +57,9 @@ Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB) : dsm(dsm), tre
   measurements.data_write = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
   memset(measurements.data_write, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
 
+  measurements.lock_acqs = (uint64_t *) malloc(MAX_MACHINE * lockNR * sizeof(uint64_t));
+  memset(measurements.lock_acqs, 0, MAX_MACHINE * lockNR * sizeof(uint64_t));
+
     for (int i = 0; i < dsm->getClusterSize(); ++i) {
         local_locks[i] = new LocalLockNode[lockNR];
         for (size_t k = 0; k < lockNR; ++k) {
@@ -248,6 +251,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
     #ifdef HANDOVER_DATA
     curr_page_buffer = local_locks[lock_addr.nodeID][lock_addr.offset / 8].page_buffer;
     #endif
+    measurements.lock_acqs[lock_addr.nodeID * lockNR + lock_addr.offset / 8]++;
     return true;
   }
   #endif
@@ -312,6 +316,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   }
   save_measurement(threadID, measurements.gwait_acq, 1, true);
   DEB("[%d.%d] got the global lock via rdma: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_addr.offset);
+  measurements.lock_acqs[lock_addr.nodeID * lockNR + lock_addr.offset / 8]++;
 
   return false;
 }
@@ -1370,7 +1375,6 @@ void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_si
   // assert(tag >> 32 != 0);
 
 	bool handover = try_lock_addr(curr_lock_addr, tag, curr_cas_buffer, NULL, 0);
-	measurements.lock_acquires[threadID]++;
 	if (data_size > 0) {
     #ifndef HANDOVER_DATA
     timer.begin();

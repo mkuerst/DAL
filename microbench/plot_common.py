@@ -151,7 +151,7 @@ IMPL_DICT = {"flat": FLAT,
             "other": OTHER,
             "delegation": DELEGATION}
 
-MICROBENCHES = [ "empty_cs", "mlocks"]
+MICROBENCHES = [ "empty_cs", "mlocks", "kvs"]
 
 # TODO: Add "single"
 STATS = ["tp", "lat"]

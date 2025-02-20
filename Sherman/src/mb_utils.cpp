@@ -8,6 +8,8 @@ using namespace std;
 #include <unistd.h>
 #include <regex>
 #include <fstream>
+#include <vector>
+#include <sstream>
 
 extern thread_local Timer timer;
 // extern thread_local int Tree::threadID;
@@ -40,13 +42,13 @@ void parse_cli_args(
     int *threadNR, int *nodeNR, int* mnNR, int *lockNR, int *runNR,
     int *nodeID, int* duration, int* mode, int* use_zipfan, 
 	int* kReadRatio, int* pinning, int* chipSize, uint64_t* dsmSize,
-    char **res_file_tp, char **res_file_lat,
+    char **res_file_tp, char **res_file_lat, char **res_file_lock,
     int argc, char **argv
 ) {
     int option;
 	*nodeID = getNodeNumber();
 	while ((option = getopt(argc, argv,
-    "d:t:l:i:d:s:m:r:f:g:n:z:w:p:c:y:")) != -1) 
+    "d:t:l:i:d:s:m:r:f:g:n:z:w:p:c:y:h:")) != -1) 
     {
 		switch (option) {
 			case 's':
@@ -57,6 +59,9 @@ void parse_cli_args(
 				break;
 			case 'g':
                 *res_file_lat = optarg; 
+				break;
+			case 'h':
+                *res_file_lock = optarg; 
 				break;
 			case 'n':
 				*nodeNR = atoi(optarg);
@@ -110,7 +115,7 @@ void clear_measurements() {
 	for (int i = 0; i < MAX_APP_THREAD; i++) {
 		measurements.handovers[i] = 0;
 		measurements.glock_tries[i] = 0;
-		measurements.lock_acquires[i] = 0;
+		measurements.tp[i] = 0;
 		measurements.loop_in_cs[i] = 0;
 	}
 }
@@ -123,6 +128,7 @@ void free_measurements() {
 	free(measurements.gwait_acq);
 	free(measurements.gwait_rel);
 	free(measurements.lock_hold);
+	free(measurements.lock_acqs);
 }
 
 uint64_t* cal_latency(uint16_t *latency, const string measurement, int lw = LATENCY_WINDOWS, uint64_t factor = 1.0) {
@@ -192,16 +198,57 @@ void save_measurement(int threadID, uint16_t *arr, int factor, bool is_lwait) {
     arr[threadID*lw + us_10]++;
 }
 
-void write_tp(char* res_file, int run, int threadNR, int lockNR, int nodeID, size_t array_size, uint64_t *lock_acqs) {
-	std::ofstream file(res_file, std::ios::app);
+std::vector<std::vector<uint64_t>> readExistingData(char *path, int lockNR) {
+    std::vector<std::vector<uint64_t>> data(MAX_MACHINE, std::vector<uint64_t>(lockNR, 0));
+    std::ifstream file(path);
+
+    if (!file.is_open()) {
+		__error("Failed to open %s\n", path);
+		return data;
+    }
+
+    std::string line;
+    int row = 0;
+    while (std::getline(file, line) && row < MAX_MACHINE) {
+        std::stringstream ss(line);
+        std::string cell;
+        int col = 0;
+
+        while (std::getline(ss, cell, ',') && col < lockNR) {
+            data[row][col] = std::stoi(cell);
+            col++;
+        }
+        row++;
+    }
+
+    file.close();
+    return data;
+}
+
+void writeData(char *path, const std::vector<std::vector<uint64_t>>& data) {
+    std::ofstream file(path, std::ios::trunc);
+
+    for (const auto& row : data) {
+        for (size_t i = 0; i < row.size(); ++i) {
+            file << row[i];
+            if (i < row.size() - 1) file << ",";
+        }
+        file << "\n";
+    }
+
+    file.close();
+}
+
+void write_tp(char* tp_path, char* lock_path, int run, int threadNR, int lockNR, int nodeID, size_t array_size) {
+	std::ofstream file(tp_path, std::ios::app);
 	uint64_t total_handovers = 0;
 	if (!file)
-		__error("Failed to open %s\n", res_file);
+		__error("Failed to open %s\n", tp_path);
 	for (int t = 0; t < threadNR; t++) {
 		total_handovers += measurements.handovers[t];
 		file << std::setfill('0') << std::setw(3) << t << ","
 			<< std::setw(8) << measurements.loop_in_cs[t] << ","
-			<< std::setw(8) << measurements.lock_acquires[t] << ","
+			<< std::setw(8) << measurements.tp[t] << ","
 			<< std::setw(3) << measurements.duration << ","
 			<< std::setw(8) << measurements.glock_tries[t] << ","
 			<< std::setw(8) << measurements.handovers[t] << ","
@@ -212,13 +259,19 @@ void write_tp(char* res_file, int run, int threadNR, int lockNR, int nodeID, siz
 
 	}
 
-	for (int l = 0; l < lockNR; l++) {
-		file << std::setfill('0') << std::setw(3) <<
-		std::setw(8) << lock_acqs[l] << std::endl;
-
-	}
     file.close();	
 	DE("TOTAL HANDOVERS: %lu", total_handovers);
+
+	std::vector<std::vector<uint64_t>> data = readExistingData(lock_path, lockNR);
+	for (int m = 0; m < MAX_MACHINE; m++) {
+		for (int i = 0; i < lockNR; ++i) {
+			data[m][i] += measurements.lock_acqs[m * lockNR + i];
+		}
+
+	}
+
+    // Write updated data back to file
+    writeData(lock_path, data);
 }
 
 // in us

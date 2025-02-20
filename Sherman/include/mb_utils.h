@@ -97,7 +97,7 @@ int uniform_rand_int(int x);
 
 void clear_measurements();
 
-void write_tp(char* res_file, int run, int threadNR, int lockNR, int nodeID, size_t array_size, uint64_t *lock_acqs);
+void write_tp(char* tp_path, char* lock_path, int run, int threadNR, int lockNR, int nodeID, size_t array_size);
 
 void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_size);
 
@@ -115,7 +115,7 @@ void parse_cli_args(
     int *threadNR, int *nodeNR, int* mnNR, int *lockNR, int *runNR,
     int *nodeID, int* duration, int* mode, int* use_zipfan, 
     int* kReadRatio, int* pinning, int *chipSize, uint64_t* dsmSize,
-    char **res_file_tp, char **res_file_lat,
+    char **res_file_tp, char **res_file_lat, char **res_file_lock,
     int argc, char **argv
 );
 

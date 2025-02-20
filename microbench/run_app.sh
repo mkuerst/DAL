@@ -55,7 +55,7 @@ comm_prot=rdma
 
 # MICROBENCH INPUTS
 # opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
-opts=("litlHo" "litlHoOcmBw")
+opts=("litl" "litlHo" "litlHoOcmBw")
 microbenches=("empty_cs" "mlocks" "correctness")
 duration=10
 runNR=3
@@ -67,6 +67,7 @@ pinning=1
 chipSize=128
 dsmSize=16
 
+
 sudo rm -rf logs/
 mkdir -p results/plots/
 sudo chown -R mkuerst:dal-PG0 /nfs/
@@ -77,6 +78,7 @@ do
     if echo "$opt" | grep -q "sherman"; then
         cn_tp_dir="$PWD/results/cn/tp/$comm_prot/kvs/$opt/sherman"
         cn_lat_dir="$PWD/results/cn/lat/$comm_prot/kvs/$opt/sherman"
+        cn_lock_dir="$PWD/results/cn/tp/$comm_prot/kvs/$opt/sherman"
         log_dir="$PWD/logs/$comm_prot/kvs/$opt/sherman"
         mkdir -p "$cn_tp_dir" 
         mkdir -p "$cn_lat_dir" 
@@ -88,8 +90,10 @@ do
             do
                 cn_tp_file="$cn_tp_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
                 cn_lat_file="$cn_lat_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
+                cn_lock_file="$cn_lock_dir"/locks_nodeNR$nodeNR"_threadNR"$threadNR.csv
                 echo $cn_tp_header > "$cn_tp_file"
                 echo $cn_lat_header > "$cn_lat_file"
+                > "$cn_lat_file"
 
                 log_file="$log_dir"/nodeNR$nodeNR"_threadNR"$threadNR.log
 
@@ -102,6 +106,7 @@ do
                     -n $nodeNR \
                     -f $cn_tp_file \
                     -g $cn_lat_file \
+                    -h $cn_lock_file \
                     -r $run \
                     -s $nodeNR \
                     -p $pinning \
@@ -121,6 +126,7 @@ do
             llock_so=${llock_libs_dir}${impl}.so
             cn_tp_dir="$PWD/results/cn/tp/$comm_prot/kvs/$opt/$impl"
             cn_lat_dir="$PWD/results/cn/lat/$comm_prot/$kvs/$opt/$impl"
+            cn_lock_dir="$PWD/results/cn/tp/$comm_prot/kvs/$opt/$impl"
             log_dir="$PWD/logs/$comm_prot/kvs/$opt/$impl"
             mkdir -p "$cn_tp_dir" 
             mkdir -p "$cn_lat_dir" 
@@ -132,8 +138,10 @@ do
                 do
                     cn_tp_file="$cn_tp_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
                     cn_lat_file="$cn_lat_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
+                    cn_lock_file="$cn_lock_dir"/locks_nodeNR$nodeNR"_threadNR"$threadNR.csv
                     echo $cn_tp_header > "$cn_tp_file"
                     echo $cn_lat_header > "$cn_lat_file"
+                    > "$cn_lat_file"
 
                     log_file="$log_dir"/nodeNR$nodeNR"_threadNR"$threadNR.log
 
@@ -146,6 +154,7 @@ do
                         -n $nodeNR \
                         -f $cn_tp_file \
                         -g $cn_lat_file \
+                        -h $cn_lock_file \
                         -r $run \
                         -s $nodeNR \
                         -p $pinning \

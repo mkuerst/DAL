@@ -20,7 +20,7 @@ using namespace std;
 #error Must define CYCLE_PER_US for the current machine in the Makefile or elsewhere
 #endif
 
-char *res_file_tp, *res_file_lat;
+char *res_file_tp, *res_file_lat, *res_file_lock;
 int threadNR, nodeNR, mnNR, lockNR, runNR,
 nodeID, duration, mode, kReadRatio;
 int pinning = 1;
@@ -198,6 +198,7 @@ void *mlocks_worker(void *arg) {
             // lock_idx = rlock->getCurrLockAddr().offset / sizeof(uint64_t);
             lock_acqs[lock_idx]++;
             task->lock_acqs++;
+            measurements.tp[id]++;
             measurements.loop_in_cs[id]++;
 
             timer.begin();
@@ -221,7 +222,7 @@ int main(int argc, char *argv[]) {
     &threadNR, &nodeNR, &mnNR, &lockNR, &runNR,
     &nodeID, &duration, &mode, &use_zipfan, 
     &kReadRatio, &pinning, &chipSize, &dsmSize,
-    &res_file_tp, &res_file_lat,
+    &res_file_tp, &res_file_lat, &res_file_lock,
     argc, argv);
     mnNR = nodeNR == 1 ? 1 : mnNR;
     dsmSize = 64 / mnNR;
@@ -294,7 +295,7 @@ int main(int argc, char *argv[]) {
     }
     for (int n = 0; n < nodeNR; n++) {
         if (n == nodeID) {
-            write_tp(res_file_tp, runNR, threadNR, lockNR, n, page_size, lock_acqs);
+            write_tp(res_file_tp, res_file_lock, runNR, threadNR, lockNR, n, page_size);
             write_lat(res_file_lat, runNR, lockNR, n, page_size);
         }
         string writeResKey = "WRITE_RES_" + to_string(n);
