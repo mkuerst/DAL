@@ -1366,9 +1366,8 @@ void Tree::get_bufs() {
 void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_size) {
   // Debug::notifyError("data_addr: %lu\nsize %d", base_addr.offset, data_size);
   timer.begin();
-	// curr_lock_addr = get_lock_addr(base_addr);
   curr_lock_addr = lock_addr;
-  // auto &curr_lock_node = local_locks[curr_lock_addr.nodeID][curr_lock_addr.offset / 8];
+  curr_lock_node = &local_locks[curr_lock_addr.nodeID][curr_lock_addr.offset / 8];
   // Debug::notifyError("lock_addr: %lu\n", curr_lock_addr.offset);
 
 	get_bufs();
@@ -1383,6 +1382,7 @@ void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_si
 		dsm->read_sync(curr_page_buffer, base_addr, data_size, NULL);
     save_measurement(threadID, measurements.data_read);
     #else
+    // bool same_address = curr_lock_node->data_addr.of;
     if (!handover) {
       timer.begin();
       dsm->read_sync(curr_page_buffer, base_addr, data_size, NULL);

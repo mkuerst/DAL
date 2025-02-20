@@ -236,6 +236,7 @@ void writeData(char *path, const std::vector<std::vector<uint32_t>>& data) {
     }
 
 	file.flush();
+	sleep(2);
     file.close();
 }
 

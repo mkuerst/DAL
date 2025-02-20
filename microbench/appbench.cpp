@@ -256,6 +256,7 @@ int main(int argc, char *argv[]) {
 
     dsm->registerThread();
     tree = new Tree(dsm, 0, lockNR, false);
+    dsm->barrier("pre_bench");
 
     if (dsm->getMyNodeID() == 0) {
         for (uint64_t i = 1; i < 1024000 / 2; ++i) {

@@ -7,8 +7,8 @@ sudo rdma resource show mr | awk '{print $16}' | sort -u | xargs -r sudo kill -9
 sudo rdma resource show qp | awk '{print $14}' | sort -u | xargs -r sudo kill -9
 sudo rdma resource show qp | awk '{print $16}' | sort -u | xargs -r sudo kill -9
 # sudo rdma resource show pd | awk '{print $12}' | sort -u | xargs -r sudo kill -9
-ps aux | grep 'appbench*' | grep -v 'grep' | awk '{print $2}' | xargs -r sudo kill -9
-ps aux | grep 'microbench*' | grep -v 'grep' | awk '{print $2}' | xargs -r sudo kill -9
+ps aux | grep 'appbench_*' | grep -v 'grep' | awk '{print $2}' | xargs -r sudo kill -9
+ps aux | grep 'microbench_*' | grep -v 'grep' | awk '{print $2}' | xargs -r sudo kill -9
 
 sudo pkill -P $$ 
 pkill -9 ibv_
