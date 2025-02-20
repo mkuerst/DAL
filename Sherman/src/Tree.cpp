@@ -28,6 +28,7 @@ thread_local int Tree::threadID;
 thread_local char* Tree::curr_page_buffer = nullptr;
 thread_local uint64_t* Tree::curr_cas_buffer = nullptr;
 thread_local GlobalAddress Tree::curr_lock_addr;
+thread_local LocalLockNode *Tree::curr_lock_node;
 
 Measurements measurements;
 
@@ -1367,6 +1368,7 @@ void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_si
   timer.begin();
 	// curr_lock_addr = get_lock_addr(base_addr);
   curr_lock_addr = lock_addr;
+  // auto &curr_lock_node = local_locks[curr_lock_addr.nodeID][curr_lock_addr.offset / 8];
   // Debug::notifyError("lock_addr: %lu\n", curr_lock_addr.offset);
 
 	get_bufs();

@@ -35,6 +35,7 @@ struct LocalLockNode {
     bool hand_over;
     uint8_t hand_time;
     char *page_buffer = nullptr;
+    uint64_t data_addr;
     LitlLock litl_lock;
 };
 
@@ -136,6 +137,7 @@ private:
     static thread_local uint64_t *curr_cas_buffer;
     static thread_local char *curr_page_buffer;
     static thread_local GlobalAddress curr_lock_addr;
+    static thread_local LocalLockNode *curr_lock_node;
     static thread_local int threadID;
     /**/
 

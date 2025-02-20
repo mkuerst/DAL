@@ -55,7 +55,7 @@ comm_prot=rdma
 
 # MICROBENCH INPUTS
 # opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
-opts=("litl" "litlHo" "litlHoOcmBw")
+opts=("shermanHo" "sherman")
 microbenches=("empty_cs" "mlocks" "correctness")
 duration=10
 runNR=3
