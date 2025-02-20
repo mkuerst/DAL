@@ -50,6 +50,6 @@ void checkDMSupported(struct ibv_context *ctx) {
   } else if (!(attrs.max_dm_size)) {
   } else {
     kMaxDeviceMemorySize = attrs.max_dm_size;
-    fprintf(stderr, "The RNIC has %dKB device memory\n", kMaxDeviceMemorySize / 1024);
+    // fprintf(stderr, "The RNIC has %dKB device memory\n", kMaxDeviceMemorySize / 1024);
   }
 }

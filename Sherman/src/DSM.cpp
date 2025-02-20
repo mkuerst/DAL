@@ -40,8 +40,8 @@ DSM::DSM(const DSMConfig &conf)
   memset((char *)rlockAddr, 0, conf.chipSize * 1024);
   #endif
   
-  Debug::notifyInfo("shared memory size: %dGB, 0x%lx", conf.dsmSize, baseAddr);
-  Debug::notifyInfo("rdma cache size: %dGB", conf.cacheConfig.cacheSize);
+  // Debug::notifyInfo("shared memory size: %dGB, 0x%lx", conf.dsmSize, baseAddr);
+  // Debug::notifyInfo("rdma cache size: %dGB", conf.cacheConfig.cacheSize);
   
   // warmup
   memset((char *)cache.data, 0, cache.size * define::GB);
@@ -53,7 +53,7 @@ DSM::DSM(const DSMConfig &conf)
       dirAgent[i] =
           new Directory(dirCon[i], remoteInfo, conf.mnNR, i, myNodeID);
     }
-    Debug::notifyInfo("Memory server %d start up", myNodeID);
+    // Debug::notifyInfo("Memory server %d start up", myNodeID);
   }
   keeper->barrier("DSM-init");
 }

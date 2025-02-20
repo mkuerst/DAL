@@ -57,8 +57,8 @@ Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB) : dsm(dsm), tre
   measurements.data_write = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
   memset(measurements.data_write, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
 
-  measurements.lock_acqs = (uint64_t *) malloc(MAX_MACHINE * lockNR * sizeof(uint64_t));
-  memset(measurements.lock_acqs, 0, MAX_MACHINE * lockNR * sizeof(uint64_t));
+  measurements.lock_acqs = (uint32_t *) malloc(MAX_MACHINE * lockNR * sizeof(uint32_t));
+  memset(measurements.lock_acqs, 0, MAX_MACHINE * lockNR * sizeof(uint32_t));
 
     for (int i = 0; i < dsm->getClusterSize(); ++i) {
         local_locks[i] = new LocalLockNode[lockNR];
@@ -105,17 +105,17 @@ void Tree::print_verbose() {
     std::cerr << "format error" << std::endl;
   }
 
-  if (dsm->getMyNodeID() == 0) {
-    std::cout << "Header size: " << sizeof(Header) << std::endl;
-    std::cout << "Internal Page size: " << sizeof(InternalPage) << " ["
-              << kInternalPageSize << "]" << std::endl;
-    std::cout << "Internal per Page: " << kInternalCardinality << std::endl;
-    std::cout << "Leaf Page size: " << sizeof(LeafPage) << " [" << kLeafPageSize
-              << "]" << std::endl;
-    std::cout << "Leaf per Page: " << kLeafCardinality << std::endl;
-    std::cout << "LeafEntry size: " << sizeof(LeafEntry) << std::endl;
-    std::cout << "InternalEntry size: " << sizeof(InternalEntry) << std::endl;
-  }
+  // if (dsm->getMyNodeID() == 0) {
+  //   std::cout << "Header size: " << sizeof(Header) << std::endl;
+  //   std::cout << "Internal Page size: " << sizeof(InternalPage) << " ["
+  //             << kInternalPageSize << "]" << std::endl;
+  //   std::cout << "Internal per Page: " << kInternalCardinality << std::endl;
+  //   std::cout << "Leaf Page size: " << sizeof(LeafPage) << " [" << kLeafPageSize
+  //             << "]" << std::endl;
+  //   std::cout << "Leaf per Page: " << kLeafCardinality << std::endl;
+  //   std::cout << "LeafEntry size: " << sizeof(LeafEntry) << std::endl;
+  //   std::cout << "InternalEntry size: " << sizeof(InternalEntry) << std::endl;
+  // }
 }
 
 inline void Tree::before_operation(CoroContext *cxt, int coro_id) {

@@ -233,7 +233,6 @@ int main(int argc, char *argv[]) {
     &res_file_tp, &res_file_lat, &res_file_lock,
     argc, argv);
     mnNR = nodeNR;
-    DE("HI\n");
     if (nodeID == 1) {
         if(system("sudo bash /nfs/DAL/restartMemc.sh"))
             _error("Failed to start MEMC server\n");

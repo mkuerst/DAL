@@ -198,12 +198,11 @@ void save_measurement(int threadID, uint16_t *arr, int factor, bool is_lwait) {
     arr[threadID*lw + us_10]++;
 }
 
-std::vector<std::vector<uint64_t>> readExistingData(char *path, int lockNR) {
-    std::vector<std::vector<uint64_t>> data(MAX_MACHINE, std::vector<uint64_t>(lockNR, 0));
+std::vector<std::vector<uint32_t>> readExistingData(char *path, int lockNR) {
+    std::vector<std::vector<uint32_t>> data(MAX_MACHINE, std::vector<uint32_t>(lockNR, 0));
     std::ifstream file(path);
 
     if (!file.is_open()) {
-		__error("Failed to open %s\n", path);
 		return data;
     }
 
@@ -215,7 +214,7 @@ std::vector<std::vector<uint64_t>> readExistingData(char *path, int lockNR) {
         int col = 0;
 
         while (std::getline(ss, cell, ',') && col < lockNR) {
-            data[row][col] = std::stoi(cell);
+            data[row][col] = std::stol(cell);
             col++;
         }
         row++;
@@ -225,7 +224,7 @@ std::vector<std::vector<uint64_t>> readExistingData(char *path, int lockNR) {
     return data;
 }
 
-void writeData(char *path, const std::vector<std::vector<uint64_t>>& data) {
+void writeData(char *path, const std::vector<std::vector<uint32_t>>& data) {
     std::ofstream file(path, std::ios::trunc);
 
     for (const auto& row : data) {
@@ -236,6 +235,7 @@ void writeData(char *path, const std::vector<std::vector<uint64_t>>& data) {
         file << "\n";
     }
 
+	file.flush();
     file.close();
 }
 
@@ -259,18 +259,17 @@ void write_tp(char* tp_path, char* lock_path, int run, int threadNR, int lockNR,
 
 	}
 
+	file.flush();
     file.close();	
 	DE("TOTAL HANDOVERS: %lu", total_handovers);
 
-	std::vector<std::vector<uint64_t>> data = readExistingData(lock_path, lockNR);
+	std::vector<std::vector<uint32_t>> data = readExistingData(lock_path, lockNR);
 	for (int m = 0; m < MAX_MACHINE; m++) {
 		for (int i = 0; i < lockNR; ++i) {
 			data[m][i] += measurements.lock_acqs[m * lockNR + i];
 		}
 
 	}
-
-    // Write updated data back to file
     writeData(lock_path, data);
 }
 

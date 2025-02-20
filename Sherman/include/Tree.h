@@ -48,7 +48,7 @@ struct Measurements {
     uint16_t *data_read;
     uint16_t *data_write;
     uint16_t *end_to_end;
-    uint64_t *lock_acqs;
+    uint32_t *lock_acqs;
     uint64_t loop_in_cs[MAX_APP_THREAD];
     uint64_t tp[MAX_APP_THREAD];
     uint64_t glock_tries[MAX_APP_THREAD];

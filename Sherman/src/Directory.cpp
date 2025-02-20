@@ -29,7 +29,7 @@ Directory::~Directory() { delete chunckAlloc; }
 void Directory::dirThread() {
 
   bindCore(127 - dirID);
-  Debug::notifyInfo("thread %d in memory nodes runs...\n", dirID);
+  // Debug::notifyInfo("thread %d in memory nodes runs...\n", dirID);
 
   while (!stopDirThread.load()) {
     struct ibv_wc wc;
