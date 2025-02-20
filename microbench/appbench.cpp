@@ -239,7 +239,7 @@ int main(int argc, char *argv[]) {
         DE("STARTED MEMC SERVER\n");
     }
     else {
-        sleep(1);
+        sleep(2);
     }
 
     config.dsmSize = dsmSize;
@@ -248,20 +248,18 @@ int main(int argc, char *argv[]) {
     config.threadNR = threadNR;
     config.chipSize = chipSize;
     lockNR = chipSize * 1024 / sizeof(uint64_t);
-    lock_acqs = new uint64_t[lockNR];
-    lock_rels = new uint64_t[lockNR];
     dsm = DSM::getInstance(config);
     nodeID = dsm->getMyNodeID();
     DE("DSM INIT DONE: DSM NODE %d\n", nodeID);
 
     dsm->registerThread();
     tree = new Tree(dsm, 0, lockNR, false);
-    dsm->barrier("pre_bench");
 
     if (dsm->getMyNodeID() == 0) {
-        for (uint64_t i = 1; i < 1024000 / 2; ++i) {
+        for (uint64_t i = 1; i < 500000; ++i) {
             tree->insert(to_key(i), i * 2);
         }
+        fprintf(stderr, "inserted initial keys\n");
     }
 
     dsm->barrier("benchmark");
