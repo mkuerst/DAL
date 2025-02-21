@@ -61,7 +61,7 @@ duration=10
 runNR=3
 mnNR=4
 zipfan=1
-nodeNRs=(1 4)
+nodeNRs=(1 3)
 threadNRs=(32)
 pinning=2
 chipSize=128
@@ -93,7 +93,7 @@ do
                 cn_lock_file="$cn_lock_dir"/locks_nodeNR$nodeNR"_threadNR"$threadNR.csv
                 echo $cn_tp_header > "$cn_tp_file"
                 echo $cn_lat_header > "$cn_lat_file"
-                > "$cn_lat_file"
+                > "$cn_lock_file"
 
                 log_file="$log_dir"/nodeNR$nodeNR"_threadNR"$threadNR.log
 
@@ -141,7 +141,7 @@ do
                     cn_lock_file="$cn_lock_dir"/locks_nodeNR$nodeNR"_threadNR"$threadNR.csv
                     echo $cn_tp_header > "$cn_tp_file"
                     echo $cn_lat_header > "$cn_lat_file"
-                    > "$cn_lat_file"
+                    > "$cn_lock_file"
 
                     log_file="$log_dir"/nodeNR$nodeNR"_threadNR"$threadNR.log
 

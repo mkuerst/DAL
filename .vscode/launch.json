@@ -46,8 +46,8 @@
       "type": "cppdbg",
       "request": "launch",
       // "program": "${workspaceFolder}/microbench/appbench_shermanLock",
-      // "program": "${workspaceFolder}/microbench/appbench_litl",
-      "program": "${workspaceFolder}/microbench/appbench_shermanHo",
+      "program": "${workspaceFolder}/microbench/appbench_litlHo",
+      // "program": "${workspaceFolder}/microbench/appbench_shermanHo",
       // "program": "${workspaceFolder}/Sherman/build/benchmark",
       "args": [
         "-t", "32",
@@ -67,12 +67,12 @@
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      // "environment": [
-      //   {
-      //     "name": "LD_PRELOAD",
-      //     "value": "/nfs/DAL/litl2/lib/original/libmalthusian_spinlock.so"
-      //   }
-      // ],
+      "environment": [
+        {
+          "name": "LD_PRELOAD",
+          "value": "/nfs/DAL/litl2/lib/original/libmalthusian_spinlock.so"
+        }
+      ],
       "MIMode": "gdb",
       // "preLaunchTask": "Set ulimit",
       "setupCommands": [
@@ -88,7 +88,8 @@
       "name": "node2",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/microbench/appbench_shermanHo",
+      "program": "${workspaceFolder}/microbench/appbench_litlHo",
+      // "program": "${workspaceFolder}/microbench/appbench_shermanHo",
       // "program": "${workspaceFolder}/microbench/appbench_shermanLock",
       // "program": "${workspaceFolder}/Sherman/build/benchmark",
       "args": [
@@ -109,12 +110,12 @@
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      // "environment": [
-      //   {
-      //     "name": "LD_PRELOAD",
-      //     "value": "/nfs/DAL/litl2/lib/original/libmalthusian_spinlock.so"
-      //   }
-      // ],
+      "environment": [
+        {
+          "name": "LD_PRELOAD",
+          "value": "/nfs/DAL/litl2/lib/original/libmalthusian_spinlock.so"
+        }
+      ],
       "MIMode": "gdb",
       // "preLaunchTask": "Set ulimit",
       "setupCommands": [
