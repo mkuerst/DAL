@@ -74,7 +74,7 @@ Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB) : dsm(dsm), tre
 
     if (!MB) {
         assert(dsm->is_register());
-        print_verbose();
+        // print_verbose();
 
         index_cache = new IndexCache(define::kIndexCacheSize);
 
@@ -93,7 +93,7 @@ Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB) : dsm(dsm), tre
         if (res) {
             std::cout << "Tree root pointer value " << root_addr << std::endl;
         } else {
-        // std::cout << "fail\n";
+            std::cout << "fail\n";
         }
     }
 }
@@ -106,17 +106,17 @@ void Tree::print_verbose() {
     std::cerr << "format error" << std::endl;
   }
 
-  // if (dsm->getMyNodeID() == 0) {
-  //   std::cout << "Header size: " << sizeof(Header) << std::endl;
-  //   std::cout << "Internal Page size: " << sizeof(InternalPage) << " ["
-  //             << kInternalPageSize << "]" << std::endl;
-  //   std::cout << "Internal per Page: " << kInternalCardinality << std::endl;
-  //   std::cout << "Leaf Page size: " << sizeof(LeafPage) << " [" << kLeafPageSize
-  //             << "]" << std::endl;
-  //   std::cout << "Leaf per Page: " << kLeafCardinality << std::endl;
-  //   std::cout << "LeafEntry size: " << sizeof(LeafEntry) << std::endl;
-  //   std::cout << "InternalEntry size: " << sizeof(InternalEntry) << std::endl;
-  // }
+  if (dsm->getMyNodeID() == 0) {
+    std::cout << "Header size: " << sizeof(Header) << std::endl;
+    std::cout << "Internal Page size: " << sizeof(InternalPage) << " ["
+              << kInternalPageSize << "]" << std::endl;
+    std::cout << "Internal per Page: " << kInternalCardinality << std::endl;
+    std::cout << "Leaf Page size: " << sizeof(LeafPage) << " [" << kLeafPageSize
+              << "]" << std::endl;
+    std::cout << "Leaf per Page: " << kLeafCardinality << std::endl;
+    std::cout << "LeafEntry size: " << sizeof(LeafEntry) << std::endl;
+    std::cout << "InternalEntry size: " << sizeof(InternalEntry) << std::endl;
+  }
 }
 
 inline void Tree::before_operation(CoroContext *cxt, int coro_id) {
@@ -282,13 +282,13 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
 
   // #else
   {
-    uint64_t retry_cnt = 1;
+    uint64_t retry_cnt = 0;
     uint64_t pre_tag = 0;
     uint64_t conflict_tag = 0;
     uint64_t ttag = 0;
   retry:
     retry_cnt++;
-    if (retry_cnt > 10000001) {
+    if (retry_cnt > 1000000) {
       std::cout << "Deadlock " << lock_addr << std::endl;
 
       std::cout << dsm->getMyNodeID() << ", " << dsm->getMyThreadID()
@@ -296,7 +296,10 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
                 << (conflict_tag << 32 >> 32) << std::endl
                 << "ttag " << (ttag >> 32) << ", "
                 << (ttag << 32 >> 32) << std::endl;
-      assert(false);
+      // assert(false);
+      sleep(1);
+      measurements.glock_tries[threadID] += retry_cnt; 
+      retry_cnt = 0;
     }
 
     assert(tag >> 32 < MAX_MACHINE);
@@ -786,10 +789,15 @@ re_read:
       return true;
     }
     if (k < page->hdr.lowest) {
-      printf("key %ld error in level %d\n", k, page->hdr.level);
-      sleep(10);
-      print_and_check_tree();
-      assert(false);
+      Debug::notifyError("key %ld error in level %d\n", k, page->hdr.level);
+      Debug::notifyError("Tree:793:page_search: k < page->hdr.lowest");
+      std::cout << "page_addr: " << page_addr << std::endl;
+      std::cout << "key: " << k << std::endl;
+      std::cout << "page->hdr.lowest: " << page->hdr.lowest  << std::endl;
+      std::cout << "page->hdr.highest: " << page->hdr.highest  << std::endl;
+      // sleep(10);
+      // print_and_check_tree();
+      // assert(false);
       return false;
     }
     internal_page_search(page, k, result);
@@ -867,7 +875,16 @@ void Tree::internal_page_store(GlobalAddress page_addr, const Key &k,
 
     return;
   }
-  assert(k >= page->hdr.lowest);
+  // assert(k >= page->hdr.lowest);
+  if (k < page->hdr.lowest) {
+    Debug::notifyError("Tree:875:internal_page_store: k < page->hdr.lowest");
+    std::cout << "root: " << root << std::endl;
+    std::cout << "page_addr: " << page_addr << std::endl;
+    std::cout << "key: " << k << std::endl;
+    std::cout << "page->hdr.lowest: " << page->hdr.lowest  << std::endl;
+    std::cout << "page->hdr.highest: " << page->hdr.highest  << std::endl;
+    return;
+  }
 
   auto cnt = page->hdr.last_index + 1;
 
@@ -1006,7 +1023,17 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
                           coro_id);
     return true;
   }
-  assert(k >= page->hdr.lowest);
+  // assert(k >= page->hdr.lowest);
+  if (k < page->hdr.lowest) {
+    Debug::notifyError("Tree:1028:leaf_page_store: k < page->hdr.lowest");
+    std::cout << "root: " << root << std::endl;
+    std::cout << "page_addr: " << page_addr << std::endl;
+    std::cout << "key: " << k << std::endl;
+    std::cout << "page->hdr.lowest: " << page->hdr.lowest  << std::endl;
+    std::cout << "page->hdr.highest: " << page->hdr.highest  << std::endl;
+    // return false;
+    return true;
+  }
 
   int cnt = 0;
   int empty_index = -1;
@@ -1269,10 +1296,10 @@ inline bool Tree::acquire_local_lock(GlobalAddress lock_addr, CoroContext *cxt,
 
   while (ticket != current) { // lock failed
 
-    if (cxt != nullptr) {
-      hot_wait_queue.push(coro_id);
-      (*cxt->yield)(*cxt->master);
-    }
+    // if (cxt != nullptr) {
+    //   hot_wait_queue.push(coro_id);
+    //   (*cxt->yield)(*cxt->master);
+    // }
 
     current = node.ticket_lock.load(std::memory_order_relaxed) >> 32;
   }

@@ -34,8 +34,8 @@ private:
   uint16_t dirID;
   uint16_t nodeID;
 
-  // std::thread *dirTh;
-  pthread_t dirTh;
+  std::thread *dirTh;
+  // pthread_t dirTh;
 
   GlobalAllocator *chunckAlloc;
 

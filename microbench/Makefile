@@ -13,12 +13,12 @@ FLAGS=-I../litl2/include/ -I../litl2/src/ -I/usr/include/rdma/ \
 -D$(DE) -D$(CORRECTNESS)\
 -L/home/kumichae/my_libs/rdma-core/build/lib/ -lrdmacm -libverbs -lnuma -pthread\
 -L../Sherman/build/  -lcityhash -lmemcached -lboost_system -lboost_coroutine\
--lsherman \
--lsherman_litlHoOcmBw \
--lsherman_litl \
--lsherman_shermanLock \
--lsherman_shermanHo \
--lsherman_litlHo \
+# -lsherman \
+# -lsherman_litlHoOcmBw \
+# -lsherman_litl \
+# -lsherman_shermanLock \
+# -lsherman_shermanHo \
+# -lsherman_litlHo \
 
 .PHONY: all target
 

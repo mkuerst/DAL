@@ -225,7 +225,7 @@ void *thread_run(void *arg) {
 }
 
 int main(int argc, char *argv[]) {
-    register_sighandler();
+    // register_sighandler();
     parse_cli_args(
     &threadNR, &nodeNR, &mnNR, &lockNR, &runNR,
     &nodeID, &duration, &mode, &use_zipfan, 
@@ -256,7 +256,7 @@ int main(int argc, char *argv[]) {
     tree = new Tree(dsm, 0, lockNR, false);
 
     if (dsm->getMyNodeID() == 0) {
-        for (uint64_t i = 1; i < 500000; ++i) {
+        for (uint64_t i = 1; i < 1024000 / 2; ++i) {
             tree->insert(to_key(i), i * 2);
         }
         fprintf(stderr, "inserted initial keys\n");
@@ -270,6 +270,7 @@ int main(int argc, char *argv[]) {
     measurements.duration = duration;
     for (int i = 0; i < threadNR; i++) {
         tasks[i].id = i;
+        tasks[i].disa = 'y';
         pthread_create(&tasks[i].thread, NULL, thread_run, &tasks[i]);
     }
 

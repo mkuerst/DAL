@@ -20,8 +20,8 @@ Directory::Directory(DirectoryConnection *dCon, RemoteConnection *remoteInfo,
     chunckAlloc = new GlobalAllocator(dsm_start, per_directory_dsm_size);
   }
 
-  // dirTh = new std::thread(&Directory::dirThread, this);
-  pthread_create(&dirTh, nullptr, &Directory::dirThreadWrapper, this);
+  dirTh = new std::thread(&Directory::dirThread, this);
+  // pthread_create(&dirTh, nullptr, &Directory::dirThreadWrapper, this);
 }
 
 Directory::~Directory() { delete chunckAlloc; }

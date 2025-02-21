@@ -430,12 +430,12 @@ int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
     r->fct = start_routine;
     r->arg = arg;
 
-    pptask_t *t = (pptask_t *) arg;
-    if (t->disa == 'y') {
-        return REAL(pthread_create)(thread, attr, lp_start_routine, r);
-    }
-    return REAL(pthread_create)(thread, attr, start_routine, arg);
-    // return REAL(pthread_create)(thread, attr, lp_start_routine, r);
+    // pptask_t *t = (pptask_t *) arg;
+    // if (t->disa == 'y') {
+    //     return REAL(pthread_create)(thread, attr, lp_start_routine, r);
+    // }
+    // return REAL(pthread_create)(thread, attr, start_routine, arg);
+    return REAL(pthread_create)(thread, attr, lp_start_routine, r);
 }
 // __asm__(".symver __pthread_create,pthread_create@@" GLIBC_2_2_5);
 // __asm__(".symver __pthread_create,pthread_create@" GLIBC_2_34);

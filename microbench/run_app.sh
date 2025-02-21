@@ -54,14 +54,14 @@ server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
 comm_prot=rdma
 
 # MICROBENCH INPUTS
-opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
-# opts=("shermanHo" "litl" "litlHo" "litlHoOcmBw")
+# opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
+opts=("litlHoOcmBw")
 microbenches=("empty_cs" "mlocks" "correctness")
 duration=10
 runNR=3
 mnNR=4
 zipfan=1
-nodeNRs=(4)
+nodeNRs=(1)
 threadNRs=(32)
 pinning=1
 chipSize=128
@@ -112,8 +112,8 @@ do
                     -p $pinning \
                     -c $chipSize \
                     -y $dsmSize \
-                    2>> $log_file"
-                    # 2>&1"
+                    2>&1"
+                    # 2>> $log_file"
                     cleanup
                 done
             done
@@ -125,7 +125,7 @@ do
             impl=${impl%.so}
             llock_so=${llock_libs_dir}${impl}.so
             cn_tp_dir="$PWD/results/cn/tp/$comm_prot/kvs/$opt/$impl"
-            cn_lat_dir="$PWD/results/cn/lat/$comm_prot/$kvs/$opt/$impl"
+            cn_lat_dir="$PWD/results/cn/lat/$comm_prot/kvs/$opt/$impl"
             cn_lock_dir="$PWD/results/cn/tp/$comm_prot/kvs/$opt/$impl"
             log_dir="$PWD/logs/$comm_prot/kvs/$opt/$impl"
             mkdir -p "$cn_tp_dir" 
@@ -160,8 +160,8 @@ do
                         -p $pinning \
                         -c $chipSize \
                         -y $dsmSize \
-                        2>> $log_file"
-                        # 2>&1"
+                        2>&1"
+                        # 2>> $log_file"
                         cleanup
                     done
                 done
