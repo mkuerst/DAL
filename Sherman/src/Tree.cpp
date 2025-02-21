@@ -243,6 +243,8 @@ next:
 inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
                                 uint64_t *buf, CoroContext *cxt, int coro_id) {
 
+
+  timer.begin();
   bool hand_over = acquire_local_lock(lock_addr, cxt, coro_id);
   #ifdef HANDOVER
   if (hand_over) {
@@ -521,7 +523,7 @@ next:
   if (!page_search(p, k, result, cxt, coro_id)) {
     std::cout << "SEARCH WARNING insert" << std::endl;
     p = get_root_ptr(cxt, coro_id);
-    sleep(1);
+    // sleep(1);
     goto next;
   }
 
@@ -1296,10 +1298,10 @@ inline bool Tree::acquire_local_lock(GlobalAddress lock_addr, CoroContext *cxt,
 
   while (ticket != current) { // lock failed
 
-    // if (cxt != nullptr) {
-    //   hot_wait_queue.push(coro_id);
-    //   (*cxt->yield)(*cxt->master);
-    // }
+    if (cxt != nullptr) {
+      hot_wait_queue.push(coro_id);
+      (*cxt->yield)(*cxt->master);
+    }
 
     current = node.ticket_lock.load(std::memory_order_relaxed) >> 32;
   }
@@ -1322,8 +1324,8 @@ inline bool Tree::acquire_local_lock(GlobalAddress lock_addr, CoroContext *cxt,
 inline bool Tree::can_hand_over(GlobalAddress lock_addr) {
   auto &node = local_locks[lock_addr.nodeID][lock_addr.offset / 8];
   #ifdef SHERMAN_LOCK
-  uint64_t lock_val = node.ticket_lock.load(std::memory_order_relaxed);
 
+  uint64_t lock_val = node.ticket_lock.load(std::memory_order_relaxed);
   uint32_t ticket = lock_val << 32 >> 32;
   uint32_t current = lock_val >> 32;
 
@@ -1392,7 +1394,6 @@ void Tree::get_bufs() {
 
 void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_size) {
   // Debug::notifyError("data_addr: %lu\nsize %d", base_addr.offset, data_size);
-  timer.begin();
   curr_lock_addr = lock_addr;
   curr_lock_node = &local_locks[curr_lock_addr.nodeID][curr_lock_addr.offset / 8];
   // Debug::notifyError("lock_addr: %lu\n", curr_lock_addr.offset);

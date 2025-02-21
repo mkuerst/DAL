@@ -103,7 +103,7 @@ void parse_cli_args(
 	}
 }
 
-void clear_measurements() {
+void clear_measurements(int lockNR) {
 	memset(measurements.lock_hold, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
 	memset(measurements.lwait_acq, 0, MAX_APP_THREAD * LWAIT_WINDOWS * sizeof(uint16_t));
 	memset(measurements.lwait_rel, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
@@ -112,6 +112,7 @@ void clear_measurements() {
 	memset(measurements.data_read, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
 	memset(measurements.data_write, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
 	memset(measurements.end_to_end, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
+	memset(measurements.lock_acqs, 0, MAX_MACHINE * lockNR * sizeof(uint32_t));
 	for (int i = 0; i < MAX_APP_THREAD; i++) {
 		measurements.handovers[i] = 0;
 		measurements.glock_tries[i] = 0;

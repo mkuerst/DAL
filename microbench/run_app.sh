@@ -54,18 +54,18 @@ server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
 comm_prot=rdma
 
 # MICROBENCH INPUTS
-opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
-# opts=("litlHoOcmBw")
+# opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
+opts=("litl")
 microbenches=("empty_cs" "mlocks" "correctness")
 duration=10
 runNR=3
 mnNR=4
 zipfan=1
-nodeNRs=(1 3)
+nodeNRs=(3)
 threadNRs=(32)
 pinning=2
 chipSize=128
-dsmSize=32
+dsmSize=8
 
 
 sudo rm -rf logs/

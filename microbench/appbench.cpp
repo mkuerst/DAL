@@ -41,7 +41,7 @@ double zipfan = 0.99;
 int use_zipfan = 0;
 
 int kReadRatio = 50;
-uint64_t kKeySpace = 60 * define::MB;
+uint64_t kKeySpace = 64 * define::MB;
 double kWarmRatio = 0.2;
 
 extern uint64_t cache_miss[MAX_APP_THREAD][8];
@@ -93,8 +93,8 @@ void mn_worker() {
         tree->insert(to_key(i), i * 2);
         // DE("MN INSERTED KEY %ld / 1024000\n", i);
     }
-    dsm->barrier("benchmark");
     dsm->resetThread();
+    dsm->barrier("benchmark");
     dsm->barrier("warm_finish");
 
     for (int n = 0; n < nodeNR; n++) {
@@ -184,7 +184,7 @@ void *thread_run(void *arg) {
 
         tree->index_cache_statistics();
         tree->clear_statistics();
-        clear_measurements();
+        clear_measurements(lockNR);
 
         ready = true;
 
@@ -192,6 +192,10 @@ void *thread_run(void *arg) {
     }
 
     while (warmup_cnt.load() != 0);
+#ifdef USE_CORO
+  printf("running coroutines\n");
+  tree->run_coroutine(coro_func, id, kCoroCnt);
+#else
 
     unsigned int seed = rdtsc();
     struct zipf_gen_state state;
@@ -222,6 +226,7 @@ void *thread_run(void *arg) {
         measurements.end_to_end[id*LATENCY_WINDOWS + us_10]++;
     }
     return 0;
+    #endif
 }
 
 int main(int argc, char *argv[]) {
@@ -253,10 +258,15 @@ int main(int argc, char *argv[]) {
     DE("DSM INIT DONE: DSM NODE %d\n", nodeID);
 
     dsm->registerThread();
-    tree = new Tree(dsm, 0, lockNR, false);
+    for (int n = 0; n < nodeNR; n++) {
+        if (n == nodeID) {
+            tree = new Tree(dsm, 0, lockNR, false);
+        }
+        dsm->barrier("tree-init" + to_string(n));
+    }
 
     if (dsm->getMyNodeID() == 0) {
-        for (uint64_t i = 1; i < 1024000 / 2; ++i) {
+        for (uint64_t i = 1; i < 1024000; ++i) {
             tree->insert(to_key(i), i * 2);
         }
         fprintf(stderr, "inserted initial keys\n");

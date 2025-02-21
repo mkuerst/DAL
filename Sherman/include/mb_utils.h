@@ -58,7 +58,17 @@ using namespace std;
 
 static string ck = "CORRECTNESS";
 
-struct alignas(CACHELINE_SIZE) Task {
+// struct alignas(CACHELINE_SIZE) Task {
+//     pthread_t thread;
+//     char disa = 'y';
+//     uint64_t lock_acqs = 0;
+//     uint64_t inc = 0;
+
+//     // MISC
+//     int id;
+//     int private_int_array[PRIVATE_ARRAY_SZ / sizeof(int)];
+// };
+struct Task {
     pthread_t thread;
     char disa = 'y';
     uint64_t lock_acqs = 0;
@@ -95,7 +105,7 @@ constexpr int thread_to_cpu_2n[64] = {
 
 int uniform_rand_int(int x);
 
-void clear_measurements();
+void clear_measurements(int lockNR);
 
 void write_tp(char* tp_path, char* lock_path, int run, int threadNR, int lockNR, int nodeID, size_t array_size);
 
