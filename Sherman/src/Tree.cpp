@@ -405,29 +405,29 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   save_measurement(threadID, measurements.gwait_rel);
 
   #else
-  // auto cas_buf = dsm->get_rbuf(coro_id).get_cas_buffer();
-  // *cas_buf = 0;
+  auto cas_buf = dsm->get_rbuf(coro_id).get_cas_buffer();
+  *cas_buf = 0;
 
-  // dsm->write_sync(page_buffer, page_addr, page_size, cxt);
-  // save_measurement(threadID, measurements.data_write);
+  dsm->write_sync(page_buffer, page_addr, page_size, cxt);
+  save_measurement(threadID, measurements.data_write);
 
-  // timer.begin();
-  // dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
-  // save_measurement(threadID, measurements.gwait_rel);
+  timer.begin();
+  dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
+  save_measurement(threadID, measurements.gwait_rel);
 
-  if (async) {
-    dsm->write_batch(&rs[0], 1, false);
-    save_measurement(threadID, measurements.data_write);
-    timer.begin();
-    dsm->write_batch(&rs[1], 1, false);
-    save_measurement(threadID, measurements.gwait_rel);
-  } else {
-    dsm->write_batch_sync(&rs[0], 1, cxt);
-    save_measurement(threadID, measurements.data_write);
-    timer.begin();
-    dsm->write_batch_sync(&rs[1], 1, cxt);
-    save_measurement(threadID, measurements.gwait_rel);
-  }
+  // if (async) {
+  //   dsm->write_batch(&rs[0], 1, false);
+  //   save_measurement(threadID, measurements.data_write);
+  //   timer.begin();
+  //   dsm->write_batch(&rs[1], 1, false);
+  //   save_measurement(threadID, measurements.gwait_rel);
+  // } else {
+  //   dsm->write_batch_sync(&rs[0], 1, cxt);
+  //   save_measurement(threadID, measurements.data_write);
+  //   timer.begin();
+  //   dsm->write_batch_sync(&rs[1], 1, cxt);
+  //   save_measurement(threadID, measurements.gwait_rel);
+  // }
   #endif
 
   timer.begin();
