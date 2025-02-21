@@ -54,16 +54,16 @@ server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
 comm_prot=rdma
 
 # MICROBENCH INPUTS
-# opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
-opts=("litlHoOcmBw")
+opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
+# opts=("litlHoOcmBw")
 microbenches=("empty_cs" "mlocks" "correctness")
 duration=10
 runNR=3
 mnNR=4
 zipfan=1
-nodeNRs=(1)
+nodeNRs=(1 4)
 threadNRs=(32)
-pinning=1
+pinning=2
 chipSize=128
 dsmSize=32
 
