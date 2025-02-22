@@ -51,7 +51,7 @@
       // "program": "${workspaceFolder}/Sherman/build/benchmark",
       "args": [
         "-t", "32",
-        "-d", "60",
+        "-d", "3",
         "-s", "2",
         "-m", "1",
         "-i", "1",
@@ -95,7 +95,7 @@
       // "program": "${workspaceFolder}/Sherman/build/benchmark",
       "args": [
         "-t", "32",
-        "-d", "60",
+        "-d", "3",
         "-s", "2",
         "-m", "1",
         "-i", "2",

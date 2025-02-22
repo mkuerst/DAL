@@ -65,12 +65,16 @@ void DSM::free_dsm() {
   munmap((void*)baseAddr, conf.dsmSize * define::GB);
   munmap((void*)cache.data, cache.size * define::GB);
 
-  stopDirThread();
-  RawMessage m;
-  m.type = RpcType::END;
-  this->rpc_call_dir(m, myNodeID, 0);
+  
+  if (myNodeID < conf.mnNR) {
+    stopDirThread();
+    RawMessage m;
+    m.type = RpcType::END;
+    this->rpc_call_dir(m, myNodeID, 0);
+  }
 
-  if (myNodeID < MEMORY_NODE_NUM) {
+  if (myNodeID  == 0) {
+
     if (ibv_dereg_mr(dirCon[myNodeID]->dsmMR)) {
       perror("ibv_dereg_mr dmsMR failed");
     }

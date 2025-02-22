@@ -65,7 +65,7 @@ nodeNRs=(4)
 threadNRs=(32)
 pinning=2
 chipSize=128
-dsmSize=16
+dsmSize=32
 
 
 sudo rm -rf logs/

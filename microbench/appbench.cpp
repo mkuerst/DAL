@@ -260,8 +260,6 @@ int main(int argc, char *argv[]) {
     DE("DSM INIT DONE: %d\n", nodeID);
 
     dsm->registerThread();
-    // for (int n = 0; n < nodeNR; n++) {
-    //     if (n == nodeID) {
     if (nodeID < mnNR) {
         tree = new Tree(dsm, 0, lockNR, false);
         dsm->barrier("mn-tree-init");
@@ -272,9 +270,6 @@ int main(int argc, char *argv[]) {
         DE("TREE INIT DONE: %d\n", nodeID);
     }
     fflush(stderr);
-    //     }
-    //     dsm->barrier("tree-init" + to_string(n));
-    // }
 
     if (dsm->getMyNodeID() == 0) {
         for (uint64_t i = 1; i < 2*1024000; ++i) {
