@@ -1,12 +1,12 @@
 #!/bin/sh
  
 cleanup() {
+    sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo bash /nfs/DAL/cleanup_rdma.sh"
     sudo pkill -P $$ 
     for pid in $(sudo lsof | grep infiniband | awk '{print $2}' | sort -u); do
         echo "Killing process $pid using RDMA resources..."
         sudo kill -9 "$pid"
     done
-    sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo bash /nfs/DAL/cleanup_rdma.sh"
     echo "CLEANUP DONE"
     if [[ "$1" == "1" || -n "$SIGNAL_CAUGHT" ]]; then
         echo "EXIT"
@@ -54,14 +54,14 @@ server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
 comm_prot=rdma
 
 # MICROBENCH INPUTS
-# opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
-opts=("litlHo" "litlHoOcmBw")
+opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
+# opts=("litlHo" "litlHoOcmBw")
 microbenches=("empty_cs" "mlocks" "correctness")
-duration=10
-runNR=3
+duration=30
+runNR=1
 mnNR=4
 zipfan=1
-nodeNRs=(1 3)
+nodeNRs=(1)
 threadNRs=(32)
 pinning=2
 chipSize=128

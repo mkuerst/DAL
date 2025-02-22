@@ -24,7 +24,7 @@ class IndexCache;
 //     bool hand_over;
 //     uint8_t hand_time;
 // };
-struct alignas(CACHELINE_SIZE) LitlLock {
+struct LitlLock {
     pthread_mutex_t mutex;
     uint64_t safe1, safe2;
     char disa = 'y';

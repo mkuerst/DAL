@@ -10,6 +10,7 @@ using namespace std;
 #include <fstream>
 #include <vector>
 #include <sstream>
+#include <stdexcept>
 
 extern thread_local Timer timer;
 // extern thread_local int Tree::threadID;
@@ -215,7 +216,11 @@ std::vector<std::vector<uint32_t>> readExistingData(char *path, int lockNR) {
         int col = 0;
 
         while (std::getline(ss, cell, ',') && col < lockNR) {
-            data[row][col] = std::stol(cell);
+			try {
+				data[row][col] = std::stol(cell);
+			} catch (const std::invalid_argument& e) {
+				fprintf(stderr, "caught invalid lock acqs line\n");
+			}
             col++;
         }
         row++;

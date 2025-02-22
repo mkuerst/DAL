@@ -51,5 +51,5 @@ cd MLNX_OFED_LINUX-4.9-5.1.0.0-ubuntu20.04-x86_64
 
 sudo ./mlnxofedinstall  --force
 
-# sudo /etc/init.d/openibd restart
-# sudo /etc/init.d/opensmd restart
+sudo /etc/init.d/openibd restart
+sudo /etc/init.d/opensmd restart

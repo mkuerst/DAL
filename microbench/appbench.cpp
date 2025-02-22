@@ -42,12 +42,13 @@ int use_zipfan = 0;
 
 int kReadRatio = 50;
 uint64_t kKeySpace = 64 * define::MB;
-double kWarmRatio = 0.2;
+double kWarmRatio = 0.1;
 
 extern uint64_t cache_miss[MAX_APP_THREAD][8];
 extern uint64_t cache_hit[MAX_APP_THREAD][8];
 extern uint64_t latency[MAX_APP_THREAD][LATENCY_WINDOWS];
 uint64_t latency_th_all[LATENCY_WINDOWS];
+std::thread th[MAX_APP_THREAD];
 
 extern Measurements measurements;
 
@@ -146,6 +147,7 @@ std::atomic_bool ready{false};
 std::atomic_bool done{false};
 
 void *thread_run(void *arg) {
+// void thread_run(int id) {
     Task *task = (Task *) arg;
     if (pinning == 1) {
         bindCore(thread_to_cpu_1n[task->id]);
@@ -178,15 +180,16 @@ void *thread_run(void *arg) {
         while (warmup_cnt.load() != threadNR);
         printf("node %d finish\n", dsm->getMyNodeID());
         dsm->barrier("warm_finish");
-
+        
         uint64_t ns = bench_timer.end();
         printf("warmup time %lds\n", ns / 1000 / 1000 / 1000);
+        fflush(stdout);
 
         tree->index_cache_statistics();
         tree->clear_statistics();
         clear_measurements(lockNR);
 
-        ready = true;
+        ready.store(true);
 
         warmup_cnt.store(0);
     }
@@ -255,18 +258,20 @@ int main(int argc, char *argv[]) {
     lockNR = chipSize * 1024 / sizeof(uint64_t);
     dsm = DSM::getInstance(config);
     nodeID = dsm->getMyNodeID();
-    DE("DSM INIT DONE: DSM NODE %d\n", nodeID);
+    DE("DSM INIT DONE: %d\n", nodeID);
 
     dsm->registerThread();
-    for (int n = 0; n < nodeNR; n++) {
-        if (n == nodeID) {
-            tree = new Tree(dsm, 0, lockNR, false);
-        }
-        dsm->barrier("tree-init" + to_string(n));
-    }
+    // for (int n = 0; n < nodeNR; n++) {
+    //     if (n == nodeID) {
+    tree = new Tree(dsm, 0, lockNR, false);
+    DE("TREE INIT DONE: %d\n", nodeID);
+    fflush(stderr);
+    //     }
+    //     dsm->barrier("tree-init" + to_string(n));
+    // }
 
     if (dsm->getMyNodeID() == 0) {
-        for (uint64_t i = 1; i < 1024000; ++i) {
+        for (uint64_t i = 1; i < 2*1024000; ++i) {
             tree->insert(to_key(i), i * 2);
         }
         fprintf(stderr, "inserted initial keys\n");
@@ -282,13 +287,16 @@ int main(int argc, char *argv[]) {
         tasks[i].id = i;
         tasks[i].disa = 'y';
         pthread_create(&tasks[i].thread, NULL, thread_run, &tasks[i]);
+        // th[i] = std::thread(thread_run, i);
     }
 
     while (!ready.load());
+    DE("NODE %d STARTS DURATION\n", nodeID);
     sleep(duration);
-    done = true;
+    done.store(true);
     for (int i = 0; i < threadNR; i++) {
         pthread_join(tasks[i].thread, NULL);
+        // th[i].join();
     }
 
     // TODO: CACHE HIT AND MISSES
@@ -307,8 +315,8 @@ int main(int argc, char *argv[]) {
         }
         string writeResKey = "WRITE_RES_" + to_string(n);
         dsm->barrier(writeResKey);
-        DE("[%d] WRITE BARRIER %d PASSED\n", nodeID, n);
     }
+    DE("[%d] WRITE RES DONE\n", nodeID);
 
     fprintf(stderr, "DSM NODE %d DONE\n", nodeID);
     free_measurements();
