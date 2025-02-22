@@ -59,13 +59,13 @@ opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
 microbenches=("empty_cs" "mlocks" "correctness")
 duration=30
 runNR=1
-mnNR=4
+mnNR=2
 zipfan=1
-nodeNRs=(1)
+nodeNRs=(4)
 threadNRs=(32)
 pinning=2
 chipSize=128
-dsmSize=8
+dsmSize=16
 
 
 sudo rm -rf logs/
@@ -108,7 +108,7 @@ do
                     -g $cn_lat_file \
                     -h $cn_lock_file \
                     -r $run \
-                    -s $nodeNR \
+                    -s $mnNR \
                     -p $pinning \
                     -c $chipSize \
                     -y $dsmSize \
@@ -156,7 +156,7 @@ do
                         -g $cn_lat_file \
                         -h $cn_lock_file \
                         -r $run \
-                        -s $nodeNR \
+                        -s $mnNR \
                         -p $pinning \
                         -c $chipSize \
                         -y $dsmSize \

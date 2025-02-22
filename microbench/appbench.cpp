@@ -240,7 +240,6 @@ int main(int argc, char *argv[]) {
     &kReadRatio, &pinning, &chipSize, &dsmSize,
     &res_file_tp, &res_file_lat, &res_file_lock,
     argc, argv);
-    mnNR = nodeNR;
     if (nodeID == 1) {
         if(system("sudo bash /nfs/DAL/restartMemc.sh"))
             _error("Failed to start MEMC server\n");
@@ -251,7 +250,7 @@ int main(int argc, char *argv[]) {
     }
 
     config.dsmSize = dsmSize;
-    config.mnNR = mnNR;
+    config.mnNR = mnNR > nodeNR ? nodeNR : mnNR;
     config.machineNR = nodeNR;
     config.threadNR = threadNR;
     config.chipSize = chipSize;
@@ -263,8 +262,15 @@ int main(int argc, char *argv[]) {
     dsm->registerThread();
     // for (int n = 0; n < nodeNR; n++) {
     //     if (n == nodeID) {
-    tree = new Tree(dsm, 0, lockNR, false);
-    DE("TREE INIT DONE: %d\n", nodeID);
+    if (nodeID < mnNR) {
+        tree = new Tree(dsm, 0, lockNR, false);
+        dsm->barrier("mn-tree-init");
+        DE("TREE INIT DONE: %d\n", nodeID);
+    } else {
+        dsm->barrier("mn-tree-init");
+        tree = new Tree(dsm, 0, lockNR, false);
+        DE("TREE INIT DONE: %d\n", nodeID);
+    }
     fflush(stderr);
     //     }
     //     dsm->barrier("tree-init" + to_string(n));

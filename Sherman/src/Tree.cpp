@@ -335,7 +335,6 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
                               uint64_t *buf, CoroContext *cxt, int coro_id,
                               bool async) {
 
-  timer.begin();
   #ifdef HANDOVER
   bool hand_over_other = can_hand_over(lock_addr);
   if (hand_over_other) {
@@ -344,6 +343,7 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
     return;
   }
   #endif
+  timer.begin();
 
   auto cas_buf = dsm->get_rbuf(coro_id).get_cas_buffer();
 
@@ -354,7 +354,6 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
     dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
   }
   save_measurement(threadID, measurements.gwait_rel);
-  timer.begin();
   releases_local_lock(lock_addr);
   // DEB("[%d.%d] unlocked global lock remotely: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), curr_lock_addr.offset);
 }
@@ -374,7 +373,6 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     #else
     local_locks[lock_addr.nodeID][lock_addr.offset / 8].page_buffer = curr_page_buffer;
     #endif
-    timer.begin();
     releases_local_lock(lock_addr);
     // DEB("[%d.%d] unlocked global lock for handover: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), curr_lock_addr.offset);
     return;
@@ -382,6 +380,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   #endif
 
 
+  timer.begin();
   RdmaOpRegion rs[2];
   rs[0].source = (uint64_t)page_buffer;
   rs[0].dest = page_addr;
@@ -433,7 +432,6 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   // }
   #endif
 
-  timer.begin();
   releases_local_lock(lock_addr);
   // DEB("[%d.%d] unlocked global lock remotely: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_addr.offset);
 }
@@ -1352,6 +1350,7 @@ inline bool Tree::can_hand_over(GlobalAddress lock_addr) {
 }
 
 inline void Tree::releases_local_lock(GlobalAddress lock_addr) {
+  timer.begin();
   auto &node = local_locks[lock_addr.nodeID][lock_addr.offset / 8];
   #ifdef SHERMAN_LOCK
   node.ticket_lock.fetch_add((1ull << 32));
