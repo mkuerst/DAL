@@ -1,15 +1,12 @@
 #!/bin/sh
  
 cleanup() {
-    echo ""
+    sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo bash /nfs/DAL/cleanup_rdma.sh"
     sudo pkill -P $$ 
     for pid in $(sudo lsof | grep infiniband | awk '{print $2}' | sort -u); do
         echo "Killing process $pid using RDMA resources..."
         sudo kill -9 "$pid"
     done
-    sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo bash /nfs/DAL/cleanup_rdma.sh"
-    # sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo bash /nfs/DAL/Sherman/script/clear_hugepage.sh"
-    # sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo bash /nfs/DAL/Sherman/script/hugepage.sh"
     echo "CLEANUP DONE"
     if [[ "$1" == "1" || -n "$SIGNAL_CAUGHT" ]]; then
         echo "EXIT"
@@ -36,7 +33,8 @@ pthread_so="$PWD/../litl2/lib/original/libpthreadinterpose_original.so"
 
 cn_tp_header="tid,\
 loop_in_cs,lock_acquires,duration,\
-glock_tries,handovers,array_size(B),nodeID,run,lockNR"
+glock_tries,handovers,handovers_data,array_size(B),\
+nodeID,run,lockNR"
 
 cn_lat_header="lock_hold,\
 lwait_acq,\
@@ -56,11 +54,11 @@ server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
 comm_prot=rdma
 
 # MICROBENCH INPUTS
-opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
-# opts=("litlHo" "litlHoOcmBw")
-microbenches=("empty_cs" "mlocks" "correctness")
-duration=10
-runNR=3
+# opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
+opts=("litlHod")
+microbenches=("empty_cs" "mlocks" "correctness" "kvs")
+duration=3
+runNR=1
 mnNR=2
 zipfan=1
 nodeNRs=(1 4)
@@ -69,7 +67,7 @@ lockNRs=(512)
 bench_idxs=(1)
 pinning=1
 chipSize=128
-dsmSize=8
+dsmSize=32
 
 sudo rm -rf logs/
 mkdir -p results/plots/
@@ -82,6 +80,9 @@ do
         for mode in ${bench_idxs[@]}
         do
             microb="${microbenches[$mode]}"
+            if echo "$microb" | grep -q "kvs"; then
+                mb_exe="$PWD/appbench_$opt"
+            fi
             cn_tp_dir="$PWD/results/cn/tp/$comm_prot/$microb/$opt/sherman"
             cn_lat_dir="$PWD/results/cn/lat/$comm_prot/$microb/$opt/sherman"
             log_dir="$PWD/logs/$comm_prot/$microb/$opt/sherman"
@@ -104,7 +105,7 @@ do
                     do
 
                         for ((run = 0; run < runNR; run++)); do
-                            echo "START MICROBENCH $microb | $opt $impl | $nodeNR Ns & $threadNR Ts & $lockNR Ls & $duration s & RUN $run"
+                            echo "BENCHMARK $microb | $opt $impl | $nodeNR Ns & $threadNR Ts & $lockNR Ls & $duration s & RUN $run"
                             dsh -M -f <(head -n $nodeNR ./nodes.txt) -o "-o StrictHostKeyChecking=no" -c \
                             "sudo $mb_exe \
                             -t $threadNR \
@@ -120,8 +121,8 @@ do
                             -p $pinning \
                             -c $chipSize \
                             -y $dsmSize \
-                            2>> $log_file"
-                            # 2>&1
+                            2>&1"
+                            # 2>> $log_file"
 
                             cleanup
                         done
@@ -138,6 +139,9 @@ do
             for mode in ${bench_idxs[@]}
             do
                 microb="${microbenches[$mode]}"
+                if echo "$microb" | grep -q "kvs"; then
+                    mb_exe="$PWD/appbench_$opt"
+                fi
                 cn_tp_dir="$PWD/results/cn/tp/$comm_prot/$microb/$opt/$impl"
                 cn_lat_dir="$PWD/results/cn/lat/$comm_prot/$microb/$opt/$impl"
                 log_dir="$PWD/logs/$comm_prot/$microb/$opt/$impl"
@@ -160,7 +164,7 @@ do
                         do
 
                             for ((run = 0; run < runNR; run++)); do
-                                echo "START MICROBENCH $microb | $opt $impl | $nodeNR Ns & $threadNR Ts & $lockNR Ls & $duration s & RUN $run"
+                                echo "BENCHMARK $microb | $opt $impl | $nodeNR Ns & $threadNR Ts & $lockNR Ls & $duration s & RUN $run"
                                 dsh -M -f <(head -n $nodeNR ./nodes.txt) -o "-o StrictHostKeyChecking=no" -c \
                                 "sudo LD_PRELOAD=$llock_so $mb_exe \
                                 -t $threadNR \
@@ -176,8 +180,8 @@ do
                                 -p $pinning \
                                 -c $chipSize \
                                 -y $dsmSize \
-                                2>> $log_file"
-                                # 2>&1"
+                                2>&1"
+                                # 2>> $log_file"
                                 cleanup
                             done
                         done

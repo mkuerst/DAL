@@ -54,6 +54,7 @@ struct Measurements {
     uint64_t tp[MAX_APP_THREAD];
     uint64_t glock_tries[MAX_APP_THREAD];
     uint64_t handovers[MAX_APP_THREAD];
+    uint64_t handovers_data[MAX_APP_THREAD];
     uint64_t duration;
 };
 

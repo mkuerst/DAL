@@ -224,8 +224,7 @@ int main(int argc, char *argv[]) {
     &kReadRatio, &pinning, &chipSize, &dsmSize,
     &res_file_tp, &res_file_lat, &res_file_lock,
     argc, argv);
-    mnNR = nodeNR == 1 ? 1 : mnNR;
-    dsmSize = 64 / mnNR;
+    // dsmSize = 64 / mnNR;
     DE("HI\n");
     if (nodeID == 1) {
         if(system("sudo bash /nfs/DAL/restartMemc.sh"))
@@ -237,12 +236,14 @@ int main(int argc, char *argv[]) {
     }
 
     config.dsmSize = dsmSize;
-    config.mnNR = mnNR;
+    config.mnNR = mnNR > nodeNR ? nodeNR : mnNR;
     config.machineNR = nodeNR;
     config.threadNR = threadNR;
+    config.chipSize = chipSize;
+    lockNR = chipSize * 1024 / sizeof(uint64_t);
     dsm = DSM::getInstance(config);
     nodeID = dsm->getMyNodeID();
-    DE("DSM INIT DONE: NODE %d\n", nodeID);
+    DE("DSM INIT DONE: %d\n", nodeID);
 
     if (nodeID == 0) {
         char val[sizeof(uint64_t)];
@@ -265,6 +266,7 @@ int main(int argc, char *argv[]) {
 
     lockNR = chipSize * 1024 / sizeof(uint64_t);
     /*LOCK INIT*/
+    dsm->registerThread();
     rlock = new Tree(dsm, 0, lockNR, true);
     dsm->resetThread();
     lock_acqs = new uint64_t[lockNR];

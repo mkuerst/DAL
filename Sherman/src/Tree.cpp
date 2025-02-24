@@ -256,6 +256,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
     measurements.handovers[threadID]++;
     #ifdef HANDOVER_DATA
     curr_page_buffer = local_locks[lock_addr.nodeID][lock_addr.offset / 8].page_buffer;
+    measurements.handovers_data[threadID]++;
     #endif
     measurements.lock_acqs[lock_addr.nodeID * lockNR + lock_addr.offset / 8]++;
     return true;
@@ -1412,8 +1413,8 @@ void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_si
 		dsm->read_sync(curr_page_buffer, base_addr, data_size, NULL);
     save_measurement(threadID, measurements.data_read);
     #else
-    // bool same_address = curr_lock_node->data_addr.of;
-    if (!handover) {
+    bool same_address = curr_lock_node->data_addr.offset == base_addr.offset;
+    if (!handover || !same_address) {
       timer.begin();
       dsm->read_sync(curr_page_buffer, base_addr, data_size, NULL);
       save_measurement(threadID, measurements.data_read);

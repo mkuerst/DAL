@@ -33,7 +33,7 @@ pthread_so="$PWD/../litl2/lib/original/libpthreadinterpose_original.so"
 
 cn_tp_header="tid,\
 loop_in_cs,lock_acquires,duration,\
-glock_tries,handovers,array_size(B),\
+glock_tries,handovers,handovers_data,array_size(B),\
 nodeID,run,lockNR"
 
 cn_lat_header="lock_hold,\

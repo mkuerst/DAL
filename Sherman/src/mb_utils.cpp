@@ -116,6 +116,7 @@ void clear_measurements(int lockNR) {
 	memset(measurements.lock_acqs, 0, MAX_MACHINE * lockNR * sizeof(uint32_t));
 	for (int i = 0; i < MAX_APP_THREAD; i++) {
 		measurements.handovers[i] = 0;
+		measurements.handovers_data[i] = 0;
 		measurements.glock_tries[i] = 0;
 		measurements.tp[i] = 0;
 		measurements.loop_in_cs[i] = 0;
@@ -242,8 +243,8 @@ void writeData(char *path, const std::vector<std::vector<uint32_t>>& data) {
     }
 
 	file.flush();
-	sleep(2);
     file.close();
+	sleep(2);
 }
 
 void write_tp(char* tp_path, char* lock_path, int run, int threadNR, int lockNR, int nodeID, size_t array_size) {
@@ -259,11 +260,11 @@ void write_tp(char* tp_path, char* lock_path, int run, int threadNR, int lockNR,
 			<< std::setw(3) << measurements.duration << ","
 			<< std::setw(8) << measurements.glock_tries[t] << ","
 			<< std::setw(8) << measurements.handovers[t] << ","
+			<< std::setw(8) << measurements.handovers_data[t] << ","
 			<< std::setw(6) << array_size << ","
 			<< std::setw(3) << nodeID << ","
 			<< std::setw(3) << run << ","
 			<< std::setw(8) << lockNR << "\n";
-
 	}
 
 	file.flush();
