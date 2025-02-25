@@ -10,6 +10,8 @@
 #include <utility>
 #include <vector>
 
+using namespace std;
+
 bool enter_debug = false;
 
 uint64_t cache_miss[MAX_APP_THREAD][8];
@@ -1399,7 +1401,7 @@ void Tree::get_bufs() {
 
 void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_size) {
   curr_lock_addr = lock_addr;
-  curr_lock_node = &local_locks[curr_lock_addr.nodeID][curr_lock_addr.offset / 8];
+  // curr_lock_node = &local_locks[curr_lock_addr.nodeID][curr_lock_addr.offset / 8];
   // Debug::notifyError("data_addr: %lu\nsize %d", base_addr.offset, data_size);
   // Debug::notifyError("lock_addr: %lu\n", curr_lock_addr.offset);
 
@@ -1414,12 +1416,25 @@ void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_si
     save_measurement(threadID, measurements.data_read);
     #else
     bool same_address = curr_lock_node->page_addr.val == base_addr.val;
+    cout << curr_lock_node->page_addr.val << " ?==? " << base_addr.val << endl;
     if (!handover || !same_address) {
       timer.begin();
       dsm->read_sync(curr_page_buffer, base_addr, data_size, NULL);
       save_measurement(threadID, measurements.data_read);
+      cout << "********************************************" << endl;
+      cout << "NO DATA HO: " << "[" + to_string(dsm->getMyThreadID()) + "." + to_string(dsm->getMyNodeID()) + "]" << endl;
+      cout << "lock_addr: " << lock_addr << endl; 
+      cout << "base_addr: " << base_addr << endl;
+      cout << "curr_page_buffer: " << (uintptr_t) curr_page_buffer << " = " << (uint64_t) *curr_page_buffer << endl;
+      cout << "********************************************" << endl;
     } else {
+      cout << "********************************************" << endl;
       curr_page_buffer = curr_lock_node->page_buffer;
+      cout << "DATA HO: " << "[" + to_string(dsm->getMyThreadID()) + "." + to_string(dsm->getMyNodeID()) + "]" << endl;
+      cout << "lock_addr: " << lock_addr << endl; 
+      cout << "base_addr: " << base_addr << endl;
+      cout << "curr_page_buffer: " << (uintptr_t) curr_page_buffer << " = " << (uint64_t) *curr_page_buffer << endl;
+      cout << "********************************************" << endl;
     }
     #endif
 	}

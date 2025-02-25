@@ -271,8 +271,8 @@ void write_tp(char* tp_path, char* lock_path, int run, int threadNR, int lockNR,
 
 	file.flush();
     file.close();	
-	DEB("TOTAL HANDOVERS: %lu", total_handovers);
-	DEB("TOTAL DATA_HANDOVERS: %lu", total_Hod);
+	DEB("TOTAL HANDOVERS: %lu\n", total_handovers);
+	DEB("TOTAL DATA_HANDOVERS: %lu\n", total_Hod);
 
 	std::vector<std::vector<uint32_t>> data = readExistingData(lock_path, lockNR);
 	for (int m = 0; m < MAX_MACHINE; m++) {
@@ -322,8 +322,8 @@ int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int nod
 	uint64_t cn_sum = 0;
 	uint64_t cn_inc = 0;
 	for (int i = 0; i < nodeNR; i++) {
-		if (i == nodeID)
-			continue;
+		// if (i == nodeID)
+		// 	continue;
 		string key = "CORRECTNESS" + to_string(i);
 		char *cn_sum_ptr = dsm->get_DSMKeeper()->memGet(key.c_str(), key.size());
 		uint64_t cn_sum_;
@@ -389,6 +389,7 @@ int check_CN_correctness(
 	for (size_t i = 0; i < GB(dsm->getConf().dsmSize) / sizeof(uint64_t); i++) {
 		datasum += long_data[i];
 	}
+
 	string key = "CORRECTNESS" + to_string(nodeID);
     char val[sizeof(uint64_t)];
     memcpy(val, &task_sum, sizeof(uint64_t));
