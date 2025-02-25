@@ -372,7 +372,8 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     dsm->write_sync(page_buffer, page_addr, page_size, cxt);
     save_measurement(threadID, measurements.data_write);
     #else
-    local_locks[lock_addr.nodeID][lock_addr.offset / 8].page_buffer = curr_page_buffer;
+    curr_lock_node->page_buffer = page_buffer;
+    curr_lock_node->page_addr = page_addr;
     #endif
     releases_local_lock(lock_addr);
     // DEB("[%d.%d] unlocked global lock for handover: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), curr_lock_addr.offset);
@@ -1294,6 +1295,7 @@ inline bool Tree::acquire_local_lock(GlobalAddress lock_addr, CoroContext *cxt,
 
   auto &node = local_locks[lock_addr.nodeID][lock_addr.offset / 8];
   uint64_t lock_val = node.ticket_lock.fetch_add(1);
+  curr_lock_node = &local_locks[lock_addr.nodeID][lock_addr.offset / 8];
   #ifdef SHERMAN_LOCK
   uint32_t ticket = lock_val << 32 >> 32;
   uint32_t current = lock_val >> 32;
@@ -1396,15 +1398,13 @@ void Tree::get_bufs() {
 }
 
 void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_size) {
-  // Debug::notifyError("data_addr: %lu\nsize %d", base_addr.offset, data_size);
   curr_lock_addr = lock_addr;
   curr_lock_node = &local_locks[curr_lock_addr.nodeID][curr_lock_addr.offset / 8];
+  // Debug::notifyError("data_addr: %lu\nsize %d", base_addr.offset, data_size);
   // Debug::notifyError("lock_addr: %lu\n", curr_lock_addr.offset);
 
 	get_bufs();
 	auto tag = dsm->getThreadTag();
-	// assert(tag != 0);
-  // assert(tag >> 32 != 0);
 
 	bool handover = try_lock_addr(curr_lock_addr, tag, curr_cas_buffer, NULL, 0);
 	if (data_size > 0) {
@@ -1413,11 +1413,13 @@ void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_si
 		dsm->read_sync(curr_page_buffer, base_addr, data_size, NULL);
     save_measurement(threadID, measurements.data_read);
     #else
-    bool same_address = curr_lock_node->data_addr.offset == base_addr.offset;
+    bool same_address = curr_lock_node->page_addr.val == base_addr.val;
     if (!handover || !same_address) {
       timer.begin();
       dsm->read_sync(curr_page_buffer, base_addr, data_size, NULL);
       save_measurement(threadID, measurements.data_read);
+    } else {
+      curr_page_buffer = curr_lock_node->page_buffer;
     }
     #endif
 	}

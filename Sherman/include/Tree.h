@@ -35,7 +35,7 @@ struct LocalLockNode {
     bool hand_over;
     uint8_t hand_time;
     char *page_buffer = nullptr;
-    GlobalAddress data_addr;
+    GlobalAddress page_addr;
     LitlLock litl_lock;
 };
 

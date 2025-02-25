@@ -244,7 +244,7 @@ int main(int argc, char *argv[]) {
     config.machineNR = nodeNR;
     config.threadNR = threadNR;
     config.chipSize = chipSize;
-    lockNR = chipSize * 1024 / sizeof(uint64_t);
+    // lockNR = chipSize * 1024 / sizeof(uint64_t);
     dsm = DSM::getInstance(config);
     nodeID = dsm->getMyNodeID();
     DE("DSM INIT DONE: %d\n", nodeID);
@@ -268,7 +268,7 @@ int main(int argc, char *argv[]) {
     pthread_attr_init(&attr);
     pthread_barrier_init(&global_barrier, NULL, threadNR+1);
 
-    lockNR = chipSize * 1024 / sizeof(uint64_t);
+    // lockNR = chipSize * 1024 / sizeof(uint64_t);
     /*LOCK INIT*/
     dsm->registerThread();
     rlock = new Tree(dsm, 0, lockNR, true);
