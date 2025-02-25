@@ -13,15 +13,12 @@ def plot_MC_rlocks(DATA, comm_prot="rdma", opts=["spinlock"],
     tpPlotsNR = len(tp_incs)
 
     fig_empty_mc, ax_empty_mc, ax_empty_mc2 = make_multiplots(lat_ecs_inc)
-    # fig_empty_mc_fair, ax_empty_mc_fair, ax_empty_mc_fair2 = make_ax_fig(FIG_X, FIG_Y)
     fig_empty_mc_fair, ax_empty_mc_fair, ax_empty_mc_fair2 = make_multiplots(tp_incs)
 
     fig_ml, ax_ml, ax_ml2 = make_multiplots(lat_ml_inc)
-    # fig_ml_fair, ax_ml_fair, ax_ml_fair2 = make_ax_fig(FIG_X, FIG_Y)
     fig_ml_fair, ax_ml_fair, ax_ml_fair2 = make_multiplots(tp_incs)
 
     fig_kvs, ax_kvs, ax_kvs2 = make_multiplots(lat_ml_inc)
-    # fig_kvs_fair, ax_kvs_fair, ax_kvs_fair2 = make_ax_fig(FIG_X, FIG_Y)
     fig_kvs_fair, ax_kvs_fair, ax_kvs_fair2 = make_multiplots(tp_incs)
 
     bw_cns = 0.9 / len(cnNRs)
@@ -136,7 +133,7 @@ def plot_MC_rlocks(DATA, comm_prot="rdma", opts=["spinlock"],
                 hatches=mlocks_hatches, hatch_categories=mlocks_hatch_categories,
                 include_hatch_keys=lockNRs, log=log[i], latplot_idx=i)
     
-    for tp_inc in tp_incs:
+    for i, tp_inc in enumerate(tp_incs):
         y1, y2 = tp_axis_titles[tp_inc]
         save_tp_figs(ax_empty_mc_fair[i], ax_empty_mc_fair2[i], fig_empty_mc_fair[i],
                 x_positions, x_labels, comm_prot, "OPTS", "Empty CS", client_mode=C_str, clients=comp_nodes,
@@ -169,7 +166,7 @@ plot_MC_rlocks(
                 opts=["", "Ho", "Hod", "HoOcmBw"],
                 # lat_ecs_inc = [["gwait_acq", "gwait_rel"]],
                 lat_ml_inc = [["lwait_acq"], ["lwait_acq", "gwait_acq", "gwait_rel"], ["data_read", "data_write", "lock_hold"]],
-                tp_incs=["lock_acquires", "glock_tries", "handovers_data"],
+                tp_incs=["lock_acquires", "glock_tries", "handovers"],
                 cnNRs=[1, 4], 
                 lockNRs=[512], 
                 threadNRs=32,

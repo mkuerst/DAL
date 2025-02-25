@@ -69,7 +69,8 @@ dsmSize=32
 
 
 sudo rm -rf logs/
-mkdir -p results/plots/
+mkdir -p results/plots/lat/
+mkdir -p results/plots/tp/
 sudo chown -R mkuerst:dal-PG0 /nfs/
 
 for opt in ${opts[@]}

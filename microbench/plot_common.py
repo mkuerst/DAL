@@ -244,7 +244,7 @@ def add_box(ax1, ax2, position, values, hatch_idx, bw=0.3,
     duration = values["duration"].max() * DURATION_FACTOR
     data = values.loc[values["lockNR"] == lockNR, tp_inc]
     bps = ax1.boxplot(
-        data / duration if tp_inc == "lock_acquires" else data,
+        data / duration if inc_fair else data,
         positions=[position],
         widths=bw,
         patch_artist=True,
@@ -320,15 +320,15 @@ def set_legend(ax1, hatches, hatch_categories,
 def set_ax(ax1, ax2, x_positions, x_labels, 
            x1_title, y1_title1, y1_title2,
            log=1):
-    if ax1 and ax2 is not None:
-            ax1.set_xticks(x_positions)
-            ax1.set_xticklabels(x_labels, rotation=45, ha='right')
-            ax1.set_xlabel(x1_title)
-            ax1.set_ylabel(y1_title1)
-            ax2.set_ylabel(y1_title2)
-            if log:
-                ax1.set_yscale('log')
-            ax1.grid(linestyle="--", alpha=0.7)
+
+    ax1.set_xticks(x_positions)
+    ax1.set_xticklabels(x_labels, rotation=45, ha='right')
+    ax1.set_xlabel(x1_title)
+    ax1.set_ylabel(y1_title1)
+    ax2.set_ylabel(y1_title2)
+    if log:
+        ax1.set_yscale('log')
+    ax1.grid(linestyle="--", alpha=0.7)
 
     
 def save_lat_figs(ax1, ax2, fig,
@@ -350,7 +350,7 @@ def save_lat_figs(ax1, ax2, fig,
     set_legend(ax1, hatches, hatch_categories,
                 include_metrics, include_hatch_keys)
 
-    output_path = file_dir+f"/results/plots/lat_{comm_prot}_{opt}_{bench}_{client_mode}_{nthreads}T_{latplot_idx}.png"
+    output_path = file_dir+f"/results/plots/lat/lat_{comm_prot}_{opt}_{bench}_{client_mode}_{nthreads}T_{latplot_idx}.png"
     fig.suptitle(title)
     fig.savefig(output_path, dpi=300, bbox_inches='tight')
 
@@ -371,9 +371,9 @@ def save_tp_figs(ax1, ax2, fig,
             "Implementation", y1, y2,
             log)
     set_legend(ax1, hatches, hatch_categories,
-                include_metrics, include_hatch_keys)
+                include_metrics, include_hatch_keys, False)
             
-    output_path = file_dir+f"/results/plots/tp_{comm_prot}_{opt}_{bench}_{client_mode}_{nthreads}T_{t}.png"
+    output_path = file_dir+f"/results/plots/tp/tp_{comm_prot}_{opt}_{bench}_{client_mode}_{nthreads}T_{t}.png"
     fig.suptitle(title)
     fig.savefig(output_path, dpi=300, bbox_inches='tight')
 
