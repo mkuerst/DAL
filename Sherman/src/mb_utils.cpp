@@ -250,10 +250,12 @@ void writeData(char *path, const std::vector<std::vector<uint32_t>>& data) {
 void write_tp(char* tp_path, char* lock_path, int run, int threadNR, int lockNR, int nodeID, size_t array_size) {
 	std::ofstream file(tp_path, std::ios::app);
 	uint64_t total_handovers = 0;
+	uint64_t total_Hod = 0;
 	if (!file)
 		__error("Failed to open %s\n", tp_path);
 	for (int t = 0; t < threadNR; t++) {
 		total_handovers += measurements.handovers[t];
+		total_Hod += measurements.handovers_data[t];
 		file << std::setfill('0') << std::setw(3) << t << ","
 			<< std::setw(8) << measurements.loop_in_cs[t] << ","
 			<< std::setw(8) << measurements.tp[t] << ","
@@ -269,7 +271,8 @@ void write_tp(char* tp_path, char* lock_path, int run, int threadNR, int lockNR,
 
 	file.flush();
     file.close();	
-	DE("TOTAL HANDOVERS: %lu", total_handovers);
+	DEB("TOTAL HANDOVERS: %lu", total_handovers);
+	DEB("TOTAL DATA_HANDOVERS: %lu", total_Hod);
 
 	std::vector<std::vector<uint32_t>> data = readExistingData(lock_path, lockNR);
 	for (int m = 0; m < MAX_MACHINE; m++) {
@@ -325,21 +328,21 @@ int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int nod
 		char *cn_sum_ptr = dsm->get_DSMKeeper()->memGet(key.c_str(), key.size());
 		uint64_t cn_sum_;
 		memcpy(&cn_sum_, cn_sum_ptr, sizeof(uint64_t));
-		DE("%ld LOCK_ACQS FROM NODE %d\n", cn_sum_, i);
+		DEB("%ld LOCK_ACQS FROM NODE %d\n", cn_sum_, i);
 		cn_sum = cn_sum + cn_sum_;
 
 		string key_inc = "CORRECTNESS_INC" + to_string(i);
 		char *cn_inc_ptr = dsm->get_DSMKeeper()->memGet(key_inc.c_str(), key_inc.size());
 		uint64_t cn_inc_;
 		memcpy(&cn_inc_, cn_inc_ptr, sizeof(uint64_t));
-		DE("%ld INCREMENTS FROM NODE %d\n", cn_inc_, i);
+		DEB("%ld INCREMENTS FROM NODE %d\n", cn_inc_, i);
 		cn_inc = cn_inc + cn_inc_;
 
 		string key_datasum = "DATASUM" + to_string(i);
 		char *datasum_ptr = dsm->get_DSMKeeper()->memGet(key_datasum.c_str(), key_datasum.size());
 		uint64_t datasum_;
 		memcpy(&datasum_, datasum_ptr, sizeof(uint64_t));
-		DE("%ld DATASUM FROM NODE %d\n", datasum_, i);
+		DEB("%ld DATASUM FROM NODE %d\n", datasum_, i);
 		datasum = datasum + datasum_;
 	}
 

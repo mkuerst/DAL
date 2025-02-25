@@ -199,6 +199,7 @@ void *mlocks_worker(void *arg) {
             lockAddr.nodeID = baseAddr.nodeID;
             lockAddr.offset = lock_idx * sizeof(uint64_t);
             rlock->mb_lock(baseAddr, lockAddr, page_size);
+            num++;
             // lock_idx = rlock->getCurrLockAddr().offset / sizeof(uint64_t);
             lock_acqs[lockAddr.nodeID * lockNR + lock_idx]++;
             task->lock_acqs++;
@@ -320,7 +321,7 @@ int main(int argc, char *argv[]) {
         }
         dsm->barrier("CN_CORRECTNESS");
 
-        if(nodeID < mnNR) {
+        if(nodeID == 0) {
             if (check_MN_correctness(dsm, dsmSize, mnNR, nodeNR, nodeID, page_size)) {
                 __error("MN CORRECTNESS CHECK FAILED\n");
             }
