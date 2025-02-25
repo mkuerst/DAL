@@ -181,10 +181,12 @@ public:
   RdmaBuffer &get_rbuf(int coro_id) { return rbuf[coro_id]; }
   uint64_t get_baseAddr() { return baseAddr; }
   uint64_t get_rlockAddr() { return rlockAddr; }
+  DSMConfig getConf() { return conf; }
   void stopDirThread() { dirAgent[0]->stopDirThread.store(true);
     struct ibv_send_wr wr = {};
     struct ibv_send_wr *bad_wr = nullptr;
-    ibv_post_send(dirAgent[0]->getDCon()->data2app[0][0], &wr, &bad_wr);}
+    ibv_post_send(dirAgent[0]->getDCon()->data2app[0][0], &wr, &bad_wr);
+  }
 
   GlobalAddress alloc(size_t size);
   void free(GlobalAddress addr);

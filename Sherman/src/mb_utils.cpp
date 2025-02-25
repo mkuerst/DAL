@@ -315,7 +315,7 @@ void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_siz
 }
 
 int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int nodeID, uint64_t page_size) {
-	uint64_t mn_sum = 0;
+	uint64_t datasum = 0;
 	uint64_t cn_sum = 0;
 	uint64_t cn_inc = 0;
 	for (int i = 0; i < nodeNR; i++) {
@@ -334,24 +334,20 @@ int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int nod
 		memcpy(&cn_inc_, cn_inc_ptr, sizeof(uint64_t));
 		DE("%ld INCREMENTS FROM NODE %d\n", cn_inc_, i);
 		cn_inc = cn_inc + cn_inc_;
-	}
-	uint64_t baseAddr = dsm->get_baseAddr();
-	uint64_t *long_data = (uint64_t *) baseAddr;
 
-	for (size_t i = 0; i < GB(dsmSize) / sizeof(uint64_t); i++) {
-		mn_sum += long_data[i];
+		string key_datasum = "DATASUM" + to_string(i);
+		char *datasum_ptr = dsm->get_DSMKeeper()->memGet(key_datasum.c_str(), key_datasum.size());
+		uint64_t datasum_;
+		memcpy(&datasum_, datasum_ptr, sizeof(uint64_t));
+		DE("%ld DATASUM FROM NODE %d\n", datasum_, i);
+		datasum = datasum + datasum_;
 	}
-	// mn_sum = mn_sum / page_size;
-	if (mn_sum != cn_inc) {
-		__error("mn_sum = %lu", mn_sum);
+
+	if (datasum != cn_inc) {
+		__error("datasum = %lu", datasum);
 		__error("cn_inc = %lu", cn_inc);
 		return -1;
 	}
-	// if (mn_sum != cn_sum) {
-	// 	__error("mn_sum = %lu", mn_sum);
-	// 	__error("cn_sum = %lu", cn_sum);
-	// 	return -1;
-	// }
 	return 0;
 }
 
@@ -362,14 +358,17 @@ int check_CN_correctness(
 	uint64_t node_sum = 0;
 	uint64_t task_sum = 0;
 	uint64_t node_inc_sum = 0;
+	uint64_t datasum = 0;
 	int ret = 0;
-	for (uint32_t i = 0; i < lockNR; i++) {
-		if (lock_acqs[i] != lock_rels[i]) {
-			__error("lock_acqs[%d] = %ld", i, lock_acqs[i]);
-			__error("lock_rels[%d] = %ld", i, lock_rels[i]);
-			ret = 1;
+	for (int m = 0; m < dsm->getClusterSize(); m++) {
+		for (uint32_t i = 0; i < lockNR; i++) {
+			if (lock_acqs[m * lockNR + i] != lock_rels[m * lockNR + i]) {
+				__error("lock_acqs[%d][%d] = %ld", m, i, lock_acqs[m * lockNR + i]);
+				__error("lock_rels[%d][%d] = %ld", m, i, lock_rels[m * lockNR + i]);
+				ret = 1;
+			}
+			node_sum += lock_acqs[m * lockNR + i];
 		}
-		node_sum += lock_acqs[i];
 	}
 	for (uint32_t i = 0; i < threadNR; i++) {
 		task_sum += tasks[i].lock_acqs;
@@ -380,6 +379,13 @@ int check_CN_correctness(
 		__error("node_sum = %lu", node_sum);
 		ret = 2;
 	}
+
+	uint64_t baseAddr = dsm->get_baseAddr();
+	uint64_t *long_data = (uint64_t *) baseAddr;
+
+	for (size_t i = 0; i < GB(dsm->getConf().dsmSize) / sizeof(uint64_t); i++) {
+		datasum += long_data[i];
+	}
 	string key = "CORRECTNESS" + to_string(nodeID);
     char val[sizeof(uint64_t)];
     memcpy(val, &task_sum, sizeof(uint64_t));
@@ -389,6 +395,11 @@ int check_CN_correctness(
     char val_inc[sizeof(uint64_t)];
     memcpy(val_inc, &node_inc_sum, sizeof(uint64_t));
     dsm->get_DSMKeeper()->memSet(key_inc.c_str(), key_inc.size(), val_inc, sizeof(uint64_t));
+
+	string key_datasum = "DATASUM" + to_string(nodeID);
+    char val_datasum[sizeof(uint64_t)];
+    memcpy(val_datasum, &datasum, sizeof(uint64_t));
+    dsm->get_DSMKeeper()->memSet(key_datasum.c_str(), key_datasum.size(), val_datasum, sizeof(uint64_t));
 
 	return ret;
 }

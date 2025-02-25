@@ -57,17 +57,17 @@ comm_prot=rdma
 # opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
 opts=("litlHod")
 microbenches=("empty_cs" "mlocks" "correctness" "kvs")
-duration=3
+duration=0
 runNR=1
 mnNR=2
-zipfan=1
-nodeNRs=(1 4)
+zipfan=0
+nodeNRs=(2)
 threadNRs=(32)
-lockNRs=(512)
+lockNRs=(1)
 bench_idxs=(1)
 pinning=1
 chipSize=128
-dsmSize=32
+dsmSize=8
 
 sudo rm -rf logs/
 mkdir -p results/plots/

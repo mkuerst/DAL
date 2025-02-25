@@ -172,16 +172,20 @@ void *mlocks_worker(void *arg) {
     uint64_t seed = nodeID*threadNR + id + 42;
     srand(seed);
     ZipfianGenerator zipfian(0.99, range, seed);
+    int num = 0;
 
     pthread_barrier_wait(&global_barrier);
 
-    while (!stop.load()) {
+    // while (!stop.load()) {
+    while (num < 3) {
         for (int j = 0; j < 400; j++) {
             int idx = uniform_rand_int(PRIVATE_ARRAY_SZ / sizeof(int));
             private_int_array[idx] += sum;
         }
         for (int j = 0; j < 100; j++) {
-            if (stop.load())
+            // if (stop.load())
+            //     break;
+            if (num >= 3)
                 break;
             // uint64_t data_idx;
             if (use_zipfan) {
@@ -196,7 +200,7 @@ void *mlocks_worker(void *arg) {
             lockAddr.offset = lock_idx * sizeof(uint64_t);
             rlock->mb_lock(baseAddr, lockAddr, page_size);
             // lock_idx = rlock->getCurrLockAddr().offset / sizeof(uint64_t);
-            lock_acqs[lock_idx]++;
+            lock_acqs[lockAddr.nodeID * lockNR + lock_idx]++;
             task->lock_acqs++;
             measurements.tp[id]++;
             measurements.loop_in_cs[id]++;
@@ -209,8 +213,8 @@ void *mlocks_worker(void *arg) {
             }
             save_measurement(id, measurements.lock_hold);
             
+            lock_rels[lockAddr.nodeID * lockNR + lock_idx]++;
             rlock->mb_unlock(baseAddr, page_size);
-            lock_rels[lock_idx]++;
         }
     }
     DE("[%d.%d] %lu ACQUISITIONS\n", dsm->getMyNodeID(), dsm->getMyThreadID(), task->lock_acqs);
@@ -269,10 +273,10 @@ int main(int argc, char *argv[]) {
     dsm->registerThread();
     rlock = new Tree(dsm, 0, lockNR, true);
     dsm->resetThread();
-    lock_acqs = new uint64_t[lockNR];
-    lock_rels = new uint64_t[lockNR];
-    memset(lock_acqs, 0, lockNR*sizeof(uint64_t));
-    memset(lock_rels, 0, lockNR*sizeof(uint64_t));
+    lock_acqs = (uint64_t *) malloc(nodeNR * lockNR * sizeof(uint64_t));
+    lock_rels = (uint64_t *) malloc(nodeNR * lockNR * sizeof(uint64_t));
+    memset(lock_acqs, 0, nodeNR*lockNR*sizeof(uint64_t));
+    memset(lock_rels, 0, nodeNR*lockNR*sizeof(uint64_t));
 
     /*TASK INIT*/
     Task *tasks = new Task[threadNR];
