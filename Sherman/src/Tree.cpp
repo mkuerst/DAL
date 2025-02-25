@@ -256,10 +256,6 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
     save_measurement(threadID, measurements.lwait_acq, 1, true);
     // DEB("[%d.%d] was handed over the global lock: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_addr.offset);
     measurements.handovers[threadID]++;
-    #ifdef HANDOVER_DATA
-    curr_page_buffer = local_locks[lock_addr.nodeID][lock_addr.offset / 8].page_buffer;
-    measurements.handovers_data[threadID]++;
-    #endif
     measurements.lock_acqs[lock_addr.nodeID * lockNR + lock_addr.offset / 8]++;
     return true;
   }
@@ -366,6 +362,8 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
                                  GlobalAddress lock_addr, uint64_t tag,
                                  CoroContext *cxt, int coro_id, bool async) {
 
+  curr_lock_node->page_buffer = page_buffer;
+  curr_lock_node->page_addr = page_addr;
   #ifdef HANDOVER
   bool hand_over_other = can_hand_over(lock_addr);
   if (hand_over_other) {
@@ -373,9 +371,6 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     #ifndef HANDOVER_DATA
     dsm->write_sync(page_buffer, page_addr, page_size, cxt);
     save_measurement(threadID, measurements.data_write);
-    #else
-    curr_lock_node->page_buffer = page_buffer;
-    curr_lock_node->page_addr = page_addr;
     #endif
     releases_local_lock(lock_addr);
     // DEB("[%d.%d] unlocked global lock for handover: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), curr_lock_addr.offset);
@@ -435,6 +430,12 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   //   save_measurement(threadID, measurements.gwait_rel);
   // }
   #endif
+  cout << "********************************************" << endl;
+  cout << "WRITTEN BACK (NO HOD): " << "[" + to_string(dsm->getMyNodeID()) + "." + to_string(dsm->getMyThreadID()) + "]" << endl;
+  cout << "lock_addr: " << lock_addr << endl; 
+  cout << "page_addr: " << page_addr << endl;
+  cout << "curr_page_buffer: " << (uintptr_t) curr_page_buffer << " = " << (uint64_t) *curr_page_buffer << endl;
+  cout << "********************************************" << endl;
 
   releases_local_lock(lock_addr);
   // DEB("[%d.%d] unlocked global lock remotely: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_addr.offset);
@@ -1416,13 +1417,14 @@ void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_si
     save_measurement(threadID, measurements.data_read);
     #else
     bool same_address = curr_lock_node->page_addr.val == base_addr.val;
-    cout << curr_lock_node->page_addr.val << " ?==? " << base_addr.val << endl;
+    cout << curr_lock_node->page_addr << " ?==? " << base_addr << " " << same_address << endl;
     if (!handover || !same_address) {
       timer.begin();
+      curr_page_buffer = dsm->get_rbuf(0).get_page_buffer();
       dsm->read_sync(curr_page_buffer, base_addr, data_size, NULL);
       save_measurement(threadID, measurements.data_read);
       cout << "********************************************" << endl;
-      cout << "NO DATA HO: " << "[" + to_string(dsm->getMyThreadID()) + "." + to_string(dsm->getMyNodeID()) + "]" << endl;
+      cout << "NO DATA HO: " << "[" + to_string(dsm->getMyNodeID()) + "." + to_string(dsm->getMyThreadID()) + "]" << endl;
       cout << "lock_addr: " << lock_addr << endl; 
       cout << "base_addr: " << base_addr << endl;
       cout << "curr_page_buffer: " << (uintptr_t) curr_page_buffer << " = " << (uint64_t) *curr_page_buffer << endl;
@@ -1430,7 +1432,8 @@ void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_si
     } else {
       cout << "********************************************" << endl;
       curr_page_buffer = curr_lock_node->page_buffer;
-      cout << "DATA HO: " << "[" + to_string(dsm->getMyThreadID()) + "." + to_string(dsm->getMyNodeID()) + "]" << endl;
+      measurements.handovers_data[threadID]++;
+      cout << "DATA HO: " << "[" + to_string(dsm->getMyNodeID()) + "." + to_string(dsm->getMyThreadID()) + "]" << endl;
       cout << "lock_addr: " << lock_addr << endl; 
       cout << "base_addr: " << base_addr << endl;
       cout << "curr_page_buffer: " << (uintptr_t) curr_page_buffer << " = " << (uint64_t) *curr_page_buffer << endl;
