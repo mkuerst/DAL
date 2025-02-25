@@ -447,10 +447,14 @@ void Tree::lock_and_read_page(char *page_buffer, GlobalAddress page_addr,
                               CoroContext *cxt, int coro_id) {
 
   timer.begin();
-  try_lock_addr(lock_addr, tag, cas_buffer, cxt, coro_id);
+  bool handover = try_lock_addr(lock_addr, tag, cas_buffer, cxt, coro_id);
 
   timer.begin();
+  #ifndef HANDOVER_DATA
+  timer.begin();
   dsm->read_sync(page_buffer, page_addr, page_size, cxt);
+  save_measurement(threadID, measurements.data_read);
+  #endif
   save_measurement(threadID, measurements.data_read);
 }
 

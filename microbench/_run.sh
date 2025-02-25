@@ -65,7 +65,7 @@ nodeNRs=(1 4)
 threadNRs=(32)
 lockNRs=(512)
 bench_idxs=(1)
-pinning=2
+pinning=1
 chipSize=128
 dsmSize=4
 

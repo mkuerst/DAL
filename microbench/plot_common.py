@@ -159,6 +159,13 @@ MICROBENCHES = [ "empty_cs", "mlocks", "kvs"]
 # TODO: Add "single"
 STATS = ["tp", "lat"]
 
+tp_axis_titles = {
+    "lock_acquires" : ("TP (ops/s)", "Jain's Fairness Index"),
+    "glock_tries": ("GLock Retries", ""),
+    "handovers": ("Handovers", ""),
+    "handovers_data": ("Handovers w/ data", ""),
+}
+
 # lat_bar_colors = {
 # "gwait_acq": "gray", "lwait_acq": "gold", 
 # "gwait_rel": "cyan", "lwait_rel": "green",
@@ -232,11 +239,12 @@ def add_lat(ax, ax2, values_lat, values_tp, position, comm_prot, bar_width,
         
     ax2.scatter([position], [lock_acquires.mean() / duration], marker="x", color="black")
 
-def add_box(ax1, ax2, position, values, hatch_idx, bw=0.3, hatches=client_hatches, lockNR=1):
+def add_box(ax1, ax2, position, values, hatch_idx, bw=0.3,
+            hatches=client_hatches, lockNR=1, tp_inc="lock_acquires", inc_fair=True):
     duration = values["duration"].max() * DURATION_FACTOR
-    lock_acquires = values.loc[values["lockNR"] == lockNR, "lock_acquires"]
+    data = values.loc[values["lockNR"] == lockNR, tp_inc]
     bps = ax1.boxplot(
-        lock_acquires / duration,
+        data / duration if tp_inc == "lock_acquires" else data,
         positions=[position],
         widths=bw,
         patch_artist=True,
@@ -247,11 +255,12 @@ def add_box(ax1, ax2, position, values, hatch_idx, bw=0.3, hatches=client_hatche
         for bp in bps["boxes"]:
             bp.set_hatch(hatches[hatch_idx])
     num_runs = values["run"].max() + 1
-    fairness = 0
-    for i in range(num_runs):
-        fairness += jain_fairness_index(lock_acquires[values["run"] == i])
-    fairness /= num_runs
-    ax2.scatter([position], fairness, marker="^", color="gold", edgecolor="black")
+    if inc_fair:
+        fairness = 0
+        for i in range(num_runs):
+            fairness += jain_fairness_index(data[values["run"] == i])
+        fairness /= num_runs
+        ax2.scatter([position], fairness, marker="^", color="gold", edgecolor="black")
 
 def add_vline(axs, position, bw):
     for ax in axs:
@@ -308,8 +317,9 @@ def set_legend(ax1, hatches, hatch_categories,
             )
 
 
-def set_ax(ax1, ax2, ax3, ax4, x_positions, x_labels, x1_title, y1_title1, y1_title2,
-           x2_title, y2_title1, y2_title2, log=1):
+def set_ax(ax1, ax2, x_positions, x_labels, 
+           x1_title, y1_title1, y1_title2,
+           log=1):
     if ax1 and ax2 is not None:
             ax1.set_xticks(x_positions)
             ax1.set_xticklabels(x_labels, rotation=45, ha='right')
@@ -320,55 +330,65 @@ def set_ax(ax1, ax2, ax3, ax4, x_positions, x_labels, x1_title, y1_title1, y1_ti
                 ax1.set_yscale('log')
             ax1.grid(linestyle="--", alpha=0.7)
 
-    if ax3 is not None and ax4 is not None:
-        ax3.set_xticks(x_positions)
-        ax3.set_xticklabels(x_labels, rotation=45, ha='right')
-        ax3.set_xlabel(x2_title)
-        ax3.set_ylabel(y2_title1)
-        ax4.set_ylabel(y2_title2)
-        # ax3.set_yscale('log')
-        ax3.grid(linestyle="--", alpha=0.7)
     
-def save_figs(ax1, ax2, ax3, ax4, fig1, fig2,
+def save_lat_figs(ax1, ax2, fig,
               x_positions, x_labels, 
               comm_prot="rdma", opt="spinlock", bench="",
               client_mode ="MC", nthreads=16, log=1, clients=[1],
               include_metrics=[], hatches=[], hatch_categories={},
-              include_hatch_keys=[], multi=0, latplot_idx=0,
+              include_hatch_keys=[], latplot_idx=0,
+              y1="Median Latencies(ns)", y2="Avg TP (ops/s)",
+              t="Latency+TP"
               ):
     
     clients_str = "|".join(map(str, clients))
-    title1 = f"Latency+TP | {bench} | {clients_str} CNs | {comm_prot} | {opt}"
-    title2 = f"TP+Fairness | {bench} | {clients_str} CNs | {comm_prot} | {opt}"
+    title = f"{t} | {bench} | {clients_str} CNs | {comm_prot} | {opt}"
 
-    if not multi:
-        set_ax(ax1, ax2, ax3, ax4, x_positions, x_labels, 
-               "Implementation", "Median Latencies (ns)", "Avg TP (ops/s)",
-               "Implementation", "TP (ops/s)", "Jain's Frainess Index",
-               log)
-        set_legend(ax1, hatches, hatch_categories,
-                   include_metrics, include_hatch_keys)
-        set_legend(ax3, hatches, hatch_categories,
-                   [], include_hatch_keys, False)
+    set_ax(ax1, ax2, x_positions, x_labels, 
+            "Implementation", y1, y2,
+            log)
+    set_legend(ax1, hatches, hatch_categories,
+                include_metrics, include_hatch_keys)
 
-    else:
-        for a1,a2,a3,a4 in zip(ax1,ax2,ax3,ax4):
-            set_ax(a1, a2, a3, a4, x_positions, x_labels, 
-                "Implementation", "Median Latencies (ns)", "Avg TP (ops/s)",
-                "Implementation", "TP (ops/s)", "Jain's Frainess Index",
-                log)
-
-        set_legend(a1, hatches, hatch_categories,
-                   include_metrics, include_hatch_keys)
-            
     output_path = file_dir+f"/results/plots/lat_{comm_prot}_{opt}_{bench}_{client_mode}_{nthreads}T_{latplot_idx}.png"
-    fig1.suptitle(title1)
-    fig1.savefig(output_path, dpi=300, bbox_inches='tight')
+    fig.suptitle(title)
+    fig.savefig(output_path, dpi=300, bbox_inches='tight')
 
-    if ax3 is not None and ax4 is not None:
-        output_path = file_dir+f"/results/plots/tpfair_{comm_prot}_{opt}_{bench}_{client_mode}_{nthreads}T_.png"
-        fig2.suptitle(title2)
-        fig2.savefig(output_path, dpi=300, bbox_inches='tight')
+def save_tp_figs(ax1, ax2, fig,
+              x_positions, x_labels, 
+              comm_prot="rdma", opt="spinlock", bench="",
+              client_mode ="MC", nthreads=16, log=0, clients=[1],
+              include_metrics=[], hatches=[], hatch_categories={},
+              include_hatch_keys=[],
+              y1="TP (ops/s)", y2="Jain's Fairness Index",
+              t="TP+Fairness",
+              ):
+    
+    clients_str = "|".join(map(str, clients))
+    title = f"{t} | {bench} | {clients_str} CNs | {comm_prot} | {opt}"
+
+    set_ax(ax1, ax2, x_positions, x_labels, 
+            "Implementation", y1, y2,
+            log)
+    set_legend(ax1, hatches, hatch_categories,
+                include_metrics, include_hatch_keys)
+            
+    output_path = file_dir+f"/results/plots/tp_{comm_prot}_{opt}_{bench}_{client_mode}_{nthreads}T_{t}.png"
+    fig.suptitle(title)
+    fig.savefig(output_path, dpi=300, bbox_inches='tight')
+
+    
+def make_ax_fig(x, y, rows=1, cols=1):
+    if rows == 1 and cols == 1:
+        fig, ax = plt.subplots(figsize=(x,y))
+        ax2 = ax.twinx()
+        return fig, ax, ax2
+
+    fig, axs = plt.subplots(rows, cols, figsize=(x,y))
+    axs2 = []
+    for ax in axs:
+        axs2.append(ax.twinx())
+    return fig, axs, axs2
     
 def make_ax_fig(x, y, rows=1, cols=1):
     if rows == 1 and cols == 1:
@@ -393,7 +413,7 @@ def make_multiplots(inc):
         figs.append(fig)
         axs.append(ax1)
         axs2.append(ax2)
-    return figs, axs, ax2
+    return figs, axs, axs2
 
 ##########
 ## READ ##
