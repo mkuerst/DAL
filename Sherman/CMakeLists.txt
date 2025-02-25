@@ -69,7 +69,7 @@ target_link_libraries(sherman_litlHo ${LINKS_FLAGS})
 
 # LITL HOD
 add_library(sherman_litlHod STATIC ${COMMON_FILE})
-target_compile_definitions(sherman_litlHod PRIVATE -DLITL -DHANDOVER -DHANDOVER_DATA)
+target_compile_definitions(sherman_litlHod PRIVATE -DLITL -DHANDOVER -DHANDOVER_DATA -DBATCHED_WRITEBACK)
 set_target_properties(sherman_litlHod PROPERTIES OUTPUT_NAME "sherman_litlHod")
 target_link_libraries(sherman_litlHod ${LINKS_FLAGS})
 

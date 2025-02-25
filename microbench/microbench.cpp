@@ -178,17 +178,17 @@ void *mlocks_worker(void *arg) {
 
     pthread_barrier_wait(&global_barrier);
 
-    // while (!stop.load()) {
-    while (num < cnt) {
+    while (!stop.load()) {
+    // while (num < cnt) {
         for (int j = 0; j < 400; j++) {
             int idx = uniform_rand_int(PRIVATE_ARRAY_SZ / sizeof(int));
             private_int_array[idx] += sum;
         }
         for (int j = 0; j < 100; j++) {
-            // if (stop.load())
-            //     break;
-            if (num >= cnt)
+            if (stop.load())
                 break;
+            // if (num >= cnt)
+            //     break;
             if (use_zipfan) {
                 lock_idx = zipfian.generate();
             }
@@ -200,7 +200,7 @@ void *mlocks_worker(void *arg) {
             lockAddr.nodeID = baseAddr.nodeID;
             lockAddr.offset = lock_idx * sizeof(uint64_t);
             rlock->mb_lock(baseAddr, lockAddr, page_size);
-            num++;
+            // num++;
             lock_acqs[lockAddr.nodeID * lockNR + lock_idx]++;
             task->lock_acqs++;
             measurements.tp[id]++;
