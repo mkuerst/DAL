@@ -13,9 +13,11 @@ file_dir = os.path.dirname(os.path.realpath(__file__))
 OPTS =  [
 "litl", 
 "litlHo",
+"litlHod",
 "litlHoOcmBw",
 "sherman",
 "shermanHo",
+"shermanHod",
 "shermanLock"
 ]
 
@@ -54,6 +56,7 @@ TP_COLS = [
 "duration",
 "glock_tries",
 "handovers",
+"handovers_data",
 "array_size",
 "nodeID",
 "run",
@@ -171,10 +174,19 @@ lat_bar_colors = {
     "data_read": "#8c564b",  # Brown
     "data_write": "#e377c2", # Pink
 }
+# lat_bar_colors = {
+#     "gwait_acq": "white",  
+#     "lwait_acq": "dimgray",
+#     "gwait_rel": "black",  
+#     "lwait_rel": "black",  
+#     "lock_hold": "gray",  
+#     "data_read": "white",
+#     "data_write": "black", 
+# }
 median_colors = {"gwait_acq": "silver", "lwait_acq": "orange", "gwait_rel": "violet", "lwait_rel": "cyan", "lock_hold": "purple"}
 node_colors = {"empty_cs1n": "gray", "empty_cs2n": "black", "mem1n": "gray", "mem2n": "black"}
 client_hatches = {1:'/', 2:'\\', 3:'|', 5:'-', 4:'+'}
-mlocks_hatches = {1:'/', 128:'\\', 256:'|', 1024:'-', 512:'o', 16384: ''}
+mlocks_hatches = {1:'/', 128:'\\', 256:'|', 1024:'-', 512:'', 16384: ''}
 
 FIG_X = 10
 FIG_Y = 6
@@ -228,6 +240,8 @@ def add_box(ax1, ax2, position, values, hatch_idx, bw=0.3, hatches=client_hatche
         positions=[position],
         widths=bw,
         patch_artist=True,
+        boxprops=dict(facecolor='none'),
+        medianprops=dict(color='black'),
     )
     if hatch_idx:
         for bp in bps["boxes"]:

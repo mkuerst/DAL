@@ -218,7 +218,7 @@ void *mlocks_worker(void *arg) {
             rlock->mb_unlock(baseAddr, page_size);
         }
     }
-    DE("[%d.%d] %lu ACQUISITIONS\n", dsm->getMyNodeID(), dsm->getMyThreadID(), task->lock_acqs);
+    // DE("[%d.%d] %lu ACQUISITIONS\n", dsm->getMyNodeID(), dsm->getMyThreadID(), task->lock_acqs);
     return 0;
 }
 
@@ -230,7 +230,7 @@ int main(int argc, char *argv[]) {
     &res_file_tp, &res_file_lat, &res_file_lock,
     argc, argv);
     // dsmSize = 64 / mnNR;
-    DE("HI\n");
+    // DE("HI\n");
     if (nodeID == 1) {
         if(system("sudo bash /nfs/DAL/restartMemc.sh"))
             _error("Failed to start MEMC server\n");

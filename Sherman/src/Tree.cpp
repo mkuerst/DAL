@@ -430,12 +430,12 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   //   save_measurement(threadID, measurements.gwait_rel);
   // }
   #endif
-  cout << "********************************************" << endl;
-  cout << "WRITTEN BACK (NO HOD): " << "[" + to_string(dsm->getMyNodeID()) + "." + to_string(dsm->getMyThreadID()) + "]" << endl;
-  cout << "lock_addr: " << lock_addr << endl; 
-  cout << "page_addr: " << page_addr << endl;
-  cout << "curr_page_buffer: " << (uintptr_t) curr_page_buffer << " = " << (uint64_t) *curr_page_buffer << endl;
-  cout << "********************************************" << endl;
+  // cout << "********************************************" << endl;
+  // cout << "WRITTEN BACK (NO HOD): " << "[" + to_string(dsm->getMyNodeID()) + "." + to_string(dsm->getMyThreadID()) + "]" << endl;
+  // cout << "lock_addr: " << lock_addr << endl; 
+  // cout << "page_addr: " << page_addr << endl;
+  // cout << "curr_page_buffer: " << (uintptr_t) curr_page_buffer << " = " << (uint64_t) *curr_page_buffer << endl;
+  // cout << "********************************************" << endl;
 
   releases_local_lock(lock_addr);
   // DEB("[%d.%d] unlocked global lock remotely: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_addr.offset);
@@ -1423,21 +1423,21 @@ void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_si
       curr_page_buffer = dsm->get_rbuf(0).get_page_buffer();
       dsm->read_sync(curr_page_buffer, base_addr, data_size, NULL);
       save_measurement(threadID, measurements.data_read);
-      cout << "********************************************" << endl;
-      cout << "NO DATA HO: " << "[" + to_string(dsm->getMyNodeID()) + "." + to_string(dsm->getMyThreadID()) + "]" << endl;
-      cout << "lock_addr: " << lock_addr << endl; 
-      cout << "base_addr: " << base_addr << endl;
-      cout << "curr_page_buffer: " << (uintptr_t) curr_page_buffer << " = " << (uint64_t) *curr_page_buffer << endl;
-      cout << "********************************************" << endl;
+      // cout << "********************************************" << endl;
+      // cout << "NO DATA HO: " << "[" + to_string(dsm->getMyNodeID()) + "." + to_string(dsm->getMyThreadID()) + "]" << endl;
+      // cout << "lock_addr: " << lock_addr << endl; 
+      // cout << "base_addr: " << base_addr << endl;
+      // cout << "curr_page_buffer: " << (uintptr_t) curr_page_buffer << " = " << (uint64_t) *curr_page_buffer << endl;
+      // cout << "********************************************" << endl;
     } else {
-      cout << "********************************************" << endl;
       curr_page_buffer = curr_lock_node->page_buffer;
       measurements.handovers_data[threadID]++;
-      cout << "DATA HO: " << "[" + to_string(dsm->getMyNodeID()) + "." + to_string(dsm->getMyThreadID()) + "]" << endl;
-      cout << "lock_addr: " << lock_addr << endl; 
-      cout << "base_addr: " << base_addr << endl;
-      cout << "curr_page_buffer: " << (uintptr_t) curr_page_buffer << " = " << (uint64_t) *curr_page_buffer << endl;
-      cout << "********************************************" << endl;
+      // cout << "********************************************" << endl;
+      // cout << "DATA HO: " << "[" + to_string(dsm->getMyNodeID()) + "." + to_string(dsm->getMyThreadID()) + "]" << endl;
+      // cout << "lock_addr: " << lock_addr << endl; 
+      // cout << "base_addr: " << base_addr << endl;
+      // cout << "curr_page_buffer: " << (uintptr_t) curr_page_buffer << " = " << (uint64_t) *curr_page_buffer << endl;
+      // cout << "********************************************" << endl;
     }
     #endif
 	}
