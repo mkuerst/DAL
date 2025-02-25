@@ -1363,7 +1363,6 @@ inline void Tree::releases_local_lock(GlobalAddress lock_addr) {
   #endif
 
   #ifdef LITL
-  // LitlLock llock = litl_locks[lock_addr.offset / 8];
   pthread_mutex_unlock((pthread_mutex_t *) &node.litl_lock);
   #endif
 

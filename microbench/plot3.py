@@ -4,39 +4,44 @@ from plot_common import *
 
 
 def plot_MC_rlocks(DATA, comm_prot="rdma", opts=["spinlock"], lat_ecs_inc=[], lat_ml_inc=[],
+    tp_inc=[],
     mnNR=1, cnNRs=[1,4], threadNRs=32, lockNRs=[1], log=[1],
     ):
-    fig_empty_mc = []
-    ax_empty_mc = []
-    ax_empty_mc2 = []
+    # fig_empty_mc = []
+    # ax_empty_mc = []
+    # ax_empty_mc2 = []
     emptyLatPlotsNR = len(lat_ecs_inc)
-    for i in range(emptyLatPlotsNR):
-        fig, ax1, ax2 = make_ax_fig(FIG_X, FIG_Y)
-        fig_empty_mc.append(fig)
-        ax_empty_mc.append(ax1)
-        ax_empty_mc2.append(ax2)
+    # for i in range(emptyLatPlotsNR):
+    #     fig, ax1, ax2 = make_ax_fig(FIG_X, FIG_Y)
+    #     fig_empty_mc.append(fig)
+    #     ax_empty_mc.append(ax1)
+    #     ax_empty_mc2.append(ax2)
+    fig_empty_mc, ax_empty_mc, ax_empty_mc2 = make_multiplots(lat_ecs_inc)
     fig_empty_mc_fair, ax_empty_mc_fair, ax_empty_mc_fair2 = make_ax_fig(FIG_X, FIG_Y)
 
-    fig_ml = []
-    ax_ml = []
-    ax_ml2 = []
-    mlLatPlotsNR = len(lat_ml_inc)
-    for i in range(mlLatPlotsNR):
-        fig, ax1, ax2 = make_ax_fig(FIG_X, FIG_Y)
-        fig_ml.append(fig)
-        ax_ml.append(ax1)
-        ax_ml2.append(ax2)
+    # fig_ml = []
+    # ax_ml = []
+    # ax_ml2 = []
+    # mlLatPlotsNR = len(lat_ml_inc)
+    # for i in range(mlLatPlotsNR):
+    #     fig, ax1, ax2 = make_ax_fig(FIG_X, FIG_Y)
+    #     fig_ml.append(fig)
+    #     ax_ml.append(ax1)
+    #     ax_ml2.append(ax2)
+    fig_ml, ax_ml, ax_ml2 = make_multiplots(lat_ml_inc)
     fig_ml_fair, ax_ml_fair, ax_ml_fair2 = make_ax_fig(FIG_X, FIG_Y)
 
-    fig_kvs = []
-    ax_kvs = []
-    ax_kvs2 = []
+
+    # fig_kvs = []
+    # ax_kvs = []
+    # ax_kvs2 = []
     mlLatPlotsNR = len(lat_ml_inc)
-    for i in range(mlLatPlotsNR):
-        fig, ax1, ax2 = make_ax_fig(FIG_X, FIG_Y)
-        fig_kvs.append(fig)
-        ax_kvs.append(ax1)
-        ax_kvs2.append(ax2)
+    # for i in range(mlLatPlotsNR):
+    #     fig, ax1, ax2 = make_ax_fig(FIG_X, FIG_Y)
+    #     fig_kvs.append(fig)
+    #     ax_kvs.append(ax1)
+    #     ax_kvs2.append(ax2)
+    fig_kvs, ax_kvs, ax_kvs2 = make_multiplots(lat_ml_inc)
     fig_kvs_fair, ax_kvs_fair, ax_kvs_fair2 = make_ax_fig(FIG_X, FIG_Y)
 
     bw_cns = 0.9 / len(cnNRs)

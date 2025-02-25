@@ -57,7 +57,7 @@ comm_prot=rdma
 # opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
 opts=("shermanLock" "shermanHo" "shermanHod" "litl" "litlHo" "litlHod")
 microbenches=("empty_cs" "mlocks" "correctness" "kvs")
-duration=30
+duration=20
 runNR=1
 mnNR=1
 zipfan=0
@@ -85,6 +85,7 @@ do
             fi
             cn_tp_dir="$PWD/results/cn/tp/$comm_prot/$microb/$opt/sherman"
             cn_lat_dir="$PWD/results/cn/lat/$comm_prot/$microb/$opt/sherman"
+            cn_lock_dir="$PWD/results/cn/tp/$comm_prot/$microb/$opt/sherman"
             log_dir="$PWD/logs/$comm_prot/$microb/$opt/sherman"
             mkdir -p "$cn_tp_dir" 
             mkdir -p "$cn_lat_dir" 
@@ -96,8 +97,10 @@ do
                 do
                     cn_tp_file="$cn_tp_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
                     cn_lat_file="$cn_lat_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
+                    cn_lock_file="$cn_lock_dir"/locks_nodeNR$nodeNR"_threadNR"$threadNR.csv
                     echo $cn_tp_header > "$cn_tp_file"
                     echo $cn_lat_header > "$cn_lat_file"
+                    > "$cn_lock_file"
 
                     log_file="$log_dir"/nodeNR$nodeNR"_threadNR"$threadNR.log
 
@@ -121,8 +124,19 @@ do
                             -p $pinning \
                             -c $chipSize \
                             -y $dsmSize \
-                            2>&1"
+                            2>&1" 
                             # 2>> $log_file"
+                            # &
+                            # dsh_pid=$!  # Capture dsh PID
+                            # wait $dsh_pid  # Wait for it to finish
+
+                            # # Cleanup: Kill only SSH processes spawned by this specific dsh instance
+                            # ssh_pids=$(pgrep -P "$dsh_pid")
+                            # if [ -n "$ssh_pids" ]; then
+                            #     echo "Cleaning up SSH connections..."
+                            #     kill $ssh_pids
+                            # fi
+
 
                             cleanup
                         done
@@ -144,10 +158,11 @@ do
                 fi
                 cn_tp_dir="$PWD/results/cn/tp/$comm_prot/$microb/$opt/$impl"
                 cn_lat_dir="$PWD/results/cn/lat/$comm_prot/$microb/$opt/$impl"
+                cn_lock_dir="$PWD/results/cn/tp/$comm_prot/$microb/$opt/$impl"
                 log_dir="$PWD/logs/$comm_prot/$microb/$opt/$impl"
                 mkdir -p "$cn_tp_dir" 
                 mkdir -p "$cn_lat_dir" 
-                mkdir -p "$log_dir" 
+                mkdir -p "$log_dir"
 
                 for nodeNR in ${nodeNRs[@]}
                 do
@@ -155,8 +170,10 @@ do
                     do
                         cn_tp_file="$cn_tp_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
                         cn_lat_file="$cn_lat_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
+                        cn_lock_file="$cn_lock_dir"/locks_nodeNR$nodeNR"_threadNR"$threadNR.csv
                         echo $cn_tp_header > "$cn_tp_file"
                         echo $cn_lat_header > "$cn_lat_file"
+                        > "$cn_lock_file"
 
                         log_file="$log_dir"/nodeNR$nodeNR"_threadNR"$threadNR.log
 
@@ -180,8 +197,19 @@ do
                                 -p $pinning \
                                 -c $chipSize \
                                 -y $dsmSize \
-                                2>&1"
+                                2>&1" 
                                 # 2>> $log_file"
+
+                                # &
+                                # dsh_pid=$!  # Capture dsh PID
+                                # wait $dsh_pid  # Wait for it to finish
+
+                                # # Cleanup: Kill only SSH processes spawned by this specific dsh instance
+                                # ssh_pids=$(pgrep -P "$dsh_pid")
+                                # if [ -n "$ssh_pids" ]; then
+                                #     echo "Cleaning up SSH connections..."
+                                #     kill $ssh_pids
+                                # fi
                                 cleanup
                             done
                         done

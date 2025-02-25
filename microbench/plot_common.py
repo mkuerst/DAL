@@ -383,6 +383,17 @@ def make_ax_fig(x, y, rows=1, cols=1):
     return fig, axs, axs2
         
     
+def make_multiplots(inc):
+    figs = []
+    axs = []
+    axs2 = []
+    incNR = len(inc)
+    for i in range(incNR):
+        fig, ax1, ax2 = make_ax_fig(FIG_X, FIG_Y)
+        figs.append(fig)
+        axs.append(ax1)
+        axs2.append(ax2)
+    return figs, axs, ax2
 
 ##########
 ## READ ##

@@ -307,9 +307,11 @@ int main(int argc, char *argv[]) {
         }
         string writeResKey = "WRITE_RES_" + to_string(n);
         dsm->barrier(writeResKey);
-        DE("[%d] WRITE BARRIER %d PASSED\n", nodeID, n);
     }
     dsm->barrier("MB_END");
+    if (nodeID == 0) {
+        DE("WRITTEN RESULTS\n", nodeID, n);
+    }
 
     #ifdef CORRECTNESS
         DE("CN checking correctness\n");
