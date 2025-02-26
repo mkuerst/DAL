@@ -310,7 +310,7 @@ int main(int argc, char *argv[]) {
     }
     dsm->barrier("MB_END");
     if (nodeID == 0) {
-        DE("WRITTEN RESULTS\n", nodeID, n);
+        DE("WRITTEN RESULTS\n");
     }
 
     #ifdef CORRECTNESS

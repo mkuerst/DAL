@@ -94,7 +94,6 @@ Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB) : dsm(dsm), tre
 
         auto cas_buffer = (dsm->get_rbuf(0)).get_cas_buffer();
         bool res = dsm->cas_sync(root_ptr_ptr, 0, root_addr.val, cas_buffer);
-        // DEB("Tree CAS executed: %d\n", dsm->getMyNodeID());
         if (res) {
             std::cout << "Tree root pointer value " << root_addr << std::endl;
         } else {
@@ -1388,8 +1387,6 @@ void Tree::clear_statistics() {
 GlobalAddress Tree::get_lock_addr(GlobalAddress base_addr) {
 	uint64_t lock_index =
 		CityHash64((char *)&base_addr, sizeof(base_addr)) % lockNR;
-  // uint64_t chunk_size = dsm->getDsmSize() / lockNR;
-	// uint64_t lock_index = base_addr.offset / chunk_size;
 
 	GlobalAddress lock_addr;
 	lock_addr.nodeID = base_addr.nodeID;

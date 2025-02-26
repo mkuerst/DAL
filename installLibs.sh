@@ -63,6 +63,7 @@ if [ ! -f "$OFED_FILE" ]; then
         sudo apt install -y libnuma-dev
         sudo apt install -y gh
         sudo apt install -y pdsh 
+        sudo apt install -y clustershell
         sudo apt install -y htop
         sudo apt install -y dsh
         sudo apt install -y libpapi-dev papi-tools

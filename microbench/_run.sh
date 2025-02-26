@@ -57,10 +57,10 @@ comm_prot=rdma
 # opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
 opts=("shermanLock" "shermanHo" "shermanHod" "litl" "litlHo" "litlHod")
 microbenches=("empty_cs" "mlocks" "correctness" "kvs")
-duration=20
-runNR=1
+duration=10
+runNR=3
 mnNR=1
-zipfan=0
+zipfan=1
 nodeNRs=(1 4)
 threadNRs=(32)
 lockNRs=(512)
@@ -110,7 +110,8 @@ do
 
                         for ((run = 0; run < runNR; run++)); do
                             echo "BENCHMARK $microb | $opt $impl | $nodeNR Ns & $threadNR Ts & $lockNR Ls & $duration s & RUN $run"
-                            dsh -M -f <(head -n $nodeNR ./nodes.txt) -o "-o StrictHostKeyChecking=no" -c \
+                            # dsh -M -f <(head -n $nodeNR ./nodes.txt) -o "-o StrictHostKeyChecking=no" -c \
+                            clush --hostfile <(head -n $nodeNR ./nodes.txt) \
                             "sudo $mb_exe \
                             -t $threadNR \
                             -d $duration \
@@ -183,7 +184,8 @@ do
 
                             for ((run = 0; run < runNR; run++)); do
                                 echo "BENCHMARK $microb | $opt $impl | $nodeNR Ns & $threadNR Ts & $lockNR Ls & $duration s & RUN $run"
-                                dsh -M -f <(head -n $nodeNR ./nodes.txt) -o "-o StrictHostKeyChecking=no" -c \
+                                # dsh -M -f <(head -n $nodeNR ./nodes.txt) -o "-o StrictHostKeyChecking=no" -c \
+                                clush --hostfile <(head -n $nodeNR ./nodes.txt) \
                                 "sudo LD_PRELOAD=$llock_so $mb_exe \
                                 -t $threadNR \
                                 -d $duration \
