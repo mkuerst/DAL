@@ -161,7 +161,7 @@ STATS = ["tp", "lat"]
 
 tp_axis_titles = {
     "lock_acquires" : ("TP (ops/s)", "Jain's Fairness Index"),
-    "glock_tries": ("GLock Retries", ""),
+    "glock_tries": ("[GLock CASes]/[Lock Acquisition]", ""),
     "handovers": ("Handovers", ""),
     "handovers_data": ("Handovers w/ data", ""),
 }
@@ -242,9 +242,16 @@ def add_lat(ax, ax2, values_lat, values_tp, position, comm_prot, bar_width,
 def add_box(ax1, ax2, position, values, hatch_idx, bw=0.3,
             hatches=client_hatches, lockNR=1, tp_inc="lock_acquires", inc_fair=True):
     duration = values["duration"].max() * DURATION_FACTOR
+    la = values["lock_acquires"]
     data = values.loc[values["lockNR"] == lockNR, tp_inc]
+
+    if tp_inc == "lock_acquires":
+        data = data / duration 
+    if tp_inc == "glock_tries":
+        data = data / la
+
     bps = ax1.boxplot(
-        data / duration if inc_fair else data,
+        data,
         positions=[position],
         widths=bw,
         patch_artist=True,
