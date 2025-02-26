@@ -250,16 +250,16 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
 
   timer.begin();
   bool hand_over = acquire_local_lock(lock_addr, cxt, coro_id);
+  save_measurement(threadID, measurements.lwait_acq, 1, true);
   #ifdef HANDOVER
   if (hand_over) {
-    save_measurement(threadID, measurements.lwait_acq, 1, true);
     // DEB("[%d.%d] was handed over the global lock: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_addr.offset);
     measurements.handovers[threadID]++;
     measurements.lock_acqs[lock_addr.nodeID * lockNR + lock_addr.offset / 8]++;
     return true;
   }
   #endif
-  save_measurement(threadID, measurements.lwait_acq, 1, true);
+
   timer.begin();
 
   // #ifdef CN_HANDOVER
@@ -445,16 +445,23 @@ void Tree::lock_and_read_page(char *page_buffer, GlobalAddress page_addr,
                               GlobalAddress lock_addr, uint64_t tag,
                               CoroContext *cxt, int coro_id) {
 
-  timer.begin();
   bool handover = try_lock_addr(lock_addr, tag, cas_buffer, cxt, coro_id);
 
-  timer.begin();
   #ifndef HANDOVER_DATA
   timer.begin();
   dsm->read_sync(page_buffer, page_addr, page_size, cxt);
   save_measurement(threadID, measurements.data_read);
+  #else
+  bool same_address = curr_lock_node.page_addr.val == page_addr.val;
+  if (!handover || !same_address) {
+    timer.begin();
+    curr_page_buffer = dsm->get_rbuf(0).get_page_buffer();
+    dsm->read_sync(page_buffer, page_addr, page_size, cxt);
+    save_measurement(threadID, measurements.data_read);
+  } else {
+    curr_page_buffer = curr_lock_node.page_buffer;
+  }
   #endif
-  save_measurement(threadID, measurements.data_read);
 }
 
 void Tree::lock_bench(const Key &k, CoroContext *cxt, int coro_id) {
@@ -1007,15 +1014,16 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
 
   auto &rbuf = dsm->get_rbuf(coro_id);
   uint64_t *cas_buffer = rbuf.get_cas_buffer();
-  auto page_buffer = rbuf.get_page_buffer();
+  // auto page_buffer = rbuf.get_page_buffer();
+  curr_page_buffer = rbuf.get_page_buffer();
 
   auto tag = dsm->getThreadTag();
   assert(tag != 0);
 
-  lock_and_read_page(page_buffer, page_addr, kLeafPageSize, cas_buffer,
+  lock_and_read_page(curr_page_buffer, page_addr, kLeafPageSize, cas_buffer,
                      lock_addr, tag, cxt, coro_id);
 
-  auto page = (LeafPage *)page_buffer;
+  auto page = (LeafPage *)curr_page_buffer;
 
   assert(page->hdr.level == level);
   assert(page->check_consistent());
