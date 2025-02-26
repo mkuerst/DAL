@@ -55,21 +55,21 @@ comm_prot=rdma
 
 # MICROBENCH INPUTS
 # opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
-opts=("shermanLock" "shermanHo" "shermanHod" "litl" "litlHo" "litlHod")
-# opts=("litlHo" "litlHod")
+# opts=("shermanLock" "shermanHo" "shermanHod" "litl" "litlHo" "litlHod")
+opts=("litlHod")
 
-microbenches=("empty_cs" "mlocks" "correctness" "kvs")
-duration=10
+microbenches=("empty_cs" "mlocks" "kvs")
+duration=30
 runNR=3
-mnNR=1
+mnNR=2
 zipfan=0
-nodeNRs=(1 4)
+nodeNRs=(4)
 threadNRs=(32)
 lockNRs=(512)
-bench_idxs=(1)
+bench_idxs=(2)
 pinning=1
 chipSize=128
-dsmSize=4
+dsmSize=16
 
 sudo rm -rf logs/
 mkdir -p results/plots/lat/
@@ -130,18 +130,6 @@ do
                             -y $dsmSize \
                             2>&1" 
                             # 2>> $log_file"
-                            # &
-                            # dsh_pid=$!  # Capture dsh PID
-                            # wait $dsh_pid  # Wait for it to finish
-
-                            # # Cleanup: Kill only SSH processes spawned by this specific dsh instance
-                            # ssh_pids=$(pgrep -P "$dsh_pid")
-                            # if [ -n "$ssh_pids" ]; then
-                            #     echo "Cleaning up SSH connections..."
-                            #     kill $ssh_pids
-                            # fi
-
-
                             cleanup
                         done
                     done
@@ -204,17 +192,6 @@ do
                                 -y $dsmSize \
                                 2>&1" 
                                 # 2>> $log_file"
-
-                                # &
-                                # dsh_pid=$!  # Capture dsh PID
-                                # wait $dsh_pid  # Wait for it to finish
-
-                                # # Cleanup: Kill only SSH processes spawned by this specific dsh instance
-                                # ssh_pids=$(pgrep -P "$dsh_pid")
-                                # if [ -n "$ssh_pids" ]; then
-                                #     echo "Cleaning up SSH connections..."
-                                #     kill $ssh_pids
-                                # fi
                                 cleanup
                             done
                         done

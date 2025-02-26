@@ -33,6 +33,7 @@ struct LitlLock {
 struct LocalLockNode {
     std::atomic<uint64_t> ticket_lock;
     bool hand_over;
+    bool is_split;
     uint8_t hand_time;
     char *page_buffer = nullptr;
     GlobalAddress page_addr;
@@ -163,12 +164,12 @@ private:
     bool try_lock_addr(GlobalAddress lock_addr, uint64_t tag, uint64_t *buf,
                         CoroContext *cxt, int coro_id);
     void unlock_addr(GlobalAddress lock_addr, uint64_t tag, uint64_t *buf,
-                    CoroContext *cxt, int coro_id, bool async);
+                    CoroContext *cxt, int coro_id, bool async, char *page_buf=nullptr, GlobalAddress page_addr=GlobalAddress::Null());
     void write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
                                 int page_size, uint64_t *cas_buffer,
                                 GlobalAddress lock_addr, uint64_t tag,
                                 CoroContext *cxt, int coro_id, bool async);
-    void lock_and_read_page(char *page_buffer, GlobalAddress page_addr,
+    bool lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
                             int page_size, uint64_t *cas_buffer,
                             GlobalAddress lock_addr, uint64_t tag,
                             CoroContext *cxt, int coro_id);
