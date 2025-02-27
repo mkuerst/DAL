@@ -32,11 +32,11 @@ target_compile_definitions(sherman_shermanLock PRIVATE -DSHERMAN_LOCK)
 set_target_properties(sherman_shermanLock PROPERTIES OUTPUT_NAME "sherman_shermanLock")
 target_link_libraries(sherman_shermanLock ${LINKS_FLAGS})
 
-# # SHERMAN_LOCK HO
-# add_library(sherman_shermanHo STATIC ${COMMON_FILE})
-# target_compile_definitions(sherman_shermanHo PRIVATE -DSHERMAN_LOCK -DHANDOVER)
-# set_target_properties(sherman_shermanHo PROPERTIES OUTPUT_NAME "sherman_shermanHo")
-# target_link_libraries(sherman_shermanHo ${LINKS_FLAGS})
+# SHERMAN_LOCK HO
+add_library(sherman_shermanHo STATIC ${COMMON_FILE})
+target_compile_definitions(sherman_shermanHo PRIVATE -DSHERMAN_LOCK -DHANDOVER)
+set_target_properties(sherman_shermanHo PROPERTIES OUTPUT_NAME "sherman_shermanHo")
+target_link_libraries(sherman_shermanHo ${LINKS_FLAGS})
 
 # SHERMAN HOD
 add_library(sherman_shermanHod STATIC ${COMMON_FILE})

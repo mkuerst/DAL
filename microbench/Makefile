@@ -35,7 +35,7 @@ target:
 
 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHod.a -o appbench_shermanHod ${FLAGS}
 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanLock.a -o appbench_shermanLock ${FLAGS}
-# g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHo.a -o appbench_shermanHo ${FLAGS}
+	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHo.a -o appbench_shermanHo ${FLAGS}
 # g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman.a -o appbench_sherman ${FLAGS}
 
 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_litlHod.a -o appbench_litlHod ${FLAGS}
