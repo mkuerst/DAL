@@ -317,7 +317,9 @@ int main(int argc, char *argv[]) {
         string writeResKey = "WRITE_RES_" + to_string(n);
         dsm->barrier(writeResKey);
     }
-    DE("[%d] WRITE RES DONE\n", nodeID);
+    if (nodeID == 0) {
+        DE("WRITE RES DONE\n");
+    }
 
     fprintf(stderr, "DSM NODE %d DONE\n", nodeID);
     free_measurements();

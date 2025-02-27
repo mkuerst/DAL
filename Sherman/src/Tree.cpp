@@ -331,10 +331,11 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
 // TODO: IS HANDOVER_DATA NEEDED HERE?
 inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
                               uint64_t *buf, CoroContext *cxt, int coro_id,
-                              bool async, char *page_buf, GlobalAddress page_addr) {
+                              bool async, char *page_buf, GlobalAddress page_addr, uint8_t level) {
 
   curr_lock_node->page_buffer = page_buf;
   curr_lock_node->page_addr = page_addr;
+  curr_lock_node->level = level;
   #ifdef HANDOVER
   bool hand_over_other = can_hand_over(lock_addr);
   if (hand_over_other) {
@@ -361,10 +362,11 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
 void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
                                  int page_size, uint64_t *cas_buffer,
                                  GlobalAddress lock_addr, uint64_t tag,
-                                 CoroContext *cxt, int coro_id, bool async) {
+                                 CoroContext *cxt, int coro_id, bool async, uint8_t level) {
 
   curr_lock_node->page_buffer = page_buffer;
   curr_lock_node->page_addr = page_addr;
+  curr_lock_node->level = level;
   #ifdef HANDOVER
   bool hand_over_other = can_hand_over(lock_addr);
   if (hand_over_other) {
@@ -445,7 +447,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
 bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
                               int page_size, uint64_t *cas_buffer,
                               GlobalAddress lock_addr, uint64_t tag,
-                              CoroContext *cxt, int coro_id) {
+                              CoroContext *cxt, int coro_id, uint8_t level) {
 
   bool handover = try_lock_addr(lock_addr, tag, cas_buffer, cxt, coro_id);
 
@@ -456,7 +458,9 @@ bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
   return false;
   #else
   bool same_address = 
-    curr_lock_node->page_addr.val == page_addr.val && !curr_lock_node->is_split;
+    curr_lock_node->page_addr.val == page_addr.val && 
+    !curr_lock_node->is_split &&
+    curr_lock_node->level == 0;
   if (!handover || !same_address) {
     // cerr << "********************************************" << endl;
     // cerr << "NO DATA HO: " << "[" + to_string(dsm->getMyNodeID()) + "." + to_string(dsm->getMyThreadID()) + "]" << endl;
@@ -473,12 +477,13 @@ bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
     return false;
   } else {
     // cerr << "********************************************" << endl;
-    cerr << "DATA HO: " << "[" + to_string(dsm->getMyNodeID()) + "." + to_string(dsm->getMyThreadID()) + "]" << endl;
+    // cerr << "DATA HO: " << "[" + to_string(dsm->getMyNodeID()) + "." + to_string(dsm->getMyThreadID()) + "]" << endl;
     // cerr << "lock_addr: " << lock_addr << endl; 
     // cerr << "page_addr: " << page_addr << endl;
     // cerr << "page_buffer: " << (uintptr_t) *page_buffer << " = " << (uint64_t) **page_buffer << endl;
     // cerr << "********************************************" << endl;
     *page_buffer = curr_lock_node->page_buffer;
+    // curr_lock_node->debug();
     measurements.handovers_data[threadID]++;
     curr_lock_node->is_split = false;
     return true;
@@ -897,8 +902,8 @@ void Tree::internal_page_store(GlobalAddress page_addr, const Key &k,
   auto tag = dsm->getThreadTag();
   assert(tag != 0);
 
-  lock_and_read_page(&page_buffer, page_addr, kInternalPageSize, cas_buffer,
-                     lock_addr, tag, cxt, coro_id);
+  bool hod = lock_and_read_page(&page_buffer, page_addr, kInternalPageSize, cas_buffer,
+                     lock_addr, tag, cxt, coro_id, level);
   // bool hod = lock_and_read_page(&page_buffer, page_addr, kInternalPageSize, cas_buffer,
   //                    lock_addr, tag, cxt, coro_id);
 
@@ -909,17 +914,19 @@ void Tree::internal_page_store(GlobalAddress page_addr, const Key &k,
 
   // assert(page->hdr.level == level);
   if (page->hdr.level != level) {
-    Debug::notifyError("Tree:909:internal_page_store: page->hdr.level != level");
+    Debug::notifyError("Tree:913:internal_page_store: page->hdr.level != level");
     cerr << "root: " << root << endl;
     cerr << "page_addr: " << page_addr << endl;
     cerr << "key: " << k << endl;
-    cerr << "page->hdr.level: " << page->hdr.lowest  << endl;
-    cerr << "level: " << level  << endl;
+    cerr << "level: " << (int)level  << endl;
+    cerr << "hod: " << hod << endl;
+    curr_lock_node->debug();
+    page->hdr.debug();
   }
   assert(page->check_consistent());
   if (k >= page->hdr.highest) {
 
-    this->unlock_addr(lock_addr, tag, cas_buffer, cxt, coro_id, true, page_buffer, page_addr);
+    this->unlock_addr(lock_addr, tag, cas_buffer, cxt, coro_id, true, page_buffer, page_addr, level);
 
     assert(page->hdr.sibling_ptr != GlobalAddress::Null());
 
@@ -934,8 +941,7 @@ void Tree::internal_page_store(GlobalAddress page_addr, const Key &k,
     std::cout << "root: " << root << std::endl;
     std::cout << "page_addr: " << page_addr << std::endl;
     std::cout << "key: " << k << std::endl;
-    std::cout << "page->hdr.lowest: " << page->hdr.lowest  << std::endl;
-    std::cout << "page->hdr.highest: " << page->hdr.highest  << std::endl;
+    page->hdr.debug();
     return;
   }
 
@@ -1009,7 +1015,7 @@ void Tree::internal_page_store(GlobalAddress page_addr, const Key &k,
 
   page->set_consistent();
   write_page_and_unlock(page_buffer, page_addr, kInternalPageSize, cas_buffer,
-                        lock_addr, tag, cxt, coro_id, need_split);
+                        lock_addr, tag, cxt, coro_id, need_split, level);
 
   if (!need_split)
     return;
@@ -1058,8 +1064,8 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
 
   // bool hod = lock_and_read_page(&page_buffer, page_addr, kLeafPageSize, cas_buffer,
   //                    lock_addr, tag, cxt, coro_id);
-  lock_and_read_page(&page_buffer, page_addr, kLeafPageSize, cas_buffer,
-                     lock_addr, tag, cxt, coro_id);
+  bool hod = lock_and_read_page(&page_buffer, page_addr, kLeafPageSize, cas_buffer,
+                     lock_addr, tag, cxt, coro_id, level);
 
   auto page = (LeafPage *)page_buffer;
   // auto page = (LeafPage *)curr_page_buffer;
@@ -1069,24 +1075,31 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
 
   // assert(page->hdr.level == level);
   if (page->hdr.level != level) {
-    Debug::notifyError("Tree:897:internal_page_store: page->hdr.level != level");
+    cerr << "*****************************************************" << endl;
+    Debug::notifyError("Tree:1077:leaf_page_store: page->hdr.level != level");
     cerr << "root: " << root << endl;
     cerr << "page_addr: " << page_addr << endl;
     cerr << "key: " << k << endl;
-    cerr << "page->hdr.level: " << page->hdr.lowest  << endl;
     cerr << "level: " << level  << endl;
+    cerr << "hod: " << hod << endl;
+    curr_lock_node->debug();
+    page->hdr.debug();
+    cerr << "*****************************************************" << endl;
+    this->unlock_addr(lock_addr, tag, cas_buffer, cxt, coro_id, true, page_buffer, page_addr, level);
+    insert(k, v, cxt, coro_id);
+    return true;
   }
   assert(page->check_consistent());
 
   if (from_cache &&
       (k < page->hdr.lowest || k >= page->hdr.highest)) { // cache is stale
-    this->unlock_addr(lock_addr, tag, cas_buffer, cxt, coro_id, true, page_buffer, page_addr);
+    this->unlock_addr(lock_addr, tag, cas_buffer, cxt, coro_id, true, page_buffer, page_addr, level);
     return false;
   }
 
   if (k >= page->hdr.highest) {
 
-    this->unlock_addr(lock_addr, tag, cas_buffer, cxt, coro_id, true, page_buffer, page_addr);
+    this->unlock_addr(lock_addr, tag, cas_buffer, cxt, coro_id, true, page_buffer, page_addr, level);
     assert(page->hdr.sibling_ptr != GlobalAddress::Null());
     this->leaf_page_store(page->hdr.sibling_ptr, k, v, root, level, cxt,
                           coro_id);
@@ -1098,10 +1111,9 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
     std::cout << "root: " << root << std::endl;
     std::cout << "page_addr: " << page_addr << std::endl;
     std::cout << "key: " << k << std::endl;
-    std::cout << "page->hdr.lowest: " << page->hdr.lowest  << std::endl;
-    std::cout << "page->hdr.highest: " << page->hdr.highest  << std::endl;
-    // return false;
-    return true;
+    page->hdr.debug();
+    return false;
+    // return true;
   }
 
   int cnt = 0;
@@ -1148,8 +1160,11 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
     assert(update_addr);
     write_page_and_unlock(
         update_addr, GADD(page_addr, (update_addr - (char *)page)),
-        sizeof(LeafEntry), cas_buffer, lock_addr, tag, cxt, coro_id, false);
+        sizeof(LeafEntry), cas_buffer, lock_addr, tag, cxt, coro_id, false, level);
 
+    curr_lock_node->page_buffer = page_buffer;
+    curr_lock_node->page_addr = page_addr;
+    curr_lock_node->level = level;
     return true;
   } else {
     std::sort(
@@ -1198,7 +1213,7 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
   page->set_consistent();
 
   write_page_and_unlock(page_buffer, page_addr, kLeafPageSize, cas_buffer,
-                        lock_addr, tag, cxt, coro_id, need_split);
+                        lock_addr, tag, cxt, coro_id, need_split, level);
 
   if (!need_split)
     return true;

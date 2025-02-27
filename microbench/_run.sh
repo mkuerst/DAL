@@ -2,6 +2,7 @@
  
 cleanup() {
     sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo bash /nfs/DAL/cleanup_rdma.sh"
+    # sudo clush --hostfile ./nodes.txt -o "-o StrictHostKeyChecking=no" "sudo bash /nfs/DAL/cleanup_rdma.sh"
     sudo pkill -P $$ 
     for pid in $(sudo lsof | grep infiniband | awk '{print $2}' | sort -u); do
         echo "Killing process $pid using RDMA resources..."
@@ -56,7 +57,7 @@ comm_prot=rdma
 # MICROBENCH INPUTS
 # opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
 # opts=("shermanLock" "shermanHo" "shermanHod" "litl" "litlHo" "litlHod")
-opts=("litlHod")
+opts=("shermanLock")
 
 microbenches=("empty_cs" "mlocks" "kvs")
 duration=30
