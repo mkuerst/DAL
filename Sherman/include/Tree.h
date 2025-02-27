@@ -34,7 +34,7 @@ struct LocalLockNode {
     std::atomic<uint64_t> ticket_lock;
     bool hand_over;
     bool is_split;
-    uint8_t level;
+    int level;
     uint8_t hand_time;
     char *page_buffer = nullptr;
     GlobalAddress page_addr;
@@ -174,15 +174,15 @@ private:
                         CoroContext *cxt, int coro_id);
     void unlock_addr(GlobalAddress lock_addr, uint64_t tag, uint64_t *buf,
                     CoroContext *cxt, int coro_id, bool async, char *page_buf=nullptr, GlobalAddress page_addr=GlobalAddress::Null(),
-                    uint8_t level = 0);
+                    int level = 0);
     void write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
                                 int page_size, uint64_t *cas_buffer,
                                 GlobalAddress lock_addr, uint64_t tag,
-                                CoroContext *cxt, int coro_id, bool async, uint8_t level = 0);
+                                CoroContext *cxt, int coro_id, bool async, int level = 0);
     bool lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
                             int page_size, uint64_t *cas_buffer,
                             GlobalAddress lock_addr, uint64_t tag,
-                            CoroContext *cxt, int coro_id, uint8_t level = 0);
+                            CoroContext *cxt, int coro_id, int level = 0);
 
     bool page_search(GlobalAddress page_addr, const Key &k, SearchResult &result,
                     CoroContext *cxt, int coro_id, bool from_cache = false);
