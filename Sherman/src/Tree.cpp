@@ -1088,6 +1088,9 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
     page->hdr.debug();
     cerr << "page->hdr.level" << (int)page->hdr.level << endl;
     cerr << "*****************************************************" << endl;
+    if (hod) {
+      measurements.handovers_data[threadID]--;
+    }
     this->unlock_addr(lock_addr, tag, cas_buffer, cxt, coro_id, true, page_buffer, page_addr, level);
     insert(k, v, cxt, coro_id);
     return true;
@@ -1115,6 +1118,9 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
     std::cout << "page_addr: " << page_addr << std::endl;
     std::cout << "key: " << k << std::endl;
     page->hdr.debug();
+    if (hod) {
+      measurements.handovers_data[threadID]--;
+    }
     this->unlock_addr(lock_addr, tag, cas_buffer, cxt, coro_id, true, page_buffer, page_addr, level);
     insert(k, v, cxt, coro_id);
     return true;

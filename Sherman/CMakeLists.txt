@@ -54,18 +54,18 @@ target_link_libraries(sherman_shermanHod ${LINKS_FLAGS})
 #################################################################################################################
 #################################################################################################################
 
-# # LITL
-# add_library(sherman_litl STATIC ${COMMON_FILE})
-# target_compile_definitions(sherman_litl PRIVATE -DLITL)
-# set_target_properties(sherman_litl PROPERTIES OUTPUT_NAME "sherman_litl")
-# target_link_libraries(sherman_litl ${LINKS_FLAGS})
-# # target_link_libraries(sherman_litl)
+# LITL
+add_library(sherman_litl STATIC ${COMMON_FILE})
+target_compile_definitions(sherman_litl PRIVATE -DLITL)
+set_target_properties(sherman_litl PROPERTIES OUTPUT_NAME "sherman_litl")
+target_link_libraries(sherman_litl ${LINKS_FLAGS})
+# target_link_libraries(sherman_litl)
 
-# # LITL HO
-# add_library(sherman_litlHo STATIC ${COMMON_FILE})
-# target_compile_definitions(sherman_litlHo PRIVATE -DLITL -DHANDOVER)
-# set_target_properties(sherman_litlHo PROPERTIES OUTPUT_NAME "sherman_litlHo")
-# target_link_libraries(sherman_litlHo ${LINKS_FLAGS})
+# LITL HO
+add_library(sherman_litlHo STATIC ${COMMON_FILE})
+target_compile_definitions(sherman_litlHo PRIVATE -DLITL -DHANDOVER)
+set_target_properties(sherman_litlHo PROPERTIES OUTPUT_NAME "sherman_litlHo")
+target_link_libraries(sherman_litlHo ${LINKS_FLAGS})
 
 # LITL HOD
 add_library(sherman_litlHod STATIC ${COMMON_FILE})
