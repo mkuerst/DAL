@@ -33,7 +33,6 @@ struct LitlLock {
 struct LocalLockNode {
     std::atomic<uint64_t> ticket_lock;
     bool hand_over;
-    bool is_split;
     int level;
     uint8_t hand_time;
     char *page_buffer = nullptr;
@@ -43,7 +42,6 @@ struct LocalLockNode {
     void debug() const {
         cerr << "curr_lock_node:" << endl;
         cerr << "page_addr :" << page_addr << endl;
-        cerr << "is_split :" << is_split << endl;
         cerr << "page_buffer :" << (uintptr_t) page_buffer << endl;
         cerr << "level: " << (int)level << endl;
     }
@@ -62,6 +60,7 @@ struct Measurements {
     uint32_t *lock_acqs;
     uint64_t loop_in_cs[MAX_APP_THREAD];
     uint64_t tp[MAX_APP_THREAD];
+    uint64_t la[MAX_APP_THREAD];
     uint64_t glock_tries[MAX_APP_THREAD];
     uint64_t handovers[MAX_APP_THREAD];
     uint64_t handovers_data[MAX_APP_THREAD];

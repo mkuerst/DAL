@@ -266,7 +266,8 @@ void write_tp(char* tp_path, char* lock_path, int run, int threadNR, int lockNR,
 			<< std::setw(6) << array_size << ","
 			<< std::setw(3) << nodeID << ","
 			<< std::setw(3) << run << ","
-			<< std::setw(8) << lockNR << "\n";
+			<< std::setw(8) << lockNR << ","
+			<< std::setw(8) << measurements.la[t] << "\n";
 	}
 
 	file.flush();

@@ -10,8 +10,8 @@ import matplotlib.lines as mlines
 
 file_dir = os.path.dirname(os.path.realpath(__file__))
 
-OPTS =  [
 "litl", 
+OPTS =  [
 "litlHo",
 "litlHod",
 "litlHoOcmBw",
@@ -60,7 +60,8 @@ TP_COLS = [
 "array_size",
 "nodeID",
 "run",
-"lockNR"
+"lockNR",
+"la",
 ]
 
 STAT_TO_COLS = {

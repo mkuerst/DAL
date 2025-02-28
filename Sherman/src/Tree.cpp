@@ -256,6 +256,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
     // DEB("[%d.%d] was handed over the global lock: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_addr.offset);
     measurements.handovers[threadID]++;
     measurements.lock_acqs[lock_addr.nodeID * lockNR + lock_addr.offset / 8]++;
+    measurements.la[threadID]++;
     return true;
   }
   #endif
@@ -324,6 +325,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   save_measurement(threadID, measurements.gwait_acq, 1, true);
   // DEB("[%d.%d] got the global lock via rdma: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_addr.offset);
   measurements.lock_acqs[lock_addr.nodeID * lockNR + lock_addr.offset / 8]++;
+  measurements.la[threadID]++;
 
   return false;
 }
@@ -461,7 +463,6 @@ bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
   bool same_address = 
     curr_lock_node->page_addr.val == page_addr.val && 
     page->hdr.level == level;
-    // !curr_lock_node->is_split &&
   if (!handover || !same_address) {
     // cerr << "********************************************" << endl;
     // cerr << "NO DATA HO: " << "[" + to_string(dsm->getMyNodeID()) + "." + to_string(dsm->getMyThreadID()) + "]" << endl;
@@ -474,7 +475,6 @@ bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
     dsm->read_sync(*page_buffer, page_addr, page_size, cxt);
 
     save_measurement(threadID, measurements.data_read);
-    curr_lock_node->is_split = false;
     return false;
   } else {
     // cerr << "********************************************" << endl;
@@ -486,7 +486,6 @@ bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
     // curr_lock_node->debug();
     assert(curr_lock_node->level == level);
     *page_buffer = curr_lock_node->page_buffer;
-    curr_lock_node->is_split = false;
     measurements.handovers_data[threadID]++;
     return true;
   }
@@ -1012,7 +1011,6 @@ void Tree::internal_page_store(GlobalAddress page_addr, const Key &k,
 
     sibling->set_consistent();
     dsm->write_sync(sibling_buf, sibling_addr, kInternalPageSize, cxt);
-    curr_lock_node->is_split = true;
   }
 
   page->set_consistent();
@@ -1217,7 +1215,6 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
 
     sibling->set_consistent();
     dsm->write_sync(sibling_buf, sibling_addr, kLeafPageSize, cxt);
-    curr_lock_node->is_split = true;
   }
 
   page->set_consistent();

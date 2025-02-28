@@ -166,7 +166,7 @@ plot_MC_rlocks(
                 opts=["", "Ho", "Hod", "HoOcmBw"],
                 # lat_ecs_inc = [["gwait_acq", "gwait_rel"]],
                 lat_ml_inc = [["lwait_acq"], ["lwait_acq", "gwait_acq", "gwait_rel"], ["data_read", "data_write", "lock_hold"]],
-                tp_incs=["lock_acquires", "glock_tries", "handovers"],
+                tp_incs=["lock_acquires", "glock_tries", "handovers", "handovers_data"],
                 cnNRs=[1, 4], 
                 lockNRs=[16384], 
                 threadNRs=32,
