@@ -263,28 +263,36 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
 
   timer.begin();
 
-  // #ifdef CN_HANDOVER
-  //   bool res;
-  //   int current_holder = 0;
-  //   while (!dsm->cas_dm_sync(lock_addr, 0, tag, buf, cxt)) {
-  //     current_holder = *buf;
-  //     /*The lock holder already released the lock back to the MN*/
-  //     if (current_holder = lock_addr.nodeID) {
-  //       lock_addr.nodeID = 0;
-  //     }
-  //     else {
-  //       lock_addr.nodeID = *buf;
-  //     }
-  //   }
-  //   current_holder = *buf;
-  //   if (current_holder != 0) {
-  //     //SPIN ON OWN LOCATION
-  //     dsm->spin();
-  //     //WHERE IS THE DATA?
-  //   }
+  #ifdef CN_AWARE
+  bool res;
+  bool spin = false;
+  GlobalAddress old_holder_addr = GlobalAddress::Null();
+  GlobalAddress new_holder_addr = lock_addr;
+  // TODO: Where is the spinning address?
+  // use lock memory and ibv_poll on that location --> batched write w/ data.
+  // where do other threads cas?
+  // other idea: turn page_buffer into GlobalAddress and cas that
+  GlobalAddress spin_addr = GlobalAddress::Null();
+  spin_addr.nodeID = dsm->getMyNodeID();
+  spin_addr.offset = lock_addr.offset;
+  while (!dsm->cas_dm_sync(new_holder_addr, 0, spin_addr.val, buf, cxt)) {
+    spin = true;
+    if (new_holder_addr.val == (GlobalAdress) (*buf).val) {
+      /*The lock holder already released the lock back to the MN*/
+      new_holder_addr = lock_addr;
+      spin = false;
+    } else {
+      new_holder_addr = (GlobalAddress) *buf;
+    }
+  }
+  if (spin) {
+    dsm->spin_on(spin_addr);
+    return false;
+  }
+  return false;
 
 
-  // #else
+  #else
   {
     uint64_t retry_cnt = 0;
     uint64_t pre_tag = 0;
@@ -322,6 +330,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
     }
     measurements.glock_tries[threadID] += retry_cnt;
   }
+  #endif
   save_measurement(threadID, measurements.gwait_acq, 1, true);
   // DEB("[%d.%d] got the global lock via rdma: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_addr.offset);
   measurements.lock_acqs[lock_addr.nodeID * lockNR + lock_addr.offset / 8]++;
@@ -330,7 +339,6 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   return false;
 }
 
-// TODO: IS HANDOVER_DATA NEEDED HERE?
 inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
                               uint64_t *buf, CoroContext *cxt, int coro_id,
                               bool async, char *page_buf, GlobalAddress page_addr, int level) {
@@ -383,6 +391,44 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   }
   #endif
 
+  #ifdef CN_AWARE
+  GlobalAddress spin_addr = GlobalAddress::Null():
+  spin_addr.nodeID = dsm->getMyNodeID();
+  spin_addr.offset = lock_addr.offset();
+  *curr_cas_buffer = 0;
+  if (!dsm->cas_dm_sync(spin_addr, 0, spin_addr.val, curr_cas_buf)) {
+    GlobalAddress peerAddr = (GlobalAddress) *curr_cas_buf;
+    GlobalAddress ho_addr = peerAddr;
+    // TODO: Async also OK?
+    // *curr_cas_buf = 1;
+    // dsm->write_dm_sync(currs_cas_buf, peerAddr, sizeof(uint64_t), ctx);
+    RdmaOpRegion rs[3];
+    rs[0].source = (uint64_t)page_buffer;
+    rs[0].dest = page_addr;
+    rs[0].size = page_size;
+    rs[0].is_on_chip = false;
+
+    rs[1].source = (uint64_t)dsm->get_rbuf(coro_id).get_cas_buffer();
+    rs[1].dest = lock_addr;
+    rs[1].size = sizeof(uint64_t);
+    rs[1].is_on_chip = true;
+    *(uint64_t *)rs[1].source = peerAddr.val;
+
+    rs[2].source = (uint64_t)dsm->get_rbuf(coro_id).get_cas_buffer();
+    rs[2].dest = peerAddr;
+    rs[2].size = sizeof(uint64_t);
+    rs[2].is_on_chip = true;
+    *(uint64_t *)rs[2].source = 1 << 63;
+
+    if (async) {
+      dsm->write_batch(rs, 3, false);
+    } else {
+      dsm->write_batch_sync(rs, 3, cxt);
+    }
+    return;
+
+  }
+  #endif
 
   timer.begin();
   RdmaOpRegion rs[2];

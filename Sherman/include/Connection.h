@@ -17,6 +17,7 @@ struct RemoteConnection {
 
     // cache
     uint64_t cacheBase;
+    uint32_t cacheRKey[MAX_APP_THREAD];
 
     // lock memory
     uint64_t lockBase;

@@ -9,7 +9,7 @@ public:
 
 union {
   struct {
-  uint64_t nodeID: 16;
+  uint64_t nodeID: 15;
   uint64_t offset : 48;
   };
   uint64_t val;
