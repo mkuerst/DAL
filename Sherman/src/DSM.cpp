@@ -166,10 +166,10 @@ void DSM::registerThread(int page_size) {
 
   rdma_buffer = (char *)cache.data + thread_id * 12 * define::MB;
   spin_gaddr.nodeID = this->getMyNodeID();
-  spin_gaddr.offset = 960 * define::MB + thread_id * 2 * sizeof(uint64_t);
+  spin_gaddr.offset = conf.dsmSize * define::GB - 32 * define::MB + thread_id * 2 * sizeof(uint64_t);
   next_gaddr.nodeID = this->getMyNodeID();
   next_gaddr.offset = spin_gaddr.offset + sizeof(uint64_t);
-  spin_loc = (uint64_t *) ((char *)cache.data + spin_gaddr.offset);
+  spin_loc = (uint64_t *) ((char *)baseAddr + spin_gaddr.offset);
   *spin_loc = 0;
   // rdma_buffer = (char *)cache.data + thread_id * 32 * define::MB;
 
@@ -291,10 +291,12 @@ void DSM::fill_keys_dest(RdmaOpRegion &ror, GlobalAddress gaddr, bool is_chip, b
   if (is_chip) {
     ror.dest = remoteInfo[gaddr.nodeID].lockBase + gaddr.offset;
     ror.remoteRKey = remoteInfo[gaddr.nodeID].lockRKey[0];
-  } else if (is_peer_cache) {
-    ror.dest = remoteInfo[gaddr.nodeID].cacheBase + gaddr.offset;
-    ror.remoteRKey = remoteInfo[gaddr.nodeID].appRKey[0];
-  } else {
+  } 
+  // else if (is_peer_cache) {
+  //   ror.dest = remoteInfo[gaddr.nodeID].cacheBase + gaddr.offset;
+  //   ror.remoteRKey = remoteInfo[gaddr.nodeID].appRKey[0];
+  // }
+   else {
     ror.dest = remoteInfo[gaddr.nodeID].dsmBase + gaddr.offset;
     ror.remoteRKey = remoteInfo[gaddr.nodeID].dsmRKey[0];
   }
@@ -468,14 +470,14 @@ void DSM::cas_peer(GlobalAddress gaddr, uint64_t equal, uint64_t val,
 
   if (ctx == nullptr) {
     rdmaCompareAndSwap(iCon->data[0][gaddr.nodeID], (uint64_t)rdma_buffer,
-                       remoteInfo[gaddr.nodeID].cacheBase + gaddr.offset, equal,
+                       remoteInfo[gaddr.nodeID].dsmBase + gaddr.offset, equal,
                        val, iCon->cacheLKey,
-                       remoteInfo[gaddr.nodeID].appRKey[0], signal);
+                       remoteInfo[gaddr.nodeID].dsmRKey[0], signal);
   } else {
     rdmaCompareAndSwap(iCon->data[0][gaddr.nodeID], (uint64_t)rdma_buffer,
-                       remoteInfo[gaddr.nodeID].cacheBase + gaddr.offset, equal,
+                       remoteInfo[gaddr.nodeID].dsmBase + gaddr.offset, equal,
                        val, iCon->cacheLKey,
-                       remoteInfo[gaddr.nodeID].appRKey[0], true, ctx->coro_id);
+                       remoteInfo[gaddr.nodeID].dsmRKey[0], true, ctx->coro_id);
     (*ctx->yield)(*ctx->master);
   }
   std::cerr << "cas_peer" << std::endl;
