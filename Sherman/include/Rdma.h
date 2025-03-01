@@ -29,6 +29,7 @@ struct RdmaOpRegion {
   union {
     uint32_t remoteRKey;
     bool is_on_chip;
+    bool is_peer_cache;
   };
 };
 

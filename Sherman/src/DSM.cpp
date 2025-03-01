@@ -13,7 +13,9 @@ thread_local char *DSM::rdma_buffer = nullptr;
 thread_local LocalAllocator DSM::local_allocator;
 thread_local RdmaBuffer DSM::rbuf[define::kMaxCoro];
 thread_local uint64_t DSM::thread_tag = 0;
-thread_local GlobalAddress spin_loc;
+thread_local uint64_t *DSM::spin_loc;
+thread_local GlobalAddress DSM::spin_gaddr;
+thread_local GlobalAddress DSM::next_gaddr;
 
 DSM *DSM::getInstance(const DSMConfig &conf) {
   static DSM *dsm = nullptr;
@@ -161,9 +163,12 @@ void DSM::registerThread(int page_size) {
   }
 
   rdma_buffer = (char *)cache.data + thread_id * 12 * define::MB;
-  spin_loc.nodeID = this->getMyNodeID();
-  spin_loc.offset = remoteInfo[spin_loc.nodeID].cacheBase +
-   MAX_APP_THREAD * 12 * define::MB + thread_id * sizeof(uint64_t);
+  spin_gaddr.nodeID = this->getMyNodeID();
+  spin_gaddr.offset = (MAX_APP_THREAD + 1) * 12 * define::MB + thread_id * 2 * sizeof(uint64_t);
+  next_gaddr.nodeID = this->getMyNodeID();
+  next_gaddr.offset = spin_gaddr.offset + sizeof(uint64_t);
+  spin_loc = (uint64_t *) ((char *)cache.data + spin_gaddr.offset);
+  *spin_loc = 0;
   // rdma_buffer = (char *)cache.data + thread_id * 32 * define::MB;
 
   for (int i = 0; i < define::kMaxCoro; ++i) {
@@ -192,13 +197,13 @@ void DSM::initRDMAConnection() {
   myNodeID = keeper->getMyNodeID();
 }
 
+// TODO: DDIO?
 #include <immintrin.h>
-void DSM::spin_on(GlobalAddress spin_addr) {
-    uint64_t *buffer = (uint64_t *) remoteInfo[spin_addr.nodeID].lockBase + spin_addr.offset;
-    *buffer = 0;
-    while ((*buffer >> 63 ) == 0) {
-      _mm_clflush(buffer);  // Flush cache to see the latest value
-      _mm_pause();  // Reduce CPU contention
+void DSM::spin_on() {
+    *spin_loc = 0;
+    while (*spin_loc == 0) {
+      _mm_clflush(spin_loc);  // Flush cache to see the latest value
+      _mm_pause();
   }
 }
 
@@ -259,11 +264,11 @@ void DSM::write_peer_cache(const char *buffer, GlobalAddress gaddr, size_t size,
   if (ctx == nullptr) {
     rdmaWrite(iCon->data[0][gaddr.nodeID], (uint64_t)buffer,
               remoteInfo[gaddr.nodeID].cacheBase + gaddr.offset, size,
-              iCon->cacheLKey, remoteInfo[gaddr.nodeID].dsmRKey[0], -1, signal);
+              iCon->cacheLKey, remoteInfo[gaddr.nodeID].appRKey[0], -1, signal);
   } else {
     rdmaWrite(iCon->data[0][gaddr.nodeID], (uint64_t)buffer,
               remoteInfo[gaddr.nodeID].cacheBase + gaddr.offset, size,
-              iCon->cacheLKey, remoteInfo[gaddr.nodeID].cacheRKey[0], -1, true,
+              iCon->cacheLKey, remoteInfo[gaddr.nodeID].appRKey[0], -1, true,
               ctx->coro_id);
     (*ctx->yield)(*ctx->master);
   }
@@ -279,11 +284,14 @@ void DSM::write_peer_cache_sync(const char *buffer, GlobalAddress gaddr, size_t 
   }
 }
 
-void DSM::fill_keys_dest(RdmaOpRegion &ror, GlobalAddress gaddr, bool is_chip) {
+void DSM::fill_keys_dest(RdmaOpRegion &ror, GlobalAddress gaddr, bool is_chip, bool is_peer_cache) {
   ror.lkey = iCon->cacheLKey;
   if (is_chip) {
     ror.dest = remoteInfo[gaddr.nodeID].lockBase + gaddr.offset;
     ror.remoteRKey = remoteInfo[gaddr.nodeID].lockRKey[0];
+  } else if (is_peer_cache) {
+    ror.dest = remoteInfo[gaddr.nodeID].cacheBase + gaddr.offset;
+    ror.remoteRKey = remoteInfo[gaddr.nodeID].appRKey[0];
   } else {
     ror.dest = remoteInfo[gaddr.nodeID].dsmBase + gaddr.offset;
     ror.remoteRKey = remoteInfo[gaddr.nodeID].dsmRKey[0];
@@ -298,7 +306,7 @@ void DSM::write_batch(RdmaOpRegion *rs, int k, bool signal, CoroContext *ctx) {
     GlobalAddress gaddr;
     gaddr.val = rs[i].dest;
     node_id = gaddr.nodeID;
-    fill_keys_dest(rs[i], gaddr, rs[i].is_on_chip);
+    fill_keys_dest(rs[i], gaddr, rs[i].is_on_chip, rs[i].is_peer_cache);
   }
 
   if (ctx == nullptr) {

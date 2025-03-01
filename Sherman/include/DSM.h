@@ -32,6 +32,8 @@ public:
   uint16_t getClusterSize() { return conf.machineNR; }
   uint64_t getThreadTag() { return thread_tag; }
   uint64_t getDsmSize() { return conf.dsmSize * define::GB; }
+  GlobalAddress getSpinGaddr() { return spin_gaddr; }
+  GlobalAddress getNextGaddr() { return next_gaddr; }
 
   // RDMA operations
   // buffer is registered memory
@@ -59,6 +61,12 @@ public:
                  uint64_t val, bool signal = true, CoroContext *ctx = nullptr);
   void write_cas_sync(RdmaOpRegion &write_ror, RdmaOpRegion &cas_ror,
                       uint64_t equal, uint64_t val, CoroContext *ctx = nullptr);
+
+  void write_peer_cache(const char *buffer, GlobalAddress gaddr, size_t size,
+                  bool signal, CoroContext *ctx);
+
+  void write_peer_cache_sync(const char *buffer, GlobalAddress gaddr, size_t size,
+                      CoroContext *ctx);
 
   void cas(GlobalAddress gaddr, uint64_t equal, uint64_t val,
            uint64_t *rdma_buffer, bool signal = true,
@@ -117,7 +125,7 @@ public:
   uint64_t poll_rdma_cq(int count = 1);
   bool poll_rdma_cq_once(uint64_t &wr_id);
 
-  void spin_on(GlobalAddress spin_addr);
+  void spin_on();
 
   uint64_t sum(uint64_t value) {
     static uint64_t count = 0;
@@ -147,7 +155,7 @@ private:
   ~DSM();
 
   void initRDMAConnection();
-  void fill_keys_dest(RdmaOpRegion &ror, GlobalAddress addr, bool is_chip);
+  void fill_keys_dest(RdmaOpRegion &ror, GlobalAddress addr, bool is_chip, bool is_peer_cache = false);
 
   DSMConfig conf;
   std::atomic_int appID;
@@ -159,7 +167,9 @@ private:
   static thread_local LocalAllocator local_allocator;
   static thread_local RdmaBuffer rbuf[define::kMaxCoro];
   static thread_local uint64_t thread_tag;
-  static thread_local uint64_t *spin_location;
+  static thread_local uint64_t *spin_loc;
+  static thread_local GlobalAddress spin_gaddr;
+  static thread_local GlobalAddress next_gaddr;
 
   uint64_t baseAddr;
   uint64_t rlockAddr;

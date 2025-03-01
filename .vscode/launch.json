@@ -46,21 +46,22 @@
       "type": "cppdbg",
       "request": "launch",
       // "program": "${workspaceFolder}/microbench/appbench_shermanLock",
-      "program": "${workspaceFolder}/microbench/microbench_litlHod",
+      // "program": "${workspaceFolder}/microbench/microbench_litlHod",
+      "program": "${workspaceFolder}/microbench/microbench_shermanCna",
       // "program": "${workspaceFolder}/microbench/appbench_litl",
-      // "program": "${workspaceFolder}/microbench/appbench_shermanHo",
+      // "program": "${workspaceFolder}/microbench/appbench_shermanCna",
       // "program": "${workspaceFolder}/Sherman/build/benchmark",
       "args": [
-        "-t", "16",
+        "-t", "1",
         "-d", "3",
-        "-s", "2",
+        "-s", "1",
         "-m", "1",
         "-i", "1",
         "-n", "2",
         "-f", "/nfs/DAL/microbench/results/test_tp.csv",
         "-g", "/nfs/DAL/microbench/results/test_lat.csv",
         "-h", "/nfs/DAL/microbench/results/test_lock.csv",
-        "-l", "256",
+        "-l", "1",
         "-r", "0",
         "-z", "1",
         "-c", "64",
@@ -68,14 +69,14 @@
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      "environment": [
-        {
-          "name": "LD_PRELOAD",
-          // "value": "/nfs/DAL/litl2/lib/original/libmalthusian_spinlock.so"
-          // "value": "/nfs/DAL/litl2/lib/original/libpthreadinterpose_original.so"
-          "value": "/nfs/DAL/litl2/lib/original/libhmcs_original.so"
-        }
-      ],
+      // "environment": [
+      //   {
+      //     "name": "LD_PRELOAD",
+      //     // "value": "/nfs/DAL/litl2/lib/original/libmalthusian_spinlock.so"
+      //     // "value": "/nfs/DAL/litl2/lib/original/libpthreadinterpose_original.so"
+      //     "value": "/nfs/DAL/litl2/lib/original/libhmcs_original.so"
+      //   }
+      // ],
       "MIMode": "gdb",
       // "preLaunchTask": "Set ulimit",
       "setupCommands": [
@@ -91,22 +92,23 @@
       "name": "node2",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/microbench/microbench_litlHod",
+      "program": "${workspaceFolder}/microbench/microbench_shermanCna",
+      // "program": "${workspaceFolder}/microbench/microbench_litlHod",
       // "program": "${workspaceFolder}/microbench/appbench_litl",
       // "program": "${workspaceFolder}/microbench/appbench_shermanHo",
       // "program": "${workspaceFolder}/microbench/appbench_shermanLock",
       // "program": "${workspaceFolder}/Sherman/build/benchmark",
       "args": [
-        "-t", "16",
+        "-t", "1",
         "-d", "3",
-        "-s", "2",
+        "-s", "1",
         "-m", "1",
         "-i", "2",
         "-n", "2",
         "-f", "/nfs/DAL/microbench/results/test_tp.csv",
         "-g", "/nfs/DAL/microbench/results/test_lat.csv",
         "-h", "/nfs/DAL/microbench/results/test_lock.csv",
-        "-l", "256",
+        "-l", "1",
         "-r", "0",
         "-z", "1",
         "-c", "64",
@@ -114,14 +116,14 @@
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      "environment": [
-        {
-          "name": "LD_PRELOAD",
-          // "value": "/nfs/DAL/litl2/lib/original/libmalthusian_spinlock.so"
-          // "value": "/nfs/DAL/litl2/lib/original/libpthreadinterpose_original.so"
-          "value": "/nfs/DAL/litl2/lib/original/libhmcs_original.so"
-        }
-      ],
+      // "environment": [
+      //   {
+      //     "name": "LD_PRELOAD",
+      //     // "value": "/nfs/DAL/litl2/lib/original/libmalthusian_spinlock.so"
+      //     // "value": "/nfs/DAL/litl2/lib/original/libpthreadinterpose_original.so"
+      //     "value": "/nfs/DAL/litl2/lib/original/libhmcs_original.so"
+      //   }
+      // ],
       "MIMode": "gdb",
       // "preLaunchTask": "Set ulimit",
       "setupCommands": [

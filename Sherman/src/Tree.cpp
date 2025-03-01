@@ -266,27 +266,28 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   #ifdef CN_AWARE
   bool res;
   bool spin = false;
+  GlobalAddress next_holder_addr = lock_addr;
   GlobalAddress old_holder_addr = GlobalAddress::Null();
-  GlobalAddress new_holder_addr = lock_addr;
+  GlobalAddress next_gaddr = dsm->getNextGaddr();
   // TODO: Where is the spinning address?
   // use lock memory and ibv_poll on that location --> batched write w/ data.
   // where do other threads cas?
   // other idea: turn page_buffer into GlobalAddress and cas that
-  GlobalAddress spin_addr = GlobalAddress::Null();
-  spin_addr.nodeID = dsm->getMyNodeID();
-  spin_addr.offset = lock_addr.offset;
-  while (!dsm->cas_dm_sync(new_holder_addr, 0, spin_addr.val, buf, cxt)) {
+  while (!dsm->cas_dm_sync(next_holder_addr, 0, next_gaddr.val, buf, cxt)) {
     spin = true;
-    if (new_holder_addr.val == (GlobalAdress) (*buf).val) {
+    if (next_holder_addr.val == old_holder_addr.val) {
       /*The lock holder already released the lock back to the MN*/
-      new_holder_addr = lock_addr;
+      next_holder_addr = lock_addr;
+      old_holder_addr = GlobalAddress::Null();
       spin = false;
     } else {
-      new_holder_addr = (GlobalAddress) *buf;
+      old_holder_addr = next_holder_addr;
+      auto ga = (GlobalAddress*) buf;
+      next_holder_addr = *ga;
     }
   }
   if (spin) {
-    dsm->spin_on(spin_addr);
+    dsm->spin_on();
     return false;
   }
   return false;
@@ -392,13 +393,13 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   #endif
 
   #ifdef CN_AWARE
-  GlobalAddress spin_addr = GlobalAddress::Null():
-  spin_addr.nodeID = dsm->getMyNodeID();
-  spin_addr.offset = lock_addr.offset();
+  GlobalAddress lock_addr_self = GlobalAddress::Null();
+  lock_addr_self.nodeID = dsm->getMyNodeID();
+  lock_addr_self.offset = lock_addr.offset;
+  GlobalAddress next_gaddr = dsm->getNextGaddr();
   *curr_cas_buffer = 0;
-  if (!dsm->cas_dm_sync(spin_addr, 0, spin_addr.val, curr_cas_buf)) {
-    GlobalAddress peerAddr = (GlobalAddress) *curr_cas_buf;
-    GlobalAddress ho_addr = peerAddr;
+  if (!dsm->cas_dm_sync(next_gaddr, 0, next_gaddr.val, curr_cas_buffer)) {
+    GlobalAddress *peerAddr = (GlobalAddress *) curr_cas_buffer;
     // TODO: Async also OK?
     // *curr_cas_buf = 1;
     // dsm->write_dm_sync(currs_cas_buf, peerAddr, sizeof(uint64_t), ctx);
@@ -412,13 +413,13 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     rs[1].dest = lock_addr;
     rs[1].size = sizeof(uint64_t);
     rs[1].is_on_chip = true;
-    *(uint64_t *)rs[1].source = peerAddr.val;
+    *(uint64_t *)rs[1].source = peerAddr->val;
 
     rs[2].source = (uint64_t)dsm->get_rbuf(coro_id).get_cas_buffer();
-    rs[2].dest = peerAddr;
+    rs[2].dest = peerAddr->val - sizeof(uint64_t);
     rs[2].size = sizeof(uint64_t);
-    rs[2].is_on_chip = true;
-    *(uint64_t *)rs[2].source = 1 << 63;
+    rs[2].is_on_chip = false;
+    *(uint64_t *)rs[2].source = 1;
 
     if (async) {
       dsm->write_batch(rs, 3, false);
