@@ -7,6 +7,7 @@
 
 #include <algorithm>
 
+#include <iostream>
 thread_local int DSM::thread_id = -1;
 thread_local ThreadConnection *DSM::iCon = nullptr;
 thread_local char *DSM::rdma_buffer = nullptr;
@@ -44,6 +45,7 @@ DSM::DSM(const DSMConfig &conf)
   
   // Debug::notifyInfo("shared memory size: %dGB, 0x%lx", conf.dsmSize, baseAddr);
   // Debug::notifyInfo("rdma cache size: %dGB", conf.cacheConfig.cacheSize);
+  // std::cerr << "cache_addr: " << cache.data << std::endl;
   
   // warmup
   memset((char *)cache.data, 0, cache.size * define::GB);
@@ -164,7 +166,7 @@ void DSM::registerThread(int page_size) {
 
   rdma_buffer = (char *)cache.data + thread_id * 12 * define::MB;
   spin_gaddr.nodeID = this->getMyNodeID();
-  spin_gaddr.offset = (MAX_APP_THREAD + 1) * 12 * define::MB + thread_id * 2 * sizeof(uint64_t);
+  spin_gaddr.offset = 960 * define::MB + thread_id * 2 * sizeof(uint64_t);
   next_gaddr.nodeID = this->getMyNodeID();
   next_gaddr.offset = spin_gaddr.offset + sizeof(uint64_t);
   spin_loc = (uint64_t *) ((char *)cache.data + spin_gaddr.offset);
@@ -456,6 +458,38 @@ bool DSM::cas_sync(GlobalAddress gaddr, uint64_t equal, uint64_t val,
   if (ctx == nullptr) {
     ibv_wc wc;
     pollWithCQ(iCon->cq, 1, &wc);
+  }
+
+  return equal == *rdma_buffer;
+}
+
+void DSM::cas_peer(GlobalAddress gaddr, uint64_t equal, uint64_t val,
+              uint64_t *rdma_buffer, bool signal, CoroContext *ctx) {
+
+  if (ctx == nullptr) {
+    rdmaCompareAndSwap(iCon->data[0][gaddr.nodeID], (uint64_t)rdma_buffer,
+                       remoteInfo[gaddr.nodeID].cacheBase + gaddr.offset, equal,
+                       val, iCon->cacheLKey,
+                       remoteInfo[gaddr.nodeID].appRKey[0], signal);
+  } else {
+    rdmaCompareAndSwap(iCon->data[0][gaddr.nodeID], (uint64_t)rdma_buffer,
+                       remoteInfo[gaddr.nodeID].cacheBase + gaddr.offset, equal,
+                       val, iCon->cacheLKey,
+                       remoteInfo[gaddr.nodeID].appRKey[0], true, ctx->coro_id);
+    (*ctx->yield)(*ctx->master);
+  }
+  std::cerr << "cas_peer" << std::endl;
+  std::cerr << "gaddr :" << gaddr << std::endl;
+  std::cerr << "appRKey :" << remoteInfo[gaddr.nodeID].appRKey[1] << std::endl;
+}
+
+bool DSM::cas_peer_sync(GlobalAddress gaddr, uint64_t equal, uint64_t val,
+                   uint64_t *rdma_buffer, CoroContext *ctx) {
+  cas_peer(gaddr, equal, val, rdma_buffer, true, ctx);
+
+  if (ctx == nullptr) {
+    ibv_wc wc;
+    pollWithCQ(iCon->cq, 1, &wc, gaddr, 64, val);
   }
 
   return equal == *rdma_buffer;

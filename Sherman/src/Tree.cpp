@@ -398,7 +398,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   lock_addr_self.offset = lock_addr.offset;
   GlobalAddress next_gaddr = dsm->getNextGaddr();
   *curr_cas_buffer = 0;
-  if (!dsm->cas_dm_sync(next_gaddr, 0, next_gaddr.val, curr_cas_buffer)) {
+  if (!dsm->cas_peer_sync(next_gaddr, 0, next_gaddr.val, curr_cas_buffer, cxt)) {
     GlobalAddress *peerAddr = (GlobalAddress *) curr_cas_buffer;
     // TODO: Async also OK?
     // *curr_cas_buf = 1;

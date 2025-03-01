@@ -1,6 +1,7 @@
 #include "DSMKeeper.h"
 
 #include "Connection.h"
+#include <iostream>
 
 const char *DSMKeeper::OK = "OK";
 const char *DSMKeeper::ServerPrefix = "SPre";
@@ -120,6 +121,7 @@ void DSMKeeper::setDataFromRemote(uint16_t remoteID, ExchangeMeta *remoteMeta) {
 
   for (int i = 0; i < MAX_APP_THREAD; ++i) {
     info.appRKey[i] = remoteMeta->appTh[i].rKey;
+    // std::cerr << "appTh " << i << ".appRKey: " << remoteMeta->appTh[i].rKey << std::endl;
     info.appMessageQPN[i] = remoteMeta->appUdQpn[i];
 
     for (int k = 0; k < NR_DIRECTORY; ++k) {

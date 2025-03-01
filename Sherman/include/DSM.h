@@ -74,6 +74,11 @@ public:
   bool cas_sync(GlobalAddress gaddr, uint64_t equal, uint64_t val,
                 uint64_t *rdma_buffer, CoroContext *ctx = nullptr);
 
+  void cas_peer(GlobalAddress gaddr, uint64_t equal, uint64_t val,
+                uint64_t *rdma_buffer, bool signal, CoroContext *ctx);
+
+  bool cas_peer_sync(GlobalAddress gaddr, uint64_t equal, uint64_t val,
+                    uint64_t *rdma_buffer, CoroContext *ctx);
   void cas_read(RdmaOpRegion &cas_ror, RdmaOpRegion &read_ror, uint64_t equal,
                 uint64_t val, bool signal = true, CoroContext *ctx = nullptr);
   bool cas_read_sync(RdmaOpRegion &cas_ror, RdmaOpRegion &read_ror,
