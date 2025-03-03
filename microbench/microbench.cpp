@@ -248,6 +248,7 @@ int main(int argc, char *argv[]) {
     // lockNR = chipSize * 1024 / sizeof(uint64_t);
     dsm = DSM::getInstance(config);
     nodeID = dsm->getMyNodeID();
+    // register_sighandler(dsm);
     DE("DSM INIT DONE: %d\n", nodeID);
 
     if (nodeID == 0) {

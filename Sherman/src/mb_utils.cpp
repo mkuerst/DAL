@@ -119,6 +119,7 @@ void clear_measurements(int lockNR) {
 		measurements.handovers_data[i] = 0;
 		measurements.glock_tries[i] = 0;
 		measurements.tp[i] = 0;
+		measurements.la[i] = 0;
 		measurements.loop_in_cs[i] = 0;
 	}
 }
@@ -132,6 +133,7 @@ void free_measurements() {
 	free(measurements.gwait_rel);
 	free(measurements.lock_hold);
 	free(measurements.lock_acqs);
+	free(measurements.end_to_end);
 }
 
 uint64_t* cal_latency(uint16_t *latency, const string measurement, int lw = LATENCY_WINDOWS, uint64_t factor = 1.0) {
@@ -407,4 +409,32 @@ int check_CN_correctness(
     dsm->get_DSMKeeper()->memSet(key_datasum.c_str(), key_datasum.size(), val_datasum, sizeof(uint64_t));
 
 	return ret;
+}
+
+static DSM *dsm = nullptr;
+struct sigaction sa;
+
+void cleanup() {
+    printf("Cleaning up resources before exit...\n");
+    dsm->free_dsm();
+}
+
+void signal_handler(int sig) {
+    printf("Received signal %d (%s)\n", sig, strsignal(sig));
+    cleanup();
+    exit(EXIT_FAILURE);
+}
+
+void register_sighandler(DSM *m) {
+	dsm = m;
+    sa.sa_handler = signal_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    int signals[] = {SIGINT, SIGTERM, SIGQUIT, SIGHUP, SIGABRT, SIGSEGV, SIGBUS, SIGFPE, SIGILL};
+    for (size_t i = 0; i < sizeof(signals) / sizeof(signals[0]); i++) {
+        if (sigaction(signals[i], &sa, NULL) == -1) {
+            perror("sigaction");
+            exit(EXIT_FAILURE);
+        }
+    }
 }

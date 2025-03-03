@@ -15,6 +15,7 @@ thread_local LocalAllocator DSM::local_allocator;
 thread_local RdmaBuffer DSM::rbuf[define::kMaxCoro];
 thread_local uint64_t DSM::thread_tag = 0;
 thread_local uint64_t *DSM::spin_loc;
+thread_local uint64_t *DSM::next_loc;
 thread_local GlobalAddress DSM::spin_gaddr;
 thread_local GlobalAddress DSM::next_gaddr;
 
@@ -35,7 +36,7 @@ DSM *DSM::getInstance(const DSMConfig &conf) {
 DSM::DSM(const DSMConfig &conf)
     : conf(conf), appID(0), cache(conf.cacheConfig) {
       
-  baseAddr = (uint64_t)hugePageAlloc(conf.dsmSize * define::GB);
+  baseAddr = (uint64_t)hugePageAlloc(conf.dsmSize * define::GB + 64 * define::MB);
   #ifdef ON_CHIP
   rlockAddr = define::kLockStartAddr;
   #else
@@ -49,7 +50,7 @@ DSM::DSM(const DSMConfig &conf)
   
   // warmup
   memset((char *)cache.data, 0, cache.size * define::GB);
-  memset((char *)baseAddr, 0, conf.dsmSize * define::GB);
+  memset((char *)baseAddr, 0, conf.dsmSize * define::GB + 64 * define::MB);
   
   initRDMAConnection();
   if (myNodeID < conf.mnNR) {  // start memory server
@@ -166,11 +167,13 @@ void DSM::registerThread(int page_size) {
 
   rdma_buffer = (char *)cache.data + thread_id * 12 * define::MB;
   spin_gaddr.nodeID = this->getMyNodeID();
-  spin_gaddr.offset = conf.dsmSize * define::GB - 32 * define::MB + thread_id * 2 * sizeof(uint64_t);
+  spin_gaddr.offset = conf.dsmSize * define::GB + thread_id * 2 * sizeof(uint64_t);
   next_gaddr.nodeID = this->getMyNodeID();
   next_gaddr.offset = spin_gaddr.offset + sizeof(uint64_t);
   spin_loc = (uint64_t *) ((char *)baseAddr + spin_gaddr.offset);
   *spin_loc = 0;
+  next_loc = (uint64_t *) ((char *)baseAddr + next_gaddr.offset);
+  *next_loc = 0;
   // rdma_buffer = (char *)cache.data + thread_id * 32 * define::MB;
 
   for (int i = 0; i < define::kMaxCoro; ++i) {
@@ -202,11 +205,11 @@ void DSM::initRDMAConnection() {
 // TODO: DDIO?
 #include <immintrin.h>
 void DSM::spin_on() {
-    *spin_loc = 0;
     while (*spin_loc == 0) {
       _mm_clflush(spin_loc);  // Flush cache to see the latest value
       _mm_pause();
   }
+  *spin_loc = 0;
 }
 
 void DSM::read(char *buffer, GlobalAddress gaddr, size_t size, bool signal,
@@ -482,7 +485,8 @@ void DSM::cas_peer(GlobalAddress gaddr, uint64_t equal, uint64_t val,
   }
   std::cerr << "cas_peer" << std::endl;
   std::cerr << "gaddr :" << gaddr << std::endl;
-  std::cerr << "appRKey :" << remoteInfo[gaddr.nodeID].appRKey[1] << std::endl;
+  GlobalAddress *v = (GlobalAddress *) &val;
+  std::cerr << "val :" << *v << std::endl;
 }
 
 bool DSM::cas_peer_sync(GlobalAddress gaddr, uint64_t equal, uint64_t val,

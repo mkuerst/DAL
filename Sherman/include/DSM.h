@@ -34,6 +34,7 @@ public:
   uint64_t getDsmSize() { return conf.dsmSize * define::GB; }
   GlobalAddress getSpinGaddr() { return spin_gaddr; }
   GlobalAddress getNextGaddr() { return next_gaddr; }
+  void reset_nextloc() {*next_loc = 0; }
 
   // RDMA operations
   // buffer is registered memory
@@ -173,6 +174,7 @@ private:
   static thread_local RdmaBuffer rbuf[define::kMaxCoro];
   static thread_local uint64_t thread_tag;
   static thread_local uint64_t *spin_loc;
+  static thread_local uint64_t *next_loc;
   static thread_local GlobalAddress spin_gaddr;
   static thread_local GlobalAddress next_gaddr;
 

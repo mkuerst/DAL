@@ -53,31 +53,6 @@ std::thread th[MAX_APP_THREAD];
 extern Measurements measurements;
 
 
-struct sigaction sa;
-
-void cleanup() {
-    printf("Cleaning up resources before exit...\n");
-    dsm->free_dsm();
-}
-
-void signal_handler(int sig) {
-    printf("Received signal %d (%s)\n", sig, strsignal(sig));
-    cleanup();
-    exit(EXIT_FAILURE);
-}
-
-void register_sighandler() {
-    sa.sa_handler = signal_handler;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    int signals[] = {SIGINT, SIGTERM, SIGQUIT, SIGHUP, SIGABRT, SIGSEGV, SIGBUS, SIGFPE, SIGILL};
-    for (size_t i = 0; i < sizeof(signals) / sizeof(signals[0]); i++) {
-        if (sigaction(signals[i], &sa, NULL) == -1) {
-            perror("sigaction");
-            exit(EXIT_FAILURE);
-        }
-    }
-}
 
 inline Key to_key(uint64_t k) {
   return (CityHash64((char *)&k, sizeof(k)) + 1) % kKeySpace;

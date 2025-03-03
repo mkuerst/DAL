@@ -34,8 +34,8 @@ thread_local LocalLockNode *Tree::curr_lock_node;
 
 Measurements measurements;
 
-Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB) : dsm(dsm), tree_id(tree_id), lockNR(lockNR) {
 
+Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB) : dsm(dsm), tree_id(tree_id), lockNR(lockNR) {
   measurements.lock_hold = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
   memset(measurements.lock_hold, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
 
@@ -265,31 +265,50 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
 
   #ifdef CN_AWARE
   bool res;
-  bool spin = false;
   GlobalAddress next_holder_addr = lock_addr;
-  GlobalAddress old_holder_addr = GlobalAddress::Null();
   GlobalAddress next_gaddr = dsm->getNextGaddr();
+  GlobalAddress old_holder_addr = GlobalAddress::Null();
+  dsm->reset_nextloc();
   // TODO: Where is the spinning address?
   // use lock memory and ibv_poll on that location --> batched write w/ data.
   // where do other threads cas?
   // other idea: turn page_buffer into GlobalAddress and cas that
-  while (!dsm->cas_dm_sync(next_holder_addr, 0, next_gaddr.val, buf, cxt)) {
-    spin = true;
-    if (next_holder_addr.val == old_holder_addr.val) {
-      /*The lock holder already released the lock back to the MN*/
-      next_holder_addr = lock_addr;
-      old_holder_addr = GlobalAddress::Null();
-      spin = false;
-    } else {
-      old_holder_addr = next_holder_addr;
+  retry_from_mn:
+    if (!dsm->cas_dm_sync(next_holder_addr, 0, next_gaddr.val, buf, cxt)) {
       auto ga = (GlobalAddress*) buf;
       next_holder_addr = *ga;
+      old_holder_addr = *ga;
+      cerr << "CAS MN FAILED, lock_addr: " << lock_addr << "\n" <<
+      "upadted old_holder: " << old_holder_addr << "\n" <<
+      "updated next_holder: " << next_holder_addr << "\n\n" << endl;
+      while (!dsm->cas_peer_sync(next_holder_addr, 0, next_gaddr.val, buf, cxt)) {
+        old_holder_addr = next_holder_addr;
+        auto ga = (GlobalAddress*) buf;
+        next_holder_addr = *ga;
+        cerr << "CAS NEXT PEER, lock_addr: " << lock_addr << "\n" <<
+        "updated old_holder: " << old_holder_addr << "\n" <<
+        "updated next_holder: " << next_holder_addr << "\n\n" << endl;
+        if (next_holder_addr.val == old_holder_addr.val) {
+          /*The lock holder already released the lock back to the MN*/
+          cerr << "RETRY FROM MN, lock_addr: " << lock_addr << "\n" <<
+          "old_holder: " << old_holder_addr << "\n" <<
+          "next_holder: " << next_holder_addr << "\n\n" << endl;
+
+          next_holder_addr = lock_addr;
+          old_holder_addr = GlobalAddress::Null();
+          goto retry_from_mn;
+        } 
+      }
+    } else {
+      cerr << "LOCK FROM MN, lock_addr: " << lock_addr << "\n" <<
+      "old_holder: " << old_holder_addr << "\n" <<
+      "next_holder: " << next_holder_addr << "\n\n" << endl;
+      return false;
     }
-  }
-  if (spin) {
-    dsm->spin_on();
-    return false;
-  }
+  cerr << "SPIN FOR, lock_addr: " << lock_addr << "\n" <<
+  "old_holder: " << old_holder_addr << "\n" <<
+  "next_holder: " << next_holder_addr << "\n\n" << endl;
+  dsm->spin_on();
   return false;
 
 
@@ -393,13 +412,14 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   #endif
 
   #ifdef CN_AWARE
-  GlobalAddress lock_addr_self = GlobalAddress::Null();
-  lock_addr_self.nodeID = dsm->getMyNodeID();
-  lock_addr_self.offset = lock_addr.offset;
   GlobalAddress next_gaddr = dsm->getNextGaddr();
   *curr_cas_buffer = 0;
   if (!dsm->cas_peer_sync(next_gaddr, 0, next_gaddr.val, curr_cas_buffer, cxt)) {
+    
     GlobalAddress *peerAddr = (GlobalAddress *) curr_cas_buffer;
+    cerr << "OTHER THREAD ENQ\n" <<
+    "lock_addr: " << lock_addr << endl <<
+    "peerAddr: " << *peerAddr << endl;
     // TODO: Async also OK?
     // *curr_cas_buf = 1;
     // dsm->write_dm_sync(currs_cas_buf, peerAddr, sizeof(uint64_t), ctx);
@@ -416,7 +436,8 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     *(uint64_t *)rs[1].source = peerAddr->val;
 
     rs[2].source = (uint64_t)dsm->get_rbuf(coro_id).get_cas_buffer();
-    rs[2].dest = peerAddr->val - sizeof(uint64_t);
+    peerAddr->offset = peerAddr->offset - sizeof(uint64_t);
+    rs[2].dest = *peerAddr;
     rs[2].size = sizeof(uint64_t);
     rs[2].is_on_chip = false;
     *(uint64_t *)rs[2].source = 1;
@@ -426,6 +447,8 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     } else {
       dsm->write_batch_sync(rs, 3, cxt);
     }
+
+    releases_local_lock(lock_addr);
     return;
 
   }
@@ -488,6 +511,8 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   // cout << "page_addr: " << page_addr << endl;
   // cout << "curr_page_buffer: " << (uintptr_t) curr_page_buffer << " = " << (uint64_t) *curr_page_buffer << endl;
   // cout << "********************************************" << endl;
+  cerr << "REL LOCK TO MN" << endl <<
+  "lock_addr: " << lock_addr << endl; 
 
   releases_local_lock(lock_addr);
   // DEB("[%d.%d] unlocked global lock remotely: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_addr.offset);

@@ -8,6 +8,7 @@
 #include <iostream>
 #include "mb_utils.h"
 #include <pthread.h>
+#include <signal.h>
 
 class IndexCache;
 

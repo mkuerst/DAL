@@ -131,4 +131,7 @@ void parse_cli_args(
 
 void free_measurements();
 
+void register_sighandler(DSM *m);
+void signal_handler(int sig);
+void cleanup();
 #endif /* __MB_UTILS_H__ */
