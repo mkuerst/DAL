@@ -57,16 +57,17 @@ comm_prot=rdma
 # MICROBENCH INPUTS
 # opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
 # opts=("shermanLock" "shermanHo" "shermanHod" "litl" "litlHo" "litlHod")
-opts=("shermanLock" "shermanHo" "shermanHod" "shermanHodOcmBw" "litl" "litlHo" "litlHod" "litlHodOcmBw")
+# opts=("shermanLock" "shermanHo" "shermanHod" "shermanHodOcmBw" "litl" "litlHo" "litlHod" "litlHodOcmBw")
+opts=("shermanCna")
 
 microbenches=("empty_cs" "mlocks" "kvs")
 duration=20
-runNR=3
-mnNR=3
+runNR=1
+mnNR=1
 zipfian=1
-nodeNRs=(1 3)
-threadNRs=(32)
-lockNRs=(512)
+nodeNRs=(2)
+threadNRs=(1)
+lockNRs=(1)
 bench_idxs=(1)
 pinning=1
 chipSize=128
