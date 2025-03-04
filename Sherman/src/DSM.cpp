@@ -497,6 +497,8 @@ bool DSM::cas_peer_sync(GlobalAddress gaddr, uint64_t equal, uint64_t val,
     ibv_wc wc;
     pollWithCQ(iCon->cq, 1, &wc, gaddr, 64, val);
   }
+  std::cerr << "equal == *rdma_buffer" << "\n" <<
+  equal << " = " << *rdma_buffer << "\n\n";
 
   return equal == *rdma_buffer;
 }

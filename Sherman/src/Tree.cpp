@@ -284,7 +284,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
         cerr << "CAS NEXT PEER FAILED, lock_addr: " << lock_addr << "\n" <<
         "updated old_holder: " << old_holder_addr << "\n" <<
         "updated next_holder: " << next_holder_addr << "\n\n";
-        if (next_holder_addr.val == old_holder_addr.val) {
+        if (next_holder_addr.val == 0) {
           /*The lock holder already released the lock back to the MN*/
           cerr << "RETRY FROM MN, lock_addr: " << lock_addr << "\n" <<
           "old_holder: " << old_holder_addr << "\n" <<
