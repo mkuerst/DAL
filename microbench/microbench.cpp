@@ -195,10 +195,13 @@ void *mlocks_worker(void *arg) {
             else {
                 lock_idx = (uint64_t) uniform_rand_int(range+1);
             }
+            // cerr << "mnNR: " << mnNR << endl;
             baseAddr.nodeID = uniform_rand_int(mnNR);
             baseAddr.offset = chunk_size * lock_idx;
             lockAddr.nodeID = baseAddr.nodeID;
             lockAddr.offset = lock_idx * sizeof(uint64_t);
+            // cerr << "lockAddr: " << lockAddr << endl <<
+            // "baseAdrr: " << baseAddr << endl;
             rlock->mb_lock(baseAddr, lockAddr, page_size);
             // num++;
             lock_acqs[lockAddr.nodeID * lockNR + lock_idx]++;
@@ -230,7 +233,7 @@ int main(int argc, char *argv[]) {
     &res_file_tp, &res_file_lat, &res_file_lock,
     argc, argv);
     // dsmSize = 64 / mnNR;
-    DE("HI\n");
+    // DE("HI\n");
     if (nodeID == 1) {
         if(system("sudo bash /nfs/DAL/restartMemc.sh"))
             _error("Failed to start MEMC server\n");
@@ -242,6 +245,7 @@ int main(int argc, char *argv[]) {
 
     config.dsmSize = dsmSize;
     config.mnNR = mnNR > nodeNR ? nodeNR : mnNR;
+    mnNR = config.mnNR;
     config.machineNR = nodeNR;
     config.threadNR = threadNR;
     config.chipSize = chipSize;
@@ -293,7 +297,9 @@ int main(int argc, char *argv[]) {
     /*RUN*/
     dsm->barrier("MB_BEGIN");
     pthread_barrier_wait(&global_barrier);
-    DE("RUN %d\n", runNR);
+    if (nodeID == 0) {
+        DE("RUN %d\n", runNR);
+    }
 
     sleep(duration);
     stop.store(true);

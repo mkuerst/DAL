@@ -112,7 +112,7 @@ do
                     do
 
                         for ((run = 0; run < runNR; run++)); do
-                            echo "BENCHMARK $microb | $opt $impl | $nodeNR Ns & $threadNR Ts & $lockNR Ls & $duration s & RUN $run"
+                            echo "BENCHMARK $microb | $opt $impl | $nodeNR Ns | $threadNR Ts | $lockNR Ls | $duration s | RUN $run"
                             echo "pinning $pinning | DSM $dsmSize GB | $mnNR MNs | chipSize $chipSize KB |"
                             # dsh -M -f <(head -n $nodeNR ./nodes.txt) -o "-o StrictHostKeyChecking=no" -c \
                             clush --hostfile <(head -n $nodeNR ./nodes.txt) \
@@ -175,7 +175,8 @@ do
                         do
 
                             for ((run = 0; run < runNR; run++)); do
-                                echo "BENCHMARK $microb | $opt $impl | $nodeNR Ns & $threadNR Ts & $lockNR Ls & $duration s & RUN $run"
+                                echo "BENCHMARK $microb | $opt $impl | $nodeNR Ns | $threadNR Ts | $lockNR Ls | $duration s | RUN $run"
+                                echo "pinning $pinning | DSM $dsmSize GB | $mnNR MNs | chipSize $chipSize KB |"
                                 # dsh -M -f <(head -n $nodeNR ./nodes.txt) -o "-o StrictHostKeyChecking=no" -c \
                                 clush --hostfile <(head -n $nodeNR ./nodes.txt) \
                                 "sudo LD_PRELOAD=$llock_so $mb_exe \

@@ -63,7 +63,7 @@ Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB) : dsm(dsm), tre
   measurements.lock_acqs = (uint32_t *) malloc(MAX_MACHINE * lockNR * sizeof(uint32_t));
   memset(measurements.lock_acqs, 0, MAX_MACHINE * lockNR * sizeof(uint32_t));
 
-  DEB("allocated measurements object: nodeID %d\n", dsm->getMyNodeID());
+  // DEB("allocated measurements object: nodeID %d\n", dsm->getMyNodeID());
 
     for (int i = 0; i < dsm->getClusterSize(); ++i) {
         local_locks[i] = new LocalLockNode[lockNR];
