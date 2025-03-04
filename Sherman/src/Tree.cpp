@@ -416,7 +416,10 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   if (!dsm->cas_peer_sync(next_gaddr, next_gaddr.val, 0, curr_cas_buffer, cxt)) {
     
     GlobalAddress *next_addr = (GlobalAddress *) curr_cas_buffer;
-    cerr << dsm->getMyNodeID() << " OTHER THREAD ENQ\n" <<
+    GlobalAddress next_spinloc = GlobalAddress::Null();
+    next_spinloc.nodeID = next_addr->nodeID;
+    next_spinloc.offset = next_addr->offset - sizeof(uint64_t);
+    cerr << dsm->getMyNodeID() << ": OTHER THREAD ENQ\n" <<
     "lock_addr: " << lock_addr << endl <<
     "next_addr: " << *next_addr << endl <<
     "next_gaddr: " << next_gaddr << "\n\n";
@@ -436,8 +439,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     *(uint64_t *)rs[1].source = next_addr->val;
 
     rs[2].source = (uint64_t)dsm->get_rbuf(coro_id).get_cas_buffer();
-    next_addr->offset = next_addr->offset - sizeof(uint64_t);
-    rs[2].dest = *next_addr;
+    rs[2].dest = next_spinloc;
     rs[2].size = sizeof(uint64_t);
     rs[2].is_on_chip = false;
     *(uint64_t *)rs[2].source = 1;
