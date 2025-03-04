@@ -35,8 +35,8 @@ DSMConfig config;
 Tree *rlock;
 pthread_barrier_t global_barrier;
 
-double zipfan = 0;
-int use_zipfan = 0;
+double zipfian = 0;
+int use_zipfian = 0;
 
 extern Measurements measurements;
 std::atomic_bool stop{false};
@@ -189,7 +189,7 @@ void *mlocks_worker(void *arg) {
                 break;
             // if (num >= cnt)
             //     break;
-            if (use_zipfan) {
+            if (use_zipfian) {
                 lock_idx = zipfian.generate();
             }
             else {
@@ -225,12 +225,12 @@ void *mlocks_worker(void *arg) {
 int main(int argc, char *argv[]) {
     parse_cli_args(
     &threadNR, &nodeNR, &mnNR, &lockNR, &runNR,
-    &nodeID, &duration, &mode, &use_zipfan, 
+    &nodeID, &duration, &mode, &use_zipfian, 
     &kReadRatio, &pinning, &chipSize, &dsmSize,
     &res_file_tp, &res_file_lat, &res_file_lock,
     argc, argv);
     // dsmSize = 64 / mnNR;
-    // DE("HI\n");
+    DE("HI\n");
     if (nodeID == 1) {
         if(system("sudo bash /nfs/DAL/restartMemc.sh"))
             _error("Failed to start MEMC server\n");
@@ -245,7 +245,7 @@ int main(int argc, char *argv[]) {
     config.machineNR = nodeNR;
     config.threadNR = threadNR;
     config.chipSize = chipSize;
-    // lockNR = chipSize * 1024 / sizeof(uint64_t);
+    lockNR = chipSize * 1024 / sizeof(uint64_t);
     dsm = DSM::getInstance(config);
     nodeID = dsm->getMyNodeID();
     // register_sighandler(dsm);

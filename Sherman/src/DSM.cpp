@@ -483,10 +483,10 @@ void DSM::cas_peer(GlobalAddress gaddr, uint64_t equal, uint64_t val,
                        remoteInfo[gaddr.nodeID].dsmRKey[0], true, ctx->coro_id);
     (*ctx->yield)(*ctx->master);
   }
-  std::cerr << "cas_peer" << std::endl;
-  std::cerr << "gaddr :" << gaddr << std::endl;
-  GlobalAddress *v = (GlobalAddress *) &val;
-  std::cerr << "val :" << *v << std::endl;
+  // std::cerr << "cas_peer" << std::endl;
+  // std::cerr << "gaddr :" << gaddr << std::endl;
+  // GlobalAddress *v = (GlobalAddress *) &val;
+  // std::cerr << "val :" << *v << std::endl;
 }
 
 bool DSM::cas_peer_sync(GlobalAddress gaddr, uint64_t equal, uint64_t val,

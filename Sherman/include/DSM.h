@@ -34,7 +34,7 @@ public:
   uint64_t getDsmSize() { return conf.dsmSize * define::GB; }
   GlobalAddress getSpinGaddr() { return spin_gaddr; }
   GlobalAddress getNextGaddr() { return next_gaddr; }
-  void reset_nextloc() {*next_loc = 0; }
+  void reset_nextloc() {*next_loc = next_gaddr.val; }
 
   // RDMA operations
   // buffer is registered memory

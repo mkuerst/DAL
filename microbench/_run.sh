@@ -2,7 +2,7 @@
  
 cleanup() {
     sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo bash /nfs/DAL/cleanup_rdma.sh"
-    # sudo clush --hostfile ./nodes.txt -o "-o StrictHostKeyChecking=no" "sudo bash /nfs/DAL/cleanup_rdma.sh"
+    # sudo clush --hostfile ./nodes.txt "sudo bash /nfs/DAL/cleanup_rdma.sh"
     sudo pkill -P $$ 
     for pid in $(sudo lsof | grep infiniband | awk '{print $2}' | sort -u); do
         echo "Killing process $pid using RDMA resources..."
@@ -57,17 +57,17 @@ comm_prot=rdma
 # MICROBENCH INPUTS
 # opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
 # opts=("shermanLock" "shermanHo" "shermanHod" "litl" "litlHo" "litlHod")
-opts=("shermanLock" "shermanHo" "shermanHod" "litl" "litlHo" "litlHod")
+opts=("shermanLock" "shermanHo" "shermanHod" "shermanHodOcmBw" "litl" "litlHo" "litlHod" "litlHodOcmBw")
 
 microbenches=("empty_cs" "mlocks" "kvs")
 duration=20
 runNR=3
-mnNR=4
-zipfan=0
-nodeNRs=(1 4)
+mnNR=3
+zipfian=1
+nodeNRs=(1 3)
 threadNRs=(32)
 lockNRs=(512)
-bench_idxs=(2)
+bench_idxs=(1)
 pinning=1
 chipSize=128
 dsmSize=16
@@ -79,10 +79,10 @@ sudo chown -R mkuerst:dal-PG0 /nfs/
 
 for opt in ${opts[@]}
 do
-    mb_exe="$PWD/microbench_$opt"
     if echo "$opt" | grep -q "sherman"; then
         for mode in ${bench_idxs[@]}
         do
+            mb_exe="$PWD/microbench_$opt"
             microb="${microbenches[$mode]}"
             if echo "$microb" | grep -q "kvs"; then
                 mb_exe="$PWD/appbench_$opt"
@@ -113,6 +113,7 @@ do
 
                         for ((run = 0; run < runNR; run++)); do
                             echo "BENCHMARK $microb | $opt $impl | $nodeNR Ns & $threadNR Ts & $lockNR Ls & $duration s & RUN $run"
+                            echo "pinning $pinning | DSM $dsmSize GB | $mnNR MNs | chipSize $chipSize KB |"
                             # dsh -M -f <(head -n $nodeNR ./nodes.txt) -o "-o StrictHostKeyChecking=no" -c \
                             clush --hostfile <(head -n $nodeNR ./nodes.txt) \
                             "sudo $mb_exe \
@@ -125,7 +126,7 @@ do
                             -l $lockNR \
                             -r $run \
                             -s $mnNR \
-                            -z $zipfan \
+                            -z $zipfian \
                             -p $pinning \
                             -c $chipSize \
                             -y $dsmSize \
@@ -187,7 +188,7 @@ do
                                 -l $lockNR \
                                 -r $run \
                                 -s $mnNR \
-                                -z $zipfan \
+                                -z $zipfian \
                                 -p $pinning \
                                 -c $chipSize \
                                 -y $dsmSize \
