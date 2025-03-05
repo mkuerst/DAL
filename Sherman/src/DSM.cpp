@@ -206,14 +206,18 @@ void DSM::initRDMAConnection() {
 
 // TODO: DDIO?
 #include <immintrin.h>
-void DSM::spin_on() {
-    while (*spin_loc == 0) {
+void DSM::spin_on(GlobalAddress curr_holder_addr) {
+    while (*spin_loc != curr_holder_addr.val) {
       _mm_clflush(spin_loc);  // Flush cache to see the latest value
       _mm_pause();
   }
-  *spin_loc = 0;
+  GlobalAddress *ga = (GlobalAddress *) spin_loc ;
   cerr << "GOT AWOKEN: " << endl <<
-  "spin_loc: " << spin_gaddr << "\n\n";
+  "curr_holder_addr: " << curr_holder_addr << endl <<
+  "spin_loc: " << spin_gaddr << "\n" <<
+  "*spin_loc: " << *spin_loc << "\n" <<
+  "*spin_loc as gaddr: " << *ga << "\n\n";
+  *spin_loc = 0;
 }
 
 void DSM::read(char *buffer, GlobalAddress gaddr, size_t size, bool signal,
@@ -313,8 +317,8 @@ void DSM::write_batch(RdmaOpRegion *rs, int k, bool signal, CoroContext *ctx) {
     GlobalAddress gaddr;
     gaddr.val = rs[i].dest;
     node_id = gaddr.nodeID;
-    cerr << "filling batched write " << i << ": " << endl <<
-    "gaddr: " << gaddr << "\n\n";
+    // cerr << "filling batched write " << i << ": " << endl <<
+    // "gaddr: " << gaddr << "\n\n";
     fill_keys_dest(rs[i], gaddr, rs[i].is_on_chip);
   }
 
