@@ -274,8 +274,8 @@ void write_tp(char* tp_path, char* lock_path, int run, int threadNR, int lockNR,
 
 	file.flush();
     file.close();	
-	DEB("TOTAL HANDOVERS: %lu\n", total_handovers);
-	DEB("TOTAL DATA_HANDOVERS: %lu\n", total_Hod);
+	DE("TOTAL HANDOVERS: %lu\n", total_handovers);
+	DE("TOTAL DATA_HANDOVERS: %lu\n", total_Hod);
 
 	std::vector<std::vector<uint32_t>> data = readExistingData(lock_path, lockNR);
 	for (int m = 0; m < MAX_MACHINE; m++) {

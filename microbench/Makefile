@@ -34,6 +34,7 @@ target:
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_litlHo.a -o microbench_litlHo ${FLAGS}
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_litlHod.a -o microbench_litlHod ${FLAGS}
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_litlHoOcmBw.a -o microbench_litlHoOcmBw ${FLAGS}
+# g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_litlHodOcmBw.a -o microbench_litlHodOcmBw ${FLAGS}
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_litlCna.a -o microbench_litlCna ${FLAGS}
 
 # g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHod.a -o appbench_shermanHod ${FLAGS}

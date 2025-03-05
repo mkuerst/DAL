@@ -10,15 +10,17 @@ import matplotlib.lines as mlines
 
 file_dir = os.path.dirname(os.path.realpath(__file__))
 
-"litl", 
 OPTS =  [
+"litl", 
 "litlHo",
 "litlHod",
 "litlHoOcmBw",
+"litlHodOcmBw",
 "sherman",
 "shermanHo",
 "shermanHod",
-"shermanLock"
+"shermanHodOcmBw",
+"shermanLock",
 ]
 
 OPT_TO_NAME = {
@@ -26,11 +28,14 @@ OPT_TO_NAME = {
 "litlHo": "Ho",
 "litlHod": "Hod",
 "litlHoOcmBw": "HoOcmBw",
+"litlHodOcmBw": "HodOcmBw",
 
 "shermanLock": "",
 "shermanHo": "Ho",
 "shermanHod": "Hod",
 "sherman": "HoOcmBw",
+"shermanHodOcmBw": "HoOcmBw",
+"shermanHodOcmBw": "HodOcmBw",
 }
     
 COMM_PROTOCOLS = ["rdma"]
@@ -157,8 +162,7 @@ IMPL_DICT = {"flat": FLAT,
 
 MICROBENCHES = [ "empty_cs", "mlocks", "kvs"]
 
-# TODO: Add "single"
-STATS = ["tp", "lat"]
+STATS = ["tp", "lat", "ldist"]
 
 tp_axis_titles = {
     "lock_acquires" : ("TP (ops/s)", "Jain's Fairness Index"),
@@ -472,7 +476,7 @@ def to_pd(DATA, dirs, COLS, stat):
                     DATA[impl][nodeNR][threadNR] = [pd_median, pd_99]
 
 
-                else:
+                elif stat == "tp":
                     for line in file:
                         if line == "":
                             continue
@@ -480,6 +484,10 @@ def to_pd(DATA, dirs, COLS, stat):
 
                     cleaned_data = StringIO("".join(cleaned_lines))
                     DATA[impl][nodeNR][threadNR] = pd.read_csv(cleaned_data, skiprows=1, names=COLS)
+                
+                # TODO:
+                elif stat == "ldist":
+                    pass
 
 def read_data(DATA, RES_DIRS):
     for stat in STATS:
@@ -491,7 +499,6 @@ def read_data(DATA, RES_DIRS):
                 DATA[stat][comm_prot][mb] = {}
                 for opt in RES_DIRS[stat][comm_prot][mb].keys():
                     DATA[stat][comm_prot][mb][opt] = {}
-                        
                     to_pd(DATA[stat][comm_prot][mb][opt], RES_DIRS[stat][comm_prot][mb][opt], COLS, stat)
 
 def prep_res_dirs(RES_DIRS):

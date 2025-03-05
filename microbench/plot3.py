@@ -108,7 +108,7 @@ def plot_MC_rlocks(DATA, comm_prot="rdma", opts=["spinlock"],
 
             num_vlines += 1
 
-    C_str = f"{cnNR}C"
+    C_str = f"{cnNR}CNs"
     comp_nodes.sort()
     cn_hatch_categories = {1: "1 CN", 2: "2 CNs", 3: "3 CNs", 4: "4 CNs", 5: "5 CNs"}
     mlocks_hatch_categories = {i: f"{i} Lock(s)" for i in range(1,17000)}
@@ -163,11 +163,11 @@ read_data(DATA, RES_DIRS)
 plot_MC_rlocks(
                 DATA, 
                 # opts=["", "Ho", "Hod", "HoOcmBw"],
-                opts=["", "Ho", "Hod", "HoOcmBw"],
+                opts=["", "Ho", "Hod", "HodOcmBw"],
                 # lat_ecs_inc = [["gwait_acq", "gwait_rel"]],
-                lat_ml_inc = [["lwait_acq"], ["lwait_acq", "gwait_acq", "gwait_rel"], ["data_read", "data_write", "lock_hold"]],
+                lat_ml_inc = [["lwait_acq"], ["lwait_acq", "gwait_acq", "gwait_rel"], ["data_read", "data_write",]],
                 tp_incs=["lock_acquires", "glock_tries", "handovers", "handovers_data"],
-                cnNRs=[1, 4], 
+                cnNRs=[1, 3], 
                 lockNRs=[16384], 
                 threadNRs=32,
                 log=[1,1,0],
