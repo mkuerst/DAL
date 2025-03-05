@@ -412,7 +412,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
 
   #ifdef CN_AWARE
   GlobalAddress next_gaddr = dsm->getNextGaddr();
-  *curr_cas_buffer = 0;
+  // *curr_cas_buffer = 0;
   if (!dsm->cas_peer_sync(next_gaddr, next_gaddr.val, 0, curr_cas_buffer, cxt)) {
     
     GlobalAddress *next_addr = (GlobalAddress *) curr_cas_buffer;
@@ -422,6 +422,8 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     cerr << dsm->getMyNodeID() << ": OTHER THREAD ENQ\n" <<
     "lock_addr: " << lock_addr << endl <<
     "next_addr: " << *next_addr << endl <<
+    "next_spin_loc" << next_spinloc << endl <<
+    "next_spin_loc.val " << next_spinloc.val << endl <<
     "next_gaddr: " << next_gaddr << "\n\n";
     // TODO: Async also OK?
     // *curr_cas_buf = 1;
@@ -438,17 +440,25 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     rs[1].is_on_chip = true;
     *(uint64_t *)rs[1].source = next_addr->val;
 
-    rs[2].source = (uint64_t)dsm->get_rbuf(coro_id).get_cas_buffer();
-    rs[2].dest = next_spinloc;
+    rs[2].source = (uint64_t)dsm->get_rbuf(coro_id).get_page_buffer();
+    rs[2].dest = next_spinloc.val;
     rs[2].size = sizeof(uint64_t);
     rs[2].is_on_chip = false;
     *(uint64_t *)rs[2].source = 1;
+    cerr << "rs[0].dest: " << (uint64_t) rs[0].dest << "\n" <<
+    "rs[1].dest: " << (uint64_t)rs[1].dest << "\n" <<
+    "rs[2].dest: " << (uint64_t)rs[2].dest << "\n\n";
 
     if (async) {
       dsm->write_batch(rs, 3, false);
     } else {
       dsm->write_batch_sync(rs, 3, cxt);
     }
+    cerr << dsm->getMyNodeID() << ": WOKE UP OTHER THREAD\n" <<
+    "lock_addr: " << lock_addr << endl <<
+    "next_spinloc: " << next_spinloc << endl <<
+    "next_addr: " << *next_addr << endl <<
+    "next_gaddr: " << next_gaddr << "\n\n";
 
     releases_local_lock(lock_addr);
     return;

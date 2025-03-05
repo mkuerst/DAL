@@ -161,7 +161,7 @@ private:
   ~DSM();
 
   void initRDMAConnection();
-  void fill_keys_dest(RdmaOpRegion &ror, GlobalAddress addr, bool is_chip, bool is_peer_cache = false);
+  void fill_keys_dest(RdmaOpRegion &ror, GlobalAddress addr, bool is_chip);
 
   DSMConfig conf;
   std::atomic_int appID;
