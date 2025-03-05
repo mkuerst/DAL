@@ -196,8 +196,7 @@ void *mlocks_worker(void *arg) {
                 lock_idx = (uint64_t) uniform_rand_int(range+1);
             }
             // cerr << "mnNR: " << mnNR << endl;
-            // baseAddr.nodeID = uniform_rand_int(mnNR);
-            baseAddr.nodeID = uniform_rand_int(1);
+            baseAddr.nodeID = uniform_rand_int(mnNR);
             baseAddr.offset = chunk_size * lock_idx;
             lockAddr.nodeID = baseAddr.nodeID;
             lockAddr.offset = lock_idx * sizeof(uint64_t);
