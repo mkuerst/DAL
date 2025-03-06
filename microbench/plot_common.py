@@ -48,6 +48,7 @@ LAT_COLS = [
 "gwait_rel",
 "data_read",
 "data_write",
+"end_to_end",
 "array_size",
 "nodeID",
 "run",
@@ -162,7 +163,7 @@ IMPL_DICT = {"flat": FLAT,
 
 MICROBENCHES = [ "empty_cs", "mlocks", "kvs"]
 
-STATS = ["tp", "lat", "ldist"]
+STATS = ["tp", "lat"]
 
 tp_axis_titles = {
     "lock_acquires" : ("TP (ops/s)", "Jain's Fairness Index"),
