@@ -1,5 +1,8 @@
 #include "Rdma.h"
 #include <iostream>
+#include "GlobalAddress.h"
+using namespace std;
+
 
 int pollWithCQ(ibv_cq *cq, int pollNumber, struct ibv_wc *wc, uint64_t addr, uint64_t size, uint64_t val) {
   int count = 0;
@@ -21,7 +24,11 @@ int pollWithCQ(ibv_cq *cq, int pollNumber, struct ibv_wc *wc, uint64_t addr, uin
     Debug::notifyError("Failed status %s (%d) for wr_id %d",
                        ibv_wc_status_str(wc->status), wc->status,
                        (int)wc->wr_id);
-    std::cerr << "gaddr: " << addr << std::endl; 
+    GlobalAddress *ga1 = (GlobalAddress*) &addr;
+    GlobalAddress *ga2 = (GlobalAddress*) &val;
+    std::cerr << "gaddr: " << *ga1 << std::endl; 
+    std::cerr << "addr: " << addr << std::endl; 
+    std::cerr << "val_gaddr: " << *ga2 << std::endl; 
     std::cerr << "val: " << val << std::endl; 
     std::cerr << "size: " << size << std::endl;
     exit(1);
@@ -374,6 +381,7 @@ bool rdmaWriteBatch(ibv_qp *qp, RdmaOpRegion *ror, int k, bool isSignaled,
     wr[i].wr.rdma.remote_addr = ror[i].dest;
     wr[i].wr.rdma.rkey = ror[i].remoteRKey;
     wr[i].wr_id = wrID;
+    cerr << "rdmaWriteBatch, wr[" + to_string(i) + "].wr.rdma.remote_addr: " << wr[i].wr.rdma.remote_addr << "\n";
   }
 
   if (ibv_post_send(qp, &wr[0], &wrBad) != 0) {

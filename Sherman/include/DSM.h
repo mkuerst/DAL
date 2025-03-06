@@ -131,7 +131,7 @@ public:
   uint64_t poll_rdma_cq(int count = 1);
   bool poll_rdma_cq_once(uint64_t &wr_id);
 
-  void spin_on();
+  void spin_on(GlobalAddress curr_holder_addr);
 
   uint64_t sum(uint64_t value) {
     static uint64_t count = 0;
@@ -161,7 +161,7 @@ private:
   ~DSM();
 
   void initRDMAConnection();
-  void fill_keys_dest(RdmaOpRegion &ror, GlobalAddress addr, bool is_chip, bool is_peer_cache = false);
+  void fill_keys_dest(RdmaOpRegion &ror, GlobalAddress addr, bool is_chip);
 
   DSMConfig conf;
   std::atomic_int appID;

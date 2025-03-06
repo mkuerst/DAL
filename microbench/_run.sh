@@ -61,13 +61,13 @@ comm_prot=rdma
 opts=("shermanCna")
 
 microbenches=("empty_cs" "mlocks" "kvs")
-duration=20
+duration=5
 runNR=1
 mnNR=1
 zipfian=1
 nodeNRs=(2)
-threadNRs=(1)
-lockNRs=(1)
+threadNRs=(32)
+lockNRs=(512)
 bench_idxs=(1)
 pinning=1
 chipSize=128
@@ -124,6 +124,7 @@ do
                             -n $nodeNR \
                             -f $cn_tp_file \
                             -g $cn_lat_file \
+                            -h $cn_lock_file \
                             -l $lockNR \
                             -r $run \
                             -s $mnNR \
@@ -187,6 +188,7 @@ do
                                 -n $nodeNR \
                                 -f $cn_tp_file \
                                 -g $cn_lat_file \
+                                -h $cn_lock_file \
                                 -l $lockNR \
                                 -r $run \
                                 -s $mnNR \

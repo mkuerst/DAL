@@ -8,6 +8,8 @@
 #include <algorithm>
 
 #include <iostream>
+using namespace std;
+
 thread_local int DSM::thread_id = -1;
 thread_local ThreadConnection *DSM::iCon = nullptr;
 thread_local char *DSM::rdma_buffer = nullptr;
@@ -53,7 +55,7 @@ DSM::DSM(const DSMConfig &conf)
   memset((char *)baseAddr, 0, conf.dsmSize * define::GB + 64 * define::MB);
   
   initRDMAConnection();
-  if (myNodeID < conf.mnNR) {  // start memory server
+  if (myNodeID < conf.mnNR) {
     for (int i = 0; i < NR_DIRECTORY; ++i) {
       dirAgent[i] =
           new Directory(dirCon[i], remoteInfo, conf.mnNR, i, myNodeID);
@@ -204,11 +206,17 @@ void DSM::initRDMAConnection() {
 
 // TODO: DDIO?
 #include <immintrin.h>
-void DSM::spin_on() {
-    while (*spin_loc == 0) {
+void DSM::spin_on(GlobalAddress curr_holder_addr) {
+    while (*spin_loc != curr_holder_addr.val) {
       _mm_clflush(spin_loc);  // Flush cache to see the latest value
       _mm_pause();
   }
+  GlobalAddress *ga = (GlobalAddress *) spin_loc ;
+  cerr << "GOT AWOKEN: " << endl <<
+  "curr_holder_addr: " << curr_holder_addr << endl <<
+  "spin_loc: " << spin_gaddr << "\n" <<
+  "*spin_loc: " << *spin_loc << "\n" <<
+  "*spin_loc as gaddr: " << *ga << "\n\n";
   *spin_loc = 0;
 }
 
@@ -289,16 +297,12 @@ void DSM::write_peer_cache_sync(const char *buffer, GlobalAddress gaddr, size_t 
   }
 }
 
-void DSM::fill_keys_dest(RdmaOpRegion &ror, GlobalAddress gaddr, bool is_chip, bool is_peer_cache) {
+void DSM::fill_keys_dest(RdmaOpRegion &ror, GlobalAddress gaddr, bool is_chip) {
   ror.lkey = iCon->cacheLKey;
   if (is_chip) {
     ror.dest = remoteInfo[gaddr.nodeID].lockBase + gaddr.offset;
     ror.remoteRKey = remoteInfo[gaddr.nodeID].lockRKey[0];
   } 
-  // else if (is_peer_cache) {
-  //   ror.dest = remoteInfo[gaddr.nodeID].cacheBase + gaddr.offset;
-  //   ror.remoteRKey = remoteInfo[gaddr.nodeID].appRKey[0];
-  // }
    else {
     ror.dest = remoteInfo[gaddr.nodeID].dsmBase + gaddr.offset;
     ror.remoteRKey = remoteInfo[gaddr.nodeID].dsmRKey[0];
@@ -313,7 +317,9 @@ void DSM::write_batch(RdmaOpRegion *rs, int k, bool signal, CoroContext *ctx) {
     GlobalAddress gaddr;
     gaddr.val = rs[i].dest;
     node_id = gaddr.nodeID;
-    fill_keys_dest(rs[i], gaddr, rs[i].is_on_chip, rs[i].is_peer_cache);
+    // cerr << "filling batched write " << i << ": " << endl <<
+    // "gaddr: " << gaddr << "\n\n";
+    fill_keys_dest(rs[i], gaddr, rs[i].is_on_chip);
   }
 
   if (ctx == nullptr) {
@@ -329,7 +335,7 @@ void DSM::write_batch_sync(RdmaOpRegion *rs, int k, CoroContext *ctx) {
 
   if (ctx == nullptr) {
     ibv_wc wc;
-    pollWithCQ(iCon->cq, 1, &wc);
+    pollWithCQ(iCon->cq, 1, &wc, rs[2].dest, rs[2].size, rs[2].source);
   }
 }
 
@@ -486,7 +492,7 @@ void DSM::cas_peer(GlobalAddress gaddr, uint64_t equal, uint64_t val,
   std::cerr << "cas_peer" << std::endl;
   std::cerr << "gaddr :" << gaddr << std::endl;
   GlobalAddress *v = (GlobalAddress *) &val;
-  std::cerr << "val :" << *v << "\n\n";
+  std::cerr << "val :" << *v << "\n";
 }
 
 bool DSM::cas_peer_sync(GlobalAddress gaddr, uint64_t equal, uint64_t val,
