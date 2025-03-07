@@ -172,6 +172,7 @@ void DSM::registerThread(int page_size) {
   spin_gaddr.offset = conf.dsmSize * define::GB + thread_id * 2 * sizeof(uint64_t);
   next_gaddr.nodeID = this->getMyNodeID();
   next_gaddr.offset = spin_gaddr.offset + sizeof(uint64_t);
+  next_gaddr.version = 0;
   spin_loc = (uint64_t *) ((char *)baseAddr + spin_gaddr.offset);
   *spin_loc = 0;
   next_loc = (uint64_t *) ((char *)baseAddr + next_gaddr.offset);
@@ -207,14 +208,16 @@ void DSM::initRDMAConnection() {
 // TODO: DDIO?
 #include <immintrin.h>
 void DSM::spin_on(GlobalAddress curr_holder_addr) {
-    while (*spin_loc != curr_holder_addr.val) {
-      _mm_clflush(spin_loc);  // Flush cache to see the latest value
-      _mm_pause();
+  while (*spin_loc == 0) {
+    _mm_clflush(spin_loc);  // Flush cache to see the latest value
+    _mm_pause();
   }
   GlobalAddress *ga = (GlobalAddress *) spin_loc ;
+
+  cerr << "NODE " << myNodeID << endl;
   cerr << "GOT AWOKEN: " << endl <<
   "curr_holder_addr: " << curr_holder_addr << endl <<
-  "spin_loc: " << spin_gaddr << "\n" <<
+  "own spin_gaddr: " << spin_gaddr << "\n" <<
   "*spin_loc: " << *spin_loc << "\n" <<
   "*spin_loc as gaddr: " << *ga << "\n\n";
   *spin_loc = 0;

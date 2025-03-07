@@ -61,13 +61,13 @@ comm_prot=rdma
 opts=("shermanCna")
 
 microbenches=("empty_cs" "mlocks" "kvs")
-duration=5
+duration=3
 runNR=1
 mnNR=1
 zipfian=1
-nodeNRs=(4)
-threadNRs=(32)
-lockNRs=(512)
+nodeNRs=(2)
+threadNRs=(1)
+lockNRs=(1)
 bench_idxs=(1)
 pinning=1
 chipSize=128
@@ -109,7 +109,7 @@ do
 
                     for lockNR in ${lockNRs[@]}
                     do
-                        cn_lock_file="$cn_lock_dir"/lockNR$lockNR_nodeNR$nodeNR"_threadNR"$threadNR.csv
+                        cn_lock_file="$cn_lock_dir"/lockNR"$lockNR"_nodeNR$nodeNR"_threadNR"$threadNR.csv
                         > "$cn_lock_file"
 
                         for ((run = 0; run < runNR; run++)); do
@@ -173,7 +173,7 @@ do
 
                         for lockNR in ${lockNRs[@]}
                         do
-                            cn_lock_file="$cn_lock_dir"/lockNR$lockNR_nodeNR$nodeNR"_threadNR"$threadNR.csv
+                            cn_lock_file="$cn_lock_dir"/lockNR"$lockNR"_nodeNR$nodeNR"_threadNR"$threadNR.csv
                             > "$cn_lock_file"
 
                             for ((run = 0; run < runNR; run++)); do

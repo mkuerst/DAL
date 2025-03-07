@@ -168,26 +168,27 @@ void *mlocks_worker(void *arg) {
     uint64_t range = rlock->getLockNR()-1;
     uint64_t chunk_size = GB(dsmSize) / rlock->getLockNR();
     int sum = 1;
-    int data_len = page_size / sizeof(uint64_t);
-    // int data_len = 1;
+    // int data_len = page_size / sizeof(uint64_t);
+    int data_len = 1;
     uint64_t seed = nodeID*threadNR + id + 42;
     srand(seed);
     ZipfianGenerator zipfian(0.99, range, seed);
-    // int num = 0;
-    // int cnt = 10;
+    int num = 0;
+    int cnt = 3;
 
     pthread_barrier_wait(&global_barrier);
 
-    while (!stop.load()) {
-    // while (num < cnt) {
-        for (int j = 0; j < 400; j++) {
-            int idx = uniform_rand_int(PRIVATE_ARRAY_SZ / sizeof(int));
-            private_int_array[idx] += sum;
-        }
+    // while (!stop.load()) {
+    while (num < cnt) {
+
+        // for (int j = 0; j < 400; j++) {
+        //     int idx = uniform_rand_int(PRIVATE_ARRAY_SZ / sizeof(int));
+        //     private_int_array[idx] += sum;
+        // }
         for (int j = 0; j < 100; j++) {
-            if (stop.load())
-                break;
-            // if (num >= cnt)
+            // if (stop.load())
+            //     break;
+            if (num >= cnt)
                 break;
             if (use_zipfian) {
                 lock_idx = zipfian.generate();
@@ -203,7 +204,7 @@ void *mlocks_worker(void *arg) {
             // cerr << "lockAddr: " << lockAddr << endl <<
             // "baseAdrr: " << baseAddr << endl;
             rlock->mb_lock(baseAddr, lockAddr, page_size);
-            // num++;
+            num++;
             lock_acqs[lockAddr.nodeID * lockNR + lock_idx]++;
             task->lock_acqs++;
             measurements.tp[id]++;

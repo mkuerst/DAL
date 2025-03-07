@@ -265,48 +265,72 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
 
   #ifdef CN_AWARE
   bool res;
-  GlobalAddress next_holder_addr = lock_addr;
-  GlobalAddress next_gaddr = dsm->getNextGaddr();
-  GlobalAddress old_holder_addr = GlobalAddress::Null();
   dsm->reset_nextloc();
+  GlobalAddress next_holder_addr = lock_addr;
+  GlobalAddress old_holder_addr = GlobalAddress::Null();
+  GlobalAddress next_gaddr = dsm->getNextGaddr();
   retry_from_mn:
     if (!dsm->cas_dm_sync(next_holder_addr, 0, next_gaddr.val, buf, cxt)) {
+      uint64_t peer_retry = 0;
+      uint64_t mn_retry = 0;
       auto ga = (GlobalAddress*) buf;
       next_holder_addr = *ga;
-      old_holder_addr = *ga;
+      cerr << "NODE " << dsm->getMyNodeID() << endl;
       cerr << "CAS MN FAILED, lock_addr: " << lock_addr << "\n" <<
-      "upadted old_holder: " << old_holder_addr << "\n" <<
       "updated next_holder: " << next_holder_addr << "\n\n";
+
       while (!dsm->cas_peer_sync(next_holder_addr, next_holder_addr.val, next_gaddr.val, buf, cxt)) {
+      // while (!dsm->cas_peer_sync(next_holder_addr, 1, next_gaddr.val, buf, cxt)) {
+        peer_retry++;
         old_holder_addr = next_holder_addr;
         auto ga = (GlobalAddress*) buf;
         next_holder_addr = *ga;
-        cerr << "CAS NEXT PEER FAILED, lock_addr: " << lock_addr << "\n" <<
-        "updated old_holder: " << old_holder_addr << "\n" <<
-        "updated next_holder: " << next_holder_addr << "\n\n";
-        if (next_holder_addr.val == 0) {
+        // {
+          //   cerr << "NODE TRYING TO GET LOCK FROM SELF " << next_holder_addr.nodeID << endl;
+          //   exit(1);
+          // }
+          cerr << "NODE " << dsm->getMyNodeID() << endl;
+          cerr << "CAS NEXT PEER FAILED, lock_addr: " << lock_addr << "\n" <<
+          "updated old_holder: " << old_holder_addr << "\n" <<
+          "updated next_holder: " << next_holder_addr << "\n\n";
+          assert(next_holder_addr != next_gaddr || next_holder_addr.version != next_gaddr.version);
+        if (next_holder_addr.val == 0 || 
+          (old_holder_addr == next_holder_addr && old_holder_addr.version != next_holder_addr.version)) {
+          mn_retry++;
           /*The lock holder already released the lock back to the MN*/
+          cerr << "NODE " << dsm->getMyNodeID() << endl;
           cerr << "RETRY FROM MN, lock_addr: " << lock_addr << "\n" <<
           "old_holder: " << old_holder_addr << "\n" <<
           "next_holder: " << next_holder_addr << "\n\n" << endl;
 
           next_holder_addr = lock_addr;
           old_holder_addr = GlobalAddress::Null();
+          if (mn_retry > 10) {
+            Debug::notifyError("MN RETRY DEADLOCK");
+            exit(1);
+          }
           goto retry_from_mn;
         } 
+        if (peer_retry > 10) {
+          Debug::notifyError("PEER RETRY DEADLOCK");
+          exit(1);
+        }
       }
     } else {
+      cerr << "NODE " << dsm->getMyNodeID() << endl;
       cerr << "LOCK FROM MN, lock_addr: " << lock_addr << "\n" <<
-      "old_holder: " << old_holder_addr << "\n" <<
-      "next_holder: " << next_holder_addr << "\n" <<
+      // "old_holder: " << old_holder_addr << "\n" <<
+      // "next_holder: " << next_holder_addr << "\n" <<
       "next_gaddr (written to lock location): " << next_gaddr << "\n\n";
       return false;
     }
+  cerr << "NODE " << dsm->getMyNodeID() << endl;
   cerr << "SPIN FOR, lock_addr: " << lock_addr << "\n" <<
-  "old_holder: " << old_holder_addr << "\n" <<
-  "next_holder: " << next_holder_addr << "\n" <<
+  "current_next_loc: " << *((GlobalAddress*) dsm->getNextLoc()) << "\n" <<
+  // "old_holder: " << old_holder_addr << "\n" <<
   "next_gaddr: " << next_gaddr << "\n" <<
-  "spin_gaddr: " << dsm->getSpinGaddr() << "\n\n";
+  "(current)_holder: " << next_holder_addr << "\n\n";
+  // "spin_gaddr: " << dsm->getSpinGaddr() << "\n\n";
   dsm->spin_on(next_holder_addr);
   return false;
 
@@ -412,8 +436,10 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
 
   #ifdef CN_AWARE
   GlobalAddress next_gaddr = dsm->getNextGaddr();
+  // dsm->set_nextloc(next_gaddr.val);
   // *curr_cas_buffer = 0;
   if (!dsm->cas_peer_sync(next_gaddr, next_gaddr.val, 0, curr_cas_buffer, cxt)) {
+  // if (!dsm->cas_peer_sync(next_gaddr, 1, 0, curr_cas_buffer, cxt)) {
     
     GlobalAddress *next_addr = (GlobalAddress *) curr_cas_buffer;
     GlobalAddress next_spinloc = GlobalAddress::Null();
@@ -450,18 +476,21 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     // "rs[2].dest: " << (uint64_t)rs[2].dest << "\n\n";
 
     if (async) {
-      dsm->write_batch(rs, 3, false);
+      dsm->write_batch(rs, 2, false);
     } else {
       dsm->write_batch_sync(rs, 2, cxt);
     }
+    char* pbuffer = dsm->get_rbuf(coro_id).get_page_buffer();
+    *(uint64_t *) pbuffer = next_gaddr.val;
+    // dsm->set_nextloc(GlobalAddress::Null());
+    dsm->write_sync(pbuffer, next_spinloc, sizeof(uint64_t), cxt);
+
     cerr << dsm->getMyNodeID() << ": WOKE UP OTHER THREAD\n" <<
     "lock_addr: " << lock_addr << endl <<
     "next_spinloc: " << next_spinloc << endl <<
     "next_addr: " << *next_addr << endl <<
     "next_gaddr: " << next_gaddr << "\n\n";
-    char* pbuffer = dsm->get_rbuf(coro_id).get_page_buffer();
-    *(uint64_t *) pbuffer = next_gaddr.val;
-    dsm->write_sync(pbuffer, next_spinloc, sizeof(uint64_t), cxt);
+
 
     releases_local_lock(lock_addr);
     return;
@@ -470,6 +499,8 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   #endif
 
   timer.begin();
+  
+  #ifdef BATCHED_WRITEBACK
   RdmaOpRegion rs[2];
   rs[0].source = (uint64_t)page_buffer;
   rs[0].dest = page_addr;
@@ -485,8 +516,6 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   rs[1].is_on_chip = true;
   *(uint64_t *)rs[1].source = 0;
 
-  #ifdef BATCHED_WRITEBACK
-
   if (async) {
     dsm->write_batch(rs, 2, false);
   } else {
@@ -496,13 +525,13 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   save_measurement(threadID, measurements.gwait_rel);
 
   #else
-  auto cas_buf = dsm->get_rbuf(coro_id).get_cas_buffer();
-  *cas_buf = 0;
-
+  
   dsm->write_sync(page_buffer, page_addr, page_size, cxt);
   save_measurement(threadID, measurements.data_write);
-
+  
   timer.begin();
+  auto cas_buf = dsm->get_rbuf(coro_id).get_cas_buffer();
+  *cas_buf = 0;
   dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
   save_measurement(threadID, measurements.gwait_rel);
 

@@ -381,7 +381,7 @@ bool rdmaWriteBatch(ibv_qp *qp, RdmaOpRegion *ror, int k, bool isSignaled,
     wr[i].wr.rdma.remote_addr = ror[i].dest;
     wr[i].wr.rdma.rkey = ror[i].remoteRKey;
     wr[i].wr_id = wrID;
-    cerr << "rdmaWriteBatch, wr[" + to_string(i) + "].wr.rdma.remote_addr: " << wr[i].wr.rdma.remote_addr << "\n";
+    // cerr << "rdmaWriteBatch, wr[" + to_string(i) + "].wr.rdma.remote_addr: " << wr[i].wr.rdma.remote_addr << "\n";
   }
 
   if (ibv_post_send(qp, &wr[0], &wrBad) != 0) {
