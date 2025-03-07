@@ -65,7 +65,7 @@ duration=5
 runNR=1
 mnNR=1
 zipfian=1
-nodeNRs=(2)
+nodeNRs=(4)
 threadNRs=(32)
 lockNRs=(512)
 bench_idxs=(1)
@@ -102,15 +102,15 @@ do
                 do
                     cn_tp_file="$cn_tp_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
                     cn_lat_file="$cn_lat_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
-                    cn_lock_file="$cn_lock_dir"/locks_nodeNR$nodeNR"_threadNR"$threadNR.csv
                     echo $cn_tp_header > "$cn_tp_file"
                     echo $cn_lat_header > "$cn_lat_file"
-                    > "$cn_lock_file"
 
                     log_file="$log_dir"/nodeNR$nodeNR"_threadNR"$threadNR.log
 
                     for lockNR in ${lockNRs[@]}
                     do
+                        cn_lock_file="$cn_lock_dir"/lockNR$lockNR_nodeNR$nodeNR"_threadNR"$threadNR.csv
+                        > "$cn_lock_file"
 
                         for ((run = 0; run < runNR; run++)); do
                             echo "BENCHMARK $microb | $opt $impl | $nodeNR Ns | $threadNR Ts | $lockNR Ls | $duration s | RUN $run"
@@ -166,15 +166,15 @@ do
                     do
                         cn_tp_file="$cn_tp_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
                         cn_lat_file="$cn_lat_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
-                        cn_lock_file="$cn_lock_dir"/locks_nodeNR$nodeNR"_threadNR"$threadNR.csv
                         echo $cn_tp_header > "$cn_tp_file"
                         echo $cn_lat_header > "$cn_lat_file"
-                        > "$cn_lock_file"
 
                         log_file="$log_dir"/nodeNR$nodeNR"_threadNR"$threadNR.log
 
                         for lockNR in ${lockNRs[@]}
                         do
+                            cn_lock_file="$cn_lock_dir"/lockNR$lockNR_nodeNR$nodeNR"_threadNR"$threadNR.csv
+                            > "$cn_lock_file"
 
                             for ((run = 0; run < runNR; run++)); do
                                 echo "BENCHMARK $microb | $opt $impl | $nodeNR Ns | $threadNR Ts | $lockNR Ls | $duration s | RUN $run"

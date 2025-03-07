@@ -224,12 +224,13 @@ int main(int argc, char *argv[]) {
         sleep(2);
     }
 
+    /*CONFIG*/
     config.dsmSize = dsmSize;
     config.mnNR = mnNR > nodeNR ? nodeNR : mnNR;
     config.machineNR = nodeNR;
     config.threadNR = threadNR;
     config.chipSize = chipSize;
-    lockNR = chipSize * 1024 / sizeof(uint64_t);
+    // lockNR = chipSize * 1024 / sizeof(uint64_t);
     dsm = DSM::getInstance(config);
     nodeID = dsm->getMyNodeID();
     DE("DSM INIT DONE: %d\n", nodeID);
