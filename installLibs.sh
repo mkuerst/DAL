@@ -13,6 +13,7 @@ if [ ! -f "$OFED_FILE" ]; then
     echo "MLNX OFED version is not installed. Running installation script..."
         sudo apt-get -y --force-yes install cmake
 
+        sudo apt-get -y install linux-tools-common linux-tools-generic linux-tools-`uname -r`
         # memcached
         sudo apt-get -y --force-yes install memcached libmemcached-dev
 

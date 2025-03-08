@@ -35,7 +35,7 @@ pthread_so="$PWD/../litl2/lib/original/libpthreadinterpose_original.so"
 cn_tp_header="tid,\
 loop_in_cs,lock_acquires,duration,\
 glock_tries,handovers,handovers_data,array_size(B),\
-nodeID,run,lockNR,la"
+nodeID,run,lockNR,la,pinning"
 
 cn_lat_header="lock_hold,\
 lwait_acq,\
@@ -48,7 +48,8 @@ end_to_end,\
 array_size,\
 nodeID,\
 run,\
-lockNR"
+lockNR,\
+pinning"
 
 server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
 
@@ -69,7 +70,7 @@ nodeNRs=(2)
 threadNRs=(1)
 lockNRs=(1)
 bench_idxs=(1)
-pinning=1
+pinnings=(1)
 chipSize=128
 dsmSize=16
 
@@ -109,32 +110,37 @@ do
 
                     for lockNR in ${lockNRs[@]}
                     do
-                        cn_lock_file="$cn_lock_dir"/lockNR"$lockNR"_nodeNR$nodeNR"_threadNR"$threadNR.csv
-                        > "$cn_lock_file"
+                        for pinning in ${pinnings[@]}
+                        do
+                            cn_lock_file="$cn_lock_dir"/lockNR"$lockNR"_nodeNR$nodeNR"_threadNR"$threadNR.csv
+                            > "$cn_lock_file"
 
-                        for ((run = 0; run < runNR; run++)); do
-                            echo "BENCHMARK $microb | $opt $impl | $nodeNR Ns | $threadNR Ts | $lockNR Ls | $duration s | RUN $run"
-                            echo "pinning $pinning | DSM $dsmSize GB | $mnNR MNs | chipSize $chipSize KB |"
-                            # dsh -M -f <(head -n $nodeNR ./nodes.txt) -o "-o StrictHostKeyChecking=no" -c \
-                            clush --hostfile <(head -n $nodeNR ./nodes.txt) \
-                            "sudo $mb_exe \
-                            -t $threadNR \
-                            -d $duration \
-                            -m $mode \
-                            -n $nodeNR \
-                            -f $cn_tp_file \
-                            -g $cn_lat_file \
-                            -h $cn_lock_file \
-                            -l $lockNR \
-                            -r $run \
-                            -s $mnNR \
-                            -z $zipfian \
-                            -p $pinning \
-                            -c $chipSize \
-                            -y $dsmSize \
-                            2>&1" 
-                            # 2>> $log_file"
-                            cleanup
+                            for ((run = 0; run < runNR; run++)); do
+                                echo "BENCHMARK $microb | $opt $impl | $nodeNR Ns | $threadNR Ts | $lockNR Ls | $duration s | RUN $run"
+                                echo "pinning $pinning | DSM $dsmSize GB | $mnNR MNs | chipSize $chipSize KB |"
+                                # dsh -M -f <(head -n $nodeNR ./nodes.txt) -o "-o StrictHostKeyChecking=no" -c \
+                                clush --hostfile <(head -n $nodeNR ./nodes.txt) \
+                                "sudo $mb_exe \
+                                -t $threadNR \
+                                -d $duration \
+                                -m $mode \
+                                -n $nodeNR \
+                                -f $cn_tp_file \
+                                -g $cn_lat_file \
+                                -h $cn_lock_file \
+                                -l $lockNR \
+                                -r $run \
+                                -s $mnNR \
+                                -z $zipfian \
+                                -p $pinning \
+                                -c $chipSize \
+                                -y $dsmSize \
+                                2>&1" 
+                                # 2>> $log_file"
+                                cleanup
+
+
+                            done
                         done
                     done
                 done
@@ -173,32 +179,35 @@ do
 
                         for lockNR in ${lockNRs[@]}
                         do
-                            cn_lock_file="$cn_lock_dir"/lockNR"$lockNR"_nodeNR$nodeNR"_threadNR"$threadNR.csv
-                            > "$cn_lock_file"
+                            for pinning in ${pinnings[@]}
+                            do
+                                cn_lock_file="$cn_lock_dir"/lockNR"$lockNR"_nodeNR$nodeNR"_threadNR"$threadNR.csv
+                                > "$cn_lock_file"
 
-                            for ((run = 0; run < runNR; run++)); do
-                                echo "BENCHMARK $microb | $opt $impl | $nodeNR Ns | $threadNR Ts | $lockNR Ls | $duration s | RUN $run"
-                                echo "pinning $pinning | DSM $dsmSize GB | $mnNR MNs | chipSize $chipSize KB |"
-                                # dsh -M -f <(head -n $nodeNR ./nodes.txt) -o "-o StrictHostKeyChecking=no" -c \
-                                clush --hostfile <(head -n $nodeNR ./nodes.txt) \
-                                "sudo LD_PRELOAD=$llock_so $mb_exe \
-                                -t $threadNR \
-                                -d $duration \
-                                -m $mode \
-                                -n $nodeNR \
-                                -f $cn_tp_file \
-                                -g $cn_lat_file \
-                                -h $cn_lock_file \
-                                -l $lockNR \
-                                -r $run \
-                                -s $mnNR \
-                                -z $zipfian \
-                                -p $pinning \
-                                -c $chipSize \
-                                -y $dsmSize \
-                                2>&1" 
-                                # 2>> $log_file"
-                                cleanup
+                                for ((run = 0; run < runNR; run++)); do
+                                    echo "BENCHMARK $microb | $opt $impl | $nodeNR Ns | $threadNR Ts | $lockNR Ls | $duration s | RUN $run"
+                                    echo "pinning $pinning | DSM $dsmSize GB | $mnNR MNs | chipSize $chipSize KB |"
+                                    # dsh -M -f <(head -n $nodeNR ./nodes.txt) -o "-o StrictHostKeyChecking=no" -c \
+                                    clush --hostfile <(head -n $nodeNR ./nodes.txt) \
+                                    "sudo LD_PRELOAD=$llock_so $mb_exe \
+                                    -t $threadNR \
+                                    -d $duration \
+                                    -m $mode \
+                                    -n $nodeNR \
+                                    -f $cn_tp_file \
+                                    -g $cn_lat_file \
+                                    -h $cn_lock_file \
+                                    -l $lockNR \
+                                    -r $run \
+                                    -s $mnNR \
+                                    -z $zipfian \
+                                    -p $pinning \
+                                    -c $chipSize \
+                                    -y $dsmSize \
+                                    2>&1" 
+                                    # 2>> $log_file"
+                                    cleanup
+                                done
                             done
                         done
                     done

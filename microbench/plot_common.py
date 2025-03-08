@@ -52,7 +52,8 @@ LAT_COLS = [
 "array_size",
 "nodeID",
 "run",
-"lockNR"
+"lockNR",
+"pinning",
 ]
 
 TP_COLS = [
@@ -68,6 +69,7 @@ TP_COLS = [
 "run",
 "lockNR",
 "la",
+"pinning",
 ]
 
 STAT_TO_COLS = {

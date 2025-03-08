@@ -249,7 +249,7 @@ void writeData(char *path, const std::vector<std::vector<uint32_t>>& data) {
 	sleep(2);
 }
 
-void write_tp(char* tp_path, char* lock_path, int run, int threadNR, int lockNR, int nodeID, size_t array_size) {
+void write_tp(char* tp_path, char* lock_path, int run, int threadNR, int lockNR, int nodeID, size_t array_size, int pinning) {
 	std::ofstream file(tp_path, std::ios::app);
 	uint64_t total_handovers = 0;
 	uint64_t total_Hod = 0;
@@ -269,7 +269,8 @@ void write_tp(char* tp_path, char* lock_path, int run, int threadNR, int lockNR,
 			<< std::setw(3) << nodeID << ","
 			<< std::setw(3) << run << ","
 			<< std::setw(8) << lockNR << ","
-			<< std::setw(8) << measurements.la[t] << "\n";
+			<< std::setw(8) << measurements.la[t] << ","
+			<< std::setw(2) << pinning << "\n";
 	}
 
 	file.flush();
@@ -288,7 +289,7 @@ void write_tp(char* tp_path, char* lock_path, int run, int threadNR, int lockNR,
 }
 
 // in us
-void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_size) {
+void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_size, int pinning) {
 	std::ofstream file(res_file, std::ios::app);
 	if (!file)
 		__error("Failed to open %s\n", res_file);
@@ -315,7 +316,8 @@ void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_siz
 			<< std::setw(6) << array_size << ","
 			<< std::setw(3) << nodeID << ","
 			<< std::setw(3) << run << ","
-			<< std::setw(4) << lockNR << "\n";
+			<< std::setw(4) << lockNR << ","
+			<< std::setw(2) << pinning << "\n";
 	}
 	file.close();
 }
