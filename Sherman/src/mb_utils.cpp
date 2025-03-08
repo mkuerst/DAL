@@ -271,7 +271,7 @@ void write_tp(char* tp_path, char* lock_path, int run, int threadNR, int lockNR,
 			<< std::setw(8) << lockNR << ","
 			<< std::setw(8) << measurements.la[t] << ","
 			<< std::setw(2) << pinning << ","
-			<< std::setw(8) << measurements.cache_misses[t] << "\n";
+			<< std::setw(12) << measurements.cache_misses[t] << "\n";
 	}
 
 	file.flush();

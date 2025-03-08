@@ -577,8 +577,11 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   // cout << "page_addr: " << page_addr << endl;
   // cout << "curr_page_buffer: " << (uintptr_t) curr_page_buffer << " = " << (uint64_t) *curr_page_buffer << endl;
   // cout << "********************************************" << endl;
-  cerr << "REL LOCK TO MN" << endl <<
-  "lock_addr: " << lock_addr << "\n\n"; 
+
+
+
+  // cerr << "REL LOCK TO MN" << endl <<
+  // "lock_addr: " << lock_addr << "\n\n"; 
 
   releases_local_lock(lock_addr);
   // DEB("[%d.%d] unlocked global lock remotely: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_addr.offset);

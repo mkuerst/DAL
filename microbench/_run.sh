@@ -59,18 +59,18 @@ comm_prot=rdma
 # opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
 # opts=("shermanLock" "shermanHo" "shermanHod" "litl" "litlHo" "litlHod")
 # opts=("shermanLock" "shermanHo" "shermanHod" "shermanHodOcmBw" "litl" "litlHo" "litlHod" "litlHodOcmBw")
-opts=("shermanLock")
+opts=("shermanLock" "shermanHod" "shermanHodOcmBw" "litl" "litlHod" "litlHodOcmBw")
 
 microbenches=("empty_cs" "mlocks" "kvs")
-duration=3
-runNR=1
+duration=10
+runNR=3
 mnNR=1
-zipfian=1
-nodeNRs=(2)
-threadNRs=(2)
-lockNRs=(1)
+zipfian=0
+nodeNRs=(1 4)
+threadNRs=(32)
+lockNRs=(1 32 128 512)
 bench_idxs=(1)
-pinnings=(1)
+pinnings=(2)
 chipSize=128
 dsmSize=16
 
@@ -138,8 +138,6 @@ do
                                 2>&1" 
                                 # 2>> $log_file"
                                 cleanup
-
-
                             done
                         done
                     done
