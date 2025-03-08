@@ -1,6 +1,18 @@
 #ifndef __MB_UTILS_H__
 #define __MB_UTILS_H__
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+#include <linux/perf_event.h>
+#include <fcntl.h>
 #include <pthread.h>
 
 #ifndef CACHELINE_SIZE
@@ -103,6 +115,12 @@ constexpr int thread_to_cpu_2n[64] = {
     28, 60, 29,  61, 30,  62, 31,  63
 };
 
+int setup_perf_event(int cpu);
+
+void start_perf_event(int fd);
+
+long long stop_perf_event(int fd);
+
 int uniform_rand_int(int x);
 
 void clear_measurements(int lockNR);
@@ -130,6 +148,8 @@ void parse_cli_args(
 );
 
 void free_measurements();
+
+
 
 void register_sighandler(DSM *m);
 void signal_handler(int sig);

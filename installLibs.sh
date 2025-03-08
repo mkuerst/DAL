@@ -14,6 +14,8 @@ if [ ! -f "$OFED_FILE" ]; then
         sudo apt-get -y --force-yes install cmake
 
         sudo apt-get -y install linux-tools-common linux-tools-generic linux-tools-`uname -r`
+        sudo apt-get -y install libpapi-dev
+
         # memcached
         sudo apt-get -y --force-yes install memcached libmemcached-dev
 

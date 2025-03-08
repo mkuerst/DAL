@@ -70,6 +70,7 @@ TP_COLS = [
 "lockNR",
 "la",
 "pinning",
+"cache_misses",
 ]
 
 STAT_TO_COLS = {

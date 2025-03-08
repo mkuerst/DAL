@@ -35,7 +35,7 @@ pthread_so="$PWD/../litl2/lib/original/libpthreadinterpose_original.so"
 cn_tp_header="tid,\
 loop_in_cs,lock_acquires,duration,\
 glock_tries,handovers,handovers_data,array_size(B),\
-nodeID,run,lockNR,la,pinning"
+nodeID,run,lockNR,la,pinning,cache_misses"
 
 cn_lat_header="lock_hold,\
 lwait_acq,\
@@ -59,7 +59,7 @@ comm_prot=rdma
 # opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
 # opts=("shermanLock" "shermanHo" "shermanHod" "litl" "litlHo" "litlHod")
 # opts=("shermanLock" "shermanHo" "shermanHod" "shermanHodOcmBw" "litl" "litlHo" "litlHod" "litlHodOcmBw")
-opts=("shermanCna")
+opts=("shermanLock")
 
 microbenches=("empty_cs" "mlocks" "kvs")
 duration=3
@@ -67,7 +67,7 @@ runNR=1
 mnNR=1
 zipfian=1
 nodeNRs=(2)
-threadNRs=(1)
+threadNRs=(2)
 lockNRs=(1)
 bench_idxs=(1)
 pinnings=(1)

@@ -145,23 +145,26 @@ void *empty_cs_worker(void *arg) {
 void *mlocks_worker(void *arg) {
     Task *task = (Task *) arg;
     Timer timer;
+    int cpu = 0;
     if (pinning == 1) {
-        bindCore(thread_to_cpu_1n[task->id]);
+        cpu = thread_to_cpu_1n[task->id];
+        bindCore(cpu);
     }
     else {
-        bindCore(thread_to_cpu_2n[task->id]);
+        cpu = thread_to_cpu_2n[task->id];
+        bindCore(cpu);
     }
     dsm->registerThread(page_size);
     int id = dsm->getMyThreadID();
     rlock->set_threadID(id);
-
+    
     GlobalAddress baseAddr;
     GlobalAddress lockAddr;
     baseAddr.nodeID = 0;
     baseAddr.offset = 0;
     lockAddr.nodeID = 0;
     lockAddr.offset = 0;
-
+    
     int *private_int_array = task->private_int_array;
     uint64_t *long_data;
     int lock_idx = 0;
@@ -175,6 +178,9 @@ void *mlocks_worker(void *arg) {
     ZipfianGenerator zipfian(0.99, range, seed);
     int num = 0;
     int cnt = 3;
+    
+    int fd = setup_perf_event(cpu);
+    start_perf_event(fd);
 
     pthread_barrier_wait(&global_barrier);
 
@@ -222,6 +228,7 @@ void *mlocks_worker(void *arg) {
             rlock->mb_unlock(baseAddr, page_size);
         }
     }
+    measurements.cache_misses[id] = stop_perf_event(fd);
     // DE("[%d.%d] %lu ACQUISITIONS\n", dsm->getMyNodeID(), dsm->getMyThreadID(), task->lock_acqs);
     return 0;
 }

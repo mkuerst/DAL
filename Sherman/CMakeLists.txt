@@ -26,11 +26,11 @@ file(GLOB_RECURSE COMMON_FILE ${COMMON_SRC}/*.cpp)
 #################################################################################################################
 #################################################################################################################
 
-# # SHERMAN_LOCK
-# add_library(sherman_shermanLock STATIC ${COMMON_FILE})
-# target_compile_definitions(sherman_shermanLock PRIVATE -DSHERMAN_LOCK)
-# set_target_properties(sherman_shermanLock PROPERTIES OUTPUT_NAME "sherman_shermanLock")
-# target_link_libraries(sherman_shermanLock ${LINKS_FLAGS})
+# SHERMAN_LOCK
+add_library(sherman_shermanLock STATIC ${COMMON_FILE})
+target_compile_definitions(sherman_shermanLock PRIVATE -DSHERMAN_LOCK)
+set_target_properties(sherman_shermanLock PROPERTIES OUTPUT_NAME "sherman_shermanLock")
+target_link_libraries(sherman_shermanLock ${LINKS_FLAGS})
 
 # # SHERMAN_LOCK HO
 # add_library(sherman_shermanHo STATIC ${COMMON_FILE})
@@ -57,11 +57,11 @@ file(GLOB_RECURSE COMMON_FILE ${COMMON_SRC}/*.cpp)
 # set_target_properties(sherman_shermanHodOcmBw PROPERTIES OUTPUT_NAME "sherman_shermanHodOcmBw")
 # target_link_libraries(sherman_shermanHodOcmBw ${LINKS_FLAGS})
 
-# SHERMAN_LOCK CN_AWARE
-add_library(sherman_shermanCna STATIC ${COMMON_FILE})
-target_compile_definitions(sherman_shermanCna PRIVATE -DSHERMAN_LOCK -DCN_AWARE)
-set_target_properties(sherman_shermanCna PROPERTIES OUTPUT_NAME "sherman_shermanCna")
-target_link_libraries(sherman_shermanCna ${LINKS_FLAGS})
+# # SHERMAN_LOCK CN_AWARE
+# add_library(sherman_shermanCna STATIC ${COMMON_FILE})
+# target_compile_definitions(sherman_shermanCna PRIVATE -DSHERMAN_LOCK -DCN_AWARE)
+# set_target_properties(sherman_shermanCna PROPERTIES OUTPUT_NAME "sherman_shermanCna")
+# target_link_libraries(sherman_shermanCna ${LINKS_FLAGS})
 
 #################################################################################################################
 #################################################################################################################
