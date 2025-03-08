@@ -169,15 +169,14 @@ void DSM::registerThread(int page_size) {
 
   rdma_buffer = (char *)cache.data + thread_id * 12 * define::MB;
   spin_gaddr.nodeID = this->getMyNodeID();
-  spin_gaddr.offset = conf.dsmSize * define::GB + thread_id * 2 * sizeof(uint64_t);
+  spin_gaddr.offset = conf.dsmSize * define::GB + thread_id * 12 * sizeof(uint64_t);
   next_gaddr.nodeID = this->getMyNodeID();
-  next_gaddr.offset = spin_gaddr.offset + sizeof(uint64_t);
+  next_gaddr.offset = spin_gaddr.offset + 2*sizeof(uint64_t);
   next_gaddr.version = 0;
   spin_loc = (uint64_t *) ((char *)baseAddr + spin_gaddr.offset);
   *spin_loc = 0;
   next_loc = (uint64_t *) ((char *)baseAddr + next_gaddr.offset);
   *next_loc = 0;
-  // rdma_buffer = (char *)cache.data + thread_id * 32 * define::MB;
 
   for (int i = 0; i < define::kMaxCoro; ++i) {
     rbuf[i].set_buffer(rdma_buffer + i * define::kPerCoroRdmaBuf, page_size);
@@ -208,7 +207,13 @@ void DSM::initRDMAConnection() {
 // TODO: DDIO?
 #include <immintrin.h>
 void DSM::spin_on(GlobalAddress curr_holder_addr) {
+  // uint64_t x = 0;
   while (*spin_loc == 0) {
+    // x++;
+    // if (x > 1e9) {
+    //   cerr << "DEADLOCK SPIN" << endl;
+    //   exit(1);
+    // }
     _mm_clflush(spin_loc);  // Flush cache to see the latest value
     _mm_pause();
   }
@@ -504,10 +509,10 @@ bool DSM::cas_peer_sync(GlobalAddress gaddr, uint64_t equal, uint64_t val,
 
   if (ctx == nullptr) {
     ibv_wc wc;
-    pollWithCQ(iCon->cq, 1, &wc, gaddr, 64, val);
+    pollWithCQ(iCon->cq, 1, &wc, gaddr, 8, val);
   }
   std::cerr << "equal == *rdma_buffer" << "\n" <<
-  equal << " = " << *rdma_buffer << "\n\n";
+  *((GlobalAddress*) &equal) << " = " << *((GlobalAddress*) rdma_buffer) << "\n\n";
 
   return equal == *rdma_buffer;
 }

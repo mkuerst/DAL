@@ -186,8 +186,8 @@ void *mlocks_worker(void *arg) {
         //     private_int_array[idx] += sum;
         // }
         for (int j = 0; j < 100; j++) {
-            // if (stop.load())
-            //     break;
+            if (stop.load())
+                break;
             if (num >= cnt)
                 break;
             if (use_zipfian) {

@@ -266,13 +266,23 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   #ifdef CN_AWARE
   bool res;
   dsm->reset_nextloc();
+  
+  cerr << "NODE " << dsm->getMyNodeID() << endl <<
+  "*next_loc @ try_lock_addr: " << *((GlobalAddress*) dsm->getNextLoc()) << "\n\n";
+  
   GlobalAddress next_holder_addr = lock_addr;
   GlobalAddress old_holder_addr = GlobalAddress::Null();
   GlobalAddress next_gaddr = dsm->getNextGaddr();
+
+  char* pbuffer = dsm->get_rbuf(coro_id).get_page_buffer();
+  *(uint64_t *) pbuffer = next_gaddr.val;
+  dsm->write_sync(pbuffer, dsm->getNextGaddr(), sizeof(uint64_t), cxt);
+
+  uint64_t mn_retry = 0;
   retry_from_mn:
+    dsm->set_nextloc(next_gaddr.val);
     if (!dsm->cas_dm_sync(next_holder_addr, 0, next_gaddr.val, buf, cxt)) {
       uint64_t peer_retry = 0;
-      uint64_t mn_retry = 0;
       auto ga = (GlobalAddress*) buf;
       next_holder_addr = *ga;
       cerr << "NODE " << dsm->getMyNodeID() << endl;
@@ -292,8 +302,9 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
           cerr << "NODE " << dsm->getMyNodeID() << endl;
           cerr << "CAS NEXT PEER FAILED, lock_addr: " << lock_addr << "\n" <<
           "updated old_holder: " << old_holder_addr << "\n" <<
-          "updated next_holder: " << next_holder_addr << "\n\n";
-          assert(next_holder_addr != next_gaddr || next_holder_addr.version != next_gaddr.version);
+          "updated next_holder: " << next_holder_addr << "\n" <<
+          "*next_loc @ try_lock_addr: " << *((GlobalAddress*) dsm->getNextLoc()) << "\n\n";
+          // assert(next_holder_addr != next_gaddr || next_holder_addr.version != next_gaddr.version);
         if (next_holder_addr.val == 0 || 
           (old_holder_addr == next_holder_addr && old_holder_addr.version != next_holder_addr.version)) {
           mn_retry++;
@@ -301,7 +312,8 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
           cerr << "NODE " << dsm->getMyNodeID() << endl;
           cerr << "RETRY FROM MN, lock_addr: " << lock_addr << "\n" <<
           "old_holder: " << old_holder_addr << "\n" <<
-          "next_holder: " << next_holder_addr << "\n\n" << endl;
+          "next_holder: " << next_holder_addr << endl <<
+          "*next_loc @ try_lock_addr: " << *((GlobalAddress*) dsm->getNextLoc()) << "\n\n";
 
           next_holder_addr = lock_addr;
           old_holder_addr = GlobalAddress::Null();
@@ -321,7 +333,8 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
       cerr << "LOCK FROM MN, lock_addr: " << lock_addr << "\n" <<
       // "old_holder: " << old_holder_addr << "\n" <<
       // "next_holder: " << next_holder_addr << "\n" <<
-      "next_gaddr (written to lock location): " << next_gaddr << "\n\n";
+      "next_gaddr (written to lock location): " << next_gaddr << "\n" <<
+      "*next_loc @ try_lock_addr: " << *((GlobalAddress*) dsm->getNextLoc()) << "\n\n";
       return false;
     }
   cerr << "NODE " << dsm->getMyNodeID() << endl;
@@ -331,6 +344,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   "next_gaddr: " << next_gaddr << "\n" <<
   "(current)_holder: " << next_holder_addr << "\n\n";
   // "spin_gaddr: " << dsm->getSpinGaddr() << "\n\n";
+  assert(next_holder_addr.nodeID != next_gaddr.nodeID);
   dsm->spin_on(next_holder_addr);
   return false;
 
@@ -436,10 +450,13 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
 
   #ifdef CN_AWARE
   GlobalAddress next_gaddr = dsm->getNextGaddr();
-  // dsm->set_nextloc(next_gaddr.val);
   // *curr_cas_buffer = 0;
+  cerr << "*nextloc = " << *((GlobalAddress*) dsm->getNextLoc()) << endl <<
+  "next_gaddr: " << next_gaddr << "\n\n";
+  // if (((GlobalAddress*) dsm->getNextLoc())->nodeID == dsm->getMyNodeID()) {
+  //   dsm->set_nextloc(next_gaddr.val);
+  // }
   if (!dsm->cas_peer_sync(next_gaddr, next_gaddr.val, 0, curr_cas_buffer, cxt)) {
-  // if (!dsm->cas_peer_sync(next_gaddr, 1, 0, curr_cas_buffer, cxt)) {
     
     GlobalAddress *next_addr = (GlobalAddress *) curr_cas_buffer;
     GlobalAddress next_spinloc = GlobalAddress::Null();
@@ -451,9 +468,8 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     "next_spin_loc" << next_spinloc << endl <<
     "next_spin_loc.val " << next_spinloc.val << endl <<
     "next_gaddr: " << next_gaddr << "\n\n";
-    // TODO: Async also OK?
-    // *curr_cas_buf = 1;
-    // dsm->write_dm_sync(currs_cas_buf, next_addr, sizeof(uint64_t), ctx);
+    assert(next_gaddr.nodeID !=  next_addr->nodeID);
+
     RdmaOpRegion rs[2];
     rs[0].source = (uint64_t)page_buffer;
     rs[0].dest = page_addr;
@@ -480,17 +496,20 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     } else {
       dsm->write_batch_sync(rs, 2, cxt);
     }
+
+    
     char* pbuffer = dsm->get_rbuf(coro_id).get_page_buffer();
-    *(uint64_t *) pbuffer = next_gaddr.val;
-    // dsm->set_nextloc(GlobalAddress::Null());
-    dsm->write_sync(pbuffer, next_spinloc, sizeof(uint64_t), cxt);
+    // *(uint64_t *) pbuffer = next_gaddr.val;
+    *(uint64_t *) pbuffer = 0;
 
-    cerr << dsm->getMyNodeID() << ": WOKE UP OTHER THREAD\n" <<
-    "lock_addr: " << lock_addr << endl <<
-    "next_spinloc: " << next_spinloc << endl <<
-    "next_addr: " << *next_addr << endl <<
+    cerr << dsm->getMyNodeID() << ": OTHER THREAD ENQ\n" <<
+    "*nextloc = " << *dsm->getNextLoc() << endl <<
+    "*pbuffer (gaddr) : " << *((GlobalAddress *) pbuffer) << endl <<
     "next_gaddr: " << next_gaddr << "\n\n";
-
+    // dsm->set_nextloc(GlobalAddress::Null());
+    dsm->write_sync(pbuffer, next_gaddr, sizeof(uint64_t), cxt);
+    *(uint64_t *) pbuffer = 1;
+    dsm->write_sync(pbuffer, next_spinloc, sizeof(uint64_t), cxt);
 
     releases_local_lock(lock_addr);
     return;
@@ -525,6 +544,9 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   save_measurement(threadID, measurements.gwait_rel);
 
   #else
+  char* pbuffer = dsm->get_rbuf(coro_id).get_page_buffer();
+  *(uint64_t *) pbuffer = 0;
+  dsm->write_sync(pbuffer, dsm->getNextGaddr(), sizeof(uint64_t), cxt);
   
   dsm->write_sync(page_buffer, page_addr, page_size, cxt);
   save_measurement(threadID, measurements.data_write);
