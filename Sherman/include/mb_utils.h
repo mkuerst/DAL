@@ -114,8 +114,9 @@ struct Task {
 //     24, 56, 25,  57, 26,  58, 27,  59,
 //     28, 60, 29,  61, 30,  62, 31,  63
 // };
+
 // SAME NUMA NODES
-constexpr int thread_to_cpu_1n[64] = {
+constexpr int thread_to_cpu_1n[32] = {
     0,  1,  2,  3,  4,  5,  6,  7,
     8,  9, 10, 11, 12, 13, 14, 15,
    32, 33, 34, 35, 36, 37, 38, 39,
@@ -123,12 +124,12 @@ constexpr int thread_to_cpu_1n[64] = {
 };
 
 // DIFFERENT NUMA NODES
-constexpr int thread_to_cpu_1n[32] = {
-    16, 17, 18, 19, 20, 21, 22, 23,
-    24, 25, 26, 27, 28, 29, 30, 31,
-    48, 49, 50, 51, 52, 53, 54, 55,
-    56, 57, 58, 59, 60, 61, 62, 63
- };
+constexpr int thread_to_cpu_2n[32] = {
+    0,  1,  2,  3,  4,  5,  6,  7,
+    8,  9, 10, 11, 12, 13, 14, 15,
+   16, 17, 18, 19, 20, 21, 22, 23,
+   24, 25, 26, 27, 28, 29, 30, 31
+};
 
 int setup_perf_event(int cpu);
 
