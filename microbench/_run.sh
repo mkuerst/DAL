@@ -113,7 +113,7 @@ do
                     do
                         for pinning in ${pinnings[@]}
                         do
-                            cn_lock_file="$cn_lock_dir"/lockNR"$lockNR"_nodeNR$nodeNR"_threadNR"$threadNR.csv
+                            cn_lock_file="$cn_lock_dir"/lockNR"$lockNR"_nodeNR$nodeNR"_threadNR"$threadNR"_pinning"$pinning.csv
                             > "$cn_lock_file"
 
                             for ((run = 0; run < runNR; run++)); do
@@ -153,6 +153,7 @@ do
             llock_so=${llock_libs_dir}${impl}.so
             for mode in ${bench_idxs[@]}
             do
+                mb_exe="$PWD/microbench_$opt"
                 microb="${microbenches[$mode]}"
                 if echo "$microb" | grep -q "kvs"; then
                     mb_exe="$PWD/appbench_$opt"
@@ -180,7 +181,7 @@ do
                         do
                             for pinning in ${pinnings[@]}
                             do
-                                cn_lock_file="$cn_lock_dir"/lockNR"$lockNR"_nodeNR$nodeNR"_threadNR"$threadNR.csv
+                                cn_lock_file="$cn_lock_dir"/lockNR"$lockNR"_nodeNR$nodeNR"_threadNR"$threadNR"_pinning"$pinning.csv
                                 > "$cn_lock_file"
 
                                 for ((run = 0; run < runNR; run++)); do
