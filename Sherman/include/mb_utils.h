@@ -91,7 +91,7 @@ struct Task {
     int private_int_array[PRIVATE_ARRAY_SZ / sizeof(int)];
 };
 
-// // SAME NUMA NODES
+// // SAME NUMA NODES r6525
 // constexpr int thread_to_cpu_1n[64] = {
 //     0,  1,  2,  3,  4,  5,  6,  7,
 //     8,  9, 10, 11, 12, 13, 14, 15,
@@ -103,7 +103,7 @@ struct Task {
 //     88, 89, 90, 91, 92, 93, 94, 95
 // };
 
-// // DIFFERENT NUMA NODES
+// // DIFFERENT NUMA NODES r6525
 // constexpr int thread_to_cpu_2n[64] = {
 //     0,  32,  1,  33,  2,  34,  3,  35,
 //     4,  36,  5,  37,  6,  38,  7,  39,
@@ -115,15 +115,31 @@ struct Task {
 //     28, 60, 29,  61, 30,  62, 31,  63
 // };
 
-// SAME NUMA NODES
+// // SAME NUMA NODES d7525
+// constexpr int thread_to_cpu_1n[32] = {
+//     0,  1,  2,  3,  4,  5,  6,  7,
+//     8,  9, 10, 11, 12, 13, 14, 15,
+//    32, 33, 34, 35, 36, 37, 38, 39,
+//    40, 41, 42, 43, 44, 45, 46, 47
+// };
+
+// // DIFFERENT NUMA NODES d7525
+// constexpr int thread_to_cpu_2n[32] = {
+//     0,  1,  2,  3,  4,  5,  6,  7,
+//     8,  9, 10, 11, 12, 13, 14, 15,
+//    16, 17, 18, 19, 20, 21, 22, 23,
+//    24, 25, 26, 27, 28, 29, 30, 31
+// };
+
+// SAME NUMA NODES c6525-25g
 constexpr int thread_to_cpu_1n[32] = {
     0,  1,  2,  3,  4,  5,  6,  7,
     8,  9, 10, 11, 12, 13, 14, 15,
-   32, 33, 34, 35, 36, 37, 38, 39,
-   40, 41, 42, 43, 44, 45, 46, 47
+   16, 17, 18, 19, 20, 21, 22, 23,
+   24, 25, 26, 27, 28, 29, 30, 31
 };
 
-// DIFFERENT NUMA NODES
+// SAME NUMA NODES c6525-25g
 constexpr int thread_to_cpu_2n[32] = {
     0,  1,  2,  3,  4,  5,  6,  7,
     8,  9, 10, 11, 12, 13, 14, 15,

@@ -124,11 +124,14 @@ std::atomic_bool done{false};
 void *thread_run(void *arg) {
 // void thread_run(int id) {
     Task *task = (Task *) arg;
+    int cpu = 0;
     if (pinning == 1) {
-        bindCore(thread_to_cpu_1n[task->id]);
+        cpu = thread_to_cpu_1n[task->id];
+        bindCore(cpu);
     }
     else {
-        bindCore(thread_to_cpu_2n[task->id]);
+        cpu = thread_to_cpu_2n[task->id];
+        bindCore(cpu);
     }
     dsm->registerThread();
     int id = dsm->getMyThreadID();
@@ -148,6 +151,7 @@ void *thread_run(void *arg) {
             // DE("INSERTED WARMUP KEY %ld -> %ld\n", i, i*2);
         }
     }
+    int fd = setup_perf_event(cpu);
 
     warmup_cnt.fetch_add(1);
 
@@ -180,6 +184,7 @@ void *thread_run(void *arg) {
     mehcached_zipf_init(&state, kKeySpace, zipfan,
                         (rdtsc() & (0x0000ffffffffffffull)) ^ id);
 
+    start_perf_event(fd);
     Timer timer;
     while (!done.load()) {
 
@@ -203,6 +208,7 @@ void *thread_run(void *arg) {
         measurements.tp[id]++;
         measurements.end_to_end[id*LATENCY_WINDOWS + us_10]++;
     }
+    measurements.cache_misses[id] = stop_perf_event(fd);
     return 0;
     #endif
 }
