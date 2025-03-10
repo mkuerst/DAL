@@ -203,7 +203,8 @@ void *mlocks_worker(void *arg) {
                 lock_idx = (uint64_t) uniform_rand_int(range+1);
             }
             // cerr << "mnNR: " << mnNR << endl;
-            baseAddr.nodeID = uniform_rand_int(mnNR);
+            // baseAddr.nodeID = uniform_rand_int(mnNR);
+            baseAddr.nodeID = 0;
             baseAddr.offset = chunk_size * lock_idx;
             lockAddr.nodeID = baseAddr.nodeID;
             lockAddr.offset = lock_idx * sizeof(uint64_t);
@@ -219,7 +220,7 @@ void *mlocks_worker(void *arg) {
             timer.begin();
             long_data = (uint64_t *) rlock->getCurrPB();
             for (int k = 0; k < data_len; k++) {
-                long_data[k] += 1;
+                // long_data[k] += 1;
                 task->inc++;
             }
             save_measurement(id, measurements.lock_hold);

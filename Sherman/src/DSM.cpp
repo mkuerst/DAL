@@ -210,17 +210,18 @@ void DSM::initRDMAConnection() {
 }
 
 #include <immintrin.h>
-void DSM::spin_on(GlobalAddress curr_holder_addr) {
+void DSM::spin_on(char *buf, GlobalAddress curr_holder_addr) {
   // uint64_t x = 0;
-  while (*spin_loc == 0) {
-    // this->read_sync(buf, spin_gaddr, sizeof(uint64_t), NULL);
+  // while (*spin_loc == 0) {
+  while (*(uint64_t *) buf == 0) {
+    this->read_sync(buf, spin_gaddr, sizeof(uint64_t), NULL);
     // x++;
     // if (x > 1e9) {
     //   cerr << "DEADLOCK SPIN" << endl;
     //   exit(1);
     // }
-    _mm_clflush(spin_loc);  // Flush cache to see the latest value
-    _mm_pause();
+    // _mm_clflush(spin_loc);  // Flush cache to see the latest value
+    // _mm_pause();
   }
   GlobalAddress *ga = (GlobalAddress *) spin_loc ;
 

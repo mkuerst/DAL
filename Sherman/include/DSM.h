@@ -38,9 +38,9 @@ public:
   GlobalAddress getSpinGaddr() { return spin_gaddr; }
 
   GlobalAddress getNextGaddr() { 
-    next_loc_curr = (next_loc_curr + 1) % kNextLocCnt;
-    next_gaddr.offset = next_gaddr_base.offset + next_loc_curr * sizeof(uint64_t);
-    next_loc += next_loc_curr;
+    // next_loc_curr = (next_loc_curr + 1) % kNextLocCnt;
+    // next_gaddr.offset = next_gaddr_base.offset + next_loc_curr * sizeof(uint64_t);
+    // next_loc += next_loc_curr;
     return next_gaddr;
   }
 
@@ -146,7 +146,7 @@ public:
   uint64_t poll_rdma_cq(int count = 1);
   bool poll_rdma_cq_once(uint64_t &wr_id);
 
-  void spin_on(GlobalAddress curr_holder_addr);
+  void spin_on(char* buf, GlobalAddress curr_holder_addr);
 
   uint64_t sum(uint64_t value) {
     static uint64_t count = 0;

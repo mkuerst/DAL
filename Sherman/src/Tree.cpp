@@ -289,7 +289,9 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
       "next_holder: " << next_holder_addr << "\n\n";
 
       // while (!dsm->cas_peer_sync(next_holder_addr, next_holder_addr.val, next_gaddr.val, buf, cxt)) {
-      while (!dsm->cas_peer_sync(next_holder_addr, 1, next_gaddr.val, buf, cxt)) {
+      auto cas_buf = dsm->get_rbuf(coro_id).get_cas_buffer();
+      *cas_buf = 0;
+      while (!dsm->cas_peer_sync(next_holder_addr, 1, next_gaddr.val, cas_buf, nullptr)) {
         peer_retry++;
         old_holder_addr = next_holder_addr;
         auto ga = (GlobalAddress*) buf;
@@ -340,7 +342,9 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   "(current)_holder: " << next_holder_addr << "\n\n";
   // "spin_gaddr: " << dsm->getSpinGaddr() << "\n\n";
   assert(next_holder_addr.nodeID != next_gaddr.nodeID);
-  dsm->spin_on(next_holder_addr);
+  char* pbuf = dsm->get_rbuf(coro_id).get_page_buffer();
+  *(uint64_t *) pbuf = 0;
+  dsm->spin_on(pbuf, next_holder_addr);
   return false;
 
 
@@ -497,6 +501,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
 
     cerr << dsm->getMyNodeID() << ": OTHER THREAD ENQ\n" <<
     "*nextloc = " << *dsm->getNextLoc() << endl <<
+    "nextloc gaddr = " << *((GlobalAddress*) dsm->getNextLoc()) << endl <<
     "next_spinloc: " << next_spinloc << "\n\n";
     // "*pbuffer (gaddr) : " << *((GlobalAddress *) pbuffer) << endl <<
     // dsm->set_nextloc(GlobalAddress::Null());
