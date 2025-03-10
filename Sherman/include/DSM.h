@@ -13,6 +13,9 @@
 #include "RdmaBuffer.h"
 #include "Directory.h"
 
+#include <emmintrin.h>
+#include <x86intrin.h>
+
 class DSMKeeper;
 class Directory;
 
@@ -43,8 +46,11 @@ public:
 
   uint64_t *getNextLoc() { return next_loc; }
   // void reset_nextloc() { next_gaddr.version = (next_gaddr.version + 1) % 16; *next_loc = next_gaddr.val; }
-  void set_nextloc(uint64_t val) { *next_loc = val; }
-
+  void set_nextloc(uint64_t val) {
+    *next_loc = val;
+    // _mm_clflushopt(next_loc);
+    // _mm_mfence();
+  }
   // RDMA operations
   // buffer is registered memory
   void read(char *buffer, GlobalAddress gaddr, size_t size, bool signal = true,

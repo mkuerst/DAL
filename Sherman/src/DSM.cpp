@@ -209,11 +209,11 @@ void DSM::initRDMAConnection() {
   myNodeID = keeper->getMyNodeID();
 }
 
-// TODO: DDIO?
 #include <immintrin.h>
 void DSM::spin_on(GlobalAddress curr_holder_addr) {
   // uint64_t x = 0;
   while (*spin_loc == 0) {
+    // this->read_sync(buf, spin_gaddr, sizeof(uint64_t), NULL);
     // x++;
     // if (x > 1e9) {
     //   cerr << "DEADLOCK SPIN" << endl;
