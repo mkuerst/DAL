@@ -92,8 +92,8 @@ def plot_MC_rlocks(DATA, comm_prot="rdma", opts=["spinlock"],
                                             values_tp, lockNR, bw_mlocks, mlocks_hatches, lockNR,
                                             tp_inc=tp_inc, inc_fair=tp_inc == "lock_acquires")
 
-            position += 1
-        position += 1
+            position += 0.5 
+        position += 0.5
 
         if num_vlines < max_vlines:
             for i in range(emptyLatPlotsNR):
@@ -163,12 +163,12 @@ read_data(DATA, RES_DIRS)
 plot_MC_rlocks(
                 DATA, 
                 # opts=["", "Ho", "Hod", "HoOcmBw"],
-                opts=["", "Ho", "Hod", "HodOcmBw"],
+                opts=["", "Hod", "HodOcmBw"],
                 # lat_ecs_inc = [["gwait_acq", "gwait_rel"]],
-                lat_ml_inc = [["lwait_acq"], ["lwait_acq", "gwait_acq", "gwait_rel"], ["data_read", "data_write",]],
-                tp_incs=["lock_acquires", "glock_tries", "handovers", "handovers_data"],
-                cnNRs=[1, 3], 
-                lockNRs=[16384], 
+                lat_ml_inc = [["lwait_acq"], ["lwait_acq", "gwait_acq", "gwait_rel"], ["data_read", "data_write", "lock_hold"]],
+                tp_incs=["lock_acquires", "glock_tries", "handovers", "handovers_data", "cache_misses"],
+                cnNRs=[4], 
+                lockNRs=[32, 128, 512], 
                 threadNRs=32,
                 log=[1,1,0],
                 )

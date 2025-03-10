@@ -173,6 +173,7 @@ tp_axis_titles = {
     "glock_tries": ("[GLock CASes]/[Lock Acquisition]", ""),
     "handovers": ("Handovers", ""),
     "handovers_data": ("Handovers w/ data", ""),
+    "cache_misses": ("Cache Misses", "")
 }
 
 # lat_bar_colors = {
@@ -202,7 +203,7 @@ lat_bar_colors = {
 median_colors = {"gwait_acq": "silver", "lwait_acq": "orange", "gwait_rel": "violet", "lwait_rel": "cyan", "lock_hold": "purple"}
 node_colors = {"empty_cs1n": "gray", "empty_cs2n": "black", "mem1n": "gray", "mem2n": "black"}
 client_hatches = {1:'/', 2:'\\', 3:'|', 5:'-', 4:'+'}
-mlocks_hatches = {1:'/', 128:'\\', 256:'|', 1024:'-', 512:'', 16384: ''}
+mlocks_hatches = {1:'+', 32: '*', 128:'o', 256:'|', 1024:'-', 512:'', 16384: ''}
 
 FIG_X = 10
 FIG_Y = 6
@@ -225,6 +226,8 @@ def make_offset(candidates, bw):
        return {candidates[0]: -0.5*bw, candidates[1]:.5*bw} 
     if num_cand == 3:
        return {candidates[0]: -bw, candidates[1]: 0, candidates[2]: bw} 
+    if num_cand == 4:
+       return {candidates[0]: -0.5*bw, candidates[1]: -1/6*bw, candidates[2]: 1/6*bw, candidates[3]: 0.5*bw} 
 
 def add_lat(ax, ax2, values_lat, values_tp, position, comm_prot, bar_width,
             inc, hatches={}, hatch_key=0, lockNR=1):
@@ -251,8 +254,8 @@ def add_lat(ax, ax2, values_lat, values_tp, position, comm_prot, bar_width,
 def add_box(ax1, ax2, position, values, hatch_idx, bw=0.3,
             hatches=client_hatches, lockNR=1, tp_inc="lock_acquires", inc_fair=True):
     duration = values["duration"].max() * DURATION_FACTOR
-    la = values["lock_acquires"]
     data = values.loc[values["lockNR"] == lockNR, tp_inc]
+    la = values.loc[values["lockNR"] == lockNR, "la"]
 
     if tp_inc == "lock_acquires":
         data = data / duration 
