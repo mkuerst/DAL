@@ -213,7 +213,7 @@ void DSM::initRDMAConnection() {
 void DSM::spin_on(char *buf, GlobalAddress curr_holder_addr) {
   // uint64_t x = 0;
   // while (*spin_loc == 0) {
-  while (*(uint64_t *) buf == 0) {
+  while (*spin_loc == 0) {
     this->read_sync(buf, spin_gaddr, sizeof(uint64_t), NULL);
     // x++;
     // if (x > 1e9) {
@@ -233,7 +233,11 @@ void DSM::spin_on(char *buf, GlobalAddress curr_holder_addr) {
   "*spin_loc as gaddr: " << *ga << "\n\n";
   *spin_loc = 0;
 }
-
+void DSM::post_recv() {
+  struct ibv_recv_wr wr, *bad_wr;
+  memset(&wr, 0, sizeof(wr));
+  ibv_post_recv(iCon->data[0][this->myNodeID], &wr, &bad_wr);
+}
 void DSM::read(char *buffer, GlobalAddress gaddr, size_t size, bool signal,
                CoroContext *ctx) {
   if (ctx == nullptr) {
