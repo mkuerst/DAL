@@ -33,9 +33,16 @@ public:
   uint64_t getThreadTag() { return thread_tag; }
   uint64_t getDsmSize() { return conf.dsmSize * define::GB; }
   GlobalAddress getSpinGaddr() { return spin_gaddr; }
-  GlobalAddress getNextGaddr() { return next_gaddr; }
+
+  GlobalAddress getNextGaddr() { 
+    next_loc_curr = (next_loc_curr + 1) % kNextLocCnt;
+    next_gaddr.offset = next_gaddr_base.offset + next_loc_curr * sizeof(uint64_t);
+    next_loc += next_loc_curr;
+    return next_gaddr;
+  }
+
   uint64_t *getNextLoc() { return next_loc; }
-  void reset_nextloc() { next_gaddr.version = (next_gaddr.version + 1) % 16; *next_loc = next_gaddr.val; }
+  // void reset_nextloc() { next_gaddr.version = (next_gaddr.version + 1) % 16; *next_loc = next_gaddr.val; }
   void set_nextloc(uint64_t val) { *next_loc = val; }
 
   // RDMA operations
@@ -177,12 +184,15 @@ private:
   static thread_local uint64_t thread_tag;
   static thread_local uint64_t *spin_loc;
   static thread_local uint64_t *next_loc;
+  static thread_local int next_loc_curr;
   static thread_local GlobalAddress spin_gaddr;
   static thread_local GlobalAddress next_gaddr;
-
+  static thread_local GlobalAddress next_gaddr_base;
+  
   uint64_t baseAddr;
   uint64_t rlockAddr;
   uint32_t myNodeID;
+  int kNextLocCnt = 10;
 
   RemoteConnection *remoteInfo;
   ThreadConnection *thCon[MAX_APP_THREAD];

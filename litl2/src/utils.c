@@ -91,6 +91,7 @@ int pin_thread(unsigned int id, int nthreads, int use_nodes) {
     return 0;
 }
 
+// r6525
 inline int current_numa_node() {
     unsigned long a, d, c;
     int core;

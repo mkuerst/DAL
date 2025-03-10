@@ -150,6 +150,7 @@ private:
     static thread_local char *curr_page_buffer;
     static thread_local GlobalAddress curr_lock_addr;
     static thread_local LocalLockNode *curr_lock_node;
+    static thread_local GlobalAddress next_gaddr;
     static thread_local int threadID;
     /**/
 

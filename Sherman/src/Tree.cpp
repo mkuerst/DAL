@@ -31,6 +31,7 @@ thread_local char* Tree::curr_page_buffer = nullptr;
 thread_local uint64_t* Tree::curr_cas_buffer = nullptr;
 thread_local GlobalAddress Tree::curr_lock_addr;
 thread_local LocalLockNode *Tree::curr_lock_node;
+thread_local GlobalAddress Tree::next_gaddr;
 
 Measurements measurements;
 
@@ -265,18 +266,18 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
 
   #ifdef CN_AWARE
   bool res;
-  dsm->reset_nextloc();
   
   cerr << "NODE " << dsm->getMyNodeID() << endl <<
   "*next_loc @ try_lock_addr: " << *((GlobalAddress*) dsm->getNextLoc()) << "\n\n";
   
   GlobalAddress next_holder_addr = lock_addr;
   GlobalAddress old_holder_addr = GlobalAddress::Null();
-  GlobalAddress next_gaddr = dsm->getNextGaddr();
+  next_gaddr = dsm->getNextGaddr();
+  dsm->set_nextloc(1);
 
-  char* pbuffer = dsm->get_rbuf(coro_id).get_page_buffer();
-  *(uint64_t *) pbuffer = next_gaddr.val;
-  dsm->write_sync(pbuffer, dsm->getNextGaddr(), sizeof(uint64_t), cxt);
+  // char* pbuffer = dsm->get_rbuf(coro_id).get_page_buffer();
+  // *(uint64_t *) pbuffer = next_gaddr.val;
+  // dsm->write_sync(pbuffer, dsm->getNextGaddr(), sizeof(uint64_t), cxt);
 
   uint64_t mn_retry = 0;
   retry_from_mn:
@@ -287,10 +288,10 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
       next_holder_addr = *ga;
       cerr << "NODE " << dsm->getMyNodeID() << endl;
       cerr << "CAS MN FAILED, lock_addr: " << lock_addr << "\n" <<
-      "updated next_holder: " << next_holder_addr << "\n\n";
+      "next_holder: " << next_holder_addr << "\n\n";
 
-      while (!dsm->cas_peer_sync(next_holder_addr, next_holder_addr.val, next_gaddr.val, buf, cxt)) {
-      // while (!dsm->cas_peer_sync(next_holder_addr, 1, next_gaddr.val, buf, cxt)) {
+      // while (!dsm->cas_peer_sync(next_holder_addr, next_holder_addr.val, next_gaddr.val, buf, cxt)) {
+      while (!dsm->cas_peer_sync(next_holder_addr, 1, next_gaddr.val, buf, cxt)) {
         peer_retry++;
         old_holder_addr = next_holder_addr;
         auto ga = (GlobalAddress*) buf;
@@ -301,7 +302,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
           // }
           cerr << "NODE " << dsm->getMyNodeID() << endl;
           cerr << "CAS NEXT PEER FAILED, lock_addr: " << lock_addr << "\n" <<
-          "updated old_holder: " << old_holder_addr << "\n" <<
+          // "updated old_holder: " << old_holder_addr << "\n" <<
           "updated next_holder: " << next_holder_addr << "\n" <<
           "*next_loc @ try_lock_addr: " << *((GlobalAddress*) dsm->getNextLoc()) << "\n\n";
           // assert(next_holder_addr != next_gaddr || next_holder_addr.version != next_gaddr.version);
@@ -449,14 +450,14 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   #endif
 
   #ifdef CN_AWARE
-  GlobalAddress next_gaddr = dsm->getNextGaddr();
   // *curr_cas_buffer = 0;
   cerr << "*nextloc = " << *((GlobalAddress*) dsm->getNextLoc()) << endl <<
   "next_gaddr: " << next_gaddr << "\n\n";
   // if (((GlobalAddress*) dsm->getNextLoc())->nodeID == dsm->getMyNodeID()) {
   //   dsm->set_nextloc(next_gaddr.val);
   // }
-  if (!dsm->cas_peer_sync(next_gaddr, next_gaddr.val, 0, curr_cas_buffer, cxt)) {
+  // if (!dsm->cas_peer_sync(next_gaddr, next_gaddr.val, 0, curr_cas_buffer, cxt)) {
+  if (!dsm->cas_peer_sync(next_gaddr, 1, 0, curr_cas_buffer, cxt)) {
     
     GlobalAddress *next_addr = (GlobalAddress *) curr_cas_buffer;
     GlobalAddress next_spinloc = GlobalAddress::Null();
@@ -500,14 +501,14 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     
     char* pbuffer = dsm->get_rbuf(coro_id).get_page_buffer();
     // *(uint64_t *) pbuffer = next_gaddr.val;
-    *(uint64_t *) pbuffer = 0;
+    // *(uint64_t *) pbuffer = 0;
 
     cerr << dsm->getMyNodeID() << ": OTHER THREAD ENQ\n" <<
     "*nextloc = " << *dsm->getNextLoc() << endl <<
     "*pbuffer (gaddr) : " << *((GlobalAddress *) pbuffer) << endl <<
     "next_gaddr: " << next_gaddr << "\n\n";
     // dsm->set_nextloc(GlobalAddress::Null());
-    dsm->write_sync(pbuffer, next_gaddr, sizeof(uint64_t), cxt);
+    // dsm->write_sync(pbuffer, next_gaddr, sizeof(uint64_t), cxt);
     *(uint64_t *) pbuffer = 1;
     dsm->write_sync(pbuffer, next_spinloc, sizeof(uint64_t), cxt);
 

@@ -18,8 +18,10 @@ thread_local RdmaBuffer DSM::rbuf[define::kMaxCoro];
 thread_local uint64_t DSM::thread_tag = 0;
 thread_local uint64_t *DSM::spin_loc;
 thread_local uint64_t *DSM::next_loc;
+thread_local int DSM::next_loc_curr;
 thread_local GlobalAddress DSM::spin_gaddr;
 thread_local GlobalAddress DSM::next_gaddr;
+thread_local GlobalAddress DSM::next_gaddr_base;
 
 DSM *DSM::getInstance(const DSMConfig &conf) {
   static DSM *dsm = nullptr;
@@ -168,15 +170,18 @@ void DSM::registerThread(int page_size) {
   }
 
   rdma_buffer = (char *)cache.data + thread_id * 12 * define::MB;
+
   spin_gaddr.nodeID = this->getMyNodeID();
-  spin_gaddr.offset = conf.dsmSize * define::GB + thread_id * 12 * sizeof(uint64_t);
+  spin_gaddr.offset = conf.dsmSize * define::GB + thread_id * 16 * sizeof(uint64_t);
   next_gaddr.nodeID = this->getMyNodeID();
   next_gaddr.offset = spin_gaddr.offset + 2*sizeof(uint64_t);
+  next_gaddr_base = next_gaddr;
   next_gaddr.version = 0;
   spin_loc = (uint64_t *) ((char *)baseAddr + spin_gaddr.offset);
   *spin_loc = 0;
   next_loc = (uint64_t *) ((char *)baseAddr + next_gaddr.offset);
   *next_loc = 0;
+  next_loc_curr = 0;
 
   for (int i = 0; i < define::kMaxCoro; ++i) {
     rbuf[i].set_buffer(rdma_buffer + i * define::kPerCoroRdmaBuf, page_size);
@@ -222,7 +227,7 @@ void DSM::spin_on(GlobalAddress curr_holder_addr) {
   cerr << "NODE " << myNodeID << endl;
   cerr << "GOT AWOKEN: " << endl <<
   "curr_holder_addr: " << curr_holder_addr << endl <<
-  "own spin_gaddr: " << spin_gaddr << "\n" <<
+  // "own spin_gaddr: " << spin_gaddr << "\n" <<
   "*spin_loc: " << *spin_loc << "\n" <<
   "*spin_loc as gaddr: " << *ga << "\n\n";
   *spin_loc = 0;
