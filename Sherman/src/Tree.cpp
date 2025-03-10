@@ -265,15 +265,13 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   timer.begin();
 
   #ifdef CN_AWARE
-  bool res;
-  
-  cerr << "NODE " << dsm->getMyNodeID() << endl <<
-  "*next_loc @ try_lock_addr: " << *((GlobalAddress*) dsm->getNextLoc()) << "\n\n";
-  
   GlobalAddress next_holder_addr = lock_addr;
   GlobalAddress old_holder_addr = GlobalAddress::Null();
   next_gaddr = dsm->getNextGaddr();
   dsm->set_nextloc(1);
+
+  cerr << "NODE " << dsm->getMyNodeID() << endl <<
+  "*next_loc @ try_lock_addr: " << *((GlobalAddress*) dsm->getNextLoc()) << "\n\n";
 
   // char* pbuffer = dsm->get_rbuf(coro_id).get_page_buffer();
   // *(uint64_t *) pbuffer = next_gaddr.val;
@@ -281,7 +279,6 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
 
   uint64_t mn_retry = 0;
   retry_from_mn:
-    dsm->set_nextloc(next_gaddr.val);
     if (!dsm->cas_dm_sync(next_holder_addr, 0, next_gaddr.val, buf, cxt)) {
       uint64_t peer_retry = 0;
       auto ga = (GlobalAddress*) buf;
@@ -296,10 +293,6 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
         old_holder_addr = next_holder_addr;
         auto ga = (GlobalAddress*) buf;
         next_holder_addr = *ga;
-        // {
-          //   cerr << "NODE TRYING TO GET LOCK FROM SELF " << next_holder_addr.nodeID << endl;
-          //   exit(1);
-          // }
           cerr << "NODE " << dsm->getMyNodeID() << endl;
           cerr << "CAS NEXT PEER FAILED, lock_addr: " << lock_addr << "\n" <<
           // "updated old_holder: " << old_holder_addr << "\n" <<
@@ -463,11 +456,9 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     GlobalAddress next_spinloc = GlobalAddress::Null();
     next_spinloc.nodeID = next_addr->nodeID;
     next_spinloc.offset = next_addr->offset - sizeof(uint64_t);
-    cerr << dsm->getMyNodeID() << ": OTHER THREAD ENQ\n" <<
-    "lock_addr: " << lock_addr << endl <<
+
+    cerr << dsm->getMyNodeID() << ": OTHER THREAD WAITING, lock addr: " << lock_addr << "\n" << 
     "next_addr: " << *next_addr << endl <<
-    "next_spin_loc" << next_spinloc << endl <<
-    "next_spin_loc.val " << next_spinloc.val << endl <<
     "next_gaddr: " << next_gaddr << "\n\n";
     assert(next_gaddr.nodeID !=  next_addr->nodeID);
 
