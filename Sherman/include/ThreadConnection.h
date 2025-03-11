@@ -15,8 +15,6 @@ struct ThreadConnection {
   ibv_cq *cq; // for one-side verbs
   ibv_cq *rpc_cq;
 
-  ibv_comp_channel* cc;
-
   RawMessageConnection *message;
 
   ibv_qp **data[NR_DIRECTORY];
@@ -30,7 +28,7 @@ struct ThreadConnection {
                    uint32_t machineNR, RemoteConnection *remoteInfo);
 
   void sendMessage2Dir(RawMessage *m, uint16_t node_id, uint16_t dir_id = 0);
-  void sendMessage2App(RawMessage *m, uint16_t node_id,uint16_t th_id);
+  void sendMessage2App(RawMessage *m, uint16_t node_id, uint16_t th_id = 0);
 };
 
 #endif /* __THREADCONNECTION_H__ */

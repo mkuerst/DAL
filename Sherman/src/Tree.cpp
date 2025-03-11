@@ -268,7 +268,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   GlobalAddress next_holder_addr = lock_addr;
   GlobalAddress old_holder_addr = GlobalAddress::Null();
   next_gaddr = dsm->getNextGaddr();
-  // dsm->set_nextloc(1);
+  dsm->set_nextloc(1);
 
   char* pbuffer = dsm->get_rbuf(coro_id).get_page_buffer();
   // *(uint64_t *) pbuffer = next_gaddr.val;
@@ -460,15 +460,15 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   // if (!dsm->cas_peer_sync(next_gaddr, next_gaddr.val, 0, curr_cas_buffer, cxt)) {
   if (!dsm->cas_peer_sync(next_gaddr, 1, 0, curr_cas_buffer, cxt)) {
     
-    GlobalAddress *next_addr = (GlobalAddress *) curr_cas_buffer;
+    GlobalAddress next_addr = *(GlobalAddress *) curr_cas_buffer;
     GlobalAddress next_spinloc = GlobalAddress::Null();
-    next_spinloc.nodeID = next_addr->nodeID;
-    next_spinloc.offset = next_addr->offset - sizeof(uint64_t);
+    next_spinloc.nodeID = next_addr.nodeID;
+    next_spinloc.offset = next_addr.offset - sizeof(uint64_t);
 
     cerr << dsm->getMyNodeID() << ": OTHER THREAD WAITING, lock addr: " << lock_addr << "\n" << 
-    "next_addr: " << *next_addr << endl <<
+    "next_addr: " << next_addr << endl <<
     "next_gaddr: " << next_gaddr << "\n\n";
-    assert(next_gaddr.nodeID !=  next_addr->nodeID);
+    assert(next_gaddr.nodeID !=  next_addr.nodeID);
 
     RdmaOpRegion rs[2];
     rs[0].source = (uint64_t)page_buffer;
@@ -497,11 +497,11 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
       dsm->write_batch_sync(rs, 1, cxt);
     }
 
-    if (!dsm->cas_dm_sync(lock_addr, next_gaddr.val, next_addr->val, cas_buffer, cxt)) {
+    if (!dsm->cas_dm_sync(lock_addr, next_gaddr.val, next_addr.val, cas_buffer, cxt)) {
       Debug::notifyError("FAILED TO CAS MN FOR CN HO\n");
       cerr << dsm->getMyNodeID() << ", lock addr: " << lock_addr << "\n" << 
-      "next_addr: " << *next_addr << endl <<
-      "next_gaddr: " << next_gaddr <<
+      "next_addr: " << next_addr << endl <<
+      "next_gaddr: " << next_gaddr << endl <<
       "*cas_buffer: " << *((GlobalAddress*) cas_buffer) << "\n\n";
       exit(1);
     }
@@ -520,7 +520,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
 
     // *(uint64_t *) pbuffer = 1;
     // dsm->write_sync(pbuffer, next_spinloc, sizeof(uint64_t), cxt);
-    dsm->wakeup_peer(*next_addr);
+    dsm->wakeup_peer(next_addr);
 
     releases_local_lock(lock_addr);
     return;

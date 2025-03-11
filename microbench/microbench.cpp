@@ -183,13 +183,16 @@ void *mlocks_worker(void *arg) {
     start_perf_event(fd);
 
     pthread_barrier_wait(&global_barrier);
-    if (nodeID == 0) {
-        rlock->wait();
-        return;
-    } else {
-        rlock->contact();
-        return;
-    }
+    // if (nodeID == 0) {
+    //     rlock->wait();
+    //     rlock->contact();
+    //     return 0;
+    // } else {
+    //     sleep(1);
+    //     rlock->contact();
+    //     rlock->wait();
+    //     return 0;
+    // }
 
     // while (!stop.load()) {
     while (num < cnt) {
@@ -238,7 +241,6 @@ void *mlocks_worker(void *arg) {
     }
     measurements.cache_misses[id] = stop_perf_event(fd);
     // DE("[%d.%d] %lu ACQUISITIONS\n", dsm->getMyNodeID(), dsm->getMyThreadID(), task->lock_acqs);
-    pthread_barrier_wait(&global_barrier);
     return 0;
 }
 
@@ -320,7 +322,6 @@ int main(int argc, char *argv[]) {
 
     sleep(duration);
     stop.store(true);
-    pthread_barrier_wait(&global_barrier);
 
     for (int i = 0; i < threadNR; i++) {
         pthread_join(tasks[i].thread, NULL);

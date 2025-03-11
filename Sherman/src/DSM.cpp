@@ -239,29 +239,32 @@ void DSM::wait_for_peer(GlobalAddress gaddr) {
   ibv_wc wc;
   memset(&wr, 0, sizeof(wr));
 
-    pollWithCQ(iCon->cq, 1, &wc);
+  cerr << "NODE " << myNodeID << endl;
+  cerr << "START POLLING FOR WAKEUP CALL FROM: " << gaddr.nodeID << ", " << gaddr.version << endl;
+  pollWithCQ(iCon->rpc_cq, 1, &wc);
 
-    switch (int(wc.opcode)) {
-      case IBV_WC_RECV: {
+  switch (int(wc.opcode)) {
+    case IBV_WC_RECV: {
 
-        auto *m = (RawMessage *)iCon->message->getMessage();
+      auto *m = (RawMessage *)iCon->message->getMessage();
 
-        switch (m->type) {
-          case RpcType::WAKEUP: {
-            cerr << "RECEIVED WAKEUP CALL FROM: " << m->node_id  << ", " << m->app_id << endl;
-            break;
-          }
-          default: {
-            cerr << "NON-WAKEUP CALL!" << endl;
-            break;
-          }
+      switch (m->type) {
+        case RpcType::WAKEUP: {
+          cerr << "RECEIVED WAKEUP CALL FROM: " << m->node_id  << ", " << m->app_id << endl;
+          break;
+        }
+        default: {
+          cerr << "NON-WAKEUP CALL!" << endl;
+          break;
         }
       }
-      default: {
-        cerr << "NON-RCV EVENT!" << endl;
-        break;
-      }
+      break;
     }
+    default: {
+      cerr << "NON-RCV EVENT!" << endl;
+      break;
+    }
+  }
   // while (ibv_poll_cq(iCon->cq, 1, &wc) > 0);
   // ibv_req_notify_cq(iCon->cq, 0);
   // cerr << "NODE " << myNodeID << endl;
@@ -289,10 +292,6 @@ void DSM::wait_for_peer(GlobalAddress gaddr) {
 }
 
 void DSM::wakeup_peer(GlobalAddress gaddr) {
-  // struct ibv_send_wr wr, *bad_wr;
-  // wr.opcode = IBV_WR_SEND;
-  // wr.send_flags = IBV_SEND_SIGNALED;
-  // ibv_post_send(iCon->data[0][gaddr.nodeID], &wr, &bad_wr);
     auto buffer = (RawMessage *)iCon->message->getSendPool();
     RawMessage m;
     m.type = RpcType::WAKEUP;
@@ -300,9 +299,14 @@ void DSM::wakeup_peer(GlobalAddress gaddr) {
     memcpy(buffer, &m, sizeof(RawMessage));
     buffer->node_id = myNodeID;
     buffer->app_id = thread_id;
-
+    cerr << "NODE " << myNodeID << endl;
+    cerr << "ABOUT TO SEND MSG TO PEER" << endl <<
+    "buffer->node_id: " << buffer->node_id << endl <<
+    "gaddr: " << gaddr << endl <<
+    "buffer->app_id: " << buffer->app_id << "\n\n";
+    sleep(3);
     iCon->sendMessage2App(buffer, gaddr.nodeID, gaddr.version);
-
+    cerr << "SENT WAKEUP CALL TO PEER" << endl;
 }
 
 void DSM::read(char *buffer, GlobalAddress gaddr, size_t size, bool signal,
