@@ -304,7 +304,6 @@ void DSM::wakeup_peer(GlobalAddress gaddr) {
     "buffer->node_id: " << buffer->node_id << endl <<
     "gaddr: " << gaddr << endl <<
     "buffer->app_id: " << buffer->app_id << "\n\n";
-    sleep(3);
     iCon->sendMessage2App(buffer, gaddr.nodeID, gaddr.version);
     cerr << "SENT WAKEUP CALL TO PEER" << endl;
 }
