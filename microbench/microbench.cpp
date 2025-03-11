@@ -183,6 +183,13 @@ void *mlocks_worker(void *arg) {
     start_perf_event(fd);
 
     pthread_barrier_wait(&global_barrier);
+    if (nodeID == 0) {
+        rlock->wait();
+        return;
+    } else {
+        rlock->contact();
+        return;
+    }
 
     // while (!stop.load()) {
     while (num < cnt) {

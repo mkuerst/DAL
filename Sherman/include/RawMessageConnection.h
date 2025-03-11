@@ -12,6 +12,7 @@ enum RpcType : uint8_t {
   NEW_ROOT,
   NOP,
   END,
+  WAKEUP,
 };
 
 struct RawMessage {

@@ -176,7 +176,7 @@ void DSM::registerThread(int page_size) {
   next_gaddr.nodeID = this->getMyNodeID();
   next_gaddr.offset = spin_gaddr.offset + 2*sizeof(uint64_t);
   next_gaddr_base = next_gaddr;
-  next_gaddr.version = 0;
+  next_gaddr.version = thread_id;
   spin_loc = (uint64_t *) ((char *)baseAddr + spin_gaddr.offset);
   *spin_loc = 0;
   next_loc = (uint64_t *) ((char *)baseAddr + next_gaddr.offset);
@@ -226,7 +226,7 @@ void DSM::spin_on(char *buf, GlobalAddress curr_holder_addr) {
   GlobalAddress *ga = (GlobalAddress *) spin_loc ;
 
   cerr << "NODE " << myNodeID << endl;
-  cerr << "GOT AWOKEN: " << endl <<
+  cerr << "WOKEN UP: " << endl <<
   "curr_holder_addr: " << curr_holder_addr << endl <<
   // "own spin_gaddr: " << spin_gaddr << "\n" <<
   "*spin_loc: " << *spin_loc << "\n" <<
@@ -234,19 +234,75 @@ void DSM::spin_on(char *buf, GlobalAddress curr_holder_addr) {
   *spin_loc = 0;
 }
 
-void DSM::post_recv() {
+void DSM::wait_for_peer(GlobalAddress gaddr) {
   struct ibv_recv_wr wr, *bad_wr;
+  ibv_wc wc;
   memset(&wr, 0, sizeof(wr));
-  ibv_post_recv(iCon->data[0][this->myNodeID], &wr, &bad_wr);
-  cerr << "NODE " << myNodeID << endl;
-  cerr << "GOT AWOKEN: " << "\n\n";
+
+    pollWithCQ(iCon->cq, 1, &wc);
+
+    switch (int(wc.opcode)) {
+      case IBV_WC_RECV: {
+
+        auto *m = (RawMessage *)iCon->message->getMessage();
+
+        switch (m->type) {
+          case RpcType::WAKEUP: {
+            cerr << "RECEIVED WAKEUP CALL FROM: " << m->node_id  << ", " << m->app_id << endl;
+            break;
+          }
+          default: {
+            cerr << "NON-WAKEUP CALL!" << endl;
+            break;
+          }
+        }
+      }
+      default: {
+        cerr << "NON-RCV EVENT!" << endl;
+        break;
+      }
+    }
+  // while (ibv_poll_cq(iCon->cq, 1, &wc) > 0);
+  // ibv_req_notify_cq(iCon->cq, 0);
+  // cerr << "NODE " << myNodeID << endl;
+  // cerr << "AWAITING WAKEUP" << "\n\n";
+  
+  // ibv_post_recv(iCon->data[0][myNodeID], &wr, &bad_wr);
+
+  // struct ibv_cq* ev_cq;
+  // void* ev_ctx;
+  // ibv_get_cq_event(iCon->cc, &iCon->cq, &ev_ctx);
+  // cerr << "NODE " << myNodeID << endl;
+  // cerr << "GOT AWOKEN: " << "\n\n";
+  // ibv_ack_cq_events(ev_cq, 1);
+
+  // pollWithCQ(iCon->cq, 1, &wc, 1);
+
+  // poll:
+  //   while (ibv_poll_cq(iCon->cq, 1, &wc) == 0);
+  //   if (wc.opcode == IBV_WC_RECV) {
+  //     cerr << "WOKEN UP" << std::endl;
+  //   } else {
+  //     cerr << "NOT A RCV" << std::endl;
+  //     goto poll;
+  //   }
 }
 
-void DSM::post_send(GlobalAddress gaddr) {
-  struct ibv_send_wr wr, *bad_wr;
-  wr.opcode = IBV_WR_SEND;
-  wr.send_flags = IBV_SEND_SIGNALED;
-  ibv_post_send(iCon->data[0][gaddr.nodeID], &wr, &bad_wr);
+void DSM::wakeup_peer(GlobalAddress gaddr) {
+  // struct ibv_send_wr wr, *bad_wr;
+  // wr.opcode = IBV_WR_SEND;
+  // wr.send_flags = IBV_SEND_SIGNALED;
+  // ibv_post_send(iCon->data[0][gaddr.nodeID], &wr, &bad_wr);
+    auto buffer = (RawMessage *)iCon->message->getSendPool();
+    RawMessage m;
+    m.type = RpcType::WAKEUP;
+
+    memcpy(buffer, &m, sizeof(RawMessage));
+    buffer->node_id = myNodeID;
+    buffer->app_id = thread_id;
+
+    iCon->sendMessage2App(buffer, gaddr.nodeID, gaddr.version);
+
 }
 
 void DSM::read(char *buffer, GlobalAddress gaddr, size_t size, bool signal,

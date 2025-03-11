@@ -63,7 +63,7 @@ comm_prot=rdma
 opts=("shermanCna")
 
 microbenches=("empty_cs" "mlocks" "kvs")
-duration=5
+duration=1
 runNR=1
 mnNR=1
 zipfian=0

@@ -125,6 +125,8 @@ public:
     void setKPageSize(int page_size); 
     void set_threadID(int id);
     uint32_t getLockNR() { return lockNR; }
+    void wait();
+    void contact();
     /**/
 
 private:
