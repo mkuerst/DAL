@@ -268,12 +268,12 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   GlobalAddress next_holder_addr = lock_addr;
   GlobalAddress old_holder_addr = GlobalAddress::Null();
   next_gaddr = dsm->getNextGaddr();
-  // dsm->set_nextloc(1);
+  dsm->set_nextloc(1);
 
-  char* pbuffer = dsm->get_rbuf(coro_id).get_page_buffer();
-  // *(uint64_t *) pbuffer = next_gaddr.val;
-  *(uint64_t *) pbuffer = 1;
-  dsm->write_sync(pbuffer, next_gaddr, sizeof(uint64_t), cxt);
+  // char* pbuffer = dsm->get_rbuf(coro_id).get_page_buffer();
+  // // *(uint64_t *) pbuffer = next_gaddr.val;
+  // *(uint64_t *) pbuffer = 1;
+  // dsm->write_sync(pbuffer, next_gaddr, sizeof(uint64_t), cxt);
 
   cerr << "NODE " << dsm->getMyNodeID() << endl <<
   "*next_loc @ try_lock_addr: " << *((GlobalAddress*) dsm->getNextLoc()) << "\n\n";
@@ -302,8 +302,9 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
           "updated next_holder: " << next_holder_addr << "\n" <<
           "*next_loc @ try_lock_addr: " << *((GlobalAddress*) dsm->getNextLoc()) << "\n\n";
           // assert(next_holder_addr != next_gaddr || next_holder_addr.version != next_gaddr.version);
-        if (next_holder_addr.val == 0 || 
-          (old_holder_addr == next_holder_addr && old_holder_addr.version != next_holder_addr.version)) {
+        // if (next_holder_addr.val == 0 || 
+        //   (old_holder_addr == next_holder_addr && old_holder_addr.version != next_holder_addr.version)) {
+        if (next_holder_addr.val == 0) {
           mn_retry++;
           /*The lock holder already released the lock back to the MN*/
           cerr << "NODE " << dsm->getMyNodeID() << endl;
@@ -342,9 +343,10 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   "(current)_holder: " << next_holder_addr << "\n\n";
   // "spin_gaddr: " << dsm->getSpinGaddr() << "\n\n";
   assert(next_holder_addr.nodeID != next_gaddr.nodeID);
-  char* pbuf = dsm->get_rbuf(coro_id).get_page_buffer();
-  *(uint64_t *) pbuf = 0;
-  dsm->spin_on(pbuf, next_holder_addr);
+  // char* pbuf = dsm->get_rbuf(coro_id).get_page_buffer();
+  // *(uint64_t *) pbuf = 0;
+  // dsm->spin_on(pbuf, next_holder_addr);
+  dsm->post_recv();
   return false;
 
 
@@ -495,7 +497,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     }
 
     
-    char* pbuffer = dsm->get_rbuf(coro_id).get_page_buffer();
+    // char* pbuffer = dsm->get_rbuf(coro_id).get_page_buffer();
     // *(uint64_t *) pbuffer = next_gaddr.val;
     // *(uint64_t *) pbuffer = 0;
 
@@ -506,8 +508,10 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     // "*pbuffer (gaddr) : " << *((GlobalAddress *) pbuffer) << endl <<
     // dsm->set_nextloc(GlobalAddress::Null());
     // dsm->write_sync(pbuffer, next_gaddr, sizeof(uint64_t), cxt);
-    *(uint64_t *) pbuffer = 1;
-    dsm->write_sync(pbuffer, next_spinloc, sizeof(uint64_t), cxt);
+
+    // *(uint64_t *) pbuffer = 1;
+    // dsm->write_sync(pbuffer, next_spinloc, sizeof(uint64_t), cxt);
+    dsm->post_send(*next_addr);
 
     releases_local_lock(lock_addr);
     return;
@@ -578,8 +582,8 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
 
 
 
-  // cerr << "REL LOCK TO MN" << endl <<
-  // "lock_addr: " << lock_addr << "\n\n"; 
+  cerr << "REL LOCK TO MN" << endl <<
+  "lock_addr: " << lock_addr << "\n\n"; 
 
   releases_local_lock(lock_addr);
   // DEB("[%d.%d] unlocked global lock remotely: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_addr.offset);

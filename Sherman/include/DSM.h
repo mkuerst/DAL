@@ -147,6 +147,8 @@ public:
   bool poll_rdma_cq_once(uint64_t &wr_id);
 
   void spin_on(char* buf, GlobalAddress curr_holder_addr);
+  void post_recv();
+  void post_send(GlobalAddress gaddr);
 
   uint64_t sum(uint64_t value) {
     static uint64_t count = 0;

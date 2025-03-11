@@ -233,11 +233,22 @@ void DSM::spin_on(char *buf, GlobalAddress curr_holder_addr) {
   "*spin_loc as gaddr: " << *ga << "\n\n";
   *spin_loc = 0;
 }
+
 void DSM::post_recv() {
   struct ibv_recv_wr wr, *bad_wr;
   memset(&wr, 0, sizeof(wr));
   ibv_post_recv(iCon->data[0][this->myNodeID], &wr, &bad_wr);
+  cerr << "NODE " << myNodeID << endl;
+  cerr << "GOT AWOKEN: " << "\n\n";
 }
+
+void DSM::post_send(GlobalAddress gaddr) {
+  struct ibv_send_wr wr, *bad_wr;
+  wr.opcode = IBV_WR_SEND;
+  wr.send_flags = IBV_SEND_SIGNALED;
+  ibv_post_send(iCon->data[0][gaddr.nodeID], &wr, &bad_wr);
+}
+
 void DSM::read(char *buffer, GlobalAddress gaddr, size_t size, bool signal,
                CoroContext *ctx) {
   if (ctx == nullptr) {

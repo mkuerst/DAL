@@ -220,7 +220,7 @@ void *mlocks_worker(void *arg) {
             timer.begin();
             long_data = (uint64_t *) rlock->getCurrPB();
             for (int k = 0; k < data_len; k++) {
-                // long_data[k] += 1;
+                long_data[k] += 1;
                 task->inc++;
             }
             save_measurement(id, measurements.lock_hold);
@@ -231,6 +231,7 @@ void *mlocks_worker(void *arg) {
     }
     measurements.cache_misses[id] = stop_perf_event(fd);
     // DE("[%d.%d] %lu ACQUISITIONS\n", dsm->getMyNodeID(), dsm->getMyThreadID(), task->lock_acqs);
+    pthread_barrier_wait(&global_barrier);
     return 0;
 }
 
@@ -312,6 +313,7 @@ int main(int argc, char *argv[]) {
 
     sleep(duration);
     stop.store(true);
+    pthread_barrier_wait(&global_barrier);
 
     for (int i = 0; i < threadNR; i++) {
         pthread_join(tasks[i].thread, NULL);

@@ -224,6 +224,7 @@ bool rdmaWrite(ibv_qp *qp, uint64_t source, uint64_t dest, uint64_t size,
   }
 
   if (isSignaled) {
+    // wr.send_flags = IBV_SEND_FENCE | IBV_SEND_SIGNALED;
     wr.send_flags = IBV_SEND_SIGNALED;
   }
 
