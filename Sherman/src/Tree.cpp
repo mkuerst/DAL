@@ -270,20 +270,20 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   next_gaddr = dsm->getNextGaddr();
   dsm->set_nextloc(1);
 
-  char* pbuffer = dsm->get_rbuf(coro_id).get_page_buffer();
-  // *(uint64_t *) pbuffer = next_gaddr.val;
-  *(uint64_t *) pbuffer = 1;
-  dsm->write_sync(pbuffer, next_gaddr, sizeof(uint64_t), cxt);
+  // char* pbuffer = dsm->get_rbuf(coro_id).get_page_buffer();
+  // // *(uint64_t *) pbuffer = next_gaddr.val;
+  // *(uint64_t *) pbuffer = 1;
+  // dsm->write_sync(pbuffer, next_gaddr, sizeof(uint64_t), cxt);
 
   cerr << "NODE " << dsm->getMyNodeID() << endl <<
-  "*next_loc @ try_lock_addr: " << *((GlobalAddress*) dsm->getNextLoc()) << "\n\n";
+  "*next_loc @ try_lock_addr: " << *(GlobalAddress*) dsm->getNextLoc() << "\n\n";
 
   uint64_t mn_retry = 0;
   retry_from_mn:
     if (!dsm->cas_dm_sync(lock_addr, 0, next_gaddr.val, buf, cxt)) {
       uint64_t peer_retry = 0;
-      auto ga = (GlobalAddress*) buf;
-      next_holder_addr = *ga;
+      GlobalAddress ga = *(GlobalAddress*) buf;
+      next_holder_addr = ga;
       cerr << "NODE " << dsm->getMyNodeID() << endl;
       cerr << "CAS MN FAILED, lock_addr: " << lock_addr << "\n" <<
       "next_holder: " << next_holder_addr << "\n\n";
@@ -294,8 +294,8 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
       while (!dsm->cas_peer_sync(next_holder_addr, 1, next_gaddr.val, buf, nullptr)) {
         peer_retry++;
         old_holder_addr = next_holder_addr;
-        auto ga = (GlobalAddress*) buf;
-        next_holder_addr = *ga;
+        GlobalAddress ga = *(GlobalAddress*) buf;
+        next_holder_addr = ga;
         cerr << "NODE " << dsm->getMyNodeID() << endl;
         cerr << "CAS NEXT PEER FAILED, lock_addr: " << lock_addr << "\n" <<
         // "updated old_holder: " << old_holder_addr << "\n" <<

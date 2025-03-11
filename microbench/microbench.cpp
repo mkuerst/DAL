@@ -177,7 +177,7 @@ void *mlocks_worker(void *arg) {
     srand(seed);
     ZipfianGenerator zipfian(0.99, range, seed);
     int num = 0;
-    int cnt = 3;
+    int cnt = 10;
     
     int fd = setup_perf_event(cpu);
     start_perf_event(fd);
