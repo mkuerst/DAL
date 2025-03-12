@@ -309,8 +309,8 @@ bool rdmaCompareAndSwap(ibv_qp *qp, uint64_t source, uint64_t dest,
   wr.opcode = IBV_WR_ATOMIC_CMP_AND_SWP;
 
   if (signal) {
-    wr.send_flags = IBV_SEND_SIGNALED;
-    // wr.send_flags = IBV_SEND_FENCE | IBV_SEND_SIGNALED;
+    // wr.send_flags = IBV_SEND_SIGNALED;
+    wr.send_flags = IBV_SEND_FENCE | IBV_SEND_SIGNALED;
   }
 
   wr.wr.atomic.remote_addr = dest;

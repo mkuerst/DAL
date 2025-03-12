@@ -301,11 +301,10 @@ void DSM::wakeup_peer(GlobalAddress gaddr) {
     buffer->app_id = thread_id;
     cerr << "NODE " << myNodeID << endl;
     cerr << "ABOUT TO SEND MSG TO PEER" << endl <<
-    "buffer->node_id: " << buffer->node_id << endl <<
-    "gaddr: " << gaddr << endl <<
-    "buffer->app_id: " << buffer->app_id << "\n\n";
+    buffer->node_id << ", " << buffer->app_id << endl <<
+    "gaddr: " << gaddr << endl << "\n\n";
     iCon->sendMessage2App(buffer, gaddr.nodeID, gaddr.version);
-    cerr << "SENT WAKEUP CALL TO PEER" << endl;
+    cerr << "SENT WAKEUP CALL TO PEER" << "\n\n";
 }
 
 void DSM::read(char *buffer, GlobalAddress gaddr, size_t size, bool signal,

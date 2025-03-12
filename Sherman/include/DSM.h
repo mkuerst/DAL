@@ -48,8 +48,8 @@ public:
   // void reset_nextloc() { next_gaddr.version = (next_gaddr.version + 1) % 16; *next_loc = next_gaddr.val; }
   void set_nextloc(uint64_t val) {
     *next_loc = val;
-    // _mm_clflushopt(next_loc);
-    // _mm_mfence();
+    _mm_clflushopt(next_loc);
+    _mm_mfence();
   }
   // RDMA operations
   // buffer is registered memory
