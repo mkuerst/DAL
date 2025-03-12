@@ -319,7 +319,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
 
           next_holder_addr = lock_addr;
           old_holder_addr = GlobalAddress::Null();
-          if (mn_retry > 1000000) {
+          if (mn_retry > 100000) {
             Debug::notifyError("MN RETRY DEADLOCK");
             exit(1);
           }
@@ -560,16 +560,16 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   timer.begin();
   auto cas_buf = dsm->get_rbuf(coro_id).get_cas_buffer();
   *cas_buf = 0;
-  // dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
+  dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
   save_measurement(threadID, measurements.gwait_rel);
 
-  if (!dsm->cas_dm_sync(lock_addr, next_gaddr.val, 0, cas_buffer, cxt)) {
-    Debug::notifyError("FAILED TO CAS MN FOR CN HO\n");
-    cerr << dsm->getMyNodeID() << ", lock addr: " << lock_addr << "\n" << 
-    "next_gaddr: " << next_gaddr << endl <<
-    "*cas_buffer: " << *(GlobalAddress*) cas_buffer << "\n\n";
-    exit(1);
-  }
+  // if (!dsm->cas_dm_sync(lock_addr, next_gaddr.val, 0, cas_buffer, cxt)) {
+  //   Debug::notifyError("FAILED TO CAS MN FOR CN HO\n");
+  //   cerr << dsm->getMyNodeID() << ", lock addr: " << lock_addr << "\n" << 
+  //   "next_gaddr: " << next_gaddr << endl <<
+  //   "*cas_buffer: " << *(GlobalAddress*) cas_buffer << "\n\n";
+  //   exit(1);
+  // }
 
   // if (async) {
   //   dsm->write_batch(&rs[0], 1, false);
