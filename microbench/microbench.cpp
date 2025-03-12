@@ -177,7 +177,7 @@ void *mlocks_worker(void *arg) {
     srand(seed);
     ZipfianGenerator zipfian(0.99, range, seed);
     int num = 0;
-    int cnt = 100;
+    int cnt = 10;
     
     int fd = setup_perf_event(cpu);
     start_perf_event(fd);
@@ -206,18 +206,18 @@ void *mlocks_worker(void *arg) {
     // cerr << "FAILED CASES: " << failed_cases << "\n\n";
     // return 0;
 
-    while (!stop.load()) {
-    // while (num < cnt) {
+    // while (!stop.load()) {
+    while (num < cnt) {
 
         for (int j = 0; j < 400; j++) {
             int idx = uniform_rand_int(PRIVATE_ARRAY_SZ / sizeof(int));
             private_int_array[idx] += sum;
         }
         for (int j = 0; j < 100; j++) {
-            if (stop.load())
-                break;
-            // if (num >= cnt)
+            // if (stop.load())
             //     break;
+            if (num >= cnt)
+                break;
             if (use_zipfian) {
                 lock_idx = zipfian.generate();
             }
@@ -225,8 +225,8 @@ void *mlocks_worker(void *arg) {
                 lock_idx = (uint64_t) uniform_rand_int(range+1);
             }
             // cerr << "mnNR: " << mnNR << endl;
-            // baseAddr.nodeID = uniform_rand_int(mnNR);
-            baseAddr.nodeID = 0;
+            baseAddr.nodeID = uniform_rand_int(mnNR);
+            // baseAddr.nodeID = 0;
             baseAddr.offset = chunk_size * lock_idx;
             lockAddr.nodeID = baseAddr.nodeID;
             lockAddr.offset = lock_idx * sizeof(uint64_t);

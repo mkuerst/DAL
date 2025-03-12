@@ -472,11 +472,11 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     rs[0].size = page_size;
     rs[0].is_on_chip = false;
 
-    rs[1].source = (uint64_t)dsm->get_rbuf(coro_id).get_cas_buffer();
-    rs[1].dest = lock_addr;
-    rs[1].size = sizeof(uint64_t);
-    rs[1].is_on_chip = true;
-    *(uint64_t *)rs[1].source = next_addr.val;
+    rs[0].source = (uint64_t)dsm->get_rbuf(coro_id).get_cas_buffer();
+    rs[0].dest = lock_addr;
+    rs[0].size = sizeof(uint64_t);
+    rs[0].is_on_chip = true;
+    *(uint64_t *)rs[0].source = next_addr.val;
 
     // rs[2].source = (uint64_t)dsm->get_rbuf(coro_id).get_page_buffer();
     // rs[2].dest = next_spinloc;
@@ -487,17 +487,17 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     if (async) {
       dsm->write_batch(rs, 2, false);
     } else {
-      // dsm->write_batch_sync(rs, 2, cxt);
+      dsm->write_batch_sync(rs, 1, cxt);
     }
 
-    if (!dsm->cas_dm_sync(lock_addr, next_gaddr.val, next_addr.val, cas_buffer, cxt)) {
-      Debug::notifyError("FAILED TO CAS MN FOR CN HO\n");
-      cerr << dsm->getMyNodeID() << ", lock addr: " << lock_addr << "\n" << 
-      "next_addr: " << next_addr << endl <<
-      "next_gaddr: " << next_gaddr << endl <<
-      "*cas_buffer: " << *(GlobalAddress*) cas_buffer << "\n\n";
-      exit(1);
-    }
+    // if (!dsm->cas_dm_sync(lock_addr, next_gaddr.val, next_addr.val, cas_buffer, cxt)) {
+    //   Debug::notifyError("FAILED TO CAS MN FOR CN HO");
+    //   cerr << dsm->getMyNodeID() << ", lock addr: " << lock_addr << "\n" << 
+    //   "next_addr: " << next_addr << endl <<
+    //   "next_gaddr: " << next_gaddr << endl <<
+    //   "*cas_buffer: " << *(GlobalAddress*) cas_buffer << "\n\n";
+    //   exit(1);
+    // }
 
     if (!dsm->cas_peer_sync(next_gaddr, next_addr.val, 0, cas_buffer, cxt)) {
       Debug::notifyError("FAILED TO CAS OWN NEXT_GADDR TO 0\n");
