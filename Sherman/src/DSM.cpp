@@ -253,7 +253,7 @@ void DSM::wait_for_peer(GlobalAddress gaddr) {
 
       switch (m->type) {
         case RpcType::WAKEUP: {
-          cerr << "RECEIVED WAKEUP CALL FROM: " << m->node_id  << ", " << m->app_id << endl;
+          cerr << "RECEIVED WAKEUP CALL FROM: " << m->node_id  << ", " << m->app_id << "\n\n";
           break;
         }
         default: {

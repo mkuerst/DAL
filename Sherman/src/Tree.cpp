@@ -270,7 +270,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   GlobalAddress old_holder_addr = GlobalAddress::Null();
   // next_gaddr = dsm->getNextGaddr();
   next_gaddr.nodeID = dsm->getMyNodeID();
-  next_gaddr.offset = lock_addr.offset;
+  next_gaddr.offset = lock_addr.offset + 8;
   // dsm->set_nextloc(1);
   cerr << "NODE " << dsm->getMyNodeID() << endl <<
   "*next_loc @ start: " << *(GlobalAddress*) dsm->getNextLoc() << "\n\n";
@@ -496,14 +496,14 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
       dsm->write_batch_sync(rs, 1, cxt);
     }
 
-    // if (!dsm->cas_dm_sync(lock_addr, next_gaddr.val, next_addr.val, cas_buffer, cxt)) {
-    //   Debug::notifyError("FAILED TO CAS MN FOR CN HO");
-    //   cerr << dsm->getMyNodeID() << ", lock addr: " << lock_addr << "\n" << 
-    //   "next_addr: " << next_addr << endl <<
-    //   "next_gaddr: " << next_gaddr << endl <<
-    //   "*cas_buffer: " << *(GlobalAddress*) cas_buffer << "\n\n";
-    //   exit(1);
-    // }
+    if (!dsm->cas_dm_sync(lock_addr, next_gaddr.val, next_addr.val, cas_buffer, cxt)) {
+      Debug::notifyError("FAILED TO CAS MN FOR CN HO");
+      cerr << dsm->getMyNodeID() << ", lock addr: " << lock_addr << "\n" << 
+      "next_addr: " << next_addr << endl <<
+      "next_gaddr: " << next_gaddr << endl <<
+      "*cas_buffer: " << *(GlobalAddress*) cas_buffer << "\n\n";
+      exit(1);
+    }
 
     if (!dsm->cas_peer_sync(next_gaddr, next_addr.val, 0, cas_buffer, cxt)) {
       Debug::notifyError("FAILED TO CAS OWN NEXT_GADDR TO 0\n");
@@ -533,10 +533,10 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   // cerr << "page_addr: " << page_addr << "\n\n";
   // dsm->write_sync(page_buffer, page_addr, page_size, cxt);
 
-  *cas_buf = 0;
+  // *cas_buf = 0;
   // dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
   if (!dsm->cas_dm_sync(lock_addr, next_gaddr.val, 0, cas_buffer, cxt)) {
-    Debug::notifyError("FAILED TO CAS MN FOR CN HO\n");
+    Debug::notifyError("FAILED TO CAS MN SIMPLE RELEASE\n");
     cerr << dsm->getMyNodeID() << ", lock addr: " << lock_addr << "\n" << 
     "next_gaddr: " << next_gaddr << endl <<
     "*cas_buffer: " << *(GlobalAddress*) cas_buffer << "\n\n";
