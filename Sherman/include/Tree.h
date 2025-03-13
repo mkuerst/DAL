@@ -127,7 +127,7 @@ public:
     uint32_t getLockNR() { return lockNR; }
     void wait();
     void contact();
-    uint64_t test_self_cas();
+    uint64_t test_self_cas(GlobalAddress gaddr, bool with_read);
     uint64_t node0(uint64_t cnt);
     uint64_t node1(uint64_t cnt);
     /**/

@@ -29,7 +29,7 @@ target:
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_shermanHodOcmBw.a -o microbench_shermanHodOcmBw ${FLAGS}
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman.a -o microbench_sherman ${FLAGS}
 	g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_shermanCna.a -o microbench_shermanCna ${FLAGS}
-	g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_shermanCnaBw.a -o microbench_shermanCnaBw ${FLAGS}
+# g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_shermanCnaBw.a -o microbench_shermanCnaBw ${FLAGS}
 
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_litl.a -o microbench_litl ${FLAGS}
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_litlHo.a -o microbench_litlHo ${FLAGS}

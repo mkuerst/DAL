@@ -268,7 +268,8 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   #ifdef CN_AWARE
   GlobalAddress next_holder_addr = lock_addr;
   GlobalAddress old_holder_addr = GlobalAddress::Null();
-  next_gaddr = dsm->getNextGaddr();
+  // next_gaddr = dsm->getNextGaddr();
+  next_gaddr.offset = lock_addr.offset;
   // dsm->set_nextloc(1);
   if (!dsm->cas_peer_sync(next_gaddr, 0, 1, buf, nullptr)) {
     Debug::notifyError("FAILED AT INITIAL WANT LOCK CAS\n");
@@ -1720,16 +1721,20 @@ void Tree::contact() {
 }
 
 
-uint64_t Tree::test_self_cas() {
-  GlobalAddress next_gaddr = dsm->getNextGaddr();
-  uint64_t *buf1 = dsm->get_rbuf(0).get_cas_buffer();
+uint64_t Tree::test_self_cas(GlobalAddress gaddr, bool with_read) {
+  uint64_t *buf = dsm->get_rbuf(0).get_cas_buffer();
+  char *pbuf = dsm->get_rbuf(0).get_page_buffer();
   uint64_t failed_cases = 0;
-  while (!dsm->cas_peer_sync(next_gaddr, 0, 1, buf1, nullptr)) {
-    Debug::notifyError("INCONSISTENT CAS to 1\n");
+  while (!dsm->cas_peer_sync(gaddr, 0, 1, buf, nullptr)) {
+    Debug::notifyError("INCONSISTENT CAS to 1");
     failed_cases++;
   }
-  while (!dsm->cas_peer_sync(next_gaddr, 1, 0, buf1, nullptr)) {
-    Debug::notifyError("INCONSISTENT CAS to 0\n");
+  if (with_read) {
+    GlobalAddress read_addr{0,0,256};
+    dsm->read_sync(pbuf, read_addr, 1024, nullptr);
+  }
+  while (!dsm->cas_peer_sync(gaddr, 1, 0, buf, nullptr)) {
+    Debug::notifyError("INCONSISTENT CAS to 0");
     failed_cases++;
   }
   return failed_cases;

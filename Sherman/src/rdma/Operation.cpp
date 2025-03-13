@@ -321,7 +321,20 @@ bool rdmaCompareAndSwap(ibv_qp *qp, uint64_t source, uint64_t dest,
 
   if (ibv_post_send(qp, &wr, &wrBad)) {
     Debug::notifyError("Send with ATOMIC_CMP_AND_SWP failed.");
-    sleep(5);
+    int err = errno;
+    cerr << "Error: " << strerror(err) << " (errno: " << err << ")\n";
+
+    if (wrBad) {
+      fprintf(stderr, "Failed WR details:\n");
+      fprintf(stderr, "  wr_id: %lu\n", wrBad->wr_id);
+      fprintf(stderr, "  opcode: %d\n", wrBad->opcode);
+      fprintf(stderr, "  remote_addr: %lx\n", wrBad->wr.atomic.remote_addr);
+      fprintf(stderr, "  rkey: %u\n", wrBad->wr.atomic.rkey);
+      fprintf(stderr, "  compare_add: %lx\n", wrBad->wr.atomic.compare_add);
+      fprintf(stderr, "  swap: %lx\n", wrBad->wr.atomic.swap);
+      fprintf(stderr, "  send_flags: %u\n", wrBad->send_flags);
+    }
+    sleep(1);
     return false;
   }
   return true;

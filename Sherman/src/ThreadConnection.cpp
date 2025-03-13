@@ -3,8 +3,8 @@
 #include "Connection.h"
 #include <iostream>
 
-ThreadConnection::ThreadConnection(uint16_t threadID, void *cachePool,
-                                   uint64_t cacheSize, uint32_t machineNR,
+ThreadConnection::ThreadConnection(uint16_t threadID, void *cachePool, uint64_t cacheSize,
+                                   void *lockMetaPool, uint64_t lockMetaSize, uint32_t machineNR,
                                    RemoteConnection *remoteInfo)
     : threadID(threadID), remoteInfo(remoteInfo) {
   createContext(&ctx);
@@ -12,6 +12,7 @@ ThreadConnection::ThreadConnection(uint16_t threadID, void *cachePool,
   cq = ibv_create_cq(ctx.ctx, RAW_RECV_CQ_COUNT, NULL, NULL, 0);
   // rpc_cq = cq;
   rpc_cq = ibv_create_cq(ctx.ctx, RAW_RECV_CQ_COUNT, NULL, NULL, 0);
+  lock_cq = ibv_create_cq(ctx.ctx, RAW_RECV_CQ_COUNT, NULL, NULL, 0);
 
   message = new RawMessageConnection(ctx, rpc_cq, APP_MESSAGE_NR);
 
@@ -19,11 +20,24 @@ ThreadConnection::ThreadConnection(uint16_t threadID, void *cachePool,
   cacheMR = createMemoryRegion((uint64_t)cachePool, cacheSize, &ctx);
   cacheLKey = cacheMR->lkey;
 
+  // this->lockMetaPool = lockMetaPool;
+  // lockMetaMR = createMemoryRegion((uint64_t)lockMetaPool, lockMetaSize, &ctx);
+  // lockMetaLKey = lockMetaMR->lkey;
+  // lockMetaRKey = lockMetaMR->rkey;
+
   // dir, RC
   for (int i = 0; i < NR_DIRECTORY; ++i) {
     data[i] = new ibv_qp *[machineNR];
     for (size_t k = 0; k < machineNR; ++k) {
       createQueuePair(&data[i][k], IBV_QPT_RC, cq, &ctx);
+    }
+  }
+
+  // lock, RC
+  for (int i = 0; i < NR_DIRECTORY; ++i) {
+    lock[i] = new ibv_qp *[machineNR];
+    for (size_t k = 0; k < machineNR; ++k) {
+      createQueuePair(&lock[i][k], IBV_QPT_RC, lock_cq, &ctx);
     }
   }
 }

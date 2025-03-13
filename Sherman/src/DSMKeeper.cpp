@@ -9,13 +9,14 @@ const char *DSMKeeper::ServerPrefix = "SPre";
 void DSMKeeper::initLocalMeta() {
   localMeta.dsmBase = (uint64_t)dirCon[0]->dsmPool;
   localMeta.lockBase = (uint64_t)dirCon[0]->lockPool;
-  localMeta.lockMetaBase = (uint64_t)dirCon[0]->lockMetaPool;
   localMeta.cacheBase = (uint64_t)thCon[0]->cachePool;
+  localMeta.lockMetaBase = (uint64_t)dirCon[0]->lockMetaPool;
 
   // per thread APP
   for (int i = 0; i < MAX_APP_THREAD; ++i) {
     localMeta.appTh[i].lid = thCon[i]->ctx.lid;
     localMeta.appTh[i].rKey = thCon[i]->cacheMR->rkey;
+    // localMeta.appTh[i].lockMeta_rkey = thCon[i]->lockMetaMR->rkey;
     memcpy((char *)localMeta.appTh[i].gid, (char *)(&thCon[i]->ctx.gid),
            16 * sizeof(uint8_t));
 
@@ -126,6 +127,7 @@ void DSMKeeper::setDataFromRemote(uint16_t remoteID, ExchangeMeta *remoteMeta) {
   for (int i = 0; i < MAX_APP_THREAD; ++i) {
     info.appRKey[i] = remoteMeta->appTh[i].rKey;
     info.appMessageQPN[i] = remoteMeta->appUdQpn[i];
+    // info.lockMetaRKey[i] = remoteMeta->appTh[i].lockMeta_rkey;
 
     for (int k = 0; k < NR_DIRECTORY; ++k) {
       struct ibv_ah_attr ahAttr;

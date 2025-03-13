@@ -197,6 +197,7 @@ void DSM::initRDMAConnection() {
   for (int i = 0; i < MAX_APP_THREAD; ++i) {
     thCon[i] =
         new ThreadConnection(i, (void *)cache.data, cache.size * define::GB,
+                             (void *) lockMetaAddr, conf.lockMetaSize*1024,
                              conf.machineNR, remoteInfo);
   }
 
@@ -239,9 +240,7 @@ void DSM::spin_on(char *buf, GlobalAddress curr_holder_addr) {
 }
 
 void DSM::wait_for_peer(GlobalAddress gaddr) {
-  struct ibv_recv_wr wr, *bad_wr;
   ibv_wc wc;
-  memset(&wr, 0, sizeof(wr));
 
   cerr << "NODE " << myNodeID << endl;
   cerr << "START POLLING FOR WAKEUP CALL FROM: " << gaddr.nodeID << ", " << gaddr.version << endl;
@@ -269,30 +268,6 @@ void DSM::wait_for_peer(GlobalAddress gaddr) {
       break;
     }
   }
-  // while (ibv_poll_cq(iCon->cq, 1, &wc) > 0);
-  // ibv_req_notify_cq(iCon->cq, 0);
-  // cerr << "NODE " << myNodeID << endl;
-  // cerr << "AWAITING WAKEUP" << "\n\n";
-  
-  // ibv_post_recv(iCon->data[0][myNodeID], &wr, &bad_wr);
-
-  // struct ibv_cq* ev_cq;
-  // void* ev_ctx;
-  // ibv_get_cq_event(iCon->cc, &iCon->cq, &ev_ctx);
-  // cerr << "NODE " << myNodeID << endl;
-  // cerr << "GOT AWOKEN: " << "\n\n";
-  // ibv_ack_cq_events(ev_cq, 1);
-
-  // pollWithCQ(iCon->cq, 1, &wc, 1);
-
-  // poll:
-  //   while (ibv_poll_cq(iCon->cq, 1, &wc) == 0);
-  //   if (wc.opcode == IBV_WC_RECV) {
-  //     cerr << "WOKEN UP" << std::endl;
-  //   } else {
-  //     cerr << "NOT A RCV" << std::endl;
-  //     goto poll;
-  //   }
 }
 
 void DSM::wakeup_peer(GlobalAddress gaddr) {
@@ -570,9 +545,9 @@ void DSM::cas_peer(GlobalAddress gaddr, uint64_t equal, uint64_t val,
 
   if (ctx == nullptr) {
     rdmaCompareAndSwap(iCon->data[0][gaddr.nodeID], (uint64_t)rdma_buffer,
-                       remoteInfo[gaddr.nodeID].dsmBase + gaddr.offset, equal,
+                       remoteInfo[gaddr.nodeID].lockMetaBase + gaddr.offset, equal,
                        val, iCon->cacheLKey,
-                       remoteInfo[gaddr.nodeID].dsmRKey[0], signal);
+                       remoteInfo[gaddr.nodeID].lockMetaRKey[0], signal);
   } else {
     rdmaCompareAndSwap(iCon->data[0][gaddr.nodeID], (uint64_t)rdma_buffer,
                        remoteInfo[gaddr.nodeID].dsmBase + gaddr.offset, equal,

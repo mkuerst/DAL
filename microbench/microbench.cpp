@@ -200,9 +200,10 @@ void *mlocks_worker(void *arg) {
     // } else {
     //     failed_cases += rlock->node1(ops);
     // }
-    // // while (!stop.load()) {
-    // //     failed_cases += rlock->test_self_cas();
-    // // }
+    // while (!stop.load()) {
+    //     GlobalAddress gaddr = GlobalAddress::Null();
+    //     failed_cases += rlock->test_self_cas(gaddr, true);
+    // }
     // cerr << "FAILED CASES: " << failed_cases << "\n\n";
     // return 0;
 

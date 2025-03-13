@@ -64,11 +64,11 @@ target_compile_definitions(sherman_shermanCna PRIVATE -DSHERMAN_LOCK -DCN_AWARE)
 set_target_properties(sherman_shermanCna PROPERTIES OUTPUT_NAME "sherman_shermanCna")
 target_link_libraries(sherman_shermanCna ${LINKS_FLAGS})
 
-# SHERMAN_LOCK CN_AWARE + BW
-add_library(sherman_shermanCnaBw STATIC ${COMMON_FILE})
-target_compile_definitions(sherman_shermanCnaBw PRIVATE -DSHERMAN_LOCK -DCN_AWARE -DBATCHED_WRITEBACK)
-set_target_properties(sherman_shermanCnaBw PROPERTIES OUTPUT_NAME "sherman_shermanCnaBw")
-target_link_libraries(sherman_shermanCnaBw ${LINKS_FLAGS})
+# # SHERMAN_LOCK CN_AWARE + BW
+# add_library(sherman_shermanCnaBw STATIC ${COMMON_FILE})
+# target_compile_definitions(sherman_shermanCnaBw PRIVATE -DSHERMAN_LOCK -DCN_AWARE -DBATCHED_WRITEBACK)
+# set_target_properties(sherman_shermanCnaBw PROPERTIES OUTPUT_NAME "sherman_shermanCnaBw")
+# target_link_libraries(sherman_shermanCnaBw ${LINKS_FLAGS})
 
 #################################################################################################################
 #################################################################################################################
