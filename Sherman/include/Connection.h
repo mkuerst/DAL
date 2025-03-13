@@ -27,6 +27,10 @@ struct RemoteConnection {
     uint32_t appRKey[MAX_APP_THREAD];
     uint32_t appMessageQPN[MAX_APP_THREAD];
     ibv_ah *dirToAppAh[NR_DIRECTORY][MAX_APP_THREAD];
+
+    // lock meta
+    uint64_t lockMetaBase;
+    uint32_t lockMetaRKey[MAX_APP_THREAD];
 };
 
 #endif /* __CONNECTION_H__ */

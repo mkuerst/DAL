@@ -24,6 +24,7 @@ struct ThreadConnection {
   uint32_t cacheLKey;
   RemoteConnection *remoteInfo;
 
+
   ThreadConnection(uint16_t threadID, void *cachePool, uint64_t cacheSize,
                    uint32_t machineNR, RemoteConnection *remoteInfo);
 

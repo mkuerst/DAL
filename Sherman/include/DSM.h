@@ -199,6 +199,7 @@ private:
   
   uint64_t baseAddr;
   uint64_t rlockAddr;
+  uint64_t lockMetaAddr;
   uint32_t myNodeID;
   int kNextLocCnt = 10;
 

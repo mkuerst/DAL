@@ -18,7 +18,6 @@ ThreadConnection::ThreadConnection(uint16_t threadID, void *cachePool,
   this->cachePool = cachePool;
   cacheMR = createMemoryRegion((uint64_t)cachePool, cacheSize, &ctx);
   cacheLKey = cacheMR->lkey;
-  // std::cerr << "cacheMR->rkey, threadID: " << threadID << ", " << cacheMR->rkey << std::endl;
 
   // dir, RC
   for (int i = 0; i < NR_DIRECTORY; ++i) {

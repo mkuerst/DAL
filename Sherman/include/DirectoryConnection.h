@@ -27,10 +27,17 @@ struct DirectoryConnection {
   uint64_t lockSize;
   uint32_t lockLKey;
 
+  ibv_mr *lockMetaMR;
+  void *lockMetaPool;
+  uint64_t lockMetaSize;
+  uint32_t lockMetaLKey;
+  uint32_t lockMetaRKey;
+
   RemoteConnection *remoteInfo;
 
   DirectoryConnection(uint16_t dirID, void *dsmPool, uint64_t dsmSize,
-                      void *rlockPool, uint32_t machineNR, uint64_t chipSize,
+                      void *rlockPool, void *lockMetaPool, uint64_t lockMetaSize,
+                      uint32_t machineNR, uint64_t chipSize,
                       RemoteConnection *remoteInfo);
 
   void sendMessage2App(RawMessage *m, uint16_t node_id, uint16_t th_id);

@@ -9,6 +9,7 @@ const char *DSMKeeper::ServerPrefix = "SPre";
 void DSMKeeper::initLocalMeta() {
   localMeta.dsmBase = (uint64_t)dirCon[0]->dsmPool;
   localMeta.lockBase = (uint64_t)dirCon[0]->lockPool;
+  localMeta.lockMetaBase = (uint64_t)dirCon[0]->lockMetaPool;
   localMeta.cacheBase = (uint64_t)thCon[0]->cachePool;
 
   // per thread APP
@@ -26,6 +27,7 @@ void DSMKeeper::initLocalMeta() {
     localMeta.dirTh[i].lid = dirCon[i]->ctx.lid;
     localMeta.dirTh[i].rKey = dirCon[i]->dsmMR->rkey;
     localMeta.dirTh[i].lock_rkey = dirCon[i]->lockMR->rkey;
+    localMeta.dirTh[i].lockMeta_rkey = dirCon[i]->lockMetaMR->rkey;
     memcpy((char *)localMeta.dirTh[i].gid, (char *)(&dirCon[i]->ctx.gid),
            16 * sizeof(uint8_t));
 
@@ -102,10 +104,12 @@ void DSMKeeper::setDataFromRemote(uint16_t remoteID, ExchangeMeta *remoteMeta) {
   info.dsmBase = remoteMeta->dsmBase;
   info.cacheBase = remoteMeta->cacheBase;
   info.lockBase = remoteMeta->lockBase;
+  info.lockMetaBase = remoteMeta->lockMetaBase;
 
   for (int i = 0; i < NR_DIRECTORY; ++i) {
     info.dsmRKey[i] = remoteMeta->dirTh[i].rKey;
     info.lockRKey[i] = remoteMeta->dirTh[i].lock_rkey;
+    info.lockMetaRKey[i] = remoteMeta->dirTh[i].lockMeta_rkey;
     info.dirMessageQPN[i] = remoteMeta->dirUdQpn[i];
 
     for (int k = 0; k < MAX_APP_THREAD; ++k) {
@@ -121,7 +125,6 @@ void DSMKeeper::setDataFromRemote(uint16_t remoteID, ExchangeMeta *remoteMeta) {
 
   for (int i = 0; i < MAX_APP_THREAD; ++i) {
     info.appRKey[i] = remoteMeta->appTh[i].rKey;
-    // std::cerr << "appTh " << i << ".appRKey: " << remoteMeta->appTh[i].rKey << std::endl;
     info.appMessageQPN[i] = remoteMeta->appUdQpn[i];
 
     for (int k = 0; k < NR_DIRECTORY; ++k) {

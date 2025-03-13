@@ -47,6 +47,9 @@ DSM::DSM(const DSMConfig &conf)
   rlockAddr = (uint64_t) malloc(conf.chipSize * 1024);
   memset((char *)rlockAddr, 0, conf.chipSize * 1024);
   #endif
+
+  lockMetaAddr = (uint64_t) malloc(conf.lockMetaSize * 1024);
+  memset((char *)lockMetaAddr, 0, conf.lockMetaSize * 1024);
   
   // Debug::notifyInfo("shared memory size: %dGB, 0x%lx", conf.dsmSize, baseAddr);
   // Debug::notifyInfo("rdma cache size: %dGB", conf.cacheConfig.cacheSize);
@@ -200,7 +203,8 @@ void DSM::initRDMAConnection() {
   for (int i = 0; i < NR_DIRECTORY; ++i) {
     dirCon[i] =
         new DirectoryConnection(i, (void *)baseAddr, conf.dsmSize * define::GB,
-                                (void *) rlockAddr, conf.machineNR, conf.chipSize*1024,
+                                (void *) rlockAddr, (void *) lockMetaAddr, conf.lockMetaSize*1024,
+                                 conf.machineNR, conf.chipSize*1024,
                                 remoteInfo);
   }
 

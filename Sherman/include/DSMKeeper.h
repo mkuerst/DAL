@@ -17,12 +17,14 @@ struct ExPerThread {
   uint32_t rKey;
 
   uint32_t lock_rkey; //for directory on-chip memory 
+  uint32_t lockMeta_rkey;
 } __attribute__((packed));
 
 struct ExchangeMeta {
   uint64_t dsmBase;
   uint64_t cacheBase;
   uint64_t lockBase;
+  uint64_t lockMetaBase;
 
   ExPerThread appTh[MAX_APP_THREAD];
   ExPerThread dirTh[NR_DIRECTORY];

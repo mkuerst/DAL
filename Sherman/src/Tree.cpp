@@ -449,6 +449,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   }
   #endif
 
+  uint64_t *cas_buf = dsm->get_rbuf(coro_id).get_cas_buffer();
   #ifdef CN_AWARE
   // *curr_cas_buffer = 0;
   cerr << "NODE " << dsm->getMyNodeID() << endl;
@@ -523,8 +524,17 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     releases_local_lock(lock_addr);
     return;
   }
-  last_next_gaddr = GlobalAddress::Null();
-  // dsm->set_nextloc(0);
+  // last_next_gaddr = GlobalAddress::Null();
+  // cerr << "page_addr: " << page_addr << "\n\n";
+  // dsm->write_sync(page_buffer, page_addr, page_size, cxt);
+
+  *cas_buf = 0;
+  dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
+  cerr << "REL LOCK TO MN" << endl <<
+  "lock_addr: " << lock_addr << "\n\n"; 
+
+  releases_local_lock(lock_addr);
+  return;
   #endif
 
   timer.begin();
@@ -554,11 +564,10 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   #else
 
   cerr << "page_addr: " << page_addr << "\n\n";
-  // dsm->write_sync(page_buffer, page_addr, page_size, cxt);
+  dsm->write_sync(page_buffer, page_addr, page_size, cxt);
   save_measurement(threadID, measurements.data_write);
   
   timer.begin();
-  auto cas_buf = dsm->get_rbuf(coro_id).get_cas_buffer();
   *cas_buf = 0;
   dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
   save_measurement(threadID, measurements.gwait_rel);
@@ -1729,7 +1738,7 @@ uint64_t Tree::test_self_cas() {
 uint64_t Tree::node0(uint64_t cnt) {
   GlobalAddress next_gaddr = GlobalAddress::Null();
   next_gaddr.nodeID = 0;
-  next_gaddr.offset = 8;
+  next_gaddr.offset = 0;
   GlobalAddress other_gaddr = GlobalAddress::Null();
   uint64_t *buf = dsm->get_rbuf(0).get_cas_buffer();
   uint64_t failed_cases = 0;
@@ -1777,7 +1786,7 @@ uint64_t Tree::node1(uint64_t cnt) {
   next_gaddr.offset = 8;
   GlobalAddress other_gaddr = GlobalAddress::Null();
   other_gaddr.nodeID = 0;
-  other_gaddr.offset = 8;
+  other_gaddr.offset = 0;
   uint64_t *buf = dsm->get_rbuf(0).get_cas_buffer();
   uint64_t failed_cases = 0;
   uint64_t fails = 0;
