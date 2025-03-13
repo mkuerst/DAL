@@ -269,6 +269,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   GlobalAddress next_holder_addr = lock_addr;
   GlobalAddress old_holder_addr = GlobalAddress::Null();
   // next_gaddr = dsm->getNextGaddr();
+  next_gaddr.nodeID = dsm->getMyNodeID();
   next_gaddr.offset = lock_addr.offset;
   // dsm->set_nextloc(1);
   cerr << "NODE " << dsm->getMyNodeID() << endl <<
