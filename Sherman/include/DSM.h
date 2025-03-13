@@ -145,8 +145,8 @@ public:
   uint64_t poll_rdma_cq(int count = 1);
   bool poll_rdma_cq_once(uint64_t &wr_id);
 
-  void wait_for_peer(GlobalAddress gaddr);
-  void wakeup_peer(GlobalAddress gaddr);
+  void wait_for_peer(GlobalAddress gaddr, int tid);
+  void wakeup_peer(GlobalAddress gaddr, int tid);
 
   uint64_t sum(uint64_t value) {
     static uint64_t count = 0;

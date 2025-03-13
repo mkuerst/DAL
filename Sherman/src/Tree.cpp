@@ -344,7 +344,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   // char* pbuf = dsm->get_rbuf(coro_id).get_page_buffer();
   // *(uint64_t *) pbuf = 0;
   // dsm->spin_on(pbuf, next_holder_addr);
-  dsm->wait_for_peer(next_holder_addr);
+  dsm->wait_for_peer(next_holder_addr, threadID);
   return false;
 
 
@@ -517,7 +517,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     // dsm->set_nextloc(GlobalAddress::Null());
     // dsm->write_sync(pbuffer, next_gaddr, sizeof(uint64_t), cxt);
 
-    dsm->wakeup_peer(next_addr);
+    dsm->wakeup_peer(next_addr, threadID);
 
     releases_local_lock(lock_addr);
     return;
@@ -1714,14 +1714,14 @@ void Tree::wait() {
   GlobalAddress ga;
   ga.nodeID = dsm->getMyNodeID();
   ga.threadID = dsm->getMyThreadID();
-  dsm->wait_for_peer(ga);
+  dsm->wait_for_peer(ga, threadID);
 }
 
 void Tree::contact() {
   GlobalAddress ga;
   ga.nodeID = dsm->getMyNodeID() == 1 ? 0 : 1;
   ga.threadID = 0;
-  dsm->wakeup_peer(ga);
+  dsm->wakeup_peer(ga, threadID);
 }
 
 
@@ -1758,7 +1758,7 @@ uint64_t Tree::node0(uint64_t cnt) {
     if (!dsm->cas_peer_sync(next_gaddr, 0, 1, buf, nullptr)) {
       other_gaddr = *(GlobalAddress *) buf;
       if (dsm->cas_peer_sync(next_gaddr, other_gaddr.val, 0, buf, nullptr)) {
-        dsm->wakeup_peer(other_gaddr);
+        dsm->wakeup_peer(other_gaddr, threadID);
         completed++;
         fails = 0;
       } else {
@@ -1803,7 +1803,7 @@ uint64_t Tree::node1(uint64_t cnt) {
 
   while (completed < cnt) {
     while (!dsm->cas_peer_sync(other_gaddr, 0, next_gaddr.val, buf, nullptr)) {}
-    dsm->wait_for_peer(other_gaddr);
+    dsm->wait_for_peer(other_gaddr, threadID);
     completed++;
   }
   return failed_cases;

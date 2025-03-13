@@ -200,10 +200,10 @@ void DSM::initRDMAConnection() {
 
 #include <immintrin.h>
 
-void DSM::wait_for_peer(GlobalAddress gaddr) {
+void DSM::wait_for_peer(GlobalAddress gaddr, int tid) {
   ibv_wc wc;
 
-  cerr << "NODE " << myNodeID << "," << thread_id << endl;
+  cerr << "NODE " << myNodeID << "," << tid << endl;
   cerr << "START POLLING FOR WAKEUP CALL FROM: " << gaddr.nodeID << ", " << gaddr.threadID << endl;
   pollWithCQ(iCon->rpc_cq, 1, &wc);
 
@@ -231,15 +231,15 @@ void DSM::wait_for_peer(GlobalAddress gaddr) {
   }
 }
 
-void DSM::wakeup_peer(GlobalAddress gaddr) {
+void DSM::wakeup_peer(GlobalAddress gaddr, int tid) {
     auto buffer = (RawMessage *)iCon->message->getSendPool();
     RawMessage m;
     m.type = RpcType::WAKEUP;
 
     memcpy(buffer, &m, sizeof(RawMessage));
     buffer->node_id = myNodeID;
-    buffer->app_id = thread_id;
-    cerr << "NODE " << myNodeID << ", " << thread_id << endl;
+    buffer->app_id = tid;
+    cerr << "NODE " << myNodeID << ", " << tid << endl;
     cerr << "ABOUT TO SEND MSG TO PEER" << endl <<
     buffer->node_id << ", " << buffer->app_id << endl <<
     "gaddr: " << gaddr << endl << "\n\n";
