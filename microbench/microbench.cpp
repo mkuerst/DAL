@@ -171,8 +171,8 @@ void *mlocks_worker(void *arg) {
     uint64_t range = rlock->getLockNR()-1;
     uint64_t chunk_size = GB(dsmSize) / rlock->getLockNR();
     int sum = 1;
-    // int data_len = page_size / sizeof(uint64_t);
-    int data_len = 1;
+    int data_len = page_size / sizeof(uint64_t);
+    // int data_len = 1;
     uint64_t seed = nodeID*threadNR + id + 42;
     srand(seed);
     ZipfianGenerator zipfian(0.99, range, seed);

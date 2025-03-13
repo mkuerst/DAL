@@ -16,12 +16,8 @@ thread_local char *DSM::rdma_buffer = nullptr;
 thread_local LocalAllocator DSM::local_allocator;
 thread_local RdmaBuffer DSM::rbuf[define::kMaxCoro];
 thread_local uint64_t DSM::thread_tag = 0;
-thread_local uint64_t *DSM::spin_loc;
 thread_local uint64_t *DSM::next_loc;
-thread_local int DSM::next_loc_curr;
-thread_local GlobalAddress DSM::spin_gaddr;
 thread_local GlobalAddress DSM::next_gaddr;
-thread_local GlobalAddress DSM::next_gaddr_base;
 
 DSM *DSM::getInstance(const DSMConfig &conf) {
   static DSM *dsm = nullptr;
@@ -174,18 +170,6 @@ void DSM::registerThread(int page_size) {
 
   rdma_buffer = (char *)cache.data + thread_id * 12 * define::MB;
 
-  spin_gaddr.nodeID = this->getMyNodeID();
-  spin_gaddr.offset = conf.dsmSize * define::GB + thread_id * 16 * sizeof(uint64_t);
-  next_gaddr.nodeID = this->getMyNodeID();
-  next_gaddr.offset = spin_gaddr.offset + 2*sizeof(uint64_t);
-  next_gaddr_base = next_gaddr;
-  next_gaddr.version = thread_id;
-  spin_loc = (uint64_t *) ((char *)baseAddr + spin_gaddr.offset);
-  *spin_loc = 0;
-  next_loc = (uint64_t *) ((char *)baseAddr + next_gaddr.offset);
-  *next_loc = 0;
-  next_loc_curr = 0;
-
   for (int i = 0; i < define::kMaxCoro; ++i) {
     rbuf[i].set_buffer(rdma_buffer + i * define::kPerCoroRdmaBuf, page_size);
   }
@@ -215,35 +199,12 @@ void DSM::initRDMAConnection() {
 }
 
 #include <immintrin.h>
-void DSM::spin_on(char *buf, GlobalAddress curr_holder_addr) {
-  // uint64_t x = 0;
-  // while (*spin_loc == 0) {
-  while (*spin_loc == 0) {
-    this->read_sync(buf, spin_gaddr, sizeof(uint64_t), NULL);
-    // x++;
-    // if (x > 1e9) {
-    //   cerr << "DEADLOCK SPIN" << endl;
-    //   exit(1);
-    // }
-    // _mm_clflush(spin_loc);  // Flush cache to see the latest value
-    // _mm_pause();
-  }
-  GlobalAddress *ga = (GlobalAddress *) spin_loc ;
-
-  cerr << "NODE " << myNodeID << endl;
-  cerr << "WOKEN UP: " << endl <<
-  "curr_holder_addr: " << curr_holder_addr << endl <<
-  // "own spin_gaddr: " << spin_gaddr << "\n" <<
-  "*spin_loc: " << *spin_loc << "\n" <<
-  "*spin_loc as gaddr: " << *ga << "\n\n";
-  *spin_loc = 0;
-}
 
 void DSM::wait_for_peer(GlobalAddress gaddr) {
   ibv_wc wc;
 
-  cerr << "NODE " << myNodeID << endl;
-  cerr << "START POLLING FOR WAKEUP CALL FROM: " << gaddr.nodeID << ", " << gaddr.version << endl;
+  cerr << "NODE " << myNodeID << "," << thread_id << endl;
+  cerr << "START POLLING FOR WAKEUP CALL FROM: " << gaddr.nodeID << ", " << gaddr.threadID << endl;
   pollWithCQ(iCon->rpc_cq, 1, &wc);
 
   switch (int(wc.opcode)) {
@@ -278,12 +239,12 @@ void DSM::wakeup_peer(GlobalAddress gaddr) {
     memcpy(buffer, &m, sizeof(RawMessage));
     buffer->node_id = myNodeID;
     buffer->app_id = thread_id;
-    cerr << "NODE " << myNodeID << endl;
+    cerr << "NODE " << myNodeID << ", " << thread_id << endl;
     cerr << "ABOUT TO SEND MSG TO PEER" << endl <<
     buffer->node_id << ", " << buffer->app_id << endl <<
     "gaddr: " << gaddr << endl << "\n\n";
-    iCon->sendMessage2App(buffer, gaddr.nodeID, gaddr.version);
-    cerr << "SENT WAKEUP CALL TO PEER" << "\n\n";
+    iCon->sendMessage2App(buffer, gaddr.nodeID, gaddr.threadID);
+    cerr << "SENT WAKEUP CALL TO PEER: " << gaddr.nodeID << ", " << gaddr.threadID << "\n\n";
 }
 
 void DSM::read(char *buffer, GlobalAddress gaddr, size_t size, bool signal,

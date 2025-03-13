@@ -35,7 +35,6 @@ public:
   uint16_t getClusterSize() { return conf.machineNR; }
   uint64_t getThreadTag() { return thread_tag; }
   uint64_t getDsmSize() { return conf.dsmSize * define::GB; }
-  GlobalAddress getSpinGaddr() { return spin_gaddr; }
 
   GlobalAddress getNextGaddr() { 
     // next_loc_curr = (next_loc_curr + 1) % kNextLocCnt;
@@ -44,7 +43,7 @@ public:
     return next_gaddr;
   }
 
-  uint64_t *getNextLoc() { return next_loc; }
+  uint64_t *getNextLoc(GlobalAddress lock_gaddr) { return (uint64_t *) ((uintptr_t)lockMetaAddr + lock_gaddr.offset + 8); }
   // void reset_nextloc() { next_gaddr.version = (next_gaddr.version + 1) % 16; *next_loc = next_gaddr.val; }
   void set_nextloc(uint64_t val) {
     *next_loc = val;
@@ -146,7 +145,6 @@ public:
   uint64_t poll_rdma_cq(int count = 1);
   bool poll_rdma_cq_once(uint64_t &wr_id);
 
-  void spin_on(char* buf, GlobalAddress curr_holder_addr);
   void wait_for_peer(GlobalAddress gaddr);
   void wakeup_peer(GlobalAddress gaddr);
 
@@ -190,12 +188,8 @@ private:
   static thread_local LocalAllocator local_allocator;
   static thread_local RdmaBuffer rbuf[define::kMaxCoro];
   static thread_local uint64_t thread_tag;
-  static thread_local uint64_t *spin_loc;
-  static thread_local uint64_t *next_loc;
-  static thread_local int next_loc_curr;
-  static thread_local GlobalAddress spin_gaddr;
   static thread_local GlobalAddress next_gaddr;
-  static thread_local GlobalAddress next_gaddr_base;
+  static thread_local uint64_t *next_loc;
   
   uint64_t baseAddr;
   uint64_t rlockAddr;

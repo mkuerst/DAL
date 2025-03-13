@@ -10,7 +10,7 @@ public:
 union {
   struct {
   uint64_t nodeID: 8;
-  uint64_t version: 8;
+  uint64_t threadID: 8;
   uint64_t offset : 48;
   };
   uint64_t val;
@@ -43,7 +43,7 @@ inline bool operator!=(const GlobalAddress &lhs, const GlobalAddress &rhs) {
 }
 
 inline std::ostream &operator<<(std::ostream &os, const GlobalAddress &obj) {
-  os << "[" << (int)obj.nodeID << ", " << obj.version << ", " << obj.offset << "]";
+  os << "[" << (int)obj.nodeID << ", " << obj.threadID << ", " << obj.offset << "]";
   return os;
 }
 
