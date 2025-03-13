@@ -59,6 +59,7 @@ void DSMKeeper::setDataToRemote(uint16_t remoteID) {
 
     for (int k = 0; k < MAX_APP_THREAD; ++k) {
       localMeta.dirRcQpn2app[i][k] = c->data2app[k][remoteID]->qp_num;
+      localMeta.lockRcQpn2app[i][k] = c->lock2app[k][remoteID]->qp_num;
     }
   }
 
@@ -66,6 +67,7 @@ void DSMKeeper::setDataToRemote(uint16_t remoteID) {
     auto &c = thCon[i];
     for (int k = 0; k < NR_DIRECTORY; ++k) {
       localMeta.appRcQpn2dir[i][k] = c->data[k][remoteID]->qp_num;
+      localMeta.appRcQpn2lock[i][k] = c->lock[k][remoteID]->qp_num;
     }
   
   }
@@ -77,13 +79,20 @@ void DSMKeeper::setDataFromRemote(uint16_t remoteID, ExchangeMeta *remoteMeta) {
 
     for (int k = 0; k < MAX_APP_THREAD; ++k) {
       auto &qp = c->data2app[k][remoteID];
-
       assert(qp->qp_type == IBV_QPT_RC);
       modifyQPtoInit(qp, &c->ctx);
       modifyQPtoRTR(qp, remoteMeta->appRcQpn2dir[k][i],
                     remoteMeta->appTh[k].lid, remoteMeta->appTh[k].gid,
                     &c->ctx);
       modifyQPtoRTS(qp);
+
+      auto &qp1 = c->lock2app[k][remoteID];
+      assert(qp1->qp_type == IBV_QPT_RC);
+      modifyQPtoInit(qp1, &c->ctx);
+      modifyQPtoRTR(qp1, remoteMeta->appRcQpn2lock[k][i],
+                    remoteMeta->appTh[k].lid, remoteMeta->appTh[k].gid,
+                    &c->ctx);
+      modifyQPtoRTS(qp1);
     }
   }
 
@@ -91,13 +100,20 @@ void DSMKeeper::setDataFromRemote(uint16_t remoteID, ExchangeMeta *remoteMeta) {
     auto &c = thCon[i];
     for (int k = 0; k < NR_DIRECTORY; ++k) {
       auto &qp = c->data[k][remoteID];
-
       assert(qp->qp_type == IBV_QPT_RC);
       modifyQPtoInit(qp, &c->ctx);
       modifyQPtoRTR(qp, remoteMeta->dirRcQpn2app[k][i],
                     remoteMeta->dirTh[k].lid, remoteMeta->dirTh[k].gid,
                     &c->ctx);
       modifyQPtoRTS(qp);
+
+      auto &qp1 = c->lock[k][remoteID];
+      assert(qp1->qp_type == IBV_QPT_RC);
+      modifyQPtoInit(qp1, &c->ctx);
+      modifyQPtoRTR(qp1, remoteMeta->lockRcQpn2app[k][i],
+                    remoteMeta->dirTh[k].lid, remoteMeta->dirTh[k].gid,
+                    &c->ctx);
+      modifyQPtoRTS(qp1);
     }
   }
 

@@ -33,8 +33,10 @@ struct ExchangeMeta {
   uint32_t dirUdQpn[NR_DIRECTORY];
 
   uint32_t appRcQpn2dir[MAX_APP_THREAD][NR_DIRECTORY];
+  uint32_t appRcQpn2lock[MAX_APP_THREAD][NR_DIRECTORY];
 
   uint32_t dirRcQpn2app[NR_DIRECTORY][MAX_APP_THREAD];
+  uint32_t lockRcQpn2app[NR_DIRECTORY][MAX_APP_THREAD];
 
 } __attribute__((packed));
 

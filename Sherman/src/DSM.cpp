@@ -544,7 +544,7 @@ void DSM::cas_peer(GlobalAddress gaddr, uint64_t equal, uint64_t val,
               uint64_t *rdma_buffer, bool signal, CoroContext *ctx) {
 
   if (ctx == nullptr) {
-    rdmaCompareAndSwap(iCon->data[0][gaddr.nodeID], (uint64_t)rdma_buffer,
+    rdmaCompareAndSwap(iCon->lock[0][gaddr.nodeID], (uint64_t)rdma_buffer,
                        remoteInfo[gaddr.nodeID].lockMetaBase + gaddr.offset, equal,
                        val, iCon->cacheLKey,
                        remoteInfo[gaddr.nodeID].lockMetaRKey[0], signal);
@@ -567,7 +567,7 @@ bool DSM::cas_peer_sync(GlobalAddress gaddr, uint64_t equal, uint64_t val,
 
   if (ctx == nullptr) {
     ibv_wc wc;
-    pollWithCQ(iCon->cq, 1, &wc, gaddr, 8, val);
+    pollWithCQ(iCon->lock_cq, 1, &wc, gaddr, 8, val);
   }
   std::cerr << "equal == *rdma_buffer" << "\n" <<
   *((GlobalAddress*) &equal) << " = " << *((GlobalAddress*) rdma_buffer) << "\n\n";

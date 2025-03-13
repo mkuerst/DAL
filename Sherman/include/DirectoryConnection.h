@@ -16,6 +16,7 @@ struct DirectoryConnection {
   RawMessageConnection *message;
 
   ibv_qp **data2app[MAX_APP_THREAD];
+  ibv_qp **lock2app[MAX_APP_THREAD];
 
   ibv_mr *dsmMR;
   void *dsmPool;

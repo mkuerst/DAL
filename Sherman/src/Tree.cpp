@@ -271,6 +271,9 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   // next_gaddr = dsm->getNextGaddr();
   next_gaddr.offset = lock_addr.offset;
   // dsm->set_nextloc(1);
+  cerr << "NODE " << dsm->getMyNodeID() << endl <<
+  "*next_loc @ start: " << *(GlobalAddress*) dsm->getNextLoc() << "\n\n";
+
   if (!dsm->cas_peer_sync(next_gaddr, 0, 1, buf, nullptr)) {
     Debug::notifyError("FAILED AT INITIAL WANT LOCK CAS\n");
     exit(1);
@@ -474,11 +477,11 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     rs[0].size = page_size;
     rs[0].is_on_chip = false;
 
-    rs[0].source = (uint64_t)dsm->get_rbuf(coro_id).get_cas_buffer();
-    rs[0].dest = lock_addr;
-    rs[0].size = sizeof(uint64_t);
-    rs[0].is_on_chip = true;
-    *(uint64_t *)rs[0].source = next_addr.val;
+    rs[1].source = (uint64_t)dsm->get_rbuf(coro_id).get_cas_buffer();
+    rs[1].dest = lock_addr;
+    rs[1].size = sizeof(uint64_t);
+    rs[1].is_on_chip = true;
+    *(uint64_t *)rs[1].source = next_addr.val;
 
     // rs[2].source = (uint64_t)dsm->get_rbuf(coro_id).get_page_buffer();
     // rs[2].dest = next_spinloc;
@@ -530,7 +533,14 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   // dsm->write_sync(page_buffer, page_addr, page_size, cxt);
 
   *cas_buf = 0;
-  dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
+  // dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
+  if (!dsm->cas_dm_sync(lock_addr, next_gaddr.val, 0, cas_buffer, cxt)) {
+    Debug::notifyError("FAILED TO CAS MN FOR CN HO\n");
+    cerr << dsm->getMyNodeID() << ", lock addr: " << lock_addr << "\n" << 
+    "next_gaddr: " << next_gaddr << endl <<
+    "*cas_buffer: " << *(GlobalAddress*) cas_buffer << "\n\n";
+    exit(1);
+  }
   cerr << "REL LOCK TO MN" << endl <<
   "lock_addr: " << lock_addr << "\n\n"; 
 
@@ -570,16 +580,16 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   
   timer.begin();
   *cas_buf = 0;
-  dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
+  // dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
   save_measurement(threadID, measurements.gwait_rel);
 
-  // if (!dsm->cas_dm_sync(lock_addr, next_gaddr.val, 0, cas_buffer, cxt)) {
-  //   Debug::notifyError("FAILED TO CAS MN FOR CN HO\n");
-  //   cerr << dsm->getMyNodeID() << ", lock addr: " << lock_addr << "\n" << 
-  //   "next_gaddr: " << next_gaddr << endl <<
-  //   "*cas_buffer: " << *(GlobalAddress*) cas_buffer << "\n\n";
-  //   exit(1);
-  // }
+  if (!dsm->cas_dm_sync(lock_addr, next_gaddr.val, 0, cas_buffer, cxt)) {
+    Debug::notifyError("FAILED TO CAS MN FOR CN HO\n");
+    cerr << dsm->getMyNodeID() << ", lock addr: " << lock_addr << "\n" << 
+    "next_gaddr: " << next_gaddr << endl <<
+    "*cas_buffer: " << *(GlobalAddress*) cas_buffer << "\n\n";
+    exit(1);
+  }
 
   // if (async) {
   //   dsm->write_batch(&rs[0], 1, false);
@@ -1659,7 +1669,7 @@ void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_si
 	if (data_size > 0) {
     #ifndef HANDOVER_DATA
     timer.begin();
-		// dsm->read_sync(curr_page_buffer, base_addr, data_size, NULL);
+		dsm->read_sync(curr_page_buffer, base_addr, data_size, NULL);
     save_measurement(threadID, measurements.data_read);
     #else
     bool same_address = curr_lock_node->page_addr.val == base_addr.val;
