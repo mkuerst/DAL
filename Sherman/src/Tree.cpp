@@ -270,7 +270,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   GlobalAddress old_holder_addr = GlobalAddress::Null();
 
   next_gaddr.nodeID = dsm->getMyNodeID();
-  next_gaddr.threadID = threadID;
+  next_gaddr.threadID = dsm->getMyThreadID();
   next_gaddr.offset = lock_addr.offset + 8;
 
   if (!dsm->cas_peer_sync(next_gaddr, 0, 1, buf, nullptr)) {
@@ -344,7 +344,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   // char* pbuf = dsm->get_rbuf(coro_id).get_page_buffer();
   // *(uint64_t *) pbuf = 0;
   // dsm->spin_on(pbuf, next_holder_addr);
-  dsm->wait_for_peer(next_holder_addr, threadID);
+  dsm->wait_for_peer(next_holder_addr, dsm->getMyThreadID());
   return false;
 
 
@@ -461,7 +461,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     // next_spinloc.nodeID = next_addr.nodeID;
     // next_spinloc.offset = next_addr.offset - sizeof(uint64_t);
 
-    cerr << dsm->getMyNodeID() << ": OTHER THREAD WAITING, lock addr: " << lock_addr << "\n" << 
+    cerr << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << ": OTHER THREAD WAITING, lock addr: " << lock_addr << "\n" << 
     "next_addr: " << next_addr << "\n\n";
     assert(next_gaddr.nodeID !=  next_addr.nodeID);
 
@@ -517,7 +517,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     // dsm->set_nextloc(GlobalAddress::Null());
     // dsm->write_sync(pbuffer, next_gaddr, sizeof(uint64_t), cxt);
 
-    dsm->wakeup_peer(next_addr, threadID);
+    dsm->wakeup_peer(next_addr, dsm->getMyThreadID());
 
     releases_local_lock(lock_addr);
     return;

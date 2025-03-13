@@ -203,7 +203,7 @@ void DSM::initRDMAConnection() {
 void DSM::wait_for_peer(GlobalAddress gaddr, int tid) {
   ibv_wc wc;
 
-  cerr << "NODE " << myNodeID << "," << tid << endl;
+  cerr << "NODE " << myNodeID << "," << thread_id << endl;
   cerr << "START POLLING FOR WAKEUP CALL FROM: " << gaddr.nodeID << ", " << gaddr.threadID << endl;
   pollWithCQ(iCon->rpc_cq, 1, &wc);
 
@@ -215,6 +215,7 @@ void DSM::wait_for_peer(GlobalAddress gaddr, int tid) {
       switch (m->type) {
         case RpcType::WAKEUP: {
           cerr << "RECEIVED WAKEUP CALL FROM: " << m->node_id  << ", " << m->app_id << "\n\n";
+          assert(m->node_id == gaddr.nodeID && m->app_id == gaddr.threadID);
           break;
         }
         default: {
@@ -238,8 +239,8 @@ void DSM::wakeup_peer(GlobalAddress gaddr, int tid) {
 
     memcpy(buffer, &m, sizeof(RawMessage));
     buffer->node_id = myNodeID;
-    buffer->app_id = tid;
-    cerr << "NODE " << myNodeID << ", " << tid << endl;
+    buffer->app_id = thread_id;
+    cerr << "NODE " << myNodeID << ", " << thread_id << endl;
     cerr << "ABOUT TO SEND MSG TO PEER" << endl <<
     buffer->node_id << ", " << buffer->app_id << endl <<
     "gaddr: " << gaddr << endl << "\n\n";
