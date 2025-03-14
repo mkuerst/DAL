@@ -44,6 +44,26 @@ public:
     return next_gaddr;
   }
 
+  #include <cstdint>
+  int nextMultipleOf(int x, int mult) {
+    return (((x % mult == 0) ? x :
+     ((x / mult) + 1) * mult) + mult) % 64;
+  }
+
+  int firstSetBitPosition(uint64_t value, int mult) {
+      if (value == 0) return 0;
+      int pos = 63 - __builtin_ctzll(value);
+      return nextMultipleOf(pos, mult);
+  }
+
+  uint64_t setLockWord(uint64_t old, int bitLength) {
+    int startPos = firstSetBitPosition(old, bitLength);
+    uint64_t mask = ((1ULL << bitLength) - 1) << startPos;
+    old &= ~mask;
+    old |= ((myNodeID+1) << startPos) & mask;
+    return old;
+}
+
   void getNextGLaddr(GLockAddress *gaddr, GlobalAddress lock_addr) {
     version = (version + 1) % kMaxVersion;
     gaddr->nodeID = myNodeID;

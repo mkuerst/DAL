@@ -266,6 +266,26 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
 
   timer.begin();
   #ifdef MN_QUEUE
+  uint64_t own_tag = dsm->setLockWord(0, 4);
+  uint64_t new_tag = 0;
+  uint64_t mnq_retries = 0;
+  if (!dsm->cas_dm_sync(lock_addr, 0, own_tag, buf, cxt)) {
+    new_tag = *(uint64_t *) buf;
+    own_tag = dsm->setLockWord(new_tag, 4);
+    while (!dsm->cas_dm_sync(lock_addr, new_tag, own_tag, buf, cxt)) {
+      mnq_retries++;
+      new_tag = *(uint64_t *) buf;
+      own_tag = dsm->setLockWord(new_tag, 4);
+      if (mnq_retries > 10000) {
+        Debug::notifyError("DEADLOCK MNQ_RETRIES");
+        assert(false);
+      }
+    }
+    dsm->spin_on(lock_addr);
+
+  }
+  return;
+
   
 
   #endif
