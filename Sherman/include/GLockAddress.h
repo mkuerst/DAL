@@ -9,8 +9,9 @@ public:
 
 union {
   struct {
-  uint64_t nodeID: 8;
+  uint64_t nodeID: 4;
   uint64_t threadID: 8;
+  uint64_t state: 4;
   uint64_t version: 16;
   uint64_t offset : 32;
   };
@@ -22,7 +23,7 @@ union {
 }
 
   static GLockAddress Null() {
-    static GLockAddress zero{0, 0, 0, 0};
+    static GLockAddress zero{0, 0, 0, 0, 0};
     return zero;
   };
 } __attribute__((packed));
@@ -44,7 +45,7 @@ inline bool operator!=(const GLockAddress &lhs, const GLockAddress &rhs) {
 }
 
 inline std::ostream &operator<<(std::ostream &os, const GLockAddress &obj) {
-  os << "[" << (int)obj.nodeID << ", " << obj.threadID << ", " << obj.version << ", " << obj.offset << "]";
+  os << "[" << (int)obj.nodeID << ", " << obj.threadID << ", " << obj.state << ", " << obj.version << ", " << obj.offset << "]";
   return os;
 }
 

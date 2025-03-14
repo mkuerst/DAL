@@ -45,11 +45,11 @@ public:
   }
 
   void getNextGLaddr(GLockAddress *gaddr, GlobalAddress lock_addr) {
+    version = (version + 1) % kMaxVersion;
     gaddr->nodeID = myNodeID;
     gaddr->threadID = thread_id;
     gaddr->version = version;
     gaddr->offset = lock_addr.offset + 8;
-    version = (version + 1) % kMaxVersion;
   }
 
   uint64_t *getNextLoc(GlobalAddress lock_gaddr) { return (uint64_t *) ((uintptr_t)lockMetaAddr + lock_gaddr.offset + 8); }

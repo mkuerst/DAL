@@ -156,6 +156,7 @@ private:
     static thread_local GlobalAddress curr_lock_addr;
     static thread_local LocalLockNode *curr_lock_node;
     static thread_local GLockAddress next_gaddr;
+    static thread_local GLockAddress version_addr;
     static thread_local int threadID;
     /**/
 

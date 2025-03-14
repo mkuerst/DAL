@@ -205,7 +205,7 @@ void DSM::wait_for_peer(GLockAddress gaddr, int tid) {
   ibv_wc wc;
 
   cerr << "NODE " << myNodeID << "," << thread_id << endl;
-  cerr << "START POLLING FOR WAKEUP CALL FROM: " << gaddr.nodeID << ", " << gaddr.threadID << endl;
+  cerr << "START POLLING FOR WAKEUP CALL FROM: " << gaddr.nodeID << ", " << gaddr.threadID << ", " << gaddr.version <<  endl;
   pollWithCQ(iCon->rpc_cq, 1, &wc);
 
   switch (int(wc.opcode)) {
@@ -215,8 +215,9 @@ void DSM::wait_for_peer(GLockAddress gaddr, int tid) {
 
       switch (m->type) {
         case RpcType::WAKEUP: {
-          cerr << "RECEIVED WAKEUP CALL FROM: " << m->node_id  << ", " << m->app_id << "\n\n";
+          cerr << "RECEIVED WAKEUP CALL FROM: " << m->node_id  << ", " << m->app_id << ", " << m->version << "\n\n";
           assert(m->node_id == gaddr.nodeID && m->app_id == gaddr.threadID);
+          assert(m->version == gaddr.version);
           break;
         }
         default: {
@@ -241,10 +242,8 @@ void DSM::wakeup_peer(GLockAddress gaddr, int tid) {
     memcpy(buffer, &m, sizeof(RawMessage));
     buffer->node_id = myNodeID;
     buffer->app_id = thread_id;
-    cerr << "NODE " << myNodeID << ", " << thread_id << endl;
-    cerr << "ABOUT TO SEND MSG TO PEER" << endl <<
-    buffer->node_id << ", " << buffer->app_id << endl <<
-    "gaddr: " << gaddr << endl << "\n\n";
+    buffer->version = version;
+    cerr << "NODE " << myNodeID << ", " << thread_id << ", " << version << endl;
     iCon->sendMessage2App(buffer, gaddr.nodeID, gaddr.threadID);
     cerr << "SENT WAKEUP CALL TO PEER: " << gaddr.nodeID << ", " << gaddr.threadID << "\n\n";
 }
@@ -520,7 +519,7 @@ void DSM::cas_peer(GLockAddress gaddr, uint64_t equal, uint64_t val,
   }
   std::cerr << "cas_peer" << std::endl;
   std::cerr << "gaddr :" << gaddr << std::endl;
-  GlobalAddress *v = (GlobalAddress *) &val;
+  GLockAddress *v = (GLockAddress *) &val;
   std::cerr << "val :" << *v << "\n";
 }
 
@@ -533,7 +532,7 @@ bool DSM::cas_peer_sync(GLockAddress gaddr, uint64_t equal, uint64_t val,
     pollWithCQ(iCon->lock_cq, 1, &wc, gaddr, 8, val);
   }
   std::cerr << "equal == *rdma_buffer" << "\n" <<
-  *((GlobalAddress*) &equal) << " = " << *((GlobalAddress*) rdma_buffer) << "\n\n";
+  *((GLockAddress*) &equal) << " = " << *((GLockAddress*) rdma_buffer) << "\n\n";
 
   return equal == *rdma_buffer;
 }

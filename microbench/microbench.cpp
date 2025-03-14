@@ -207,18 +207,18 @@ void *mlocks_worker(void *arg) {
     // cerr << "FAILED CASES: " << failed_cases << "\n\n";
     // return 0;
 
-    // while (!stop.load()) {
-    while (num < cnt) {
+    while (!stop.load()) {
+    // while (num < cnt) {
 
         for (int j = 0; j < 400; j++) {
             int idx = uniform_rand_int(PRIVATE_ARRAY_SZ / sizeof(int));
             private_int_array[idx] += sum;
         }
         for (int j = 0; j < 100; j++) {
-            // if (stop.load())
-            //     break;
-            if (num >= cnt)
+            if (stop.load())
                 break;
+            // if (num >= cnt)
+            //     break;
             if (use_zipfian) {
                 lock_idx = zipfian.generate();
             }
@@ -242,10 +242,12 @@ void *mlocks_worker(void *arg) {
 
             timer.begin();
             long_data = (uint64_t *) rlock->getCurrPB();
+            // for (int x = 0; x < 100; x++) {
             for (int k = 0; k < data_len; k++) {
                 long_data[k] += 1;
                 task->inc++;
             }
+            // }
             save_measurement(id, measurements.lock_hold);
             
             lock_rels[lockAddr.nodeID * lockNR + lock_idx]++;

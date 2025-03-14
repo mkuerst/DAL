@@ -20,6 +20,7 @@ struct RawMessage {
   
   uint16_t node_id;
   uint16_t app_id;
+  uint16_t version;
 
   GlobalAddress addr; // for malloc
   int level;
