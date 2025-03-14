@@ -340,8 +340,9 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
 
           next_holder_addr.val = lock_addr.val;
           old_holder_addr = GLockAddress::Null();
-          if (mn_retry > 100000) {
+          if (mn_retry > 10000) {
             Debug::notifyError("MN RETRY DEADLOCK");
+            assert(false);
             exit(1);
           }
           // old_version_addr = version_addr;
@@ -352,8 +353,9 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
           // }
           goto retry_from_mn;
         } 
-        if (peer_retry > 10) {
+        if (peer_retry > 100) {
           Debug::notifyError("PEER RETRY DEADLOCK");
+          assert(false);
           exit(1);
         }
         next_holder_version.state = 4;
