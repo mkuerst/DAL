@@ -328,14 +328,9 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
         "*next_loc: " << *(GLockAddress*) dsm->getNextLoc(lock_addr) << "\n\n";
         assert(next_holder_addr != next_gaddr);
 
-        if (ga.state != 0) {
-          next_holder_addr = ga;
-          next_holder_version.version = next_holder_addr.version;
-          next_holder_version.threadID = next_holder_addr.threadID;
-        }
 
 
-        if (ga.val == 0) {
+        if (ga.val == 0 || ga.state == 1) {
           mn_retry++;
           cerr << "NODE " << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << endl <<
           "RETRY FROM MN, lock_addr: " << lock_addr << "\n" <<
@@ -358,11 +353,16 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
           // }
           goto retry_from_mn;
         } 
-        if (peer_retry > 1000) {
+
+        next_holder_addr = ga;
+        next_holder_version.version = next_holder_addr.version;
+        next_holder_version.threadID = next_holder_addr.threadID;
+
+        if (peer_retry > 10) {
           Debug::notifyError("PEER RETRY DEADLOCK");
           assert(false);
           exit(1);
-        }
+       }
         next_holder_version.state = 4;
       }
 
