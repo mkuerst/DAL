@@ -70,6 +70,12 @@ target_link_libraries(sherman_shermanCna ${LINKS_FLAGS})
 # set_target_properties(sherman_shermanCnaBw PROPERTIES OUTPUT_NAME "sherman_shermanCnaBw")
 # target_link_libraries(sherman_shermanCnaBw ${LINKS_FLAGS})
 
+# # SHERMAN_LOCK MN_QUEUE
+# add_library(sherman_shermanMnq STATIC ${COMMON_FILE})
+# target_compile_definitions(sherman_shermanMnq PRIVATE -DSHERMAN_LOCK -DMN_QUEUE)
+# set_target_properties(sherman_shermanMnq PROPERTIES OUTPUT_NAME "sherman_shermanMnq")
+# target_link_libraries(sherman_shermanMnq ${LINKS_FLAGS})
+
 #################################################################################################################
 #################################################################################################################
 #################################################################################################################

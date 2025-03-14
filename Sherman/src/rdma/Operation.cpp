@@ -31,6 +31,7 @@ int pollWithCQ(ibv_cq *cq, int pollNumber, struct ibv_wc *wc, uint64_t addr, uin
     std::cerr << "val_gaddr: " << *ga2 << std::endl; 
     std::cerr << "val: " << val << std::endl; 
     std::cerr << "size: " << size << std::endl;
+    assert(false);
     exit(1);
     // sleep(5);
     return -1;
