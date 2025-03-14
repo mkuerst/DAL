@@ -11,6 +11,7 @@
 using namespace std;
 
 thread_local int DSM::thread_id = -1;
+thread_local uint16_t DSM::version = 0;
 thread_local ThreadConnection *DSM::iCon = nullptr;
 thread_local char *DSM::rdma_buffer = nullptr;
 thread_local LocalAllocator DSM::local_allocator;
@@ -200,7 +201,7 @@ void DSM::initRDMAConnection() {
 
 #include <immintrin.h>
 
-void DSM::wait_for_peer(GlobalAddress gaddr, int tid) {
+void DSM::wait_for_peer(GLockAddress gaddr, int tid) {
   ibv_wc wc;
 
   cerr << "NODE " << myNodeID << "," << thread_id << endl;
@@ -232,7 +233,7 @@ void DSM::wait_for_peer(GlobalAddress gaddr, int tid) {
   }
 }
 
-void DSM::wakeup_peer(GlobalAddress gaddr, int tid) {
+void DSM::wakeup_peer(GLockAddress gaddr, int tid) {
     auto buffer = (RawMessage *)iCon->message->getSendPool();
     RawMessage m;
     m.type = RpcType::WAKEUP;
@@ -502,7 +503,7 @@ bool DSM::cas_sync(GlobalAddress gaddr, uint64_t equal, uint64_t val,
   return equal == *rdma_buffer;
 }
 
-void DSM::cas_peer(GlobalAddress gaddr, uint64_t equal, uint64_t val,
+void DSM::cas_peer(GLockAddress gaddr, uint64_t equal, uint64_t val,
               uint64_t *rdma_buffer, bool signal, CoroContext *ctx) {
 
   if (ctx == nullptr) {
@@ -523,7 +524,7 @@ void DSM::cas_peer(GlobalAddress gaddr, uint64_t equal, uint64_t val,
   std::cerr << "val :" << *v << "\n";
 }
 
-bool DSM::cas_peer_sync(GlobalAddress gaddr, uint64_t equal, uint64_t val,
+bool DSM::cas_peer_sync(GLockAddress gaddr, uint64_t equal, uint64_t val,
                    uint64_t *rdma_buffer, CoroContext *ctx) {
   cas_peer(gaddr, equal, val, rdma_buffer, true, ctx);
 

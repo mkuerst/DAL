@@ -9,6 +9,7 @@
 #include "Connection.h"
 #include "DSMKeeper.h"
 #include "GlobalAddress.h"
+#include "GLockAddress.h"
 #include "LocalAllocator.h"
 #include "RdmaBuffer.h"
 #include "Directory.h"
@@ -43,6 +44,14 @@ public:
     return next_gaddr;
   }
 
+  void getNextGLaddr(GLockAddress *gaddr, GlobalAddress lock_addr) {
+    gaddr->nodeID = myNodeID;
+    gaddr->threadID = thread_id;
+    gaddr->version = version;
+    gaddr->offset = lock_addr.offset + 8;
+    version = (version + 1) % kMaxVersion;
+  }
+
   uint64_t *getNextLoc(GlobalAddress lock_gaddr) { return (uint64_t *) ((uintptr_t)lockMetaAddr + lock_gaddr.offset + 8); }
   // void reset_nextloc() { next_gaddr.version = (next_gaddr.version + 1) % 16; *next_loc = next_gaddr.val; }
   void set_nextloc(uint64_t val) {
@@ -50,6 +59,7 @@ public:
     _mm_clflushopt(next_loc);
     _mm_mfence();
   }
+
   // RDMA operations
   // buffer is registered memory
   void read(char *buffer, GlobalAddress gaddr, size_t size, bool signal = true,
@@ -89,10 +99,10 @@ public:
   bool cas_sync(GlobalAddress gaddr, uint64_t equal, uint64_t val,
                 uint64_t *rdma_buffer, CoroContext *ctx = nullptr);
 
-  void cas_peer(GlobalAddress gaddr, uint64_t equal, uint64_t val,
+  void cas_peer(GLockAddress gaddr, uint64_t equal, uint64_t val,
                 uint64_t *rdma_buffer, bool signal, CoroContext *ctx);
 
-  bool cas_peer_sync(GlobalAddress gaddr, uint64_t equal, uint64_t val,
+  bool cas_peer_sync(GLockAddress gaddr, uint64_t equal, uint64_t val,
                     uint64_t *rdma_buffer, CoroContext *ctx);
   void cas_read(RdmaOpRegion &cas_ror, RdmaOpRegion &read_ror, uint64_t equal,
                 uint64_t val, bool signal = true, CoroContext *ctx = nullptr);
@@ -145,8 +155,8 @@ public:
   uint64_t poll_rdma_cq(int count = 1);
   bool poll_rdma_cq_once(uint64_t &wr_id);
 
-  void wait_for_peer(GlobalAddress gaddr, int tid);
-  void wakeup_peer(GlobalAddress gaddr, int tid);
+  void wait_for_peer(GLockAddress gaddr, int tid);
+  void wakeup_peer(GLockAddress gaddr, int tid);
 
   uint64_t sum(uint64_t value) {
     static uint64_t count = 0;
@@ -183,6 +193,7 @@ private:
   Cache cache;
 
   static thread_local int thread_id;
+  static thread_local uint16_t version;
   static thread_local ThreadConnection *iCon;
   static thread_local char *rdma_buffer;
   static thread_local LocalAllocator local_allocator;
@@ -196,6 +207,7 @@ private:
   uint64_t lockMetaAddr;
   uint32_t myNodeID;
   int kNextLocCnt = 10;
+  int kMaxVersion = 0xFFFF;
 
   RemoteConnection *remoteInfo;
   ThreadConnection *thCon[MAX_APP_THREAD];

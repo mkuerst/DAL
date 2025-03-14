@@ -44,7 +44,7 @@ inline bool operator!=(const GLockAddress &lhs, const GLockAddress &rhs) {
 }
 
 inline std::ostream &operator<<(std::ostream &os, const GLockAddress &obj) {
-  os << "[" << (int)obj.nodeID << ", " << obj.threadID << ", " << ", " << obj.version << obj.offset << "]";
+  os << "[" << (int)obj.nodeID << ", " << obj.threadID << ", " << obj.version << ", " << obj.offset << "]";
   return os;
 }
 

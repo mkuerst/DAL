@@ -127,7 +127,7 @@ public:
     uint32_t getLockNR() { return lockNR; }
     void wait();
     void contact();
-    uint64_t test_self_cas(GlobalAddress gaddr, bool with_read);
+    uint64_t test_self_cas(GLockAddress gaddr, bool with_read);
     uint64_t node0(uint64_t cnt);
     uint64_t node1(uint64_t cnt);
     /**/
@@ -155,7 +155,7 @@ private:
     static thread_local char *curr_page_buffer;
     static thread_local GlobalAddress curr_lock_addr;
     static thread_local LocalLockNode *curr_lock_node;
-    static thread_local GlobalAddress next_gaddr;
+    static thread_local GLockAddress next_gaddr;
     static thread_local int threadID;
     /**/
 
