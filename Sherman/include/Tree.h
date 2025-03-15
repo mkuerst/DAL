@@ -130,7 +130,7 @@ public:
     uint64_t test_self_cas(GLockAddress gaddr, bool with_read);
     uint64_t node0(uint64_t cnt);
     uint64_t node1(uint64_t cnt);
-    int Tree::randNodeID(uint64_t value);
+    int randNodeID(uint64_t value);
     /**/
 
 private:
@@ -160,6 +160,7 @@ private:
     static thread_local GLockAddress version_addr;
     static thread_local GLockAddress expected_addr;
     static thread_local int threadID;
+    static thread_local uint64_t nodeID;
     static thread_local uint64_t lockMeta;
     /**/
 

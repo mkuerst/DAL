@@ -178,11 +178,11 @@ public:
                             uint64_t *rdma_buffer, uint64_t mask = 63,
                             CoroContext *ctx = nullptr);
 
-void DSM::faa_dm(GlobalAddress gaddr, uint64_t add_val,
+void faa_dm(GlobalAddress gaddr, uint64_t add_val,
                           uint64_t *rdma_buffer, bool signal,
                           CoroContext *ctx);
 
-void DSM::faa_dm_sync(GlobalAddress gaddr, uint64_t add_val,
+void faa_dm_sync(GlobalAddress gaddr, uint64_t add_val,
                                uint64_t *rdma_buffer, CoroContext *ctx);
 
   uint64_t poll_rdma_cq(int count = 1);
