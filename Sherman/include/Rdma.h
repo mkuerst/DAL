@@ -124,6 +124,9 @@ bool rdmaCompareAndSwapMask(ibv_qp *qp, uint64_t source, uint64_t dest,
                             uint32_t remoteRKey, uint64_t mask = ~(0ull),
                             bool signal = true);
 
+bool rdmaFetchAndAdd(ibv_qp *qp, uint64_t source, uint64_t dest,
+                             uint64_t add, uint32_t lkey, uint32_t remoteRKey,
+                             bool singal, uint64_t wr_id=0);
 //// Utility.cpp
 void rdmaQueryQueuePair(ibv_qp *qp);
 void checkDMSupported(struct ibv_context *ctx);

@@ -248,6 +248,13 @@ void DSM::wakeup_peer(GLockAddress gaddr, int tid) {
     cerr << "SENT WAKEUP CALL TO PEER: " << gaddr.nodeID << ", " << gaddr.threadID << "\n\n";
 }
 
+void DSM::spin_on(GlobalAddress lock_addr) {
+  uint64_t *spin_loc = (uint64_t *)((uint64_t) lockMetaAddr + lock_addr.offset);
+  while(*spin_loc == 0)
+    CPU_PAUSE();
+  *spin_loc = 0; 
+}
+
 void DSM::read(char *buffer, GlobalAddress gaddr, size_t size, bool signal,
                CoroContext *ctx) {
   if (ctx == nullptr) {
@@ -292,6 +299,32 @@ void DSM::write(const char *buffer, GlobalAddress gaddr, size_t size,
 void DSM::write_sync(const char *buffer, GlobalAddress gaddr, size_t size,
                      CoroContext *ctx) {
   write(buffer, gaddr, size, true, ctx);
+
+  if (ctx == nullptr) {
+    ibv_wc wc;
+    pollWithCQ(iCon->cq, 1, &wc, gaddr.offset, size);
+  }
+}
+
+void DSM::write_lm(const char *buffer, GlobalAddress gaddr, size_t size,
+                bool signal, CoroContext *ctx) {
+
+  if (ctx == nullptr) {
+    rdmaWrite(iCon->data[0][gaddr.nodeID], (uint64_t)buffer,
+              remoteInfo[gaddr.nodeID].lockMetaBase + gaddr.offset, size,
+              iCon->cacheLKey, remoteInfo[gaddr.nodeID].lockMetaRKey[0], -1, signal);
+  } else {
+    rdmaWrite(iCon->data[0][gaddr.nodeID], (uint64_t)buffer,
+              remoteInfo[gaddr.nodeID].lockMetaBase + gaddr.offset, size,
+              iCon->cacheLKey, remoteInfo[gaddr.nodeID].lockMetaRKey[0], -1, true,
+              ctx->coro_id);
+    (*ctx->yield)(*ctx->master);
+  }
+}
+
+void DSM::write_lm_sync(const char *buffer, GlobalAddress gaddr, size_t size,
+                     CoroContext *ctx) {
+  write_lm(buffer, gaddr, size, true, ctx);
 
   if (ctx == nullptr) {
     ibv_wc wc;
@@ -704,6 +737,34 @@ void DSM::faa_dm_boundary_sync(GlobalAddress gaddr, uint64_t add_val,
                                uint64_t *rdma_buffer, uint64_t mask,
                                CoroContext *ctx) {
   faa_dm_boundary(gaddr, add_val, rdma_buffer, mask, true, ctx);
+  if (ctx == nullptr) {
+    ibv_wc wc;
+    pollWithCQ(iCon->cq, 1, &wc);
+  }
+}
+
+void DSM::faa_dm(GlobalAddress gaddr, uint64_t add_val,
+                          uint64_t *rdma_buffer, bool signal,
+                          CoroContext *ctx) {
+  if (ctx == nullptr) {
+
+    rdmaFetchAndAdd(iCon->data[0][gaddr.nodeID], (uint64_t)rdma_buffer,
+                            remoteInfo[gaddr.nodeID].lockBase + gaddr.offset,
+                            add_val, iCon->cacheLKey,
+                            remoteInfo[gaddr.nodeID].lockRKey[0], signal);
+  } else {
+    rdmaFetchAndAdd(iCon->data[0][gaddr.nodeID], (uint64_t)rdma_buffer,
+                            remoteInfo[gaddr.nodeID].lockBase + gaddr.offset,
+                            add_val, iCon->cacheLKey,
+                            remoteInfo[gaddr.nodeID].lockRKey[0], true,
+                            ctx->coro_id);
+    (*ctx->yield)(*ctx->master);
+  }
+}
+
+void DSM::faa_dm_sync(GlobalAddress gaddr, uint64_t add_val,
+                               uint64_t *rdma_buffer, CoroContext *ctx) {
+  faa_dm(gaddr, add_val, rdma_buffer, true, ctx);
   if (ctx == nullptr) {
     ibv_wc wc;
     pollWithCQ(iCon->cq, 1, &wc);

@@ -9,6 +9,7 @@
 #include <queue>
 #include <utility>
 #include <vector>
+#include <bitset>
 
 using namespace std;
 
@@ -34,6 +35,7 @@ thread_local LocalLockNode *Tree::curr_lock_node;
 thread_local GLockAddress Tree::next_gaddr;
 thread_local GLockAddress Tree::version_addr;
 thread_local GLockAddress Tree::expected_addr = GLockAddress::Null();
+thread_local uint64_t Tree::lockMeta = 0;
 
 Measurements measurements;
 
@@ -265,29 +267,34 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   #endif
 
   timer.begin();
-  #ifdef MN_QUEUE
-  uint64_t own_tag = dsm->setLockWord(0, 4);
-  uint64_t new_tag = 0;
-  uint64_t mnq_retries = 0;
-  if (!dsm->cas_dm_sync(lock_addr, 0, own_tag, buf, cxt)) {
-    new_tag = *(uint64_t *) buf;
-    own_tag = dsm->setLockWord(new_tag, 4);
-    while (!dsm->cas_dm_sync(lock_addr, new_tag, own_tag, buf, cxt)) {
-      mnq_retries++;
-      new_tag = *(uint64_t *) buf;
-      own_tag = dsm->setLockWord(new_tag, 4);
-      if (mnq_retries > 10000) {
-        Debug::notifyError("DEADLOCK MNQ_RETRIES");
-        assert(false);
-      }
-    }
-    dsm->spin_on(lock_addr);
-
-  }
-  return;
-
+  #ifdef RAND_FAA
+  uint64_t add = 1ULL << dsm->getMyNodeID();
+  bitset<64> bits(add);
   
+  cerr << "[" << myNodeID << ", " << thread_id << "]" << endl <<
+  "FAA DM (LOCK), lock_addr: " << lock_addr << endl <<
+  "add: " << bits << "\n\n";
 
+  dsm->faa_dm_sync(lock_addr, val, buf, nullptr);
+  lockMeta = *buf;
+  bitset<64> lm_bits(lockMeta);
+  if (lockMeta == 0) {
+  cerr << "[" << myNodeID << ", " << thread_id << "]" << endl <<
+    "LOCK FROM MN" << endl <<
+    "lock_addr: " << lock_addr << endl <<
+    "lockMeta: " << lm_bits << "\n\n";
+    return false;
+  }
+  cerr << "[" << myNodeID << ", " << thread_id << "]" << endl <<
+  "SPIN" << endl <<
+  "lock_addr: " << lock_addr << endl <<
+  "lockMeta: " << lm_bits << "\n\n";
+  dsm->spin_on(lock_addr);
+  cerr << "[" << myNodeID << ", " << thread_id << "]" << endl <<
+  "WOKE UP" << endl <<
+  "lock_addr: " << lock_addr << endl <<
+  "lockMeta: " << lm_bits << "\n\n";
+  return false;
   #endif
 
   #ifdef CN_AWARE
@@ -503,6 +510,27 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
   // DEB("[%d.%d] unlocked global lock remotely: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), curr_lock_addr.offset);
 }
 
+  int Tree::randNodeID(uint64_t value) {
+    int nodeNR = MAX_MACHINE;
+    int indices[nodeNR]; // Fixed-size array to store set bit positions
+    int count = 0;
+
+    while (value && count < nodeNR) {
+        int index = __builtin_ctzll(value); // Get the lowest set bit position
+        indices[count++] = index;
+        value &= (value - 1); // Clear the lowest set bit
+    }
+    indices[dsm->getMyNodeID()] = 0;
+    assert(count > 1);
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<int> dist(0, count - 1);
+
+    return indices[dist(gen)];
+  }
+
+
 void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
                                  int page_size, uint64_t *cas_buffer,
                                  GlobalAddress lock_addr, uint64_t tag,
@@ -526,6 +554,38 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   #endif
 
   uint64_t *cas_buf = dsm->get_rbuf(coro_id).get_cas_buffer();
+  #ifdef RAND_FAA
+  dsm->write_sync(page_buffer, page_addr, page_size, cxt);
+  uint64_t add = -(1ULL << dsm->getMyNodeID());
+  bitset<64> bits(add);
+  cerr << "[" << myNodeID << ", " << thread_id << "]" << endl <<
+  "FAA DM (REL), lock_addr: " << lock_addr << endl <<
+  "add: " << bits << "\n\n";
+
+  dsm->faa_dm_sync(lock_addr, val, buf, nullptr);
+  lockMeta = *buf;
+  bitset<64> lm_bits(lockMeta);
+  if (lockMeta == 1ULL << dsm->getMyNodeID()) {
+    cerr << "[" << myNodeID << ", " << thread_id << "]" << endl <<
+    "REL LOCK TO MN" << endl <<
+    "lock_addr: " << lock_addr << endl <<
+    "lockMeta: " << lm_bits << "\n\n";
+    return;
+  }
+  int peerNodeID = randNodeID(lockMeta);
+  uint64_t *cbuf = dsm->get_rbuf(coro_id).get_cas_buffer()
+  GlobalAddress peerSpinLoc = GlobalAddress::Null();
+  peerSpinLoc.nodeID = peerNodeID;
+  peerSpinLoc.offset = lock_addr.offset;
+  cerr << "[" << myNodeID << ", " << thread_id << "]" << endl <<
+  "REL LOCK TO PEER" << endl <<
+  "lock_addr: " << lock_addr << endl <<
+  "lockMeta: " << lm_bits << endl <<
+  "peerSpinLoc: " << peerSpinLoc << "\n\n";
+  dsm->write_lm_sync(cbuf, peerSpinLoc, sizeof(uint64_t), nullptr);
+  return false;
+  #endif
+
   #ifdef CN_AWARE
   // *curr_cas_buffer = 0;
   cerr << "NODE " << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << endl <<

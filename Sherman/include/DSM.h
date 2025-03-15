@@ -44,25 +44,27 @@ public:
     return next_gaddr;
   }
 
-  #include <cstdint>
-  int nextMultipleOf(int x, int mult) {
-    return (((x % mult == 0) ? x :
-     ((x / mult) + 1) * mult) + mult) % 64;
-  }
+  void spin_on(GlobalAddress lock_addr);
 
-  int firstSetBitPosition(uint64_t value, int mult) {
-      if (value == 0) return 0;
-      int pos = 63 - __builtin_ctzll(value);
-      return nextMultipleOf(pos, mult);
-  }
+//   #include <cstdint>
+//   int nextMultipleOf(int x, int mult) {
+//     return (((x % mult == 0) ? x :
+//      (x / mult) + 1) * mult) % 64;
+//   }
 
-  uint64_t setLockWord(uint64_t old, int bitLength) {
-    int startPos = firstSetBitPosition(old, bitLength);
-    uint64_t mask = ((1ULL << bitLength) - 1) << startPos;
-    old &= ~mask;
-    old |= ((myNodeID+1) << startPos) & mask;
-    return old;
-}
+//   int getBitPosition(uint64_t value, int mult) {
+//       if (value == 0) return 0;
+//       int pos = __builtin_ctzll(value);
+//       return nextMultipleOf(pos, mult);
+//   }
+
+//   uint64_t setLockWord(uint64_t old, int bitLength) {
+//     int startPos = getBitPosition(old, bitLength);
+//     uint64_t mask = ((1ULL << bitLength) - 1) << startPos;
+//     old &= ~mask;
+//     old |= ((myNodeID+1) << startPos) & mask;
+//     return old;
+// }
 
   void getNextGLaddr(GLockAddress *gaddr, GlobalAddress lock_addr) {
     version = (version + 1) % kMaxVersion;
@@ -91,6 +93,10 @@ public:
              bool signal = true, CoroContext *ctx = nullptr);
   void write_sync(const char *buffer, GlobalAddress gaddr, size_t size,
                   CoroContext *ctx = nullptr);
+  void write_lm(const char *buffer, GlobalAddress gaddr, size_t size,
+             bool signal = true, CoroContext *ctx = nullptr);
+  void write_lm_sync(const char *buffer, GlobalAddress gaddr, size_t size,
+                      CoroContext *ctx = nullptr);
 
   void write_batch(RdmaOpRegion *rs, int k, bool signal = true,
                    CoroContext *ctx = nullptr);
@@ -171,6 +177,13 @@ public:
   void faa_dm_boundary_sync(GlobalAddress gaddr, uint64_t add_val,
                             uint64_t *rdma_buffer, uint64_t mask = 63,
                             CoroContext *ctx = nullptr);
+
+void DSM::faa_dm(GlobalAddress gaddr, uint64_t add_val,
+                          uint64_t *rdma_buffer, bool signal,
+                          CoroContext *ctx);
+
+void DSM::faa_dm_sync(GlobalAddress gaddr, uint64_t add_val,
+                               uint64_t *rdma_buffer, CoroContext *ctx);
 
   uint64_t poll_rdma_cq(int count = 1);
   bool poll_rdma_cq_once(uint64_t &wr_id);

@@ -296,6 +296,33 @@ bool rdmaFetchAndAddBoundary(ibv_qp *qp, uint64_t source, uint64_t dest,
   return true;
 }
 
+bool rdmaFetchAndAdd(ibv_qp *qp, uint64_t source, uint64_t dest,
+                             uint64_t add, uint32_t lkey, uint32_t remoteRKey,
+                             bool singal, uint64_t wr_id) {
+  struct ibv_sge sg;
+  struct ibv_send_wr wr;
+  struct ibv_send_wr *wrBad;
+
+  fillSgeWr(sg, wr, source, 8, lkey);
+
+  wr.wr_id = wr_id;
+
+  if (singal) {
+    wr.send_flags |= IBV_SEND_SIGNALED;
+  }
+
+  wr.wr.atomic.remote_addr = dest;
+  wr.wr.atomic.rkey = remoteRKey;
+  wr.wr.atomic.compare_add = add;
+
+
+  if (ibv_post_send(qp, &wr, &wrBad)) {
+    Debug::notifyError("Send with FETCH_AND_ADD failed.");
+    return false;
+  }
+  return true;
+}
+
 
 // for RC & UC
 bool rdmaCompareAndSwap(ibv_qp *qp, uint64_t source, uint64_t dest,

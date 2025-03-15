@@ -70,11 +70,11 @@ file(GLOB_RECURSE COMMON_FILE ${COMMON_SRC}/*.cpp)
 # set_target_properties(sherman_shermanCnaBw PROPERTIES OUTPUT_NAME "sherman_shermanCnaBw")
 # target_link_libraries(sherman_shermanCnaBw ${LINKS_FLAGS})
 
-# SHERMAN_LOCK MN_QUEUE
-add_library(sherman_shermanMnq STATIC ${COMMON_FILE})
-target_compile_definitions(sherman_shermanMnq PRIVATE -DSHERMAN_LOCK -DMN_QUEUE)
-set_target_properties(sherman_shermanMnq PROPERTIES OUTPUT_NAME "sherman_shermanMnq")
-target_link_libraries(sherman_shermanMnq ${LINKS_FLAGS})
+# SHERMAN_LOCK RAND_FAA
+add_library(sherman_shermanRfaa STATIC ${COMMON_FILE})
+target_compile_definitions(sherman_shermanRfaa PRIVATE -DSHERMAN_LOCK -DRAND_FAA)
+set_target_properties(sherman_shermanRfaa PROPERTIES OUTPUT_NAME "sherman_shermanRfaa")
+target_link_libraries(sherman_shermanRfaa ${LINKS_FLAGS})
 
 #################################################################################################################
 #################################################################################################################
