@@ -305,6 +305,7 @@ bool rdmaFetchAndAdd(ibv_qp *qp, uint64_t source, uint64_t dest,
 
   fillSgeWr(sg, wr, source, 8, lkey);
 
+  wr.opcode = IBV_WR_ATOMIC_FETCH_AND_ADD;
   wr.wr_id = wr_id;
 
   if (singal) {

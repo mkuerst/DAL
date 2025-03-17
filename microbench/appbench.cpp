@@ -135,7 +135,7 @@ void *thread_run(void *arg) {
     }
     dsm->registerThread();
     int id = dsm->getMyThreadID();
-    tree->set_threadID(id);
+    tree->set_IDs(nodeID, id);
 
     uint64_t all_thread = threadNR * dsm->getClusterSize();
     uint64_t my_id = threadNR * dsm->getMyNodeID() + id;

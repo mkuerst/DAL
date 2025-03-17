@@ -45,6 +45,7 @@ std::atomic_bool stop{false};
 #include <random>
 #include <cmath>
 #include <vector>
+
 class ZipfianGenerator {
     public:
         // Constructor now accepts a seed for the random number generator
@@ -123,7 +124,7 @@ void *empty_cs_worker(void *arg) {
         bindCore(thread_to_cpu_2n[task->id]);
     }
     dsm->registerThread(page_size);
-    rlock->set_threadID(dsm->getMyThreadID());
+    rlock->set_IDs(nodeID, dsm->getMyThreadID());
     GlobalAddress baseAddr;
     GlobalAddress lockAddr;
     baseAddr.nodeID = 0;
@@ -156,7 +157,7 @@ void *mlocks_worker(void *arg) {
     }
     dsm->registerThread(page_size);
     int id = dsm->getMyThreadID();
-    rlock->set_threadID(id);
+    rlock->set_IDs(nodeID, id);
     
     GlobalAddress baseAddr;
     GlobalAddress lockAddr;
@@ -177,7 +178,7 @@ void *mlocks_worker(void *arg) {
     srand(seed);
     ZipfianGenerator zipfian(0.99, range, seed);
     int num = 0;
-    int cnt = 100;
+    int cnt = 10;
     
     int fd = setup_perf_event(cpu);
     start_perf_event(fd);
@@ -207,18 +208,18 @@ void *mlocks_worker(void *arg) {
     // cerr << "FAILED CASES: " << failed_cases << "\n\n";
     // return 0;
 
-    // while (!stop.load()) {
-    while (num < cnt) {
+    while (!stop.load()) {
+    // while (num < cnt) {
 
         for (int j = 0; j < 400; j++) {
             int idx = uniform_rand_int(PRIVATE_ARRAY_SZ / sizeof(int));
             private_int_array[idx] += sum;
         }
         for (int j = 0; j < 100; j++) {
-            // if (stop.load())
-            //     break;
-            if (num >= cnt)
+            if (stop.load())
                 break;
+            // if (num >= cnt)
+            //     break;
             if (use_zipfian) {
                 lock_idx = zipfian.generate();
             }

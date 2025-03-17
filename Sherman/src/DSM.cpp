@@ -747,7 +747,6 @@ void DSM::faa_dm(GlobalAddress gaddr, uint64_t add_val,
                           uint64_t *rdma_buffer, bool signal,
                           CoroContext *ctx) {
   if (ctx == nullptr) {
-
     rdmaFetchAndAdd(iCon->data[0][gaddr.nodeID], (uint64_t)rdma_buffer,
                             remoteInfo[gaddr.nodeID].lockBase + gaddr.offset,
                             add_val, iCon->cacheLKey,

@@ -123,7 +123,7 @@ public:
     char *getCurrPB() { return curr_page_buffer; }
     GlobalAddress getCurrLockAddr() { return curr_lock_addr; }
     void setKPageSize(int page_size); 
-    void set_threadID(int id);
+    void set_IDs(int nid, int tid);
     uint32_t getLockNR() { return lockNR; }
     void wait();
     void contact();

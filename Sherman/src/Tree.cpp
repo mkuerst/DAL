@@ -70,7 +70,6 @@ Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB) : dsm(dsm), tre
   memset(measurements.lock_acqs, 0, MAX_MACHINE * lockNR * sizeof(uint32_t));
 
   // DEB("allocated measurements object: nodeID %d\n", dsm->getMyNodeID());
-  nodeID = dsm->getMyNodeID();
 
     for (int i = 0; i < dsm->getClusterSize(); ++i) {
         local_locks[i] = new LocalLockNode[lockNR];
@@ -517,13 +516,13 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
     int indices[nodeNR]; // Fixed-size array to store set bit positions
     int count = 0;
 
+    value &= ~(1ULL << nodeID);
     while (value && count < nodeNR) {
         int index = __builtin_ctzll(value); // Get the lowest set bit position
         indices[count++] = index;
         value &= (value - 1); // Clear the lowest set bit
     }
-    indices[dsm->getMyNodeID()] = 0;
-    assert(count > 1);
+    assert(count > 0);
 
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -572,8 +571,10 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     "REL LOCK TO MN" << endl <<
     "lock_addr: " << lock_addr << endl <<
     "lockMeta: " << lm_bits << "\n\n";
+    releases_local_lock(lock_addr);
     return;
   }
+
   int peerNodeID = randNodeID(lockMeta);
   char *lmbuf = dsm->get_rbuf(coro_id).get_page_buffer();
   GlobalAddress peerSpinLoc = GlobalAddress::Null();
@@ -584,7 +585,10 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   "lock_addr: " << lock_addr << endl <<
   "lockMeta: " << lm_bits << endl <<
   "peerSpinLoc: " << peerSpinLoc << "\n\n";
+  assert(peerSpinLoc.nodeID != nodeID);
   dsm->write_lm_sync(lmbuf, peerSpinLoc, sizeof(uint64_t), nullptr);
+
+  releases_local_lock(lock_addr);
   return;
   #endif
 
@@ -1844,8 +1848,9 @@ void Tree::mb_unlock(GlobalAddress base_addr, int data_size) {
 	}
 }
 
-void Tree::set_threadID(int id) {
-    threadID = id;
+void Tree::set_IDs(int nid, int tid) {
+    nodeID = nid;
+    threadID = tid;
 }
 
 
