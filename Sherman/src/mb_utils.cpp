@@ -389,11 +389,32 @@ int check_CN_correctness(
 		ret = 2;
 	}
 
-	uint64_t baseAddr = dsm->get_baseAddr();
+	
+	// GlobalAddress baseAddr = GlobalAddress::Null();
+	// baseAddr.nodeID = nodeID;
+	uint64_t cacheSize = dsm->getConf().cacheConfig.cacheSize;
+	uint64_t dsmSize = dsm->getConf().dsmSize;
+	// char * dbuf = (char *) dsm->getCacheAddr(); 
+	// for (size_t j = 0; j < dsmSize / cacheSize; j++) {
+	// 	baseAddr.offset = j * GB(cacheSize);
+	// 	cerr << j << ": " << baseAddr.offset << endl;
+	// 	memset(dbuf, 0, GB(cacheSize));
+	// 	dsm->read_sync(dbuf, baseAddr, cacheSize, nullptr);
+	// 	uint64_t *long_data = (uint64_t *) dbuf;
+	// 	for (size_t i = 0; i < GB(cacheSize) / sizeof(uint64_t); i++) {
+	// 		datasum += long_data[i];
+	// 		if (long_data[i] > 0) {
+	// 			cerr << i << ": " << long_data[i] << endl;
+	// 		}
+	// 	}
+	// }
+	uint64_t baseAddr = dsm->getBaseAddr();
 	uint64_t *long_data = (uint64_t *) baseAddr;
-
-	for (size_t i = 0; i < GB(dsm->getConf().dsmSize) / sizeof(uint64_t); i++) {
+	for (int i = 0; i < GB(dsmSize) / sizeof(uint64_t); i++) {
 		datasum += long_data[i];
+		if (long_data[i] > 0) {
+			cerr << i << ": " << long_data[i] << endl;
+		}
 	}
 
 	string key = "CORRECTNESS" + to_string(nodeID);

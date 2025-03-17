@@ -208,33 +208,32 @@ void *mlocks_worker(void *arg) {
     // cerr << "FAILED CASES: " << failed_cases << "\n\n";
     // return 0;
 
-    while (!stop.load()) {
-    // while (num < cnt) {
+    // while (!stop.load()) {
+    while (num < cnt) {
 
         for (int j = 0; j < 400; j++) {
             int idx = uniform_rand_int(PRIVATE_ARRAY_SZ / sizeof(int));
             private_int_array[idx] += sum;
         }
         for (int j = 0; j < 100; j++) {
-            if (stop.load())
-                break;
-            // if (num >= cnt)
+            // if (stop.load())
             //     break;
+            if (num >= cnt)
+                break;
             if (use_zipfian) {
                 lock_idx = zipfian.generate();
             }
             else {
                 lock_idx = (uint64_t) uniform_rand_int(range+1);
             }
-            // cerr << "mnNR: " << mnNR << endl;
             baseAddr.nodeID = uniform_rand_int(mnNR);
             // baseAddr.nodeID = 0;
             baseAddr.offset = chunk_size * lock_idx;
             lockAddr.nodeID = baseAddr.nodeID;
             lockAddr.offset = lock_idx * sizeof(uint64_t);
-            // cerr << "lockAddr: " << lockAddr << endl <<
-            // "baseAdrr: " << baseAddr << endl;
+
             rlock->mb_lock(baseAddr, lockAddr, page_size);
+
             num++;
             lock_acqs[lockAddr.nodeID * lockNR + lock_idx]++;
             task->lock_acqs++;
@@ -265,8 +264,8 @@ int main(int argc, char *argv[]) {
     &threadNR, &nodeNR, &mnNR, &lockNR, &runNR,
     &nodeID, &duration, &mode, &use_zipfian, 
     &kReadRatio, &pinning, &chipSize, &dsmSize,
-    &res_file_tp, &res_file_lat, &res_file_lock,
-    argc, argv);
+&res_file_tp, &res_file_lat, &res_file_lock,
+argc, argv);
 
     if (nodeID == 1) {
         if(system("sudo bash /nfs/DAL/restartMemc.sh"))
@@ -349,6 +348,7 @@ int main(int argc, char *argv[]) {
         string writeResKey = "WRITE_RES_" + to_string(n);
         dsm->barrier(writeResKey);
     }
+    __asm__ volatile("mfence" ::: "memory");
     dsm->barrier("MB_END");
     if (nodeID == 0) {
         DE("WRITTEN RESULTS\n");

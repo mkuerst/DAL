@@ -36,6 +36,8 @@ public:
   uint16_t getClusterSize() { return conf.machineNR; }
   uint64_t getThreadTag() { return thread_tag; }
   uint64_t getDsmSize() { return conf.dsmSize * define::GB; }
+  uint64_t getBaseAddr() { return baseAddr; }
+  uint64_t getCacheAddr() { return cache.data; }
 
   GlobalAddress getNextGaddr() { 
     // next_loc_curr = (next_loc_curr + 1) % kNextLocCnt;

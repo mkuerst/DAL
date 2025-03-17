@@ -37,7 +37,7 @@ DSM *DSM::getInstance(const DSMConfig &conf) {
 DSM::DSM(const DSMConfig &conf)
     : conf(conf), appID(0), cache(conf.cacheConfig) {
       
-  baseAddr = (uint64_t)hugePageAlloc(conf.dsmSize * define::GB + 64 * define::MB);
+  baseAddr = (uint64_t)hugePageAlloc(conf.dsmSize * define::GB);
   #ifdef ON_CHIP
   rlockAddr = define::kLockStartAddr;
   #else
@@ -54,7 +54,7 @@ DSM::DSM(const DSMConfig &conf)
   
   // warmup
   memset((char *)cache.data, 0, cache.size * define::GB);
-  memset((char *)baseAddr, 0, conf.dsmSize * define::GB + 64 * define::MB);
+  memset((char *)baseAddr, 0, conf.dsmSize * define::GB);
   
   initRDMAConnection();
   if (myNodeID < conf.mnNR) {
