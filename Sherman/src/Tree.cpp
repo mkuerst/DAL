@@ -507,7 +507,7 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
   *cas_buf = 0;
 
   #ifdef RAND_FAA
-  uint64_t add = -(1ULL << dsm->getMyNodeID());
+  uint64_t add = -(1ULL << nodeID);
 
   // bitset<64> bits(add);
   // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
@@ -517,7 +517,7 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
   dsm->faa_dm_sync(lock_addr, add, cas_buf, nullptr);
   lockMeta = *cas_buf;
   // bitset<64> lm_bits(lockMeta);
-  if (lockMeta == 1ULL << dsm->getMyNodeID()) {
+  if (lockMeta == 1ULL << nodeID) {
     // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
     // "REL LOCK TO MN" << endl <<
     // "lock_addr: " << lock_addr << endl <<
@@ -602,7 +602,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   uint64_t *cas_buf = dsm->get_rbuf(coro_id).get_cas_buffer();
   #ifdef RAND_FAA
   dsm->write_sync(page_buffer, page_addr, page_size, cxt);
-  uint64_t add = -(1ULL << dsm->getMyNodeID());
+  uint64_t add = -(1ULL << nodeID);
 
   // bitset<64> bits(add);
   // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
@@ -612,7 +612,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   dsm->faa_dm_sync(lock_addr, add, cas_buf, nullptr);
   lockMeta = *cas_buf;
   // bitset<64> lm_bits(lockMeta);
-  if (lockMeta == 1ULL << dsm->getMyNodeID()) {
+  if (lockMeta == 1ULL << nodeID) {
     // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
     // "REL LOCK TO MN" << endl <<
     // "lock_addr: " << lock_addr << endl <<
