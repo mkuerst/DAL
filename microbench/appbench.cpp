@@ -236,6 +236,7 @@ int main(int argc, char *argv[]) {
     config.machineNR = nodeNR;
     config.threadNR = threadNR;
     config.chipSize = chipSize;
+    config.lockMetaSize = chipSize;
     // lockNR = chipSize * 1024 / sizeof(uint64_t);
     dsm = DSM::getInstance(config);
     nodeID = dsm->getMyNodeID();

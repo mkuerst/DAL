@@ -36,6 +36,7 @@ public:
   uint16_t getClusterSize() { return conf.machineNR; }
   uint64_t getThreadTag() { return thread_tag; }
   uint64_t getDsmSize() { return conf.dsmSize * define::GB; }
+  uint64_t getLmSize() { return conf.lockMetaSize * 1024; }
   uint64_t getBaseAddr() { return baseAddr; }
   uint64_t getCacheAddr() { return cache.data; }
 
@@ -268,7 +269,7 @@ public:
   }
 
   GlobalAddress alloc(size_t size);
-  void free(GlobalAddress addr);
+  void free_(GlobalAddress addr);
   void free_dsm();
 
   void rpc_call_dir(const RawMessage &m, uint16_t node_id,
@@ -319,5 +320,5 @@ inline GlobalAddress DSM::alloc(size_t size) {
   return addr;
 }
 
-inline void DSM::free(GlobalAddress addr) { local_allocator.free(addr); }
+inline void DSM::free_(GlobalAddress addr) { local_allocator.free_(addr); }
 #endif /* __DSM_H__ */

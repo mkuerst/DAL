@@ -42,7 +42,7 @@ public:
     head = cur = addr;
   }
 
-  void free(const GlobalAddress &addr) {
+  void free_(const GlobalAddress &addr) {
     // TODO
   }
 

@@ -45,7 +45,7 @@ DSM::DSM(const DSMConfig &conf)
   memset((char *)rlockAddr, 0, conf.chipSize * 1024);
   #endif
 
-  lockMetaAddr = (uint64_t) malloc(conf.lockMetaSize * 1024);
+  lockMetaAddr = (uint64_t) malloc(conf.mnNR * conf.lockMetaSize * 1024);
   memset((char *)lockMetaAddr, 0, conf.mnNR * conf.lockMetaSize * 1024);
   
   // Debug::notifyInfo("shared memory size: %dGB, 0x%lx", conf.dsmSize, baseAddr);
@@ -73,6 +73,7 @@ DSM::~DSM() {}
 void DSM::free_dsm() {
   munmap((void*)baseAddr, conf.dsmSize * define::GB);
   munmap((void*)cache.data, cache.size * define::GB);
+  free((void* )lockMetaAddr);
 
   
   if (myNodeID < conf.mnNR) {
@@ -179,6 +180,7 @@ void DSM::registerThread(int page_size) {
 void DSM::initRDMAConnection() {
   remoteInfo = new RemoteConnection[conf.machineNR];
 
+  cerr << "MNR: " << conf.mnNR << endl;
   for (int i = 0; i < MAX_APP_THREAD; ++i) {
     thCon[i] =
         new ThreadConnection(i, (void *)cache.data, cache.size * define::GB,
@@ -311,7 +313,7 @@ void DSM::write_lm(const char *buffer, GlobalAddress gaddr, size_t size,
 
   if (ctx == nullptr) {
     rdmaWrite(iCon->data[0][gaddr.nodeID], (uint64_t)buffer,
-              remoteInfo[gaddr.nodeID].lockMetaBase + (gaddr.nodeID * conf.chipSize * 1024) + gaddr.offset, size,
+              remoteInfo[gaddr.nodeID].lockMetaBase + gaddr.offset, size,
               iCon->cacheLKey, remoteInfo[gaddr.nodeID].lockMetaRKey[0], -1, signal);
   } else {
     rdmaWrite(iCon->data[0][gaddr.nodeID], (uint64_t)buffer,
@@ -328,7 +330,7 @@ void DSM::write_lm_sync(const char *buffer, GlobalAddress gaddr, size_t size,
 
   if (ctx == nullptr) {
     ibv_wc wc;
-    pollWithCQ(iCon->cq, 1, &wc, gaddr.offset, size);
+    pollWithCQ(iCon->cq, 1, &wc, gaddr.val, size);
   }
 }
 
