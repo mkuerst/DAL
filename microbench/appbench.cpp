@@ -148,7 +148,7 @@ void *thread_run(void *arg) {
     for (uint64_t i = 1; i < end_warm_key; ++i) {
         if (i % all_thread == my_id) {
             tree->insert(to_key(i), i * 2);
-            cerr << "INSERTED WARMUP" << endl;
+            // cerr << "INSERTED WARMUP" << endl;
             // DE("INSERTED WARMUP KEY %ld -> %ld\n", i, i*2);
         }
     }

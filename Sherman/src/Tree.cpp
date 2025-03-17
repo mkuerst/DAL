@@ -760,22 +760,22 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
 
   #else
 
-  cerr << "page_addr: " << page_addr << "\n\n";
+  // cerr << "page_addr: " << page_addr << "\n\n";
   dsm->write_sync(page_buffer, page_addr, page_size, cxt);
   save_measurement(threadID, measurements.data_write);
   
   timer.begin();
   *cas_buf = 0;
-  // dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
+  dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
   save_measurement(threadID, measurements.gwait_rel);
 
-  if (!dsm->cas_dm_sync(lock_addr, next_gaddr.val, 0, cas_buffer, cxt)) {
-    Debug::notifyError("FAILED TO CAS MN FOR CN HO\n");
-    cerr << dsm->getMyNodeID() << ", lock addr: " << lock_addr << "\n" << 
-    "next_gaddr: " << next_gaddr << endl <<
-    "*cas_buffer: " << *(GLockAddress*) cas_buffer << "\n\n";
-    exit(1);
-  }
+  // if (!dsm->cas_dm_sync(lock_addr, next_gaddr.val, 0, cas_buffer, cxt)) {
+  //   Debug::notifyError("FAILED TO CAS MN FOR CN HO\n");
+  //   cerr << dsm->getMyNodeID() << ", lock addr: " << lock_addr << "\n" << 
+  //   "next_gaddr: " << next_gaddr << endl <<
+  //   "*cas_buffer: " << *(GLockAddress*) cas_buffer << "\n\n";
+  //   exit(1);
+  // }
 
   // if (async) {
   //   dsm->write_batch(&rs[0], 1, false);
@@ -800,8 +800,8 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
 
 
 
-  cerr << "REL LOCK TO MN" << endl <<
-  "lock_addr: " << lock_addr << "\n\n"; 
+  // cerr << "REL LOCK TO MN" << endl <<
+  // "lock_addr: " << lock_addr << "\n\n"; 
 
   releases_local_lock(lock_addr);
   // DEB("[%d.%d] unlocked global lock remotely: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_addr.offset);
