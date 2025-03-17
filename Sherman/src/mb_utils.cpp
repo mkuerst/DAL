@@ -412,9 +412,9 @@ int check_CN_correctness(
 	uint64_t *long_data = (uint64_t *) baseAddr;
 	for (int i = 0; i < GB(dsmSize) / sizeof(uint64_t); i++) {
 		datasum += long_data[i];
-		if (long_data[i] > 0) {
-			cerr << i << ": " << long_data[i] << endl;
-		}
+		// if (long_data[i] > 0) {
+		// 	cerr << i << ": " << long_data[i] << endl;
+		// }
 	}
 
 	string key = "CORRECTNESS" + to_string(nodeID);

@@ -6,7 +6,7 @@ add_definitions(-DBOOST_COROUTINES_NO_DEPRECATION_WARNING)
 
 #Compiler options
 # set(CMAKE_C_FLAGS  "-march=native -Wall -Wno-class-memaccess -Wno-deprecated-declarations -Wsign-compare -O3 -g")
-set(CMAKE_C_FLAGS  "-march=native -Wall -Wno-class-memaccess -Wno-deprecated-declarations -Wsign-compare -O3 -g -DDEB")
+set(CMAKE_C_FLAGS  "-march=native -Wall -Wno-class-memaccess -Wno-deprecated-declarations -Wsign-compare -O3 -g")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++11")
 # set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++11")
 
@@ -27,11 +27,11 @@ file(GLOB_RECURSE COMMON_FILE ${COMMON_SRC}/*.cpp)
 #################################################################################################################
 #################################################################################################################
 
-# # SHERMAN_LOCK
-# add_library(sherman_shermanLock STATIC ${COMMON_FILE})
-# target_compile_definitions(sherman_shermanLock PRIVATE -DSHERMAN_LOCK)
-# set_target_properties(sherman_shermanLock PROPERTIES OUTPUT_NAME "sherman_shermanLock")
-# target_link_libraries(sherman_shermanLock ${LINKS_FLAGS})
+# SHERMAN_LOCK
+add_library(sherman_shermanLock STATIC ${COMMON_FILE})
+target_compile_definitions(sherman_shermanLock PRIVATE -DSHERMAN_LOCK)
+set_target_properties(sherman_shermanLock PROPERTIES OUTPUT_NAME "sherman_shermanLock")
+target_link_libraries(sherman_shermanLock ${LINKS_FLAGS})
 
 # # SHERMAN_LOCK HO
 # add_library(sherman_shermanHo STATIC ${COMMON_FILE})

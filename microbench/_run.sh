@@ -63,12 +63,12 @@ comm_prot=rdma
 opts=("shermanRfaa")
 
 microbenches=("empty_cs" "mlocks" "kvs")
-duration=1
+duration=10
 runNR=1
 mnNR=1
 zipfian=1
 nodeNRs=(2)
-threadNRs=(16)
+threadNRs=(1)
 lockNRs=(1)
 bench_idxs=(1)
 pinnings=(1)

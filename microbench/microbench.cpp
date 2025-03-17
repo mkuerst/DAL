@@ -161,8 +161,8 @@ void *mlocks_worker(void *arg) {
     
     GlobalAddress baseAddr;
     GlobalAddress lockAddr;
-    baseAddr.nodeID = 0;
     baseAddr.offset = 0;
+    baseAddr.nodeID = 0;
     lockAddr.nodeID = 0;
     lockAddr.offset = 0;
     
@@ -208,18 +208,18 @@ void *mlocks_worker(void *arg) {
     // cerr << "FAILED CASES: " << failed_cases << "\n\n";
     // return 0;
 
-    // while (!stop.load()) {
-    while (num < cnt) {
+    while (!stop.load()) {
+    // while (num < cnt) {
 
         for (int j = 0; j < 400; j++) {
             int idx = uniform_rand_int(PRIVATE_ARRAY_SZ / sizeof(int));
             private_int_array[idx] += sum;
         }
         for (int j = 0; j < 100; j++) {
-            // if (stop.load())
-            //     break;
-            if (num >= cnt)
+            if (stop.load())
                 break;
+            // if (num >= cnt)
+            //     break;
             if (use_zipfian) {
                 lock_idx = zipfian.generate();
             }

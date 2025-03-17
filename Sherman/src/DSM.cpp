@@ -46,7 +46,7 @@ DSM::DSM(const DSMConfig &conf)
   #endif
 
   lockMetaAddr = (uint64_t) malloc(conf.lockMetaSize * 1024);
-  memset((char *)lockMetaAddr, 0, conf.lockMetaSize * 1024);
+  memset((char *)lockMetaAddr, 0, conf.mnNR * conf.lockMetaSize * 1024);
   
   // Debug::notifyInfo("shared memory size: %dGB, 0x%lx", conf.dsmSize, baseAddr);
   // Debug::notifyInfo("rdma cache size: %dGB", conf.cacheConfig.cacheSize);
@@ -182,14 +182,14 @@ void DSM::initRDMAConnection() {
   for (int i = 0; i < MAX_APP_THREAD; ++i) {
     thCon[i] =
         new ThreadConnection(i, (void *)cache.data, cache.size * define::GB,
-                             (void *) lockMetaAddr, conf.lockMetaSize*1024,
+                             (void *) lockMetaAddr, conf.mnNR * conf.lockMetaSize*1024,
                              conf.machineNR, remoteInfo);
   }
 
   for (int i = 0; i < NR_DIRECTORY; ++i) {
     dirCon[i] =
         new DirectoryConnection(i, (void *)baseAddr, conf.dsmSize * define::GB,
-                                (void *) rlockAddr, (void *) lockMetaAddr, conf.lockMetaSize*1024,
+                                (void *) rlockAddr, (void *) lockMetaAddr, conf.mnNR * conf.lockMetaSize*1024,
                                  conf.machineNR, conf.chipSize*1024,
                                 remoteInfo);
   }
@@ -249,7 +249,7 @@ void DSM::wakeup_peer(GLockAddress gaddr, int tid) {
 }
 
 void DSM::spin_on(GlobalAddress lock_addr) {
-  uint64_t *spin_loc = (uint64_t *)((uint64_t) lockMetaAddr + lock_addr.offset);
+  uint64_t *spin_loc = (uint64_t *)((uint64_t) lockMetaAddr + (lock_addr.nodeID * conf.chipSize * 1024) + lock_addr.offset);
   while(*spin_loc == 0)
     CPU_PAUSE();
   *spin_loc = 0; 
@@ -311,7 +311,7 @@ void DSM::write_lm(const char *buffer, GlobalAddress gaddr, size_t size,
 
   if (ctx == nullptr) {
     rdmaWrite(iCon->data[0][gaddr.nodeID], (uint64_t)buffer,
-              remoteInfo[gaddr.nodeID].lockMetaBase + gaddr.offset, size,
+              remoteInfo[gaddr.nodeID].lockMetaBase + (gaddr.nodeID * conf.chipSize * 1024) + gaddr.offset, size,
               iCon->cacheLKey, remoteInfo[gaddr.nodeID].lockMetaRKey[0], -1, signal);
   } else {
     rdmaWrite(iCon->data[0][gaddr.nodeID], (uint64_t)buffer,
