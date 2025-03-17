@@ -148,6 +148,7 @@ void *thread_run(void *arg) {
     for (uint64_t i = 1; i < end_warm_key; ++i) {
         if (i % all_thread == my_id) {
             tree->insert(to_key(i), i * 2);
+            // cerr << "INSERTED WARMUP" << endl;
             // DE("INSERTED WARMUP KEY %ld -> %ld\n", i, i*2);
         }
     }
@@ -157,11 +158,11 @@ void *thread_run(void *arg) {
 
     if (id == 0) {
         while (warmup_cnt.load() != threadNR);
-        printf("node %d finish\n", dsm->getMyNodeID());
+        fprintf(stderr, "node %d finish\n", dsm->getMyNodeID());
         dsm->barrier("warm_finish");
         
         uint64_t ns = bench_timer.end();
-        printf("warmup time %lds\n", ns / 1000 / 1000 / 1000);
+        fprintf(stderr, "warmup time %lds\n", ns / 1000 / 1000 / 1000);
         fflush(stdout);
 
         tree->index_cache_statistics();

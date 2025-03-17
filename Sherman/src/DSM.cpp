@@ -180,7 +180,6 @@ void DSM::registerThread(int page_size) {
 void DSM::initRDMAConnection() {
   remoteInfo = new RemoteConnection[conf.machineNR];
 
-  cerr << "MNR: " << conf.mnNR << endl;
   for (int i = 0; i < MAX_APP_THREAD; ++i) {
     thCon[i] =
         new ThreadConnection(i, (void *)cache.data, cache.size * define::GB,
