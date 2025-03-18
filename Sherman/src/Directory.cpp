@@ -28,7 +28,9 @@ Directory::~Directory() { delete chunckAlloc; }
 
 void Directory::dirThread() {
 
-  bindCore(127 - dirID);
+
+  unsigned int num_cores = std::thread::hardware_concurrency();
+  bindCore((num_cores-1) - dirID);
   // Debug::notifyInfo("thread %d in memory nodes runs...\n", dirID);
 
   while (!stopDirThread.load()) {

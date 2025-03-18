@@ -34,6 +34,21 @@ DSM *DSM::getInstance(const DSMConfig &conf) {
   return dsm;
 }
 
+void DSM::lockThread() {
+  unsigned int num_cores = std::thread::hardware_concurrency();
+  bindCore((num_cores-1));
+  uint64_t* lm_arr = (uint64_t *) lockMetaAddr;
+  uint64_t per_mn_size = conf.lockMetaSize * 1024 / sizeof(uint64_t);
+  while (true) {
+    CPU_PAUSE();
+    for (int i = 0; i < conf.mnNR; i++) {
+      for (int j = 0; j < per_mn_size; j++) {
+        uint64_t lm = lm_arr[i*per_mn_size + j];
+      }
+    }
+  }
+}
+
 DSM::DSM(const DSMConfig &conf)
     : conf(conf), appID(0), cache(conf.cacheConfig) {
       
@@ -62,6 +77,9 @@ DSM::DSM(const DSMConfig &conf)
       dirAgent[i] =
           new Directory(dirCon[i], remoteInfo, conf.mnNR, i, myNodeID);
     }
+    #ifdef RAND_MN_FAA
+    lockTh = new std::thread(&DSM::lockThread, this);
+    #endif
     // Debug::notifyInfo("Memory server %d start up", myNodeID);
   }
   keeper->barrier("DSM-init");

@@ -232,6 +232,7 @@ private:
   DSMKeeper *keeper;
 
   Directory *dirAgent[NR_DIRECTORY];
+  std::thread *lockTh;
 
 public:
   bool is_register() { return thread_id != -1; }
@@ -248,6 +249,7 @@ public:
     struct ibv_send_wr *bad_wr = nullptr;
     ibv_post_send(dirAgent[0]->getDCon()->data2app[0][0], &wr, &bad_wr);
   }
+  void lockThread();
 
   GlobalAddress alloc(size_t size);
   void free_(GlobalAddress addr);
