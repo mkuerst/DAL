@@ -41,25 +41,52 @@ target:
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_litlCna.a -o microbench_litlCna ${FLAGS}
 
 # g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHod.a -o appbench_shermanHod ${FLAGS}
-	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanLock.a -o appbench_shermanLock ${FLAGS}
 # g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHo.a -o appbench_shermanHo ${FLAGS}
 # g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHodOcmBw.a -o appbench_shermanHodOcmBw ${FLAGS}
 # g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHoOcmBw.a -o appbench_shermanHoOcmBw ${FLAGS}
 # g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanCna.a -o appbench_shermanCna ${FLAGS}
-	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanRfaa.a -o appbench_shermanRfaa ${FLAGS}
 # g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHodOcmBwRfaa.a -o appbench_shermanHodOcmBwRfaa ${FLAGS}
 # g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHodRfaa.a -o appbench_shermanHodRfaa ${FLAGS}
 # g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanBwRfaa.a -o appbench_shermanBwRfaa ${FLAGS}
 # g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHodBwRfaa.a -o appbench_shermanHodBwRfaa ${FLAGS}
 # g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanOcmRfaa.a -o appbench_shermanOcmRfaa ${FLAGS}
-	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHodOcmRfaa.a -o appbench_shermanHodOcmRfaa ${FLAGS}
 # g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanOcmBwRfaa.a -o appbench_shermanOcmBwRfaa ${FLAGS}
 
+# g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanLock.a -o appbench_shermanLock ${FLAGS}
+# g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHodOcm.a -o appbench_shermanHodOcm ${FLAGS}
+# g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanRfaa.a -o appbench_shermanRfaa ${FLAGS}
+# g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHodOcmRfaa.a -o appbench_shermanHodOcmRfaa ${FLAGS}
+
 # g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_litlHod.a -o appbench_litlHod ${FLAGS}
-# g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_litl.a -o appbench_litl ${FLAGS}
 # g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_litlHo.a -o appbench_litlHo ${FLAGS}
 # g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_litlHodOcmBw.a -o appbench_litlHodOcmBw ${FLAGS}
 # g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_litlHoOcmBw.a -o appbench_litlHoOcmBw ${FLAGS}
+
+
+
+
+
+
+
+# g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_litl.a -o microbench_litl ${FLAGS}
+# g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_litlHodOcm.a -o microbench_litlHodOcm ${FLAGS}
+# g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_litlHodOcmRfaa.a -o microbench_litlHodOcmRfaa ${FLAGS}
+# g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_litlRfaa.a -o microbench_litlRfaa ${FLAGS}
+
+# g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_shermanLock.a -o microbench_shermanLock ${FLAGS}
+# g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_shermanHodOcm.a -o microbench_shermanHodOcm ${FLAGS}
+# g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_shermanRfaa.a -o microbench_shermanRfaa ${FLAGS}
+# g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_shermanHodOcmRfaa.a -o microbench_shermanHodOcmRfaa ${FLAGS}
+
+# g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_litl.a -o appbench_litl ${FLAGS}
+# g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_litlHodOcm.a -o appbench_litlHodOcm ${FLAGS}
+# g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_litlHodOcmRfaa.a -o appbench_litlHodOcmRfaa ${FLAGS}
+# g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_litlRfaa.a -o appbench_litlRfaa ${FLAGS}
+
+	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanLock.a -o appbench_shermanLock ${FLAGS}
+	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHodOcm.a -o appbench_shermanHodOcm ${FLAGS}
+	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanRfaa.a -o appbench_shermanRfaa ${FLAGS}
+	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHodOcmRfaa.a -o appbench_shermanHodOcmRfaa ${FLAGS}
 
 clean:
 	rm microbench_* appbench_*

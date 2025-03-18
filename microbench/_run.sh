@@ -60,13 +60,12 @@ comm_prot=rdma
 # opts=("shermanLock" "shermanHo" "shermanHod" "litl" "litlHo" "litlHod")
 # opts=("shermanLock" "shermanHo" "shermanHod" "shermanHodOcmBw" "litl" "litlHo" "litlHod" "litlHodOcmBw")
 # opts=("shermanLock" "shermanHod" "shermanHodOcmBw" "litl" "litlHod" "litlHodOcmBw")
-# opts=("shermanLock" "shermanRfaa" "shermanHodOcmBwRfaa")
-opts=("shermanHodOcmRfaa")
+opts=("shermanLock" "shermanHodOcm" "shermanRfaa" "shermanHodOcmBwRfaa")
 
 microbenches=("empty_cs" "mlocks" "kvs")
 duration=10
 runNR=1
-mnNR=1
+mnNR=2
 zipfian=1
 nodeNRs=(1 4)
 threadNRs=(16)
