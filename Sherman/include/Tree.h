@@ -66,6 +66,7 @@ struct Measurements {
     uint64_t handovers[MAX_APP_THREAD];
     uint64_t handovers_data[MAX_APP_THREAD];
     uint64_t cache_misses[MAX_APP_THREAD];
+    uint64_t c_ho[MAX_APP_THREAD];
     uint64_t duration;
 };
 

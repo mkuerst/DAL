@@ -16,11 +16,14 @@ OPTS =  [
 "litlHod",
 "litlHoOcmBw",
 "litlHodOcmBw",
+"litlRfaa",
+
 "sherman",
 "shermanHo",
 "shermanHod",
 "shermanHodOcmBw",
 "shermanLock",
+"shermanRfaa",
 ]
 
 OPT_TO_NAME = {
@@ -29,6 +32,7 @@ OPT_TO_NAME = {
 "litlHod": "Hod",
 "litlHoOcmBw": "HoOcmBw",
 "litlHodOcmBw": "HodOcmBw",
+"litlRfaa": "Rfaa",
 
 "shermanLock": "",
 "shermanHo": "Ho",
@@ -36,6 +40,7 @@ OPT_TO_NAME = {
 "sherman": "HoOcmBw",
 "shermanHodOcmBw": "HoOcmBw",
 "shermanHodOcmBw": "HodOcmBw",
+"shermanRfaa": "Rfaa",
 }
     
 COMM_PROTOCOLS = ["rdma"]
@@ -71,6 +76,7 @@ TP_COLS = [
 "la",
 "pinning",
 "cache_misses",
+"c_ho",
 ]
 
 STAT_TO_COLS = {

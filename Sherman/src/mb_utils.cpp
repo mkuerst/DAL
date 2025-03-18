@@ -121,6 +121,7 @@ void clear_measurements(int lockNR) {
 		measurements.tp[i] = 0;
 		measurements.la[i] = 0;
 		measurements.loop_in_cs[i] = 0;
+		measurements.c_ho[i] = 0;
 	}
 }
 
@@ -271,7 +272,8 @@ void write_tp(char* tp_path, char* lock_path, int run, int threadNR, int lockNR,
 			<< std::setw(8) << lockNR << ","
 			<< std::setw(8) << measurements.la[t] << ","
 			<< std::setw(2) << pinning << ","
-			<< std::setw(16) << measurements.cache_misses[t] << "\n";
+			<< std::setw(16) << measurements.cache_misses[t] << ","
+			<< std::setw(8) << measurements.c_ho[t] << "\n";
 	}
 
 	file.flush();

@@ -251,8 +251,10 @@ void DSM::wakeup_peer(GLockAddress gaddr, int tid) {
 
 void DSM::spin_on(GlobalAddress lock_addr) {
   uint64_t *spin_loc = (uint64_t *)((uint64_t) lockMetaAddr + (lock_addr.nodeID * conf.chipSize * 1024) + lock_addr.offset);
-  while(*spin_loc == 0)
+  while(*spin_loc == 0) {
     CPU_PAUSE();
+    // CPU_FENCE();
+  }
   *spin_loc = 0; 
 }
 
@@ -442,7 +444,7 @@ void DSM::write_cas(RdmaOpRegion &write_ror, RdmaOpRegion &cas_ror,
     GlobalAddress gaddr;
     gaddr.val = write_ror.dest;
     node_id = gaddr.nodeID;
-
+// 
     fill_keys_dest(write_ror, gaddr, write_ror.is_on_chip);
   }
   {

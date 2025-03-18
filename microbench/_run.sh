@@ -35,7 +35,7 @@ pthread_so="$PWD/../litl2/lib/original/libpthreadinterpose_original.so"
 cn_tp_header="tid,\
 loop_in_cs,lock_acquires,duration,\
 glock_tries,handovers,handovers_data,array_size(B),\
-nodeID,run,lockNR,la,pinning,cache_misses"
+nodeID,run,lockNR,la,pinning,cache_misses,c_ho"
 
 cn_lat_header="lock_hold,\
 lwait_acq,\
@@ -65,11 +65,11 @@ opts=("shermanRfaa")
 microbenches=("empty_cs" "mlocks" "kvs")
 duration=10
 runNR=1
-mnNR=1
+mnNR=2
 zipfian=1
-nodeNRs=(2)
+nodeNRs=(4)
 threadNRs=(16)
-lockNRs=(512)
+lockNRs=(1024)
 bench_idxs=(2)
 pinnings=(1)
 chipSize=128

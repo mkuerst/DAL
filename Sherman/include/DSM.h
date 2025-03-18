@@ -2,6 +2,7 @@
 #define __DSM_H__
 
 #define CPU_PAUSE() asm volatile("pause\n" : : : "memory")
+#define CPU_FENCE() __asm__ volatile("mfence" ::: "memory");
 #include <atomic>
 
 #include "Cache.h"
@@ -48,26 +49,6 @@ public:
   }
 
   void spin_on(GlobalAddress lock_addr);
-
-//   #include <cstdint>
-//   int nextMultipleOf(int x, int mult) {
-//     return (((x % mult == 0) ? x :
-//      (x / mult) + 1) * mult) % 64;
-//   }
-
-//   int getBitPosition(uint64_t value, int mult) {
-//       if (value == 0) return 0;
-//       int pos = __builtin_ctzll(value);
-//       return nextMultipleOf(pos, mult);
-//   }
-
-//   uint64_t setLockWord(uint64_t old, int bitLength) {
-//     int startPos = getBitPosition(old, bitLength);
-//     uint64_t mask = ((1ULL << bitLength) - 1) << startPos;
-//     old &= ~mask;
-//     old |= ((myNodeID+1) << startPos) & mask;
-//     return old;
-// }
 
   void getNextGLaddr(GLockAddress *gaddr, GlobalAddress lock_addr) {
     version = (version + 1) % kMaxVersion;
