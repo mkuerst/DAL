@@ -222,7 +222,7 @@ lat_bar_colors = {
 median_colors = {"gwait_acq": "silver", "lwait_acq": "orange", "gwait_rel": "violet", "lwait_rel": "cyan", "lock_hold": "purple"}
 node_colors = {"empty_cs1n": "gray", "empty_cs2n": "black", "mem1n": "gray", "mem2n": "black"}
 client_hatches = {1:'/', 2:'\\', 3:'|', 5:'-', 4:'+'}
-mlocks_hatches = {1:'', 32: '', 128:'', 256:'', 1024:'', 512:'', 16384: ''}
+mlocks_hatches = {1:'', 16: '', 32: '', 128:'', 256:'', 1024:'', 512:'', 16384: ''}
 
 FIG_X = 10
 FIG_Y = 6

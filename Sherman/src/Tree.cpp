@@ -267,10 +267,6 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   }
   #endif
 
-  #ifdef RAND_MN_FAA
-
-  #endif
-
   timer.begin();
   #ifdef RAND_FAA
   uint64_t add = 1ULL << dsm->getMyNodeID();
@@ -290,7 +286,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   //   "LOCK FROM MN" << endl <<
   //   "lock_addr: " << lock_addr << endl <<
   //   "lockMeta: " << lm_bits << "\n\n";
-    save_measurement(threadID, measurements.gwait_acq);
+    save_measurement(threadID, measurements.gwait_acq, 1, true);
     measurements.la[threadID]++;
     return false;
   }
@@ -300,7 +296,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   // "lockMeta: " << lm_bits << "\n\n";
 
   dsm->spin_on(lock_addr);
-  save_measurement(threadID, measurements.gwait_acq);
+  save_measurement(threadID, measurements.gwait_acq, 1, true);
   measurements.la[threadID]++;
 
   // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<

@@ -82,11 +82,11 @@ target_compile_definitions(sherman_shermanRfaa PRIVATE -DSHERMAN_LOCK -DRAND_FAA
 set_target_properties(sherman_shermanRfaa PROPERTIES OUTPUT_NAME "sherman_shermanRfaa")
 target_link_libraries(sherman_shermanRfaa ${LINKS_FLAGS})
 
-# SHERMAN_LOCK RAND_FAA + BW + HOD + OCM
-add_library(sherman_shermanHodOcmBwRfaa STATIC ${COMMON_FILE})
-target_compile_definitions(sherman_shermanHodOcmBwRfaa PRIVATE -DSHERMAN_LOCK -DRAND_FAA -DBATCHED_WRITEBACK -DON_CHIP -DHANDOVER_DATA)
-set_target_properties(sherman_shermanHodOcmBwRfaa PROPERTIES OUTPUT_NAME "sherman_shermanHodOcmBwRfaa")
-target_link_libraries(sherman_shermanHodOcmBwRfaa ${LINKS_FLAGS})
+# # SHERMAN_LOCK RAND_FAA + BW + HOD + OCM
+# add_library(sherman_shermanHodOcmBwRfaa STATIC ${COMMON_FILE})
+# target_compile_definitions(sherman_shermanHodOcmBwRfaa PRIVATE -DSHERMAN_LOCK -DRAND_FAA -DBATCHED_WRITEBACK -DON_CHIP -DHANDOVER_DATA)
+# set_target_properties(sherman_shermanHodOcmBwRfaa PROPERTIES OUTPUT_NAME "sherman_shermanHodOcmBwRfaa")
+# target_link_libraries(sherman_shermanHodOcmBwRfaa ${LINKS_FLAGS})
 
 # # SHERMAN_LOCK RAND_FAA + HOD 
 # add_library(sherman_shermanHodRfaa STATIC ${COMMON_FILE})
@@ -114,7 +114,7 @@ target_link_libraries(sherman_shermanHodOcmBwRfaa ${LINKS_FLAGS})
 
 # SHERMAN_LOCK RAND_FAA + OCM + HOD
 add_library(sherman_shermanHodOcmRfaa STATIC ${COMMON_FILE})
-target_compile_definitions(sherman_shermanHodOcmRfaa PRIVATE -DSHERMAN_LOCK -DRAND_FAA -DHANDOVER_DATA -DON_CHIP)
+target_compile_definitions(sherman_shermanHodOcmRfaa PRIVATE -DSHERMAN_LOCK -DRAND_FAA -DHANDOVER -DHANDOVER_DATA -DON_CHIP)
 set_target_properties(sherman_shermanHodOcmRfaa PROPERTIES OUTPUT_NAME "sherman_shermanHodOcmRfaa")
 target_link_libraries(sherman_shermanHodOcmRfaa ${LINKS_FLAGS})
 
@@ -160,15 +160,21 @@ target_link_libraries(sherman_shermanHodOcmRfaa ${LINKS_FLAGS})
 
 # # LITL HOD OCM
 # add_library(sherman_litlHodOcm STATIC ${COMMON_FILE})
-# target_compile_definitions(sherman_litlHodOcm PRIVATE -DLITL -DHANDOVER_DATA -DON_CHIP)
+# target_compile_definitions(sherman_litlHodOcm PRIVATE -DLITL -DHANDOVER -DHANDOVER_DATA -DON_CHIP)
 # set_target_properties(sherman_litlHodOcm PROPERTIES OUTPUT_NAME "sherman_litlHodOcm")
 # target_link_libraries(sherman_litlHodOcm ${LINKS_FLAGS})
 
 # # LITL HOD OCM RAND_FAA
 # add_library(sherman_litlHodOcmRfaa STATIC ${COMMON_FILE})
-# target_compile_definitions(sherman_litlHodOcmRfaa PRIVATE -DLITL -DHANDOVER_DATA -DON_CHIP -DRAND_FAA)
+# target_compile_definitions(sherman_litlHodOcmRfaa PRIVATE -DLITL -DHANDOVER -DHANDOVER_DATA -DON_CHIP -DRAND_FAA)
 # set_target_properties(sherman_litlHodOcmRfaa PROPERTIES OUTPUT_NAME "sherman_litlHodOcmRfaa")
 # target_link_libraries(sherman_litlHodOcmRfaa ${LINKS_FLAGS})
+
+# # LITL RAND_FAA
+# add_library(sherman_litlRfaa STATIC ${COMMON_FILE})
+# target_compile_definitions(sherman_litlRfaa PRIVATE -DLITL -DRAND_FAA)
+# set_target_properties(sherman_litlRfaa PROPERTIES OUTPUT_NAME "sherman_litlRfaa")
+# target_link_libraries(sherman_litlRfaa ${LINKS_FLAGS})
 
 # # LITL HOD OCM BW
 # add_library(sherman_litlHodOcmBw STATIC ${COMMON_FILE})
