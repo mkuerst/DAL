@@ -1,0 +1,1 @@
+lock_hold,lwait_acq,lwait_rel,gwait_acq,gwait_rel,data_read,data_write,end_to_end,array_size,nodeID,run,lockNR,pinning
