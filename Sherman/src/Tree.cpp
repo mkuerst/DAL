@@ -616,39 +616,42 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   RdmaOpRegion rs[2];
   uint64_t *cas_buf = dsm->get_rbuf(coro_id).get_cas_buffer();
   #ifdef RAND_FAA
-  uint64_t add = -(1ULL << nodeID);
+  uint64_t add_ = -(1ULL << nodeID);
 
-  #ifdef BATCHED_WRITEBACK
-  rs[0].source = (uint64_t)page_buffer;
-  rs[0].dest = page_addr;
-  rs[0].size = page_size;
-  rs[0].is_on_chip = false;
+    #ifdef BATCHED_WRITEBACK
 
-  // rs[1].source = (uint64_t)dsm->get_rbuf(coro_id).get_cas_buffer();
-  rs[1].source = (uint64_t)cas_buf;
-  rs[1].dest = lock_addr;
-  rs[1].size = sizeof(uint64_t);
-  rs[1].is_on_chip = true;
-  // *(uint64_t *)rs[1].source = 0;
+    rs[0].source = (uint64_t)page_buffer;
+    rs[0].dest = page_addr;
+    rs[0].size = page_size;
+    rs[0].is_on_chip = false;
 
-  if (async) {
-    dsm->write_faa(rs[0], rs[1], add, false);
-  } else {
-    dsm->write_faa_sync(rs[0], rs[1], add, cxt);
-  }
-  save_measurement(threadID, measurements.data_write);
+    // rs[1].source = (uint64_t)dsm->get_rbuf(coro_id).get_cas_buffer();
+    rs[1].source = (uint64_t)cas_buf;
+    rs[1].dest = lock_addr;
+    rs[1].size = sizeof(uint64_t);
+    rs[1].is_on_chip = true;
+    // *(uint64_t *)rs[1].source = 0;
 
-  #else
-  dsm->write_sync(page_buffer, page_addr, page_size, cxt);
-  save_measurement(threadID, measurements.data_write);
+    if (async) {
+      dsm->write_faa(rs[0], rs[1], add_, false);
+    } else {
+      dsm->write_faa_sync(rs[0], rs[1], add_, cxt);
+    }
+    save_measurement(threadID, measurements.data_write);
 
-  // bitset<64> bits(add);
-  // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
-  // "FAA DM (REL), lock_addr: " << lock_addr << endl <<
-  // "add: " << bits << "\n\n";
+    #else
 
-  dsm->faa_dm_sync(lock_addr, add, cas_buf, nullptr);
-  #endif
+    dsm->write_sync(page_buffer, page_addr, page_size, cxt);
+    save_measurement(threadID, measurements.data_write);
+
+    // bitset<64> bits(add_);
+    // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
+    // "FAA DM (REL), lock_addr: " << lock_addr << endl <<
+    // "add: " << bits << "\n\n";
+
+    dsm->faa_dm_sync(lock_addr, add_, cas_buf, nullptr);
+
+    #endif
 
   lockMeta = *cas_buf;
   // bitset<64> lm_bits(lockMeta);
@@ -683,6 +686,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
 
   releases_local_lock(lock_addr);
   return;
+
   #endif
 
   #ifdef CN_AWARE
