@@ -288,7 +288,9 @@ argc, argv);
     dsm = DSM::getInstance(config);
     nodeID = dsm->getMyNodeID();
     // register_sighandler(dsm);
-    DE("DSM INIT DONE: %d\n", nodeID);
+    if (nodeID == 0) {
+        DE("DSM INIT DONE\n");
+    }
 
     if (nodeID == 0) {
         char val[sizeof(uint64_t)];
