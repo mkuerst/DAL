@@ -52,11 +52,11 @@ target_link_libraries(sherman_shermanLock ${LINKS_FLAGS})
 # set_target_properties(sherman_shermanHoOcmBw PROPERTIES OUTPUT_NAME "sherman_shermaHoOcmBw")
 # target_link_libraries(sherman_shermanHoOcmBw ${LINKS_FLAGS})
 
-# # ORIGINAL SHERMAN W/ OPTS + HOD
-# add_library(sherman_shermanHodOcmBw STATIC ${COMMON_FILE})
-# target_compile_definitions(sherman_shermanHodOcmBw PRIVATE -DSHERMAN_LOCK -DHANDOVER -DON_CHIP -DBATCHED_WRITEBACK -DHANDOVER_DATA)
-# set_target_properties(sherman_shermanHodOcmBw PROPERTIES OUTPUT_NAME "sherman_shermanHodOcmBw")
-# target_link_libraries(sherman_shermanHodOcmBw ${LINKS_FLAGS})
+# ORIGINAL SHERMAN W/ OPTS + HOD
+add_library(sherman_shermanHodOcmBw STATIC ${COMMON_FILE})
+target_compile_definitions(sherman_shermanHodOcmBw PRIVATE -DSHERMAN_LOCK -DHANDOVER -DON_CHIP -DBATCHED_WRITEBACK -DHANDOVER_DATA)
+set_target_properties(sherman_shermanHodOcmBw PROPERTIES OUTPUT_NAME "sherman_shermanHodOcmBw")
+target_link_libraries(sherman_shermanHodOcmBw ${LINKS_FLAGS})
 
 # # SHERMAN_LOCK CN_AWARE
 # add_library(sherman_shermanCna STATIC ${COMMON_FILE})
@@ -75,6 +75,18 @@ add_library(sherman_shermanRfaa STATIC ${COMMON_FILE})
 target_compile_definitions(sherman_shermanRfaa PRIVATE -DSHERMAN_LOCK -DRAND_FAA)
 set_target_properties(sherman_shermanRfaa PROPERTIES OUTPUT_NAME "sherman_shermanRfaa")
 target_link_libraries(sherman_shermanRfaa ${LINKS_FLAGS})
+
+# SHERMAN_LOCK RAND_FAA + BW + HOD + OCM
+add_library(sherman_shermanHodOcmBwRfaa STATIC ${COMMON_FILE})
+target_compile_definitions(sherman_shermanHodOcmBwRfaa PRIVATE -DSHERMAN_LOCK -DRAND_FAA -DBATCHED_WRITEBACK -DON_CHIP -DHANDOVER_DATA)
+set_target_properties(sherman_shermanHodOcmBwRfaa PROPERTIES OUTPUT_NAME "sherman_shermanHodOcmBwRfaa")
+target_link_libraries(sherman_shermanHodOcmBwRfaa ${LINKS_FLAGS})
+
+# # SHERMAN_LOCK RAND_MN_FAA
+# add_library(sherman_shermanRMfaa STATIC ${COMMON_FILE})
+# target_compile_definitions(sherman_shermanRMfaa PRIVATE -DSHERMAN_LOCK -DRAND_MN_FAA)
+# set_target_properties(sherman_shermanRMfaa PROPERTIES OUTPUT_NAME "sherman_shermanRMfaa")
+# target_link_libraries(sherman_shermanRMfaa ${LINKS_FLAGS})
 
 #################################################################################################################
 #################################################################################################################

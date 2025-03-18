@@ -16,12 +16,15 @@ OPTS =  [
 "litlHod",
 "litlHoOcmBw",
 "litlHodOcmBw",
+"litlHodOcmBwRfaa",
 "litlRfaa",
 
 "sherman",
 "shermanHo",
 "shermanHod",
+"shermanHoOcmBw",
 "shermanHodOcmBw",
+"shermanHodOcmBwRfaa",
 "shermanLock",
 "shermanRfaa",
 ]
@@ -32,14 +35,16 @@ OPT_TO_NAME = {
 "litlHod": "Hod",
 "litlHoOcmBw": "HoOcmBw",
 "litlHodOcmBw": "HodOcmBw",
+"litlHodOcmBwRfaa": "HodOcmBwRfaa",
 "litlRfaa": "Rfaa",
 
 "shermanLock": "",
 "shermanHo": "Ho",
 "shermanHod": "Hod",
 "sherman": "HoOcmBw",
-"shermanHodOcmBw": "HoOcmBw",
+"shermanHoOcmBw": "HoOcmBw",
 "shermanHodOcmBw": "HodOcmBw",
+"shermanHodOcmBwRfaa": "HodOcmBwRfaa",
 "shermanRfaa": "Rfaa",
 }
     
