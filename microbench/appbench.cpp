@@ -42,7 +42,7 @@ int use_zipfan = 0;
 
 int kReadRatio = 50;
 uint64_t kKeySpace = 64 * define::MB;
-double kWarmRatio = 0.01;
+double kWarmRatio = 0.1;
 
 extern uint64_t cache_miss[MAX_APP_THREAD][8];
 extern uint64_t cache_hit[MAX_APP_THREAD][8];
