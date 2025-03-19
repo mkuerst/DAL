@@ -168,8 +168,8 @@ plot_MC_rlocks(
                 # lat_ml_inc = [["lwait_acq"], ["lwait_acq", "gwait_acq", "gwait_rel"], ["data_read", "data_write", "lock_hold"]],
                 lat_ml_inc = [["lwait_acq"], ["gwait_acq", "gwait_rel"], ["data_read", "data_write", "lock_hold"]],
                 tp_incs=["lock_acquires", "glock_tries", "handovers_data", "cache_misses"],
-                cnNRs=[1, 4], 
-                lockNRs=[16, 128, 512], 
+                cnNRs=[4], 
+                lockNRs=[512], 
                 threadNRs=32,
                 log=[1,1,0],
                 )
