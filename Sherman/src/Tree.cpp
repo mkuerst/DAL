@@ -1507,7 +1507,11 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
   if (k >= page->hdr.highest) {
 
     this->unlock_addr(lock_addr, tag, cas_buffer, cxt, coro_id, true, page_buffer, page_addr, level);
-    assert(page->hdr.sibling_ptr != GlobalAddress::Null());
+    // assert(page->hdr.sibling_ptr != GlobalAddress::Null());
+    if (page->hdr.sibling_ptr == GlobalAddress::Null()) {
+      Debug::notifyError("Tree:1512:leaf_page_store: page->hdr.sibling_ptr == GlobalAddress::Null()");
+      return false;
+    }
     this->leaf_page_store(page->hdr.sibling_ptr, k, v, root, level, cxt,
                           coro_id);
     return true;

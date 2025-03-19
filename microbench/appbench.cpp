@@ -256,7 +256,7 @@ int main(int argc, char *argv[]) {
     fflush(stderr);
 
     if (dsm->getMyNodeID() == 0) {
-        for (uint64_t i = 1; i < 1*1024000; ++i) {
+        for (uint64_t i = 1; i < 2*1024000; ++i) {
             tree->insert(to_key(i), i * 2);
         }
         fprintf(stderr, "inserted initial keys\n");
