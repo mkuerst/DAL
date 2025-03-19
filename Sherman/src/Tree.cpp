@@ -920,7 +920,7 @@ next:
   if (!page_search(p, k, result, cxt, coro_id)) {
     std::cout << "SEARCH WARNING insert" << std::endl;
     p = get_root_ptr(cxt, coro_id);
-    sleep(1);
+    // sleep(1);
     goto next;
   }
 
@@ -1025,7 +1025,7 @@ next:
       p = root;
     } else {
       std::cout << "SEARCH WARNING search" << std::endl;
-      sleep(1);
+      // sleep(1);
     }
     goto next;
   }
@@ -1158,7 +1158,7 @@ next:
   if (!page_search(p, k, result, cxt, coro_id)) {
     std::cout << "SEARCH WARNING del" << std::endl;
     p = get_root_ptr(cxt, coro_id);
-    sleep(1);
+    // sleep(1);
     goto next;
   }
 

@@ -280,6 +280,8 @@ def add_box(ax1, ax2, position, values, hatch_idx, bw=0.3,
         data = data / duration 
     if tp_inc == "glock_tries":
         data = data / la
+    if tp_inc == "cache_misses":
+        data = data / la
 
     bps = ax1.boxplot(
         data,

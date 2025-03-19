@@ -109,10 +109,16 @@ void DSM::free_dsm() {
     if (ibv_dereg_mr(dirCon[myNodeID]->lockMR)) {
       perror("ibv_dereg_mr failed");
     }
+    if (ibv_dereg_mr(dirCon[myNodeID]->lockMetaMR)) {
+      perror("ibv_dereg_mr failed");
+    }
     for (int i = 0; i < MAX_APP_THREAD; ++i) {
       for (size_t k = 0; k < conf.machineNR; ++k) {
         if (ibv_destroy_qp(dirCon[myNodeID]->data2app[i][k])) {
-          Debug::notifyError("ibv_destroy_qp dirCon[%d] failed\n", myNodeID);
+          Debug::notifyError("ibv_destroy_qp dirCon[%d]->lock2app failed\n", myNodeID);
+        }
+        if (ibv_destroy_qp(dirCon[myNodeID]->lock2app[i][k])) {
+          Debug::notifyError("ibv_destroy_qp dirCon[%d]->lock2app failed\n", myNodeID);
         }
       }
     }
@@ -137,11 +143,19 @@ void DSM::free_dsm() {
       if (ibv_dereg_mr(thCon[i]->cacheMR)) {
         Debug::notifyError("ibv_dereg_mr failed thCon[%d]->cacheMR", i);
       }
+      // if (ibv_dereg_mr(thCon[i]->lockMetaMR)) {
+      //   Debug::notifyError("ibv_dereg_mr failed thCon[%d]->lockMetaMR", i);
+      // }
       for (int j = 0; j < NR_DIRECTORY; ++j) {
         for (size_t k = 0; k < conf.machineNR; ++k) {
           if (thCon[i]->data[j][k]) {
             if (ibv_destroy_qp(thCon[i]->data[j][k])) {
-              Debug::notifyError("ibv_destroy_qp thCon[%d] failed\n", i);
+              Debug::notifyError("ibv_destroy_qp thCon[%d]->data failed\n", i);
+            }
+          }
+          if (thCon[i]->lock[j][k]) {
+            if (ibv_destroy_qp(thCon[i]->lock[j][k])) {
+              Debug::notifyError("ibv_destroy_qp thCon[%d]->lock failed\n", i);
             }
           }
         }
@@ -149,6 +163,11 @@ void DSM::free_dsm() {
       if (thCon[i]->cq) {
         if (ibv_destroy_cq(thCon[i]->cq)) {
           Debug::notifyError("ibv_destroy_cq thCon[%d] failed\n", i);
+        }
+      }
+      if (thCon[i]->lock_cq) {
+        if (ibv_destroy_cq(thCon[i]->lock_cq)) {
+          Debug::notifyError("ibv_destroy_cq thCon[%d]->lock_cq failed\n", i);
         }
       }
       // if (thCon[i]->rpc_cq) {

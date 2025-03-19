@@ -102,7 +102,7 @@ constexpr uint64_t kMaxLevelOfTree = 7;
 constexpr uint16_t kMaxCoro = 8;
 constexpr int64_t kPerCoroRdmaBuf = 128 * 1024;
 
-constexpr uint8_t kMaxHandOverTime = 8;
+constexpr uint8_t kMaxHandOverTime = 32;
 
 constexpr int kIndexCacheSize = 1000; // MB
 } // namespace define
