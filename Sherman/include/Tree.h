@@ -67,6 +67,7 @@ struct Measurements {
     uint64_t handovers_data[MAX_APP_THREAD];
     uint64_t cache_misses[MAX_APP_THREAD];
     uint64_t c_ho[MAX_APP_THREAD];
+    uint64_t c_hod[MAX_APP_THREAD];
     uint64_t duration;
 };
 
@@ -163,6 +164,7 @@ private:
     static thread_local int threadID;
     static thread_local uint64_t nodeID;
     static thread_local uint64_t lockMeta;
+    static thread_local bool from_peer;
     /**/
 
     void print_verbose();

@@ -35,7 +35,7 @@ pthread_so="$PWD/../litl2/lib/original/libpthreadinterpose_original.so"
 cn_tp_header="tid,\
 loop_in_cs,lock_acquires,duration,\
 glock_tries,handovers,handovers_data,array_size(B),\
-nodeID,run,lockNR,la,pinning,cache_misses,c_ho"
+nodeID,run,lockNR,la,pinning,cache_misses,c_ho,c_hod"
 
 cn_lat_header="lock_hold,\
 lwait_acq,\
@@ -61,17 +61,20 @@ comm_prot=rdma
 # opts=("shermanLock" "shermanHo" "shermanHod" "shermanHodOcmBw" "litl" "litlHo" "litlHod" "litlHodOcmBw")
 # opts=("shermanLock" "shermanHod" "shermanHodOcmBw" "litl" "litlHod" "litlHodOcmBw")
 # opts=("shermanLock" "shermanHodOcm" "shermanRfaa" "shermanHodOcmRfaa")
-opts=("shermanLock" "shermanHodOcm" "shermanHodOcmRfaa" "litl" "litlHodOcm" "litlHodOcmRfaa")
+# opts=("shermanLock" "shermanHodOcm" "shermanHodOcmRfaa" "litl" "litlHodOcm" "litlHodOcmRfaa")
+# opts=("shermanLock" "shermanRfaa" "shermanRfaad")
+opts=("shermanRfaad")
+
 
 microbenches=("empty_cs" "mlocks" "kvs")
-duration=10
-runNR=2
+duration=1
+runNR=1
 mnNR=4
 zipfian=1
-nodeNRs=(1)
-threadNRs=(32)
-lockNRs=(16 128)
-bench_idxs=(2)
+nodeNRs=(2)
+threadNRs=(1)
+lockNRs=(1)
+bench_idxs=(1)
 pinnings=(1)
 chipSize=128
 dsmSize=16

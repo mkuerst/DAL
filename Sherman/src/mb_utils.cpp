@@ -122,6 +122,7 @@ void clear_measurements(int lockNR) {
 		measurements.la[i] = 0;
 		measurements.loop_in_cs[i] = 0;
 		measurements.c_ho[i] = 0;
+		measurements.c_hod[i] = 0;
 	}
 }
 
@@ -273,7 +274,8 @@ void write_tp(char* tp_path, char* lock_path, int run, int threadNR, int lockNR,
 			<< std::setw(8) << measurements.la[t] << ","
 			<< std::setw(2) << pinning << ","
 			<< std::setw(16) << measurements.cache_misses[t] << ","
-			<< std::setw(8) << measurements.c_ho[t] << "\n";
+			<< std::setw(8) << measurements.c_ho[t] << ","
+			<< std::setw(8) << measurements.c_hod[t] << "\n";
 	}
 
 	file.flush();
@@ -469,9 +471,8 @@ int perf_event_open(struct perf_event_attr *attr, pid_t pid, int cpu, int group_
     return syscall(SYS_perf_event_open, attr, pid, cpu, group_fd, flags);
 }
 
-#define CACHE_MISSES_EVENT 0x08  // Cache misses event
+#define CACHE_MISSES_EVENT 0x08
 
-// Function to setup a perf_event for cache misses
 int setup_perf_event(int cpu) {
     struct perf_event_attr pe;
     memset(&pe, 0, sizeof(struct perf_event_attr));
@@ -482,7 +483,6 @@ int setup_perf_event(int cpu) {
     pe.exclude_kernel = 1;
     pe.exclude_hv = 1;
 
-    // Open the perf_event file descriptor
     int fd = syscall(__NR_perf_event_open, &pe, -1, cpu, -1, 0);
     if (fd == -1) {
         perror("perf_event_open failed");
@@ -491,7 +491,6 @@ int setup_perf_event(int cpu) {
     return fd;
 }
 
-// Function to start the counter
 void start_perf_event(int fd) {
     if (ioctl(fd, PERF_EVENT_IOC_RESET, 0) == -1) {
         perror("ioctl PERF_EVENT_IOC_RESET");
@@ -503,7 +502,6 @@ void start_perf_event(int fd) {
     }
 }
 
-// Function to stop the counter and get the value
 long long stop_perf_event(int fd) {
     long long count = 0;
     if (read(fd, &count, sizeof(long long)) == -1) {

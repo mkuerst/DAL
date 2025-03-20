@@ -78,7 +78,7 @@ target_link_libraries(sherman_shermanHodOcmBw ${LINKS_FLAGS})
 
 # SHERMAN_LOCK RAND_FAAD
 add_library(sherman_shermanRfaad STATIC ${COMMON_FILE})
-target_compile_definitions(sherman_shermanRfaad PRIVATE -DSHERMAN_LOCK -DRAND_FAA -DRAND_FAAD)
+target_compile_definitions(sherman_shermanRfaad PRIVATE -DSHERMAN_LOCK -DHANDOVER -DHANDOVER_DATA -DRAND_FAA -DRAND_FAAD)
 set_target_properties(sherman_shermanRfaad PROPERTIES OUTPUT_NAME "sherman_shermanRfaad")
 target_link_libraries(sherman_shermanRfaad ${LINKS_FLAGS})
 

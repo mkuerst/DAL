@@ -178,7 +178,7 @@ void *mlocks_worker(void *arg) {
     srand(seed);
     ZipfianGenerator zipfian(0.99, range, seed);
     int num = 0;
-    int cnt = 10;
+    int cnt = 50;
     
     int fd = setup_perf_event(cpu);
     start_perf_event(fd);
@@ -208,18 +208,18 @@ void *mlocks_worker(void *arg) {
     // cerr << "FAILED CASES: " << failed_cases << "\n\n";
     // return 0;
 
-    while (!stop.load()) {
-    // while (num < cnt) {
-
+    // while (!stop.load()) {
+    while (num < cnt) {
+        
         for (int j = 0; j < 400; j++) {
             int idx = uniform_rand_int(PRIVATE_ARRAY_SZ / sizeof(int));
             private_int_array[idx] += sum;
         }
         for (int j = 0; j < 100; j++) {
-            if (stop.load())
-                break;
-            // if (num >= cnt)
+            // if (stop.load())
             //     break;
+            if (num >= cnt)
+                break;
             if (use_zipfian) {
                 lock_idx = zipfian.generate();
             }
@@ -284,6 +284,7 @@ argc, argv);
     config.threadNR = threadNR;
     config.chipSize = chipSize;
     config.lockMetaSize = chipSize;
+    config.lockNR = lockNR;
     // lockNR = chipSize * 1024 / sizeof(uint64_t);
     dsm = DSM::getInstance(config);
     nodeID = dsm->getMyNodeID();
@@ -333,9 +334,6 @@ argc, argv);
     /*RUN*/
     dsm->barrier("MB_BEGIN");
     pthread_barrier_wait(&global_barrier);
-    if (nodeID == 0) {
-        DE("RUN %d\n", runNR);
-    }
 
     sleep(duration);
     stop.store(true);

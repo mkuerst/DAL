@@ -90,6 +90,7 @@ TP_COLS = [
 "pinning",
 "cache_misses",
 "c_ho",
+"c_hod",
 ]
 
 STAT_TO_COLS = {
