@@ -68,7 +68,7 @@ DSM::DSM(const DSMConfig &conf)
   // std::cerr << "cache_addr: " << cache.data << std::endl;
   
   // warmup
-  memset((char *)cache.data, 0, cache.size * define::GB);
+  memset((char *)cache.data, 0, cache.size * define::GB + 16 * define::MB);
   memset((char *)baseAddr, 0, conf.dsmSize * define::GB);
   
   initRDMAConnection();
@@ -90,7 +90,7 @@ DSM::~DSM() {}
 
 void DSM::free_dsm() {
   munmap((void*)baseAddr, conf.dsmSize * define::GB);
-  munmap((void*)cache.data, cache.size * define::GB);
+  munmap((void*)cache.data, cache.size * define::GB + 16 * define::MB);
   free((void* )lockMetaAddr);
 
   
@@ -219,7 +219,7 @@ void DSM::initRDMAConnection() {
 
   for (int i = 0; i < MAX_APP_THREAD; ++i) {
     thCon[i] =
-        new ThreadConnection(i, (void *)cache.data, cache.size * define::GB,
+        new ThreadConnection(i, (void *)cache.data, cache.size * define::GB + 16 * define::MB,
                              (void *) lockMetaAddr, conf.mnNR * conf.lockMetaSize*1024,
                              conf.machineNR, remoteInfo);
   }
@@ -286,13 +286,14 @@ void DSM::wakeup_peer(GLockAddress gaddr, int tid) {
     cerr << "SENT WAKEUP CALL TO PEER: " << gaddr.nodeID << ", " << gaddr.threadID << "\n\n";
 }
 
-void DSM::spin_on(GlobalAddress lock_addr) {
+char* DSM::spin_on(GlobalAddress lock_addr) {
   uint64_t *spin_loc = (uint64_t *)((uint64_t) lockMetaAddr + (lock_addr.nodeID * conf.chipSize * 1024) + lock_addr.offset);
   while(*spin_loc == 0) {
     CPU_PAUSE();
     // CPU_FENCE();
   }
   *spin_loc = 0; 
+  return (char *)((uint64_t) cache.data + conf.cacheConfig.cacheSize * define::GB + (lock_addr.nodeID * conf.chipSize * 1024) + lock_addr.offset);
 }
 
 void DSM::read(char *buffer, GlobalAddress gaddr, size_t size, bool signal,
@@ -398,13 +399,17 @@ void DSM::write_peer_cache_sync(const char *buffer, GlobalAddress gaddr, size_t 
   }
 }
 
-void DSM::fill_keys_dest(RdmaOpRegion &ror, GlobalAddress gaddr, bool is_chip) {
+void DSM::fill_keys_dest(RdmaOpRegion &ror, GlobalAddress gaddr, bool is_chip, bool is_lockMeta) {
   ror.lkey = iCon->cacheLKey;
   if (is_chip) {
     ror.dest = remoteInfo[gaddr.nodeID].lockBase + gaddr.offset;
     ror.remoteRKey = remoteInfo[gaddr.nodeID].lockRKey[0];
   } 
-   else {
+  else if (is_lockMeta) {
+    ror.dest = remoteInfo[gaddr.nodeID].lockMetaBase + gaddr.offset;
+    ror.remoteRKey = remoteInfo[gaddr.nodeID].lockMetaRKey[0];
+  }
+  else {
     ror.dest = remoteInfo[gaddr.nodeID].dsmBase + gaddr.offset;
     ror.remoteRKey = remoteInfo[gaddr.nodeID].dsmRKey[0];
   }
@@ -420,7 +425,7 @@ void DSM::write_batch(RdmaOpRegion *rs, int k, bool signal, CoroContext *ctx) {
     node_id = gaddr.nodeID;
     // cerr << "filling batched write " << i << ": " << endl <<
     // "gaddr: " << gaddr << "\n\n";
-    fill_keys_dest(rs[i], gaddr, rs[i].is_on_chip);
+    fill_keys_dest(rs[i], gaddr, rs[i].is_on_chip, rs[i].is_lockMeta);
   }
 
   if (ctx == nullptr) {

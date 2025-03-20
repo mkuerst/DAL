@@ -159,11 +159,12 @@ void *thread_run(void *arg) {
     if (id == 0) {
         while (warmup_cnt.load() != threadNR);
         fprintf(stderr, "node %d finish\n", dsm->getMyNodeID());
+        fflush(stderr);
         dsm->barrier("warm_finish");
         
         uint64_t ns = bench_timer.end();
         fprintf(stderr, "warmup time %lds\n", ns / 1000 / 1000 / 1000);
-        fflush(stdout);
+        fflush(stderr);
 
         tree->index_cache_statistics();
         tree->clear_statistics();
@@ -225,7 +226,7 @@ int main(int argc, char *argv[]) {
     if (nodeID == 1) {
         if(system("sudo bash /nfs/DAL/restartMemc.sh"))
             _error("Failed to start MEMC server\n");
-        DE("STARTED MEMC SERVER\n");
+        // DE("STARTED MEMC SERVER\n");
     }
     else {
         sleep(2);
@@ -241,17 +242,20 @@ int main(int argc, char *argv[]) {
     // lockNR = chipSize * 1024 / sizeof(uint64_t);
     dsm = DSM::getInstance(config);
     nodeID = dsm->getMyNodeID();
-    DE("DSM INIT DONE: %d\n", nodeID);
+    if (nodeID == 0) {
+        DE("DSM INIT DONE\n");
+    }
 
     dsm->registerThread();
     if (nodeID < mnNR) {
         tree = new Tree(dsm, 0, lockNR, false);
         dsm->barrier("mn-tree-init");
-        DE("TREE INIT DONE: %d\n", nodeID);
     } else {
         dsm->barrier("mn-tree-init");
         tree = new Tree(dsm, 0, lockNR, false);
-        DE("TREE INIT DONE: %d\n", nodeID);
+    }
+    if (nodeID == 0) {
+        DE("TREE INIT DONE\n");
     }
     fflush(stderr);
 
@@ -276,7 +280,9 @@ int main(int argc, char *argv[]) {
     }
 
     while (!ready.load());
-    DE("NODE %d STARTS DURATION\n", nodeID);
+    if (nodeID == 0) {
+        DE("APPBENCH START\n");
+    }
     sleep(duration);
     done.store(true);
     for (int i = 0; i < threadNR; i++) {
@@ -305,10 +311,12 @@ int main(int argc, char *argv[]) {
         DE("WRITE RES DONE\n");
     }
 
-    fprintf(stderr, "DSM NODE %d DONE\n", nodeID);
     free_measurements();
     dsm->free_dsm();
     sleep(2);
     dsm->barrier("fin");
+    if (nodeID == 0) {
+        fprintf(stderr, "FIN\n");
+    }
     return 0;
 }

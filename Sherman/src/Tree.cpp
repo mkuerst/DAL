@@ -286,16 +286,18 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   //   "LOCK FROM MN" << endl <<
   //   "lock_addr: " << lock_addr << endl <<
   //   "lockMeta: " << lm_bits << "\n\n";
+
     save_measurement(threadID, measurements.gwait_acq, 1, true);
     measurements.la[threadID]++;
     return false;
   }
+
   // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
   // "SPIN" << endl <<
   // "lock_addr: " << lock_addr << endl <<
   // "lockMeta: " << lm_bits << "\n\n";
 
-  dsm->spin_on(lock_addr);
+  char* c_ho_buf = dsm->spin_on(lock_addr);
   save_measurement(threadID, measurements.gwait_acq, 1, true);
   measurements.la[threadID]++;
 
@@ -304,6 +306,10 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   // "lock_addr: " << lock_addr << endl <<
   // "lockMeta: " << lm_bits << "\n\n";
 
+  #ifdef RAND_FAAD
+  curr_lock_node->curr_page_buffer = c_ho_buf;
+  return true;
+  #endif
   return false;
   #endif
 
@@ -547,8 +553,13 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
   // "peerSpinLoc: " << peerSpinLoc << "\n\n";
   assert(peerSpinLoc.nodeID != nodeID);
 
-  dsm->write_lm_sync(lmbuf, peerSpinLoc, sizeof(uint64_t), nullptr);
-  save_measurement(threadID, measurements.gwait_rel);
+  if (async) {
+    dsm->write_lm(lmbuf, peerSpinLoc, sizeof(uint64_t), false, nullptr);
+  } else {
+    dsm->write_lm_sync(lmbuf, peerSpinLoc, sizeof(uint64_t), nullptr);
+    save_measurement(threadID, measurements.gwait_rel);
+  }
+  // dsm->write_lm_sync(lmbuf, peerSpinLoc, sizeof(uint64_t), nullptr);
   measurements.c_ho[threadID]++;
 
   releases_local_lock(lock_addr);
@@ -559,8 +570,8 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
     dsm->write_dm((char *)cas_buf, lock_addr, sizeof(uint64_t), false);
   } else {
     dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
+    save_measurement(threadID, measurements.gwait_rel);
   }
-  save_measurement(threadID, measurements.gwait_rel);
   releases_local_lock(lock_addr);
   // DEB("[%d.%d] unlocked global lock remotely: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), curr_lock_addr.offset);
 }
@@ -614,40 +625,46 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   #ifdef RAND_FAA
   uint64_t add_ = -(1ULL << nodeID);
 
-    #ifdef BATCHED_WRITEBACK
+    // #ifdef BATCHED_WRITEBACK
 
-    rs[0].source = (uint64_t)page_buffer;
-    rs[0].dest = page_addr;
-    rs[0].size = page_size;
-    rs[0].is_on_chip = false;
+    // rs[0].source = (uint64_t)page_buffer;
+    // rs[0].dest = page_addr;
+    // rs[0].size = page_size;
+    // rs[0].is_on_chip = false;
 
-    // rs[1].source = (uint64_t)dsm->get_rbuf(coro_id).get_cas_buffer();
-    rs[1].source = (uint64_t)cas_buf;
-    rs[1].dest = lock_addr;
-    rs[1].size = sizeof(uint64_t);
-    rs[1].is_on_chip = true;
-    // *(uint64_t *)rs[1].source = 0;
+    // // rs[1].source = (uint64_t)dsm->get_rbuf(coro_id).get_cas_buffer();
+    // rs[1].source = (uint64_t)cas_buf;
+    // rs[1].dest = lock_addr;
+    // rs[1].size = sizeof(uint64_t);
+    // rs[1].is_on_chip = true;
+    // // *(uint64_t *)rs[1].source = 0;
+
+    // if (async) {
+    //   dsm->write_faa(rs[0], rs[1], add_, false);
+    // } else {
+    //   dsm->write_faa_sync(rs[0], rs[1], add_, cxt);
+    // }
+    // save_measurement(threadID, measurements.data_write);
+
+    // #else
 
     if (async) {
-      dsm->write_faa(rs[0], rs[1], add_, false);
+      dsm->write(page_buffer, page_addr, page_size, false, cxt);
     } else {
-      dsm->write_faa_sync(rs[0], rs[1], add_, cxt);
+      dsm->write_sync(page_buffer, page_addr, page_size, cxt);
+      save_measurement(threadID, measurements.data_write);
     }
-    save_measurement(threadID, measurements.data_write);
-
-    #else
-
-    dsm->write_sync(page_buffer, page_addr, page_size, cxt);
-    save_measurement(threadID, measurements.data_write);
+      // dsm->write_sync(page_buffer, page_addr, page_size, cxt);
+    timer.begin();
+    dsm->faa_dm_sync(lock_addr, add_, cas_buf, nullptr);
 
     // bitset<64> bits(add_);
     // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
     // "FAA DM (REL), lock_addr: " << lock_addr << endl <<
     // "add: " << bits << "\n\n";
 
-    dsm->faa_dm_sync(lock_addr, add_, cas_buf, nullptr);
 
-    #endif
+    // #endif
 
   lockMeta = *cas_buf;
   // bitset<64> lm_bits(lockMeta);
@@ -676,8 +693,45 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   // "peerSpinLoc: " << peerSpinLoc << "\n\n";
   assert(peerSpinLoc.nodeID != nodeID);
 
-  dsm->write_lm_sync(lmbuf, peerSpinLoc, sizeof(uint64_t), nullptr);
-  save_measurement(threadID, measurements.gwait_rel);
+  #ifdef RAND_FAAD
+  GlobalAddress peerDataLoc = GlobalAddress::Null();
+  peerDataLoc.nodeID = peerNodeID;
+  peerDataLoc.offset = (lock_addr.nodeID * lockNR * kLeafPageSize) + (lock_addr.offset / 8 )*kLeafPageSize;
+
+  // rs[0].source = (uint64_t)page_buffer;
+  // rs[0].dest = page_addr;
+  // rs[0].size = page_size;
+  // rs[0].is_on_chip = false;
+
+  // // rs[1].source = (uint64_t)dsm->get_rbuf(coro_id).get_cas_buffer();
+  // rs[1].source = (uint64_t)lmbuf;
+  // rs[1].dest = lock_addr;
+  // rs[1].size = sizeof(uint64_t);
+  // rs[1].is_on_chip = false;
+  // rs[1].is_lockMeta = true;
+  // *(uint64_t *)rs[1].source = 1;
+
+  // // if (async) {
+  // //   dsm->write_batch(rs, 2, false);
+  // // } else {
+  // //   dsm->write_batch_sync(rs, 2, nullptr);
+  // // }
+  //   dsm->write_batch_sync(rs, 2, nullptr);
+  // save_measurement(threadID, measurements.data_write);
+  dsm->write_sync(page_buffer, peerDataLoc, page_size, nullptr);
+  save_measurement(threadID, measurements.data_write);
+  timer.begin();
+
+  #endif
+
+  // TODO: ?
+  if (async) {
+    dsm->write_lm(lmbuf, peerSpinLoc, sizeof(uint64_t), false, nullptr);
+  } else {
+    dsm->write_lm_sync(lmbuf, peerSpinLoc, sizeof(uint64_t), nullptr);
+    save_measurement(threadID, measurements.gwait_rel);
+  }
+  // dsm->write_lm_sync(lmbuf, peerSpinLoc, sizeof(uint64_t), nullptr);
   measurements.c_ho[threadID]++;
 
   releases_local_lock(lock_addr);
@@ -796,20 +850,27 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     dsm->write_batch(rs, 2, false);
   } else {
     dsm->write_batch_sync(rs, 2, cxt);
+    save_measurement(threadID, measurements.data_write);
+    save_measurement(threadID, measurements.gwait_rel);
   }
-  save_measurement(threadID, measurements.data_write);
-  save_measurement(threadID, measurements.gwait_rel);
 
   #else
 
   // cerr << "page_addr: " << page_addr << "\n\n";
-  dsm->write_sync(page_buffer, page_addr, page_size, cxt);
-  save_measurement(threadID, measurements.data_write);
+  if(async) {
+    dsm->write(page_buffer, page_addr, page_size, false, cxt);
+    timer.begin();
+    *cas_buf = 0;
+    dsm->write_dm((char *)cas_buf, lock_addr, sizeof(uint64_t), false, cxt);
+  } else {
+    dsm->write_sync(page_buffer, page_addr, page_size, cxt);
+    save_measurement(threadID, measurements.data_write);
+    timer.begin();
+    *cas_buf = 0;
+    dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
+    save_measurement(threadID, measurements.gwait_rel);
+  }
   
-  timer.begin();
-  *cas_buf = 0;
-  dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
-  save_measurement(threadID, measurements.gwait_rel);
 
   // if (!dsm->cas_dm_sync(lock_addr, next_gaddr.val, 0, cas_buffer, cxt)) {
   //   Debug::notifyError("FAILED TO CAS MN FOR CN HO\n");
@@ -819,19 +880,6 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   //   exit(1);
   // }
 
-  // if (async) {
-  //   dsm->write_batch(&rs[0], 1, false);
-  //   save_measurement(threadID, measurements.data_write);
-  //   timer.begin();
-  //   dsm->write_batch(&rs[1], 1, false);
-  //   save_measurement(threadID, measurements.gwait_rel);
-  // } else {
-  //   dsm->write_batch_sync(&rs[0], 1, cxt);
-  //   save_measurement(threadID, measurements.data_write);
-  //   timer.begin();
-  //   dsm->write_batch_sync(&rs[1], 1, cxt);
-  //   save_measurement(threadID, measurements.gwait_rel);
-  // }
   #endif
   // cout << "********************************************" << endl;
   // cout << "WRITTEN BACK (NO HOD): " << "[" + to_string(dsm->getMyNodeID()) + "." + to_string(dsm->getMyThreadID()) + "]" << endl;
@@ -1903,7 +1951,9 @@ void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_si
     timer.begin();
 		dsm->read_sync(curr_page_buffer, base_addr, data_size, NULL);
     save_measurement(threadID, measurements.data_read);
-    #else
+    return;
+    #endif
+
     bool same_address = curr_lock_node->page_addr.val == base_addr.val;
     // cerr << curr_lock_node->page_addr << " ?==? " << base_addr << " " << same_address << endl;
     if (!handover || !same_address) {
@@ -1927,7 +1977,6 @@ void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_si
       // cerr << "curr_page_buffer: " << (uintptr_t) curr_page_buffer << " = " << (uint64_t) *curr_page_buffer << endl;
       // cerr << "********************************************" << endl;
     }
-    #endif
 	}
 }
 

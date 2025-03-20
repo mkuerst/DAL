@@ -214,8 +214,8 @@ inline bool IndexCache::invalidate(const CacheEntry *entry) {
   }
 
   if (__sync_bool_compare_and_swap(&(entry->ptr), ptr, 0)) {
-
     free_lock.wLock();
+
     delay_free_list.push(std::make_pair(ptr, asm_rdtsc()));
     free_lock.wUnlock();
     return true;

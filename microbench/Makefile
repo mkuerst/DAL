@@ -76,7 +76,7 @@ target:
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_litl.a -o microbench_litl ${FLAGS}
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_litlRfaa.a -o microbench_litlRfaa ${FLAGS}
 
-# g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_litlHodOcm.a -o appbench_litlHodOcm ${FLAGS}
+	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_litlHodOcm.a -o appbench_litlHodOcm ${FLAGS}
 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_litl.a -o appbench_litl ${FLAGS}
 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_litlRfaa.a -o appbench_litlRfaa ${FLAGS}
 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_litlHodOcmRfaa.a -o appbench_litlHodOcmRfaa ${FLAGS}
@@ -85,11 +85,13 @@ target:
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_shermanLock.a -o microbench_shermanLock ${FLAGS}
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_shermanHodOcm.a -o microbench_shermanHodOcm ${FLAGS}
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_shermanRfaa.a -o microbench_shermanRfaa ${FLAGS}
+# g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_shermanRfaad.a -o microbench_shermanRfaad ${FLAGS}
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_shermanHodOcmRfaa.a -o microbench_shermanHodOcmRfaa ${FLAGS}
 
-# g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHodOcm.a -o appbench_shermanHodOcm ${FLAGS}
+	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHodOcm.a -o appbench_shermanHodOcm ${FLAGS}
 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanLock.a -o appbench_shermanLock ${FLAGS}
 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanRfaa.a -o appbench_shermanRfaa ${FLAGS}
+	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanRfaad.a -o appbench_shermanRfaad ${FLAGS}
 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHodOcmRfaa.a -o appbench_shermanHodOcmRfaa ${FLAGS}
 
 clean:

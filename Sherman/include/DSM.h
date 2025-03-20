@@ -39,7 +39,6 @@ public:
   uint64_t getDsmSize() { return conf.dsmSize * define::GB; }
   uint64_t getLmSize() { return conf.lockMetaSize * 1024; }
   uint64_t getBaseAddr() { return baseAddr; }
-  uint64_t getCacheAddr() { return cache.data; }
 
   GlobalAddress getNextGaddr() { 
     // next_loc_curr = (next_loc_curr + 1) % kNextLocCnt;
@@ -48,7 +47,7 @@ public:
     return next_gaddr;
   }
 
-  void spin_on(GlobalAddress lock_addr);
+  char* spin_on(GlobalAddress lock_addr);
 
   void getNextGLaddr(GLockAddress *gaddr, GlobalAddress lock_addr) {
     version = (version + 1) % kMaxVersion;
@@ -203,7 +202,7 @@ private:
   ~DSM();
 
   void initRDMAConnection();
-  void fill_keys_dest(RdmaOpRegion &ror, GlobalAddress addr, bool is_chip);
+  void fill_keys_dest(RdmaOpRegion &ror, GlobalAddress addr, bool is_chip, bool is_lockMeta = false);
 
   DSMConfig conf;
   std::atomic_int appID;

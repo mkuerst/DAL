@@ -76,6 +76,12 @@ target_link_libraries(sherman_shermanHodOcmBw ${LINKS_FLAGS})
 # set_target_properties(sherman_shermanCnaBw PROPERTIES OUTPUT_NAME "sherman_shermanCnaBw")
 # target_link_libraries(sherman_shermanCnaBw ${LINKS_FLAGS})
 
+# SHERMAN_LOCK RAND_FAAD
+add_library(sherman_shermanRfaad STATIC ${COMMON_FILE})
+target_compile_definitions(sherman_shermanRfaad PRIVATE -DSHERMAN_LOCK -DRAND_FAA -DRAND_FAAD)
+set_target_properties(sherman_shermanRfaad PROPERTIES OUTPUT_NAME "sherman_shermanRfaad")
+target_link_libraries(sherman_shermanRfaad ${LINKS_FLAGS})
+
 # SHERMAN_LOCK RAND_FAA
 add_library(sherman_shermanRfaa STATIC ${COMMON_FILE})
 target_compile_definitions(sherman_shermanRfaa PRIVATE -DSHERMAN_LOCK -DRAND_FAA)
