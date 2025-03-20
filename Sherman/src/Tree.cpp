@@ -2000,7 +2000,7 @@ void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_si
 
     bool same_address = curr_lock_node->page_addr.val == base_addr.val;
     // cerr << curr_lock_node->page_addr << " ?==? " << base_addr << " " << same_address << endl;
-    if (!handover || !same_address) {
+    if ((!handover || !same_address) && !from_peer) {
       timer.begin();
       curr_page_buffer = dsm->get_rbuf(0).get_page_buffer();
       dsm->read_sync(curr_page_buffer, base_addr, data_size, NULL);

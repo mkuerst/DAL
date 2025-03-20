@@ -3,6 +3,7 @@
 
 #include "Common.h"
 #include "RawMessageConnection.h"
+#include "ThreadConnection.h"
 
 struct RemoteConnection;
 
@@ -47,6 +48,7 @@ struct DirectoryConnection {
                       void *rlockPool, void *lockMetaPool, uint64_t lockMetaSize,
                       void *peerPool, uint64_t peersize,
                       uint32_t machineNR, uint64_t chipSize,
+                      ThreadConnection thCon,
                       RemoteConnection *remoteInfo);
 
   void sendMessage2App(RawMessage *m, uint16_t node_id, uint16_t th_id);

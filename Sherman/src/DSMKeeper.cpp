@@ -11,7 +11,7 @@ void DSMKeeper::initLocalMeta() {
   localMeta.lockBase = (uint64_t)dirCon[0]->lockPool;
   localMeta.cacheBase = (uint64_t)thCon[0]->cachePool;
   localMeta.lockMetaBase = (uint64_t)dirCon[0]->lockMetaPool;
-  localMeta.peerBase = (uint64_t)dirCon[0]->peerPool;
+  localMeta.peerBase = (uint64_t)dirCon[0]->peerPool + 1 * define::GB;
 
   // per thread APP
   for (int i = 0; i < MAX_APP_THREAD; ++i) {

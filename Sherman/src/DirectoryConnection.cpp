@@ -7,6 +7,7 @@ DirectoryConnection::DirectoryConnection(uint16_t dirID, void *dsmPool,
                                          void* lockMetaPool, uint64_t lockMetaSize,
                                          void* peerPool, uint64_t peerSize,
                                          uint32_t machineNR, uint64_t chipSize,
+                                         ThreadConnection thCon,
                                          RemoteConnection *remoteInfo)
     : dirID(dirID), remoteInfo(remoteInfo) {
 
@@ -19,7 +20,7 @@ DirectoryConnection::DirectoryConnection(uint16_t dirID, void *dsmPool,
 
   // dsm memory
   this->dsmPool = dsmPool;
-  this->dsmSize = dsmSize + 64 * define::MB;
+  this->dsmSize = dsmSize;
   this->dsmMR = createMemoryRegion((uint64_t)dsmPool, dsmSize, &ctx);
   this->dsmLKey = dsmMR->lkey;
 
@@ -28,10 +29,10 @@ DirectoryConnection::DirectoryConnection(uint16_t dirID, void *dsmPool,
   lockMetaLKey = lockMetaMR->lkey;
   lockMetaRKey = lockMetaMR->rkey;
 
-  this->peerPool = peerPool;
-  peerMR = createMemoryRegion((uint64_t)peerPool, peerSize, &ctx);
-  peerLKey = peerMR->lkey;
-  peerRKey = peerMR->rkey;
+  this->peerPool = dsmPool;
+  peerMR = dsmMR;
+  peerLKey = dsmMR->lkey;
+  peerRKey = dsmMR->rkey;
 
   // on-chip lock memory
   if (dirID == 0) {

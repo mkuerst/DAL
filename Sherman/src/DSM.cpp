@@ -66,8 +66,9 @@ DSM::DSM(const DSMConfig &conf)
   memset((char *)lockMetaAddr, 0, conf.mnNR * conf.lockMetaSize * 1024);
 
   sizePerPeer = conf.chipSize * 1024 / sizeof(uint64_t) * 1024;
-  totalPeerSize = conf.mnNR * sizePerPeer;
-  peerAddr = (uint64_t) malloc(totalPeerSize);
+  totalPeerSize = MAX_MACHINE * sizePerPeer;
+  // peerAddr = (uint64_t) malloc(totalPeerSize);
+  peerAddr = baseAddr + conf.dsmSize * define::GB;
   memset((char *)peerAddr, 0, totalPeerSize);
   
   // Debug::notifyInfo("shared memory size: %dGB, 0x%lx", conf.dsmSize, baseAddr);
@@ -96,8 +97,8 @@ DSM::DSM(const DSMConfig &conf)
 DSM::~DSM() {}
 
 void DSM::free_dsm() {
-  munmap((void*)baseAddr, conf.dsmSize * define::GB);
-  munmap((void*)cache.data, cache.size * define::GB + 16 * define::MB);
+  munmap((void*)baseAddr, conf.dsmSize * define::GB + totalPeerSize);
+  munmap((void*)cache.data, cache.size * define::GB);
   free((void* )lockMetaAddr);
 
   
@@ -206,6 +207,7 @@ void DSM::registerThread(int page_size) {
   thread_tag = thread_id + (((uint64_t)this->getMyNodeID()) << 32) + 1;
 
   iCon = thCon[thread_id];
+  iCon->peerLKey = dirCon[0]->peerLKey;
 
   if (!has_init[thread_id]) {
     iCon->message->initRecv();
@@ -233,10 +235,11 @@ void DSM::initRDMAConnection() {
 
   for (int i = 0; i < NR_DIRECTORY; ++i) {
     dirCon[i] =
-        new DirectoryConnection(i, (void *)baseAddr, conf.dsmSize * define::GB,
+        new DirectoryConnection(i, (void *)baseAddr, conf.dsmSize * define::GB + totalPeerSize,
                                 (void *) rlockAddr, (void *) lockMetaAddr, conf.mnNR * conf.lockMetaSize*1024,
                                 (void *) peerAddr, totalPeerSize,
-                                 conf.machineNR, conf.chipSize*1024,
+                                conf.machineNR, conf.chipSize*1024,
+                                *thCon[i],
                                 remoteInfo);
   }
 
@@ -389,11 +392,11 @@ void DSM::write_peer(const char *buffer, GlobalAddress gaddr, size_t size,
   if (ctx == nullptr) {
     rdmaWrite(iCon->data[0][gaddr.nodeID], (uint64_t)buffer,
               remoteInfo[gaddr.nodeID].peerBase + gaddr.offset, size,
-              iCon->cacheLKey, remoteInfo[gaddr.nodeID].peerRKey[0], -1, signal);
+              iCon->peerLKey, remoteInfo[gaddr.nodeID].peerRKey[0], -1, signal);
   } else {
     rdmaWrite(iCon->data[0][gaddr.nodeID], (uint64_t)buffer,
               remoteInfo[gaddr.nodeID].peerBase + gaddr.offset, size,
-              iCon->cacheLKey, remoteInfo[gaddr.nodeID].peerRKey[0], -1, true,
+              iCon->peerLKey, remoteInfo[gaddr.nodeID].peerRKey[0], -1, true,
               ctx->coro_id);
     (*ctx->yield)(*ctx->master);
   }
