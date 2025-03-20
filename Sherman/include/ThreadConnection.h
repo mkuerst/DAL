@@ -15,11 +15,13 @@ struct ThreadConnection {
   ibv_cq *cq; // for one-side verbs
   ibv_cq *rpc_cq;
   ibv_cq *lock_cq;
+  ibv_cq *peer_cq;
 
   RawMessageConnection *message;
 
   ibv_qp **data[NR_DIRECTORY];
   ibv_qp **lock[NR_DIRECTORY];
+  ibv_qp **peer[NR_DIRECTORY];
 
   ibv_mr *cacheMR;
   void *cachePool;
@@ -31,6 +33,10 @@ struct ThreadConnection {
   uint32_t lockMetaLKey;
   uint32_t lockMetaRKey;
 
+  ibv_mr *peerMR;
+  void *peerPool;
+  uint32_t peerLKey;
+  uint32_t peerRKey;
 
   ThreadConnection(uint16_t threadID, void *cachePool, uint64_t cacheSize,
                    void *lockeMetaPool, uint64_t lockMetaSize,

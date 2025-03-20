@@ -19,6 +19,8 @@ thread_local RdmaBuffer DSM::rbuf[define::kMaxCoro];
 thread_local uint64_t DSM::thread_tag = 0;
 thread_local uint64_t *DSM::next_loc;
 thread_local GlobalAddress DSM::next_gaddr;
+uint64_t totalPeerSize;
+uint64_t sizePerPeer;
 
 DSM *DSM::getInstance(const DSMConfig &conf) {
   static DSM *dsm = nullptr;
@@ -62,13 +64,18 @@ DSM::DSM(const DSMConfig &conf)
 
   lockMetaAddr = (uint64_t) malloc(conf.mnNR * conf.lockMetaSize * 1024);
   memset((char *)lockMetaAddr, 0, conf.mnNR * conf.lockMetaSize * 1024);
+
+  sizePerPeer = conf.chipSize * 1024 / sizeof(uint64_t) * 1024;
+  totalPeerSize = conf.mnNR * sizePerPeer;
+  peerAddr = (uint64_t) malloc(totalPeerSize);
+  memset((char *)peerAddr, 0, totalPeerSize);
   
   // Debug::notifyInfo("shared memory size: %dGB, 0x%lx", conf.dsmSize, baseAddr);
   // Debug::notifyInfo("rdma cache size: %dGB", conf.cacheConfig.cacheSize);
   // std::cerr << "cache_addr: " << cache.data << std::endl;
   
   // warmup
-  memset((char *)cache.data, 0, cache.size * define::GB + 16 * define::MB);
+  memset((char *)cache.data, 0, cache.size * define::GB);
   memset((char *)baseAddr, 0, conf.dsmSize * define::GB);
   
   initRDMAConnection();
@@ -219,7 +226,7 @@ void DSM::initRDMAConnection() {
 
   for (int i = 0; i < MAX_APP_THREAD; ++i) {
     thCon[i] =
-        new ThreadConnection(i, (void *)cache.data, cache.size * define::GB + 16 * define::MB,
+        new ThreadConnection(i, (void *)cache.data, cache.size * define::GB,
                              (void *) lockMetaAddr, conf.mnNR * conf.lockMetaSize*1024,
                              conf.machineNR, remoteInfo);
   }
@@ -228,6 +235,7 @@ void DSM::initRDMAConnection() {
     dirCon[i] =
         new DirectoryConnection(i, (void *)baseAddr, conf.dsmSize * define::GB,
                                 (void *) rlockAddr, (void *) lockMetaAddr, conf.mnNR * conf.lockMetaSize*1024,
+                                (void *) peerAddr, totalPeerSize,
                                  conf.machineNR, conf.chipSize*1024,
                                 remoteInfo);
   }
@@ -288,7 +296,7 @@ void DSM::wakeup_peer(GLockAddress gaddr, int tid) {
 
 char* DSM::spin_on(GlobalAddress lock_addr) {
   uint64_t *spin_loc = (uint64_t *)((uint64_t) lockMetaAddr + (lock_addr.nodeID * conf.lockNR * 1024) + lock_addr.offset);
-  char* pbuf = (char *)((uint64_t) cache.data + conf.cacheConfig.cacheSize * define::GB + (lock_addr.nodeID * conf.chipSize * 1024) + lock_addr.offset);
+  char* pbuf = (char *)((uint64_t) peerAddr + (lock_addr.nodeID * sizePerPeer) + lock_addr.offset);
   memset(pbuf, 0 , kLeafPageSize);
   while(*spin_loc == 0) {
     CPU_PAUSE();
@@ -375,25 +383,25 @@ void DSM::write_lm_sync(const char *buffer, GlobalAddress gaddr, size_t size,
   }
 }
 
-void DSM::write_peer_cache(const char *buffer, GlobalAddress gaddr, size_t size,
+void DSM::write_peer(const char *buffer, GlobalAddress gaddr, size_t size,
                 bool signal, CoroContext *ctx) {
 
   if (ctx == nullptr) {
     rdmaWrite(iCon->data[0][gaddr.nodeID], (uint64_t)buffer,
-              remoteInfo[gaddr.nodeID].cacheBase + gaddr.offset, size,
-              iCon->cacheLKey, remoteInfo[gaddr.nodeID].appRKey[0], -1, signal);
+              remoteInfo[gaddr.nodeID].peerBase + gaddr.offset, size,
+              iCon->cacheLKey, remoteInfo[gaddr.nodeID].peerRKey[0], -1, signal);
   } else {
     rdmaWrite(iCon->data[0][gaddr.nodeID], (uint64_t)buffer,
-              remoteInfo[gaddr.nodeID].cacheBase + gaddr.offset, size,
-              iCon->cacheLKey, remoteInfo[gaddr.nodeID].appRKey[0], -1, true,
+              remoteInfo[gaddr.nodeID].peerBase + gaddr.offset, size,
+              iCon->cacheLKey, remoteInfo[gaddr.nodeID].peerRKey[0], -1, true,
               ctx->coro_id);
     (*ctx->yield)(*ctx->master);
   }
 }
 
-void DSM::write_peer_cache_sync(const char *buffer, GlobalAddress gaddr, size_t size,
+void DSM::write_peer_sync(const char *buffer, GlobalAddress gaddr, size_t size,
                      CoroContext *ctx) {
-  write_peer_cache(buffer, gaddr, size, true, ctx);
+  write_peer(buffer, gaddr, size, true, ctx);
 
   if (ctx == nullptr) {
     ibv_wc wc;

@@ -5,6 +5,7 @@
 DirectoryConnection::DirectoryConnection(uint16_t dirID, void *dsmPool,
                                          uint64_t dsmSize, void* rlockPool, 
                                          void* lockMetaPool, uint64_t lockMetaSize,
+                                         void* peerPool, uint64_t peerSize,
                                          uint32_t machineNR, uint64_t chipSize,
                                          RemoteConnection *remoteInfo)
     : dirID(dirID), remoteInfo(remoteInfo) {
@@ -27,6 +28,11 @@ DirectoryConnection::DirectoryConnection(uint16_t dirID, void *dsmPool,
   lockMetaLKey = lockMetaMR->lkey;
   lockMetaRKey = lockMetaMR->rkey;
 
+  this->peerPool = peerPool;
+  peerMR = createMemoryRegion((uint64_t)peerPool, peerSize, &ctx);
+  peerLKey = peerMR->lkey;
+  peerRKey = peerMR->rkey;
+
   // on-chip lock memory
   if (dirID == 0) {
     this->lockPool = rlockPool;
@@ -46,9 +52,11 @@ DirectoryConnection::DirectoryConnection(uint16_t dirID, void *dsmPool,
   for (int i = 0; i < MAX_APP_THREAD; ++i) {
     data2app[i] = new ibv_qp *[machineNR];
     lock2app[i] = new ibv_qp *[machineNR];
+    peer2app[i] = new ibv_qp *[machineNR];
     for (size_t k = 0; k < machineNR; ++k) {
       createQueuePair(&data2app[i][k], IBV_QPT_RC, cq, &ctx);
       createQueuePair(&lock2app[i][k], IBV_QPT_RC, cq, &ctx);
+      createQueuePair(&peer2app[i][k], IBV_QPT_RC, cq, &ctx);
     }
   }
 }

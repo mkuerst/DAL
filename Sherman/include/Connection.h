@@ -31,6 +31,10 @@ struct RemoteConnection {
     // lock meta
     uint64_t lockMetaBase;
     uint32_t lockMetaRKey[MAX_APP_THREAD];
+
+    // peer
+    uint64_t peerBase;
+    uint32_t peerRKey[MAX_APP_THREAD];
 };
 
 #endif /* __CONNECTION_H__ */

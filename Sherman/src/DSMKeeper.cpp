@@ -11,6 +11,7 @@ void DSMKeeper::initLocalMeta() {
   localMeta.lockBase = (uint64_t)dirCon[0]->lockPool;
   localMeta.cacheBase = (uint64_t)thCon[0]->cachePool;
   localMeta.lockMetaBase = (uint64_t)dirCon[0]->lockMetaPool;
+  localMeta.peerBase = (uint64_t)dirCon[0]->peerPool;
 
   // per thread APP
   for (int i = 0; i < MAX_APP_THREAD; ++i) {
@@ -29,6 +30,7 @@ void DSMKeeper::initLocalMeta() {
     localMeta.dirTh[i].rKey = dirCon[i]->dsmMR->rkey;
     localMeta.dirTh[i].lock_rkey = dirCon[i]->lockMR->rkey;
     localMeta.dirTh[i].lockMeta_rkey = dirCon[i]->lockMetaMR->rkey;
+    localMeta.dirTh[i].peer_rkey = dirCon[i]->peerMR->rkey;
     memcpy((char *)localMeta.dirTh[i].gid, (char *)(&dirCon[i]->ctx.gid),
            16 * sizeof(uint8_t));
 
@@ -60,6 +62,7 @@ void DSMKeeper::setDataToRemote(uint16_t remoteID) {
     for (int k = 0; k < MAX_APP_THREAD; ++k) {
       localMeta.dirRcQpn2app[i][k] = c->data2app[k][remoteID]->qp_num;
       localMeta.lockRcQpn2app[i][k] = c->lock2app[k][remoteID]->qp_num;
+      localMeta.peerRcQpn2app[i][k] = c->peer2app[k][remoteID]->qp_num;
     }
   }
 
@@ -68,6 +71,7 @@ void DSMKeeper::setDataToRemote(uint16_t remoteID) {
     for (int k = 0; k < NR_DIRECTORY; ++k) {
       localMeta.appRcQpn2dir[i][k] = c->data[k][remoteID]->qp_num;
       localMeta.appRcQpn2lock[i][k] = c->lock[k][remoteID]->qp_num;
+      localMeta.appRcQpn2peer[i][k] = c->peer[k][remoteID]->qp_num;
     }
   
   }
@@ -93,6 +97,14 @@ void DSMKeeper::setDataFromRemote(uint16_t remoteID, ExchangeMeta *remoteMeta) {
                     remoteMeta->appTh[k].lid, remoteMeta->appTh[k].gid,
                     &c->ctx);
       modifyQPtoRTS(qp1);
+
+      auto &qp2 = c->peer2app[k][remoteID];
+      assert(qp2->qp_type == IBV_QPT_RC);
+      modifyQPtoInit(qp2, &c->ctx);
+      modifyQPtoRTR(qp2, remoteMeta->appRcQpn2peer[k][i],
+                    remoteMeta->appTh[k].lid, remoteMeta->appTh[k].gid,
+                    &c->ctx);
+      modifyQPtoRTS(qp2);
     }
   }
 
@@ -114,6 +126,14 @@ void DSMKeeper::setDataFromRemote(uint16_t remoteID, ExchangeMeta *remoteMeta) {
                     remoteMeta->dirTh[k].lid, remoteMeta->dirTh[k].gid,
                     &c->ctx);
       modifyQPtoRTS(qp1);
+
+      auto &qp3 = c->peer[k][remoteID];
+      assert(qp3->qp_type == IBV_QPT_RC);
+      modifyQPtoInit(qp3, &c->ctx);
+      modifyQPtoRTR(qp3, remoteMeta->peerRcQpn2app[k][i],
+                    remoteMeta->dirTh[k].lid, remoteMeta->dirTh[k].gid,
+                    &c->ctx);
+      modifyQPtoRTS(qp3);
     }
   }
 
@@ -122,11 +142,13 @@ void DSMKeeper::setDataFromRemote(uint16_t remoteID, ExchangeMeta *remoteMeta) {
   info.cacheBase = remoteMeta->cacheBase;
   info.lockBase = remoteMeta->lockBase;
   info.lockMetaBase = remoteMeta->lockMetaBase;
+  info.peerBase = remoteMeta->peerBase;
 
   for (int i = 0; i < NR_DIRECTORY; ++i) {
     info.dsmRKey[i] = remoteMeta->dirTh[i].rKey;
     info.lockRKey[i] = remoteMeta->dirTh[i].lock_rkey;
     info.lockMetaRKey[i] = remoteMeta->dirTh[i].lockMeta_rkey;
+    info.peerRKey[i] = remoteMeta->dirTh[i].peer_rkey;
     info.dirMessageQPN[i] = remoteMeta->dirUdQpn[i];
 
     for (int k = 0; k < MAX_APP_THREAD; ++k) {

@@ -18,6 +18,7 @@ struct ExPerThread {
 
   uint32_t lock_rkey; //for directory on-chip memory 
   uint32_t lockMeta_rkey;
+  uint32_t peer_rkey;
 } __attribute__((packed));
 
 struct ExchangeMeta {
@@ -25,6 +26,7 @@ struct ExchangeMeta {
   uint64_t cacheBase;
   uint64_t lockBase;
   uint64_t lockMetaBase;
+  uint64_t peerBase;
 
   ExPerThread appTh[MAX_APP_THREAD];
   ExPerThread dirTh[NR_DIRECTORY];
@@ -34,9 +36,11 @@ struct ExchangeMeta {
 
   uint32_t appRcQpn2dir[MAX_APP_THREAD][NR_DIRECTORY];
   uint32_t appRcQpn2lock[MAX_APP_THREAD][NR_DIRECTORY];
+  uint32_t appRcQpn2peer[MAX_APP_THREAD][NR_DIRECTORY];
 
   uint32_t dirRcQpn2app[NR_DIRECTORY][MAX_APP_THREAD];
   uint32_t lockRcQpn2app[NR_DIRECTORY][MAX_APP_THREAD];
+  uint32_t peerRcQpn2app[NR_DIRECTORY][MAX_APP_THREAD];
 
 } __attribute__((packed));
 

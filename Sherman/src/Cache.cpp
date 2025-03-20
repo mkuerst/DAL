@@ -2,5 +2,5 @@
 
 Cache::Cache(const CacheConfig &cache_config) {
     size = cache_config.cacheSize;
-    data = (uint64_t)hugePageAlloc(size * define::GB + 16 * define::MB);
+    data = (uint64_t)hugePageAlloc(size * define::GB);
 }

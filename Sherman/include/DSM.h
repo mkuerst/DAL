@@ -96,10 +96,10 @@ public:
   void write_cas_sync(RdmaOpRegion &write_ror, RdmaOpRegion &cas_ror,
                       uint64_t equal, uint64_t val, CoroContext *ctx = nullptr);
 
-  void write_peer_cache(const char *buffer, GlobalAddress gaddr, size_t size,
+  void write_peer(const char *buffer, GlobalAddress gaddr, size_t size,
                   bool signal, CoroContext *ctx);
 
-  void write_peer_cache_sync(const char *buffer, GlobalAddress gaddr, size_t size,
+  void write_peer_sync(const char *buffer, GlobalAddress gaddr, size_t size,
                       CoroContext *ctx);
 
   void cas(GlobalAddress gaddr, uint64_t equal, uint64_t val,
@@ -221,6 +221,7 @@ private:
   uint64_t baseAddr;
   uint64_t rlockAddr;
   uint64_t lockMetaAddr;
+  uint64_t peerAddr;
   uint32_t myNodeID;
   int kNextLocCnt = 10;
   int kMaxVersion = 0xFFFF;

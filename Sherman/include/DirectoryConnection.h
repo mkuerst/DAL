@@ -17,6 +17,7 @@ struct DirectoryConnection {
 
   ibv_qp **data2app[MAX_APP_THREAD];
   ibv_qp **lock2app[MAX_APP_THREAD];
+  ibv_qp **peer2app[MAX_APP_THREAD];
 
   ibv_mr *dsmMR;
   void *dsmPool;
@@ -34,10 +35,17 @@ struct DirectoryConnection {
   uint32_t lockMetaLKey;
   uint32_t lockMetaRKey;
 
+  ibv_mr *peerMR;
+  void *peerPool;
+  uint64_t peerSize;
+  uint32_t peerLKey;
+  uint32_t peerRKey;
+
   RemoteConnection *remoteInfo;
 
   DirectoryConnection(uint16_t dirID, void *dsmPool, uint64_t dsmSize,
                       void *rlockPool, void *lockMetaPool, uint64_t lockMetaSize,
+                      void *peerPool, uint64_t peersize,
                       uint32_t machineNR, uint64_t chipSize,
                       RemoteConnection *remoteInfo);
 
