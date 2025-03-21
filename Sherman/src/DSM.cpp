@@ -54,7 +54,10 @@ void DSM::lockThread() {
 DSM::DSM(const DSMConfig &conf)
     : conf(conf), appID(0), cache(conf.cacheConfig) {
       
-  baseAddr = (uint64_t)hugePageAlloc(conf.dsmSize * define::GB);
+  sizePerPeer = conf.chipSize * 1024 / sizeof(uint64_t) * 1024;
+  totalPeerSize = MAX_MACHINE * sizePerPeer;
+
+  baseAddr = (uint64_t)hugePageAlloc(conf.dsmSize * define::GB + totalPeerSize);
   #ifdef ON_CHIP
   rlockAddr = define::kLockStartAddr;
   #else
@@ -65,8 +68,6 @@ DSM::DSM(const DSMConfig &conf)
   lockMetaAddr = (uint64_t) malloc(conf.mnNR * conf.lockMetaSize * 1024);
   memset((char *)lockMetaAddr, 0, conf.mnNR * conf.lockMetaSize * 1024);
 
-  sizePerPeer = conf.chipSize * 1024 / sizeof(uint64_t) * 1024;
-  totalPeerSize = MAX_MACHINE * sizePerPeer;
   // peerAddr = (uint64_t) malloc(totalPeerSize);
   peerAddr = baseAddr + conf.dsmSize * define::GB;
   memset((char *)peerAddr, 0, totalPeerSize);
@@ -207,7 +208,7 @@ void DSM::registerThread(int page_size) {
   thread_tag = thread_id + (((uint64_t)this->getMyNodeID()) << 32) + 1;
 
   iCon = thCon[thread_id];
-  iCon->peerLKey = dirCon[0]->peerLKey;
+  iCon->peerLKey = dirCon[0]->dsmLKey;
 
   if (!has_init[thread_id]) {
     iCon->message->initRecv();
@@ -299,7 +300,7 @@ void DSM::wakeup_peer(GLockAddress gaddr, int tid) {
 
 char* DSM::spin_on(GlobalAddress lock_addr) {
   uint64_t *spin_loc = (uint64_t *)((uint64_t) lockMetaAddr + (lock_addr.nodeID * conf.lockNR * 1024) + lock_addr.offset);
-  char* pbuf = (char *)((uint64_t) peerAddr + (lock_addr.nodeID * sizePerPeer) + lock_addr.offset);
+  char* pbuf = (char *)((uint64_t) peerAddr + (lock_addr.nodeID * sizePerPeer) + lock_addr.offset / sizeof(uint64_t) * 1024);
   memset(pbuf, 0 , kLeafPageSize);
   while(*spin_loc == 0) {
     CPU_PAUSE();
@@ -335,24 +336,26 @@ void DSM::read_sync(char *buffer, GlobalAddress gaddr, size_t size,
 }
 
 void DSM::write(const char *buffer, GlobalAddress gaddr, size_t size,
-                bool signal, CoroContext *ctx) {
+                bool signal, CoroContext *ctx, bool from_peer) {
 
+  // uint32_t lkey = from_peer ? iCon->peerLKey : iCon->cacheLKey;
+  uint32_t lkey = iCon->cacheLKey;
   if (ctx == nullptr) {
     rdmaWrite(iCon->data[0][gaddr.nodeID], (uint64_t)buffer,
               remoteInfo[gaddr.nodeID].dsmBase + gaddr.offset, size,
-              iCon->cacheLKey, remoteInfo[gaddr.nodeID].dsmRKey[0], -1, signal);
+              lkey, remoteInfo[gaddr.nodeID].dsmRKey[0], -1, signal);
   } else {
     rdmaWrite(iCon->data[0][gaddr.nodeID], (uint64_t)buffer,
               remoteInfo[gaddr.nodeID].dsmBase + gaddr.offset, size,
-              iCon->cacheLKey, remoteInfo[gaddr.nodeID].dsmRKey[0], -1, true,
+              lkey, remoteInfo[gaddr.nodeID].dsmRKey[0], -1, true,
               ctx->coro_id);
     (*ctx->yield)(*ctx->master);
   }
 }
 
 void DSM::write_sync(const char *buffer, GlobalAddress gaddr, size_t size,
-                     CoroContext *ctx) {
-  write(buffer, gaddr, size, true, ctx);
+                     CoroContext *ctx, bool from_peer) {
+  write(buffer, gaddr, size, true, ctx, from_peer);
 
   if (ctx == nullptr) {
     ibv_wc wc;
@@ -387,32 +390,35 @@ void DSM::write_lm_sync(const char *buffer, GlobalAddress gaddr, size_t size,
 }
 
 void DSM::write_peer(const char *buffer, GlobalAddress gaddr, size_t size,
-                bool signal, CoroContext *ctx) {
+                bool signal, CoroContext *ctx, bool from_peer) {
+
+  // uint32_t lkey = from_peer ? iCon->peerLKey : iCon->cacheLKey;
+  uint32_t lkey = iCon->cacheLKey;
 
   if (ctx == nullptr) {
     rdmaWrite(iCon->data[0][gaddr.nodeID], (uint64_t)buffer,
-              remoteInfo[gaddr.nodeID].peerBase + gaddr.offset, size,
-              iCon->peerLKey, remoteInfo[gaddr.nodeID].peerRKey[0], -1, signal);
+              remoteInfo[gaddr.nodeID].dsmBase + gaddr.offset, size,
+              lkey, remoteInfo[gaddr.nodeID].dsmRKey[0], -1, signal);
   } else {
     rdmaWrite(iCon->data[0][gaddr.nodeID], (uint64_t)buffer,
-              remoteInfo[gaddr.nodeID].peerBase + gaddr.offset, size,
-              iCon->peerLKey, remoteInfo[gaddr.nodeID].peerRKey[0], -1, true,
+              remoteInfo[gaddr.nodeID].dsmBase + gaddr.offset, size,
+              lkey, remoteInfo[gaddr.nodeID].dsmRKey[0], -1, true,
               ctx->coro_id);
     (*ctx->yield)(*ctx->master);
   }
 }
 
 void DSM::write_peer_sync(const char *buffer, GlobalAddress gaddr, size_t size,
-                     CoroContext *ctx) {
-  write_peer(buffer, gaddr, size, true, ctx);
+                     CoroContext *ctx, bool from_peer) {
+  write_peer(buffer, gaddr, size, true, ctx, from_peer);
 
   if (ctx == nullptr) {
     ibv_wc wc;
-    pollWithCQ(iCon->cq, 1, &wc, gaddr.offset, size);
+    pollWithCQ(iCon->cq, 1, &wc, gaddr.val, size);
   }
 }
 
-void DSM::fill_keys_dest(RdmaOpRegion &ror, GlobalAddress gaddr, bool is_chip, bool is_lockMeta) {
+void DSM::fill_keys_dest(RdmaOpRegion &ror, GlobalAddress gaddr, bool is_chip, bool is_lockMeta, bool is_peer) {
   ror.lkey = iCon->cacheLKey;
   if (is_chip) {
     ror.dest = remoteInfo[gaddr.nodeID].lockBase + gaddr.offset;
@@ -421,6 +427,10 @@ void DSM::fill_keys_dest(RdmaOpRegion &ror, GlobalAddress gaddr, bool is_chip, b
   else if (is_lockMeta) {
     ror.dest = remoteInfo[gaddr.nodeID].lockMetaBase + gaddr.offset;
     ror.remoteRKey = remoteInfo[gaddr.nodeID].lockMetaRKey[0];
+  }
+  else if (is_peer) {
+    ror.dest = remoteInfo[gaddr.nodeID].peerBase + gaddr.offset;
+    ror.remoteRKey = remoteInfo[gaddr.nodeID].peerRKey[0];
   }
   else {
     ror.dest = remoteInfo[gaddr.nodeID].dsmBase + gaddr.offset;
@@ -438,7 +448,7 @@ void DSM::write_batch(RdmaOpRegion *rs, int k, bool signal, CoroContext *ctx) {
     node_id = gaddr.nodeID;
     // cerr << "filling batched write " << i << ": " << endl <<
     // "gaddr: " << gaddr << "\n\n";
-    fill_keys_dest(rs[i], gaddr, rs[i].is_on_chip, rs[i].is_lockMeta);
+    fill_keys_dest(rs[i], gaddr, rs[i].is_on_chip, rs[i].is_lockMeta, rs[i].is_peer);
   }
 
   if (ctx == nullptr) {

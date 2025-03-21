@@ -39,6 +39,7 @@ public:
   uint64_t getDsmSize() { return conf.dsmSize * define::GB; }
   uint64_t getLmSize() { return conf.lockMetaSize * 1024; }
   uint64_t getBaseAddr() { return baseAddr; }
+  uint64_t getPeerAddr() { return peerAddr; }
 
   GlobalAddress getNextGaddr() { 
     // next_loc_curr = (next_loc_curr + 1) % kNextLocCnt;
@@ -73,9 +74,9 @@ public:
                  CoroContext *ctx = nullptr);
 
   void write(const char *buffer, GlobalAddress gaddr, size_t size,
-             bool signal = true, CoroContext *ctx = nullptr);
+             bool signal = true, CoroContext *ctx = nullptr, bool from_peer = false);
   void write_sync(const char *buffer, GlobalAddress gaddr, size_t size,
-                  CoroContext *ctx = nullptr);
+                  CoroContext *ctx = nullptr, bool from_peer = false);
   void write_lm(const char *buffer, GlobalAddress gaddr, size_t size,
              bool signal = true, CoroContext *ctx = nullptr);
   void write_lm_sync(const char *buffer, GlobalAddress gaddr, size_t size,
@@ -97,10 +98,10 @@ public:
                       uint64_t equal, uint64_t val, CoroContext *ctx = nullptr);
 
   void write_peer(const char *buffer, GlobalAddress gaddr, size_t size,
-                  bool signal, CoroContext *ctx);
+                  bool signal, CoroContext *ctx, bool from_peer = false);
 
   void write_peer_sync(const char *buffer, GlobalAddress gaddr, size_t size,
-                      CoroContext *ctx);
+                      CoroContext *ctx, bool from_peer = false);
 
   void cas(GlobalAddress gaddr, uint64_t equal, uint64_t val,
            uint64_t *rdma_buffer, bool signal = true,
@@ -202,7 +203,7 @@ private:
   ~DSM();
 
   void initRDMAConnection();
-  void fill_keys_dest(RdmaOpRegion &ror, GlobalAddress addr, bool is_chip, bool is_lockMeta = false);
+  void fill_keys_dest(RdmaOpRegion &ror, GlobalAddress addr, bool is_chip, bool is_lockMeta = false, bool is_peer = false);
 
   DSMConfig conf;
   std::atomic_int appID;

@@ -97,7 +97,7 @@ Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB) : dsm(dsm), tre
         auto root_page = new (page_buffer) LeafPage;
 
         root_page->set_consistent();
-        dsm->write_sync(page_buffer, root_addr, kLeafPageSize);
+        dsm->write_sync(page_buffer, root_addr, kLeafPageSize, nullptr, false);
 
         auto cas_buffer = (dsm->get_rbuf(0)).get_cas_buffer();
         bool res = dsm->cas_sync(root_ptr_ptr, 0, root_addr.val, cas_buffer);
@@ -184,7 +184,7 @@ bool Tree::update_new_root(GlobalAddress left, const Key &k,
   auto new_root_addr = dsm->alloc(kInternalPageSize);
 
   new_root->set_consistent();
-  dsm->write_sync(page_buffer, new_root_addr, kInternalPageSize, cxt);
+  dsm->write_sync(page_buffer, new_root_addr, kInternalPageSize, cxt, false);
   if (dsm->cas_sync(root_ptr_ptr, old_root, new_root_addr, cas_buffer, cxt)) {
     broadcast_new_root(new_root_addr, level);
     std::cout << "new root level " << level << " " << new_root_addr
@@ -270,6 +270,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
 
   timer.begin();
   #ifdef RAND_FAA
+  from_peer = false;
   uint64_t add = 1ULL << dsm->getMyNodeID();
 
   // bitset<64> bits(add);
@@ -293,25 +294,28 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
     return false;
   }
 
-  cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
-  "SPIN" << endl <<
-  "lock_addr: " << lock_addr << endl <<
-  "lockMeta: " << lm_bits << "\n\n";
+  // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
+  // "SPIN" << endl <<
+  // "lock_addr: " << lock_addr << endl <<
+  // "lockMeta: " << lm_bits << "\n\n";
 
   char* c_ho_buf = dsm->spin_on(lock_addr);
-  save_measurement(threadID, measurements.gwait_acq, 1, true);
   measurements.la[threadID]++;
-
-  cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
-  "WOKE UP" << endl <<
-  "lock_addr: " << lock_addr << endl <<
-  "lockMeta: " << lm_bits << "\n\n";
-
+  
+  // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
+  // "WOKE UP" << endl <<
+  // "lock_addr: " << lock_addr << endl <<
+  // "lockMeta: " << lm_bits << "\n\n";
+  
   #ifdef RAND_FAAD
-  curr_lock_node->page_buffer = c_ho_buf;
+  curr_lock_node->page_buffer = dsm->get_rbuf(coro_id).get_page_buffer();
+  memcpy(curr_lock_node->page_buffer, c_ho_buf, kLeafPageSize);
+  // curr_lock_node->page_buffer = c_ho_buf;
   from_peer = true;
+  save_measurement(threadID, measurements.gwait_acq, 1, true);
   return true;
   #endif
+  save_measurement(threadID, measurements.gwait_acq, 1, true);
   return false;
   #endif
 
@@ -558,7 +562,7 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
   #ifdef RAND_FAAD
   GlobalAddress peerDataLoc = GlobalAddress::Null();
   peerDataLoc.nodeID = peerNodeID;
-  peerDataLoc.offset = (lock_addr.nodeID * lockNR * kLeafPageSize) + (lock_addr.offset / 8 )*kLeafPageSize;
+  peerDataLoc.offset = dsm->getDsmSize() + (lock_addr.nodeID * lockNR * kLeafPageSize) + (lock_addr.offset / 8 )*kLeafPageSize;
 
   // rs[0].source = (uint64_t)page_buffer;
   // rs[0].dest = page_addr;
@@ -580,7 +584,7 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
   // // }
   //   dsm->write_batch_sync(rs, 2, nullptr);
   // save_measurement(threadID, measurements.data_write);
-  dsm->write_sync(page_buf, peerDataLoc, kLeafPageSize, nullptr);
+  dsm->write_sync(page_buf, peerDataLoc, kLeafPageSize, nullptr, from_peer);
   save_measurement(threadID, measurements.data_write);
   timer.begin();
 
@@ -643,7 +647,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   if (hand_over_other) {
     timer.begin();
     #ifndef HANDOVER_DATA
-    dsm->write_sync(page_buffer, page_addr, page_size, cxt);
+    dsm->write_sync(page_buffer, page_addr, page_size, cxt, from_peer);
     save_measurement(threadID, measurements.data_write);
     #endif
     releases_local_lock(lock_addr);
@@ -681,20 +685,22 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
 
     // #else
 
+    // bitset<64> bits(add_);
+    // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
+    // "FAA DM (REL), lock_addr: " << lock_addr << endl <<
+    // "from_peer: " << from_peer << "\n\n";
+    // "add: " << bits << "\n\n";
+
     if (async) {
-      dsm->write(page_buffer, page_addr, page_size, false, cxt);
+      dsm->write(page_buffer, page_addr, page_size, false, cxt, from_peer);
     } else {
-      dsm->write_sync(page_buffer, page_addr, page_size, cxt);
+      dsm->write_sync(page_buffer, page_addr, page_size, cxt, from_peer);
       save_measurement(threadID, measurements.data_write);
     }
       // dsm->write_sync(page_buffer, page_addr, page_size, cxt);
     timer.begin();
     dsm->faa_dm_sync(lock_addr, add_, cas_buf, nullptr);
 
-    // bitset<64> bits(add_);
-    // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
-    // "FAA DM (REL), lock_addr: " << lock_addr << endl <<
-    // "add: " << bits << "\n\n";
 
 
     // #endif
@@ -729,7 +735,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   #ifdef RAND_FAAD
   GlobalAddress peerDataLoc = GlobalAddress::Null();
   peerDataLoc.nodeID = peerNodeID;
-  peerDataLoc.offset = (lock_addr.nodeID * lockNR * kLeafPageSize) + (lock_addr.offset / 8 )*kLeafPageSize;
+  peerDataLoc.offset = dsm->getDsmSize() + (lock_addr.nodeID * lockNR * kLeafPageSize) + (lock_addr.offset / 8 ) * kLeafPageSize;
 
   // rs[0].source = (uint64_t)page_buffer;
   // rs[0].dest = page_addr;
@@ -751,14 +757,14 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   // }
   // // dsm->write_batch_sync(rs, 2, nullptr);
   save_measurement(threadID, measurements.data_write);
-  cerr << "HANDING OVER DATA: " << endl;
-  cerr << "peerDataLoc: " << peerDataLoc << endl;
-  uint64_t * long_data = (uint64_t *) page_buffer;
-  for (int i = 0; i < page_size/sizeof(uint64_t); i++) {
-    cerr << long_data[i] << ", ";
-  }
-  cerr << endl;
-  dsm->write_peer_sync(page_buffer, peerDataLoc, page_size, nullptr);
+  // cerr << "HANDING OVER DATA: " << endl;
+  // cerr << "peerDataLoc: " << peerDataLoc << endl;
+  // uint64_t * long_data = (uint64_t *) page_buffer;
+  // for (int i = 0; i < page_size/sizeof(uint64_t); i++) {
+  //   cerr << long_data[i] << ", ";
+  // }
+  // cerr << endl;
+  dsm->write_peer_sync(page_buffer, peerDataLoc, page_size, nullptr, from_peer);
   save_measurement(threadID, measurements.data_write);
   timer.begin();
 
@@ -798,6 +804,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     rs[0].dest = page_addr;
     rs[0].size = page_size;
     rs[0].is_on_chip = false;
+    rs[0].is_peer = from_peer;
 
     rs[1].source = (uint64_t)dsm->get_rbuf(coro_id).get_cas_buffer();
     rs[1].dest = lock_addr;
@@ -878,6 +885,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   rs[0].dest = page_addr;
   rs[0].size = page_size;
   rs[0].is_on_chip = false;
+  rs[0].is_peer = from_peer;
 
   rs[1].source = (uint64_t)dsm->get_rbuf(coro_id).get_cas_buffer();
   // rs[1].source = (uint64_t)cas_buffer;
@@ -898,12 +906,12 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
 
   // cerr << "page_addr: " << page_addr << "\n\n";
   if(async) {
-    dsm->write(page_buffer, page_addr, page_size, false, cxt);
+    dsm->write(page_buffer, page_addr, page_size, false, cxt, from_peer);
     timer.begin();
     *cas_buf = 0;
     dsm->write_dm((char *)cas_buf, lock_addr, sizeof(uint64_t), false, cxt);
   } else {
-    dsm->write_sync(page_buffer, page_addr, page_size, cxt);
+    dsm->write_sync(page_buffer, page_addr, page_size, cxt, from_peer);
     save_measurement(threadID, measurements.data_write);
     timer.begin();
     *cas_buf = 0;
@@ -980,7 +988,6 @@ bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
     measurements.handovers_data[threadID]++;
     if (from_peer) {
       measurements.c_hod[threadID]++;
-      from_peer = false;
     }
     return true;
   }
@@ -1505,7 +1512,7 @@ void Tree::internal_page_store(GlobalAddress page_addr, const Key &k,
     page->hdr.sibling_ptr = sibling_addr;
 
     sibling->set_consistent();
-    dsm->write_sync(sibling_buf, sibling_addr, kInternalPageSize, cxt);
+    dsm->write_sync(sibling_buf, sibling_addr, kInternalPageSize, cxt, false);
   }
 
   page->set_consistent();
@@ -1713,7 +1720,7 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
     page->hdr.sibling_ptr = sibling_addr;
 
     sibling->set_consistent();
-    dsm->write_sync(sibling_buf, sibling_addr, kLeafPageSize, cxt);
+    dsm->write_sync(sibling_buf, sibling_addr, kLeafPageSize, cxt, false);
   }
 
   page->set_consistent();
@@ -2016,13 +2023,12 @@ void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_si
       measurements.handovers_data[threadID]++;
       if (from_peer) {
         measurements.c_hod[threadID]++;
-        from_peer = false;
-        cerr << "RECEIVED DATA: " << endl;
-        uint64_t * long_data = (uint64_t *) curr_page_buffer;
-        for (size_t i = 0; i < data_size/sizeof(uint64_t); i++) {
-          cerr << long_data[i] << ", ";
-        }
-        cerr << endl;
+        // cerr << "RECEIVED DATA: " << endl;
+        // uint64_t * long_data = (uint64_t *) curr_page_buffer;
+        // for (size_t i = 0; i < data_size/sizeof(uint64_t); i++) {
+        //   cerr << long_data[i] << ", ";
+        // }
+        // cerr << endl;
 
       }
       // cerr << "********************************************" << endl;
