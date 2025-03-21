@@ -23,6 +23,8 @@ struct ThreadConnection {
   ibv_qp **lock[NR_DIRECTORY];
   ibv_qp **peer[NR_DIRECTORY];
 
+  ibv_qp ***data2app;
+
   ibv_mr *cacheMR;
   void *cachePool;
   uint32_t cacheLKey;

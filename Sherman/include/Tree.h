@@ -127,11 +127,16 @@ public:
     void setKPageSize(int page_size); 
     void set_IDs(int nid, int tid);
     uint32_t getLockNR() { return lockNR; }
+
+    /*TESTING FUNCTIONS*/
     void wait();
     void contact();
     uint64_t test_self_cas(GLockAddress gaddr, bool with_read);
     uint64_t node0(uint64_t cnt);
     uint64_t node1(uint64_t cnt);
+    void test_write_peer();
+    void test_spin();
+
     int randNodeID(uint64_t value);
     /**/
 

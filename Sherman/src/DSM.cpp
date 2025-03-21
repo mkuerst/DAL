@@ -57,7 +57,7 @@ DSM::DSM(const DSMConfig &conf)
   sizePerPeer = conf.chipSize * 1024 / sizeof(uint64_t) * 1024;
   totalPeerSize = MAX_MACHINE * sizePerPeer;
 
-  baseAddr = (uint64_t)hugePageAlloc(conf.dsmSize * define::GB + totalPeerSize);
+  baseAddr = (uint64_t)hugePageAlloc(conf.dsmSize * define::GB);
   #ifdef ON_CHIP
   rlockAddr = define::kLockStartAddr;
   #else
@@ -69,8 +69,8 @@ DSM::DSM(const DSMConfig &conf)
   memset((char *)lockMetaAddr, 0, conf.mnNR * conf.lockMetaSize * 1024);
 
   // peerAddr = (uint64_t) malloc(totalPeerSize);
-  peerAddr = baseAddr + conf.dsmSize * define::GB;
-  memset((char *)peerAddr, 0, totalPeerSize);
+  peerAddr = cache.data;
+  // memset((char *)peerAddr, 0, totalPeerSize);
   
   // Debug::notifyInfo("shared memory size: %dGB, 0x%lx", conf.dsmSize, baseAddr);
   // Debug::notifyInfo("rdma cache size: %dGB", conf.cacheConfig.cacheSize);
@@ -209,6 +209,7 @@ void DSM::registerThread(int page_size) {
 
   iCon = thCon[thread_id];
   iCon->peerLKey = dirCon[0]->dsmLKey;
+  iCon->data2app = dirCon[0]->data2app;
 
   if (!has_init[thread_id]) {
     iCon->message->initRecv();
@@ -397,8 +398,8 @@ void DSM::write_peer(const char *buffer, GlobalAddress gaddr, size_t size,
 
   if (ctx == nullptr) {
     rdmaWrite(iCon->data[0][gaddr.nodeID], (uint64_t)buffer,
-              remoteInfo[gaddr.nodeID].dsmBase + gaddr.offset, size,
-              lkey, remoteInfo[gaddr.nodeID].dsmRKey[0], -1, signal);
+              remoteInfo[gaddr.nodeID].peerBase + gaddr.offset, size,
+              iCon->peerLKey, remoteInfo[gaddr.nodeID].peerRKey[0], -1, signal);
   } else {
     rdmaWrite(iCon->data[0][gaddr.nodeID], (uint64_t)buffer,
               remoteInfo[gaddr.nodeID].dsmBase + gaddr.offset, size,

@@ -184,6 +184,13 @@ void *mlocks_worker(void *arg) {
     start_perf_event(fd);
 
     pthread_barrier_wait(&global_barrier);
+    if (nodeID == 0) {
+        sleep(1);
+        rlock->test_write_peer();
+    } else {
+        rlock->test_spin();
+    }
+    return 0;
     // if (nodeID == 0) {
     //     rlock->wait();
     //     rlock->contact();

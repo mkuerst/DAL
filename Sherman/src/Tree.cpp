@@ -2166,3 +2166,23 @@ uint64_t Tree::node1(uint64_t cnt) {
   }
   return failed_cases;
 }
+
+
+void Tree::test_write_peer() {
+  // char* pbuf = dsm->get_rbuf(0).get_page_buffer();
+  char* pbuf = (char*)dsm->getBaseAddr();
+  GlobalAddress gaddr = GlobalAddress::Null();
+  gaddr.nodeID = 1;
+  *(uint64_t*) pbuf = 1;
+  dsm->write_peer_sync(pbuf, gaddr, 1024, nullptr, true);
+  cerr << "WRITTEN TO PEER: " << *(uint64_t *) pbuf << endl;
+}
+
+void Tree::test_spin() {
+  uint64_t *spinloc = (uint64_t *) dsm->getCacheAddr();
+  *spinloc = 0;
+  while(*spinloc == 0) {
+    CPU_PAUSE();
+  }
+  cerr << "WOKE UP" << endl;
+}
