@@ -29,10 +29,10 @@ DirectoryConnection::DirectoryConnection(uint16_t dirID, void *dsmPool,
   lockMetaLKey = lockMetaMR->lkey;
   lockMetaRKey = lockMetaMR->rkey;
 
-  this->peerPool = peerPool;
-  peerMR = dsmMR;
-  peerLKey = dsmMR->lkey;
-  peerRKey = dsmMR->rkey;
+  // this->peerPool = peerPool;
+  // peerMR = dsmMR;
+  // peerLKey = dsmMR->lkey;
+  // peerRKey = dsmMR->rkey;
 
   // on-chip lock memory
   if (dirID == 0) {
