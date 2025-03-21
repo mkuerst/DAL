@@ -67,13 +67,13 @@ opts=("shermanRfaad")
 
 
 microbenches=("empty_cs" "mlocks" "kvs")
-duration=1
+duration=10
 runNR=1
 mnNR=1
 zipfian=1
-nodeNRs=(2)
-threadNRs=(1)
-lockNRs=(1)
+nodeNRs=(3)
+threadNRs=(2)
+lockNRs=(512)
 bench_idxs=(1)
 pinnings=(1)
 chipSize=128

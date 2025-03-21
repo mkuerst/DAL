@@ -40,6 +40,7 @@ public:
   uint64_t getLmSize() { return conf.lockMetaSize * 1024; }
   uint64_t getBaseAddr() { return baseAddr; }
   uint64_t getPeerAddr() { return peerAddr; }
+  uint64_t getCacheAddr() { return cache.data; }
 
   GlobalAddress getNextGaddr() { 
     // next_loc_curr = (next_loc_curr + 1) % kNextLocCnt;

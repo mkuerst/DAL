@@ -62,7 +62,7 @@ void DSMKeeper::setDataToRemote(uint16_t remoteID) {
     for (int k = 0; k < MAX_APP_THREAD; ++k) {
       localMeta.dirRcQpn2app[i][k] = c->data2app[k][remoteID]->qp_num;
       localMeta.lockRcQpn2app[i][k] = c->lock2app[k][remoteID]->qp_num;
-      localMeta.peerRcQpn2app[i][k] = c->peer2app[k][remoteID]->qp_num;
+      // localMeta.peerRcQpn2app[i][k] = c->peer2app[k][remoteID]->qp_num;
     }
   }
 
@@ -71,7 +71,7 @@ void DSMKeeper::setDataToRemote(uint16_t remoteID) {
     for (int k = 0; k < NR_DIRECTORY; ++k) {
       localMeta.appRcQpn2dir[i][k] = c->data[k][remoteID]->qp_num;
       localMeta.appRcQpn2lock[i][k] = c->lock[k][remoteID]->qp_num;
-      localMeta.appRcQpn2peer[i][k] = c->peer[k][remoteID]->qp_num;
+      // localMeta.appRcQpn2peer[i][k] = c->peer[k][remoteID]->qp_num;
     }
   
   }
@@ -98,13 +98,13 @@ void DSMKeeper::setDataFromRemote(uint16_t remoteID, ExchangeMeta *remoteMeta) {
                     &c->ctx);
       modifyQPtoRTS(qp1);
 
-      auto &qp2 = c->peer2app[k][remoteID];
-      assert(qp2->qp_type == IBV_QPT_RC);
-      modifyQPtoInit(qp2, &c->ctx);
-      modifyQPtoRTR(qp2, remoteMeta->appRcQpn2peer[k][i],
-                    remoteMeta->appTh[k].lid, remoteMeta->appTh[k].gid,
-                    &c->ctx);
-      modifyQPtoRTS(qp2);
+      // auto &qp2 = c->peer2app[k][remoteID];
+      // assert(qp2->qp_type == IBV_QPT_RC);
+      // modifyQPtoInit(qp2, &c->ctx);
+      // modifyQPtoRTR(qp2, remoteMeta->appRcQpn2peer[k][i],
+      //               remoteMeta->appTh[k].lid, remoteMeta->appTh[k].gid,
+      //               &c->ctx);
+      // modifyQPtoRTS(qp2);
     }
   }
 
@@ -127,13 +127,13 @@ void DSMKeeper::setDataFromRemote(uint16_t remoteID, ExchangeMeta *remoteMeta) {
                     &c->ctx);
       modifyQPtoRTS(qp1);
 
-      auto &qp3 = c->peer[k][remoteID];
-      assert(qp3->qp_type == IBV_QPT_RC);
-      modifyQPtoInit(qp3, &c->ctx);
-      modifyQPtoRTR(qp3, remoteMeta->peerRcQpn2app[k][i],
-                    remoteMeta->dirTh[k].lid, remoteMeta->dirTh[k].gid,
-                    &c->ctx);
-      modifyQPtoRTS(qp3);
+      // auto &qp3 = c->peer[k][remoteID];
+      // assert(qp3->qp_type == IBV_QPT_RC);
+      // modifyQPtoInit(qp3, &c->ctx);
+      // modifyQPtoRTR(qp3, remoteMeta->peerRcQpn2app[k][i],
+      //               remoteMeta->dirTh[k].lid, remoteMeta->dirTh[k].gid,
+      //               &c->ctx);
+      // modifyQPtoRTS(qp3);
     }
   }
 

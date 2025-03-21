@@ -290,22 +290,24 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   //   "lockMeta: " << lm_bits << "\n\n";
 
     save_measurement(threadID, measurements.gwait_acq, 1, true);
+    measurements.lock_acqs[lock_addr.nodeID * lockNR + lock_addr.offset / 8]++;
     measurements.la[threadID]++;
     return false;
   }
 
-  // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
-  // "SPIN" << endl <<
-  // "lock_addr: " << lock_addr << endl <<
-  // "lockMeta: " << lm_bits << "\n\n";
+  cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
+  "SPIN" << endl <<
+  "lock_addr: " << lock_addr << endl <<
+  "lockMeta: " << lm_bits << "\n\n";
 
   char* c_ho_buf = dsm->spin_on(lock_addr);
+  measurements.lock_acqs[lock_addr.nodeID * lockNR + lock_addr.offset / 8]++;
   measurements.la[threadID]++;
   
-  // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
-  // "WOKE UP" << endl <<
-  // "lock_addr: " << lock_addr << endl <<
-  // "lockMeta: " << lm_bits << "\n\n";
+  cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
+  "WOKE UP" << endl <<
+  "lock_addr: " << lock_addr << endl <<
+  "lockMeta: " << lm_bits << "\n\n";
   
   #ifdef RAND_FAAD
   curr_lock_node->page_buffer = dsm->get_rbuf(coro_id).get_page_buffer();
@@ -688,7 +690,6 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     // bitset<64> bits(add_);
     // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
     // "FAA DM (REL), lock_addr: " << lock_addr << endl <<
-    // "from_peer: " << from_peer << "\n\n";
     // "add: " << bits << "\n\n";
 
     if (async) {
@@ -697,6 +698,12 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
       dsm->write_sync(page_buffer, page_addr, page_size, cxt, from_peer);
       save_measurement(threadID, measurements.data_write);
     }
+
+    // uint64_t *long_data = (uint64_t*) page_buffer;
+    // cerr << "WRITTEN TO: " << page_addr << endl;
+    // for (size_t i = 0; i < page_size / sizeof(uint64_t); i++) {
+    //   cerr << long_data[i] << ", ";
+    // }
       // dsm->write_sync(page_buffer, page_addr, page_size, cxt);
     timer.begin();
     dsm->faa_dm_sync(lock_addr, add_, cas_buf, nullptr);
@@ -756,14 +763,16 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   //   dsm->write_batch_sync(rs, 2, nullptr);
   // }
   // // dsm->write_batch_sync(rs, 2, nullptr);
+
   save_measurement(threadID, measurements.data_write);
-  // cerr << "HANDING OVER DATA: " << endl;
-  // cerr << "peerDataLoc: " << peerDataLoc << endl;
+  cerr << "HANDING OVER DATA: " << endl;
+  cerr << "peerDataLoc: " << peerDataLoc << endl;
   // uint64_t * long_data = (uint64_t *) page_buffer;
   // for (int i = 0; i < page_size/sizeof(uint64_t); i++) {
   //   cerr << long_data[i] << ", ";
   // }
   // cerr << endl;
+
   dsm->write_peer_sync(page_buffer, peerDataLoc, page_size, nullptr, from_peer);
   save_measurement(threadID, measurements.data_write);
   timer.begin();

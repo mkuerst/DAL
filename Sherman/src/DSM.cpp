@@ -428,10 +428,10 @@ void DSM::fill_keys_dest(RdmaOpRegion &ror, GlobalAddress gaddr, bool is_chip, b
     ror.dest = remoteInfo[gaddr.nodeID].lockMetaBase + gaddr.offset;
     ror.remoteRKey = remoteInfo[gaddr.nodeID].lockMetaRKey[0];
   }
-  else if (is_peer) {
-    ror.dest = remoteInfo[gaddr.nodeID].peerBase + gaddr.offset;
-    ror.remoteRKey = remoteInfo[gaddr.nodeID].peerRKey[0];
-  }
+  // else if (is_peer) {
+  //   ror.dest = remoteInfo[gaddr.nodeID].peerBase + gaddr.offset;
+  //   ror.remoteRKey = remoteInfo[gaddr.nodeID].peerRKey[0];
+  // }
   else {
     ror.dest = remoteInfo[gaddr.nodeID].dsmBase + gaddr.offset;
     ror.remoteRKey = remoteInfo[gaddr.nodeID].dsmRKey[0];

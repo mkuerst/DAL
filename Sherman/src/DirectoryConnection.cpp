@@ -53,11 +53,11 @@ DirectoryConnection::DirectoryConnection(uint16_t dirID, void *dsmPool,
   for (int i = 0; i < MAX_APP_THREAD; ++i) {
     data2app[i] = new ibv_qp *[machineNR];
     lock2app[i] = new ibv_qp *[machineNR];
-    peer2app[i] = new ibv_qp *[machineNR];
+    // peer2app[i] = new ibv_qp *[machineNR];
     for (size_t k = 0; k < machineNR; ++k) {
       createQueuePair(&data2app[i][k], IBV_QPT_RC, cq, &ctx);
       createQueuePair(&lock2app[i][k], IBV_QPT_RC, cq, &ctx);
-      createQueuePair(&peer2app[i][k], IBV_QPT_RC, cq, &ctx);
+      // createQueuePair(&peer2app[i][k], IBV_QPT_RC, cq, &ctx);
     }
   }
 }
