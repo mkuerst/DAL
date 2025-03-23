@@ -82,6 +82,7 @@ dsmSize=16
 sudo rm -rf logs/
 mkdir -p results/plots/lat/
 mkdir -p results/plots/tp/
+mkdir -p results/plots/ldist/
 sudo chown -R mkuerst:dal-PG0 /nfs/
 
 for opt in ${opts[@]}
@@ -96,7 +97,7 @@ do
             fi
             cn_tp_dir="$PWD/results/cn/tp/$comm_prot/$microb/$opt/sherman"
             cn_lat_dir="$PWD/results/cn/lat/$comm_prot/$microb/$opt/sherman"
-            cn_lock_dir="$PWD/results/cn/tp/$comm_prot/$microb/$opt/sherman"
+            cn_lock_dir="$PWD/results/cn/ldist/$comm_prot/$microb/$opt/sherman"
             log_dir="$PWD/logs/$comm_prot/$microb/$opt/sherman"
             mkdir -p "$cn_tp_dir" 
             mkdir -p "$cn_lat_dir" 
@@ -164,7 +165,7 @@ do
                 fi
                 cn_tp_dir="$PWD/results/cn/tp/$comm_prot/$microb/$opt/$impl"
                 cn_lat_dir="$PWD/results/cn/lat/$comm_prot/$microb/$opt/$impl"
-                cn_lock_dir="$PWD/results/cn/tp/$comm_prot/$microb/$opt/$impl"
+                cn_lock_dir="$PWD/results/cn/ldist/$comm_prot/$microb/$opt/$impl"
                 log_dir="$PWD/logs/$comm_prot/$microb/$opt/$impl"
                 mkdir -p "$cn_tp_dir" 
                 mkdir -p "$cn_lat_dir" 

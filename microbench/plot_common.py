@@ -96,6 +96,7 @@ TP_COLS = [
 STAT_TO_COLS = {
     "tp": TP_COLS,
     "lat": LAT_COLS,
+    "ldist": [],
 }
 
 IMPL = [
@@ -186,7 +187,7 @@ IMPL_DICT = {"flat": FLAT,
 
 MICROBENCHES = [ "empty_cs", "mlocks", "kvs"]
 
-STATS = ["tp", "lat"]
+STATS = ["tp", "lat", "ldist"]
 
 tp_axis_titles = {
     "lock_acquires" : ("TP (ops/s)", "Jain's Fairness Index"),
@@ -462,16 +463,39 @@ def make_multiplots(inc):
 def to_pd(DATA, dirs, COLS, stat):
     for dir in dirs:
         impl = Path(dir).name.removeprefix("lib")
-        csv_dirs = glob.glob(dir+"/nodeNR*_threadNR*.csv")
+        csv_dirs = glob.glob(dir+"/nodeNR*_threadNR*.csv") if stat != "ldist" \
+            else glob.glob(dir+"/lockNR*_nodeNR*_threadNR*_pinning*.csv")
+
         if impl == "sherman":
             impl = "shermanLock"
+
         DATA[impl] = {}
         for csv_dir in csv_dirs:
-            match = re.search(r"nodeNR(\d+)_threadNR(\d+).csv", os.path.basename(csv_dir))
-            nodeNR = int(match.group(1))
-            threadNR = int(match.group(2))
-            if not DATA[impl].get(nodeNR):
-                DATA[impl][nodeNR] = {}
+            if (stat != "ldist"):
+                match = re.search(r"nodeNR(\d+)_threadNR(\d+).csv", os.path.basename(csv_dir))
+                nodeNR = int(match.group(1))
+                threadNR = int(match.group(2))
+            else:
+                match = re.search(r"lockNR(\d+)_nodeNR(\d+)_threadNR(\d+)_pinning(\d+).csv", os.path.basename(csv_dir))
+                lockNR = int(match.group(1))
+                nodeNR = int(match.group(2))
+                threadNR = int(match.group(3))
+                pinning = int(match.group(4))
+                
+            if stat != "ldist":
+                if not DATA[impl].get(nodeNR):
+                    DATA[impl][nodeNR] = {}
+
+            if stat == "ldist":
+                if not DATA[impl].get(pinning):
+                    DATA[impl][pinning] = {}
+                if not DATA[impl][pinning].get(nodeNR):
+                    DATA[impl][pinning][nodeNR] = {}
+                if not DATA[impl][pinning][nodeNR].get(threadNR):
+                    DATA[impl][pinning][nodeNR][threadNR] = {}
+                if not DATA[impl][pinning][nodeNR][threadNR].get(lockNR):
+                    DATA[impl][pinning][nodeNR][threadNR][lockNR] = {}
+
             cleaned_lines = []
             cleaned_lines_median = []
             cleaned_lines_99 = []
@@ -516,7 +540,9 @@ def to_pd(DATA, dirs, COLS, stat):
                 
                 # TODO:
                 elif stat == "ldist":
+                    DATA[impl][pinning][nodeNR][threadNR][lockNR] = pd.read_csv(csv_dir, header=None).to_numpy().ravel()
                     pass
+
 
 def read_data(DATA, RES_DIRS):
     for stat in STATS:
@@ -538,7 +564,7 @@ def prep_res_dirs(RES_DIRS):
             for mb in MICROBENCHES:
                 RES_DIRS[stat][comm_prot][mb] = {}
                 for opt in OPTS:
-                    res_dir = os.path.dirname(os.path.realpath(__file__))+f"/results/cn/{stat}/{comm_prot}/{mb}/{opt}/*"
+                    res_dir = os.path.dirname(os.path.realpath(__file__))+f"/results/cn/{"tp" if stat == "ldist" else stat}/{comm_prot}/{mb}/{opt}/*"
                     res_dir = glob.glob(res_dir)
                     opt = OPT_TO_NAME[opt]
                     if not opt in RES_DIRS[stat][comm_prot][mb].keys():
