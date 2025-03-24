@@ -22,7 +22,7 @@ using namespace std;
 
 char *res_file_tp, *res_file_lat, *res_file_lock;
 int threadNR, nodeNR, mnNR, lockNR, runNR,
-nodeID, duration, mode, kReadRatio;
+nodeID, duration, mode, kReadRatio, maxHandover;
 int pinning = 1;
 uint64_t *lock_acqs;
 uint64_t *lock_rels;
@@ -184,13 +184,14 @@ void *mlocks_worker(void *arg) {
     start_perf_event(fd);
 
     pthread_barrier_wait(&global_barrier);
-    if (nodeID == 0) {
-        sleep(1);
-        rlock->test_write_peer();
-    } else {
-        rlock->test_spin();
-    }
-    return 0;
+    // if (nodeID == 0) {
+    //     sleep(1);
+    //     rlock->test_write_peer();
+    // } else {
+    //     rlock->test_spin();
+    // }
+
+    // return 0;
     // if (nodeID == 0) {
     //     rlock->wait();
     //     rlock->contact();
@@ -271,7 +272,8 @@ int main(int argc, char *argv[]) {
     &threadNR, &nodeNR, &mnNR, &lockNR, &runNR,
     &nodeID, &duration, &mode, &use_zipfian, 
     &kReadRatio, &pinning, &chipSize, &dsmSize,
-&res_file_tp, &res_file_lat, &res_file_lock,
+    &maxHandover,
+    &res_file_tp, &res_file_lat, &res_file_lock,
 argc, argv);
 
     if (nodeID == 1) {

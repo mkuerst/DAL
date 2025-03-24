@@ -177,6 +177,7 @@ void parse_cli_args(
     int *threadNR, int *nodeNR, int* mnNR, int *lockNR, int *runNR,
     int *nodeID, int* duration, int* mode, int* use_zipfan, 
     int* kReadRatio, int* pinning, int *chipSize, uint64_t* dsmSize,
+    int* maxHandover,
     char **res_file_tp, char **res_file_lat, char **res_file_lock,
     int argc, char **argv
 );

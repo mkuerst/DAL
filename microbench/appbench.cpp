@@ -25,7 +25,7 @@ using namespace std;
 
 char *res_file_tp, *res_file_lat, *res_file_lock;
 int threadNR, nodeNR, mnNR, lockNR, runNR,
-nodeID, duration, mode;
+nodeID, duration, mode, maxHandover;
 int pinning = 1;
 uint64_t *lock_acqs;
 uint64_t *lock_rels;
@@ -221,6 +221,7 @@ int main(int argc, char *argv[]) {
     &threadNR, &nodeNR, &mnNR, &lockNR, &runNR,
     &nodeID, &duration, &mode, &use_zipfan, 
     &kReadRatio, &pinning, &chipSize, &dsmSize,
+    &maxHandover,
     &res_file_tp, &res_file_lat, &res_file_lock,
     argc, argv);
     if (nodeID == 1) {
