@@ -157,9 +157,11 @@ int uniform_rand_int(int x);
 
 void clear_measurements(int lockNR);
 
-void write_tp(char* tp_path, char* lock_path, int run, int threadNR, int lockNR, int nodeID, size_t array_size, int pinning);
+void write_tp(char* tp_path, char* lock_path, int run, int lockNR, int nodeID, size_t array_size, int pinning,
+                uint16_t cnNR, uint16_t mnNR, int threadNR, uint16_t maxHandover);
 
-void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_size, int pinning);
+void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_size, int pinning,
+                uint16_t cnNR, uint16_t mnNR, uint16_t threadNR, uint16_t maxHandover);
 
 void save_measurement(int threadID, uint16_t *arr, int factor = 1, bool is_lwait = false);
 

@@ -302,8 +302,10 @@ int main(int argc, char *argv[]) {
 
     for (int n = 0; n < nodeNR; n++) {
         if (n == nodeID) {
-            write_tp(res_file_tp, res_file_lock, runNR, threadNR, lockNR, n, page_size,pinning);
-            write_lat(res_file_lat, runNR, lockNR, n, page_size,pinning);
+            write_tp(res_file_tp, res_file_lock, runNR,  lockNR, n, page_size, pinning,
+                    nodeNR, mnNR, threadNR, define::kMaxHandOverTime);
+            write_lat(res_file_lat, runNR, lockNR, n, page_size, pinning,
+                    nodeNR, mnNR, threadNR, define::kMaxHandOverTime);
         }
         string writeResKey = "WRITE_RES_" + to_string(n);
         dsm->barrier(writeResKey);

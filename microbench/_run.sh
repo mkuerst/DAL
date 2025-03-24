@@ -35,7 +35,8 @@ pthread_so="$PWD/../litl2/lib/original/libpthreadinterpose_original.so"
 cn_tp_header="tid,\
 loop_in_cs,lock_acquires,duration,\
 glock_tries,handovers,handovers_data,array_size(B),\
-nodeID,run,lockNR,la,pinning,cache_misses,c_ho,c_hod"
+nodeID,run,lockNR,la,pinning,cache_misses,c_ho,c_hod,\
+cnNR,mnNR,threadNR,maxHandover"
 
 cn_lat_header="lock_hold,\
 lwait_acq,\
@@ -49,42 +50,41 @@ array_size,\
 nodeID,\
 run,\
 lockNR,\
-pinning"
+pinning,\
+cnNR,mnNR,threadNR,maxHandover"
 
 server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
 
 comm_prot=rdma
 
 # MICROBENCH INPUTS
-# opts=("shermanLock" "shermanHo" "sherman" "litl" "litlHo" "litlHoOcmBw")
-# opts=("shermanLock" "shermanHo" "shermanHod" "litl" "litlHo" "litlHod")
-# opts=("shermanLock" "shermanHo" "shermanHod" "shermanHodOcmBw" "litl" "litlHo" "litlHod" "litlHodOcmBw")
-# opts=("shermanLock" "shermanHod" "shermanHodOcmBw" "litl" "litlHod" "litlHodOcmBw")
-# opts=("shermanLock" "shermanHodOcm" "shermanRfaa" "shermanHodOcmRfaa")
-# opts=("shermanLock" "shermanHodOcm" "shermanHodOcmRfaa" "litl" "litlHodOcm" "litlHodOcmRfaa")
-# opts=("shermanLock" "shermanRfaa" "shermanRfaad")
-# opts=("shermanRfaad")
-# opts=("shermanHod" "litl" "litlHod")
-opts=("shermanHod")
+opts=("shermanLock" "shermanHod", "litl")
 
 
 microbenches=("empty_cs" "mlocks" "kvs")
-duration=10
+duration=1
 runNR=2
 mnNR=4
 zipfian=1
-nodeNRs=(4)
+nodeNRs=(1 4)
 threadNRs=(16)
-lockNRs=(16 32 256)
-bench_idxs=(2)
+lockNRs=(256 512)
+bench_idxs=(1)
 pinnings=(1)
 chipSize=128
 dsmSize=16
+
+cn_tp_dir="$PWD/results/tp"
+cn_lat_dir="$PWD/results/lat"
+cn_lock_dir="$PWD/results/ldist"
 
 sudo rm -rf logs/
 mkdir -p results/plots/lat/
 mkdir -p results/plots/tp/
 mkdir -p results/plots/ldist/
+mkdir -p $cn_tp_dir
+mkdir -p $cn_lat_dir
+mkdir -p $cn_lock_dir
 sudo chown -R mkuerst:dal-PG0 /nfs/
 
 for opt in ${opts[@]}
@@ -97,23 +97,22 @@ do
             if echo "$microb" | grep -q "kvs"; then
                 mb_exe="$PWD/appbench_$opt"
             fi
-            cn_tp_dir="$PWD/results/cn/tp/$comm_prot/$microb/$opt/sherman"
-            cn_lat_dir="$PWD/results/cn/lat/$comm_prot/$microb/$opt/sherman"
-            cn_lock_dir="$PWD/results/cn/ldist/$comm_prot/$microb/$opt/sherman"
+
             log_dir="$PWD/logs/$comm_prot/$microb/$opt/sherman"
-            mkdir -p "$cn_tp_dir" 
-            mkdir -p "$cn_lat_dir" 
-            mkdir -p "$cn_lock_dir" 
             mkdir -p "$log_dir"
+
+            res_suffix="$comm_prot"_"$microb"_sherman.csv
+            cn_tp_file="$cn_tp_dir"/"$res_suffix"
+            cn_lat_file="$cn_lat_dir"/"$res_suffix"
+            cn_lock_file="$cn_lock_dir"/"$res_suffix"
+            echo $cn_tp_header > "$cn_tp_file"
+            echo $cn_lat_header > "$cn_lat_file"
+            > "$cn_lock_file"
 
             for nodeNR in ${nodeNRs[@]}
             do
                 for threadNR in ${threadNRs[@]}
                 do
-                    cn_tp_file="$cn_tp_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
-                    cn_lat_file="$cn_lat_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
-                    echo $cn_tp_header > "$cn_tp_file"
-                    echo $cn_lat_header > "$cn_lat_file"
 
                     log_file="$log_dir"/nodeNR$nodeNR"_threadNR"$threadNR.log
 
@@ -123,11 +122,8 @@ do
                         do
 
                             for ((run = 0; run < runNR; run++)); do
-                                cn_lock_file="$cn_lock_dir"/lockNR"$lockNR"_nodeNR$nodeNR"_threadNR"$threadNR"_pinning"$pinning"_run"$run.csv
-                                > "$cn_lock_file"
                                 echo "BENCHMARK $microb | $opt $impl | $nodeNR Ns | $threadNR Ts | $lockNR Ls | $duration s | RUN $run"
                                 echo "pinning $pinning | DSM $dsmSize GB | $mnNR MNs | chipSize $chipSize KB |"
-                                # dsh -M -f <(head -n $nodeNR ./nodes.txt) -o "-o StrictHostKeyChecking=no" -c \
                                 clush --hostfile <(head -n $nodeNR ./nodes.txt) \
                                 "sudo $mb_exe \
                                 -t $threadNR \
@@ -166,23 +162,23 @@ do
                 if echo "$microb" | grep -q "kvs"; then
                     mb_exe="$PWD/appbench_$opt"
                 fi
-                cn_tp_dir="$PWD/results/cn/tp/$comm_prot/$microb/$opt/$impl"
-                cn_lat_dir="$PWD/results/cn/lat/$comm_prot/$microb/$opt/$impl"
-                cn_lock_dir="$PWD/results/cn/ldist/$comm_prot/$microb/$opt/$impl"
+
+                res_suffix="$comm_prot"_"$microb"_"$impl".csv
+                cn_tp_file="$cn_tp_dir"/"$res_suffix"
+                cn_lat_file="$cn_lat_dir"/"$res_suffix"
+                cn_lock_file="$cn_lock_dir"/"$res_suffix"
+
+                echo $cn_tp_header > "$cn_tp_file"
+                echo $cn_lat_header > "$cn_lat_file"
+                > "$cn_lock_file"
+
                 log_dir="$PWD/logs/$comm_prot/$microb/$opt/$impl"
-                mkdir -p "$cn_tp_dir" 
-                mkdir -p "$cn_lat_dir" 
-                mkdir -p "$cn_lock_dir" 
                 mkdir -p "$log_dir"
 
                 for nodeNR in ${nodeNRs[@]}
                 do
                     for threadNR in ${threadNRs[@]}
                     do
-                        cn_tp_file="$cn_tp_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
-                        cn_lat_file="$cn_lat_dir"/nodeNR$nodeNR"_threadNR"$threadNR.csv
-                        echo $cn_tp_header > "$cn_tp_file"
-                        echo $cn_lat_header > "$cn_lat_file"
 
                         log_file="$log_dir"/nodeNR$nodeNR"_threadNR"$threadNR.log
 
@@ -196,7 +192,6 @@ do
                                     > "$cn_lock_file"
                                     echo "BENCHMARK $microb | $opt $impl | $nodeNR Ns | $threadNR Ts | $lockNR Ls | $duration s | RUN $run"
                                     echo "pinning $pinning | DSM $dsmSize GB | $mnNR MNs | chipSize $chipSize KB |"
-                                    # dsh -M -f <(head -n $nodeNR ./nodes.txt) -o "-o StrictHostKeyChecking=no" -c \
                                     clush --hostfile <(head -n $nodeNR ./nodes.txt) \
                                     "sudo LD_PRELOAD=$llock_so $mb_exe \
                                     -t $threadNR \

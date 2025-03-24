@@ -251,7 +251,8 @@ void writeData(char *path, const std::vector<std::vector<uint32_t>>& data) {
 	sleep(2);
 }
 
-void write_tp(char* tp_path, char* lock_path, int run, int threadNR, int lockNR, int nodeID, size_t array_size, int pinning) {
+void write_tp(char* tp_path, char* lock_path, int run, int lockNR, int nodeID, size_t array_size, int pinning,
+                uint16_t cnNR, uint16_t mnNR, int threadNR, uint16_t maxHandover) {
 	std::ofstream file(tp_path, std::ios::app);
 	uint64_t total_handovers = 0;
 	uint64_t total_Hod = 0;
@@ -275,7 +276,11 @@ void write_tp(char* tp_path, char* lock_path, int run, int threadNR, int lockNR,
 			<< std::setw(2) << pinning << ","
 			<< std::setw(16) << measurements.cache_misses[t] << ","
 			<< std::setw(8) << measurements.c_ho[t] << ","
-			<< std::setw(8) << measurements.c_hod[t] << "\n";
+			<< std::setw(8) << measurements.c_hod[t] << ","
+			<< std::setw(8) << cnNR << ","
+			<< std::setw(8) << mnNR << ","
+			<< std::setw(8) << threadNR << ","
+			<< std::setw(8) << maxHandover << "\n";
 	}
 
 	file.flush();
@@ -294,7 +299,8 @@ void write_tp(char* tp_path, char* lock_path, int run, int threadNR, int lockNR,
 }
 
 // in us
-void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_size, int pinning) {
+void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_size, int pinning,
+                uint16_t cnNR, uint16_t mnNR, uint16_t threadNR, uint16_t maxHandover) {
 	std::ofstream file(res_file, std::ios::app);
 	if (!file)
 		__error("Failed to open %s\n", res_file);
@@ -322,7 +328,11 @@ void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_siz
 			<< std::setw(3) << nodeID << ","
 			<< std::setw(3) << run << ","
 			<< std::setw(4) << lockNR << ","
-			<< std::setw(2) << pinning << "\n";
+			<< std::setw(2) << pinning << ","
+			<< std::setw(8) << cnNR << ","
+			<< std::setw(8) << mnNR << ","
+			<< std::setw(8) << threadNR << ","
+			<< std::setw(8) << maxHandover << "\n";
 	}
 	file.close();
 }

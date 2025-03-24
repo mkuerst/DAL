@@ -564,7 +564,7 @@ def prep_res_dirs(RES_DIRS):
             for mb in MICROBENCHES:
                 RES_DIRS[stat][comm_prot][mb] = {}
                 for opt in OPTS:
-                    res_dir = os.path.dirname(os.path.realpath(__file__))+f"/results/cn/{"tp" if stat == "ldist" else stat}/{comm_prot}/{mb}/{opt}/*"
+                    res_dir = os.path.dirname(os.path.realpath(__file__)) + f"/results/cn/{'tp' if stat == 'ldist' else stat}/{comm_prot}/{mb}/{opt}/*"
                     res_dir = glob.glob(res_dir)
                     opt = OPT_TO_NAME[opt]
                     if not opt in RES_DIRS[stat][comm_prot][mb].keys():
