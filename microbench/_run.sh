@@ -63,18 +63,20 @@ comm_prot=rdma
 # opts=("shermanLock" "shermanHodOcm" "shermanRfaa" "shermanHodOcmRfaa")
 # opts=("shermanLock" "shermanHodOcm" "shermanHodOcmRfaa" "litl" "litlHodOcm" "litlHodOcmRfaa")
 # opts=("shermanLock" "shermanRfaa" "shermanRfaad")
-opts=("shermanRfaad")
+# opts=("shermanRfaad")
+# opts=("shermanHod" "litl" "litlHod")
+opts=("shermanHod")
 
 
 microbenches=("empty_cs" "mlocks" "kvs")
-duration=1
-runNR=1
-mnNR=1
+duration=10
+runNR=2
+mnNR=4
 zipfian=1
-nodeNRs=(2)
-threadNRs=(1)
-lockNRs=(512)
-bench_idxs=(1)
+nodeNRs=(4)
+threadNRs=(16)
+lockNRs=(16 32 256)
+bench_idxs=(2)
 pinnings=(1)
 chipSize=128
 dsmSize=16
@@ -101,6 +103,7 @@ do
             log_dir="$PWD/logs/$comm_prot/$microb/$opt/sherman"
             mkdir -p "$cn_tp_dir" 
             mkdir -p "$cn_lat_dir" 
+            mkdir -p "$cn_lock_dir" 
             mkdir -p "$log_dir"
 
             for nodeNR in ${nodeNRs[@]}
@@ -118,10 +121,10 @@ do
                     do
                         for pinning in ${pinnings[@]}
                         do
-                            cn_lock_file="$cn_lock_dir"/lockNR"$lockNR"_nodeNR$nodeNR"_threadNR"$threadNR"_pinning"$pinning.csv
-                            > "$cn_lock_file"
 
                             for ((run = 0; run < runNR; run++)); do
+                                cn_lock_file="$cn_lock_dir"/lockNR"$lockNR"_nodeNR$nodeNR"_threadNR"$threadNR"_pinning"$pinning"_run"$run.csv
+                                > "$cn_lock_file"
                                 echo "BENCHMARK $microb | $opt $impl | $nodeNR Ns | $threadNR Ts | $lockNR Ls | $duration s | RUN $run"
                                 echo "pinning $pinning | DSM $dsmSize GB | $mnNR MNs | chipSize $chipSize KB |"
                                 # dsh -M -f <(head -n $nodeNR ./nodes.txt) -o "-o StrictHostKeyChecking=no" -c \
@@ -169,6 +172,7 @@ do
                 log_dir="$PWD/logs/$comm_prot/$microb/$opt/$impl"
                 mkdir -p "$cn_tp_dir" 
                 mkdir -p "$cn_lat_dir" 
+                mkdir -p "$cn_lock_dir" 
                 mkdir -p "$log_dir"
 
                 for nodeNR in ${nodeNRs[@]}
@@ -186,10 +190,10 @@ do
                         do
                             for pinning in ${pinnings[@]}
                             do
-                                cn_lock_file="$cn_lock_dir"/lockNR"$lockNR"_nodeNR$nodeNR"_threadNR"$threadNR"_pinning"$pinning.csv
-                                > "$cn_lock_file"
 
                                 for ((run = 0; run < runNR; run++)); do
+                                    cn_lock_file="$cn_lock_dir"/lockNR"$lockNR"_nodeNR$nodeNR"_threadNR"$threadNR"_pinning"$pinning"_run"$run.csv
+                                    > "$cn_lock_file"
                                     echo "BENCHMARK $microb | $opt $impl | $nodeNR Ns | $threadNR Ts | $lockNR Ls | $duration s | RUN $run"
                                     echo "pinning $pinning | DSM $dsmSize GB | $mnNR MNs | chipSize $chipSize KB |"
                                     # dsh -M -f <(head -n $nodeNR ./nodes.txt) -o "-o StrictHostKeyChecking=no" -c \

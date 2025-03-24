@@ -55,7 +55,8 @@ DSM::DSM(const DSMConfig &conf)
     : conf(conf), appID(0), cache(conf.cacheConfig) {
       
   sizePerPeer = conf.chipSize * 1024 / sizeof(uint64_t) * 1024;
-  totalPeerSize = MAX_MACHINE * sizePerPeer;
+  // totalPeerSize = MAX_MACHINE * sizePerPeer;
+  totalPeerSize = 0;
 
   baseAddr = (uint64_t)hugePageAlloc(conf.dsmSize * define::GB);
   #ifdef ON_CHIP

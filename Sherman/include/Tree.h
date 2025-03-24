@@ -38,6 +38,8 @@ struct LocalLockNode {
     uint8_t hand_time;
     char *page_buffer = nullptr;
     GlobalAddress page_addr;
+    uint64_t size = 0;
+    bool write_back = false;
     LitlLock litl_lock;
 
     void debug() const {

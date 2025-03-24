@@ -130,7 +130,7 @@ ibv_mr *createMemoryRegion(uint64_t mm, uint64_t mmSize, RdmaContext *ctx) {
                       IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_REMOTE_ATOMIC);
 
   if (!mr) {
-    Debug::notifyError("Memory registration failed");
+    Debug::notifyError("Memory registration failed, mmSize: %ld", mmSize);
   }
 
   return mr;
@@ -145,7 +145,7 @@ ibv_mr *createMemoryRegionOnChip(uint64_t mm, uint64_t mmSize,
   dm_attr.length = mmSize;
   struct ibv_exp_dm *dm = ibv_exp_alloc_dm(ctx->ctx, &dm_attr);
   if (!dm) {
-    Debug::notifyError("Allocate on-chip memory failed");
+    Debug::notifyError("Allocate on-chip memory failed, mmSize: %ld", mmSize);
     return nullptr;
   }
 
@@ -160,7 +160,7 @@ ibv_mr *createMemoryRegionOnChip(uint64_t mm, uint64_t mmSize,
   mr_in.comp_mask = IBV_EXP_REG_MR_DM;
   struct ibv_mr *mr = ibv_exp_reg_mr(&mr_in);
   if (!mr) {
-    Debug::notifyError("Memory registration failed");
+    Debug::notifyError("Memory registration on-chip failed");
     return nullptr;
   }
 

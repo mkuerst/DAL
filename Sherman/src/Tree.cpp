@@ -511,6 +511,8 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
   curr_lock_node->page_buffer = page_buf;
   curr_lock_node->page_addr = page_addr;
   curr_lock_node->level = level;
+  curr_lock_node->write_back = false;
+
   #ifdef HANDOVER
   bool hand_over_other = can_hand_over(lock_addr);
   if (hand_over_other) {
@@ -644,6 +646,9 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   curr_lock_node->page_buffer = page_buffer;
   curr_lock_node->page_addr = page_addr;
   curr_lock_node->level = level;
+  curr_lock_node->size = page_size;
+  curr_lock_node->write_back = true;
+
   #ifdef HANDOVER
   bool hand_over_other = can_hand_over(lock_addr);
   if (hand_over_other) {
@@ -978,6 +983,11 @@ bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
     // cerr << "page_addr: " << page_addr << endl;
     // cerr << "page_buffer: " << (uintptr_t) *page_buffer << " = " << (uint64_t) **page_buffer << endl;
     // cerr << "********************************************" << endl;
+    if (!same_address && curr_lock_node->write_back) {
+      cerr << "[" << nodeID << ", " << threadID << "]" << endl;
+
+      dsm->write_sync(curr_lock_node->page_buffer, curr_lock_node->page_addr, curr_lock_node->size);
+    }
     timer.begin();
     // *page_buffer = dsm->get_rbuf(0).get_page_buffer();
     dsm->read_sync(*page_buffer, page_addr, page_size, cxt);
@@ -995,9 +1005,11 @@ bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
     assert(curr_lock_node->level == level);
     *page_buffer = curr_lock_node->page_buffer;
     measurements.handovers_data[threadID]++;
+    #ifdef RAND_FAAD
     if (from_peer) {
       measurements.c_hod[threadID]++;
     }
+    #endif
     return true;
   }
   #endif
