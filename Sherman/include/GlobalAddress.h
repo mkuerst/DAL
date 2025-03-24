@@ -9,8 +9,8 @@ public:
 
 union {
   struct {
-  uint64_t nodeID: 8;
-  uint64_t threadID: 8;
+  uint64_t nodeID: 16;
+  // uint64_t threadID: 8;
   uint64_t offset : 48;
   };
   uint64_t val;
@@ -21,7 +21,7 @@ union {
 }
 
   static GlobalAddress Null() {
-    static GlobalAddress zero{0, 0, 0};
+    static GlobalAddress zero{0, 0};
     return zero;
   };
 } __attribute__((packed));
@@ -43,7 +43,7 @@ inline bool operator!=(const GlobalAddress &lhs, const GlobalAddress &rhs) {
 }
 
 inline std::ostream &operator<<(std::ostream &os, const GlobalAddress &obj) {
-  os << "[" << (int)obj.nodeID << ", " << obj.threadID << ", " << obj.offset << "]";
+  os << "[" << (int)obj.nodeID << ", " << obj.offset << "]";
   return os;
 }
 

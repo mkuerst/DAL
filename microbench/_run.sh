@@ -58,18 +58,17 @@ server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
 comm_prot=rdma
 
 # MICROBENCH INPUTS
-opts=("shermanLock" "litl")
-
+opts=("litl" "litlHod")
 
 microbenches=("empty_cs" "mlocks" "kvs")
-duration=1
-runNR=2
+duration=10
+runNR=1
 mnNR=4
 zipfian=1
-nodeNRs=(1)
+nodeNRs=(1 4)
 threadNRs=(16)
-lockNRs=(256)
-bench_idxs=(1)
+lockNRs=(8 32 256)
+bench_idxs=(2)
 pinnings=(1)
 chipSize=128
 dsmSize=16
@@ -103,7 +102,7 @@ do
             log_dir="$PWD/logs/$comm_prot/$microb/$opt/sherman"
             mkdir -p "$log_dir"
 
-            res_suffix="$comm_prot"_"$microb"_sherman
+            res_suffix="$comm_prot"_"$microb"_sherman_"$opt"
             cn_tp_file="$cn_tp_dir"/"$res_suffix".csv
             cn_lat_file="$cn_lat_dir"/"$res_suffix".csv
             echo $cn_tp_header > "$cn_tp_file"
@@ -165,7 +164,7 @@ do
                     mb_exe="$PWD/appbench_$opt"
                 fi
 
-                res_suffix="$comm_prot"_"$microb"_"$impl"
+                res_suffix="$comm_prot"_"$microb"_"$impl"_"$opt"
                 cn_tp_file="$cn_tp_dir"/"$res_suffix".csv
                 cn_lat_file="$cn_lat_dir"/"$res_suffix".csv
 

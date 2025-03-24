@@ -154,43 +154,48 @@ def plot_MC_rlocks(DATA, comm_prot="rdma", opts=["spinlock"],
                 include_hatch_keys=lockNRs, log=0, t=tp_inc, y1=y1, y2=y2)
 
 
-def plot_ldist(DATA, opts=[], cnNRs=[], lockNRs=[], threadNRs=[], mnNRs=[1], pinnings=[1],comm_prot="rdma"):
+# KEEP THIS A SECRET
+def plot_ldist(DATA, opts=[], cnNRs=[], lockNRs=[], threadNRs=[], mnNRs=[1], pinnings=[1],mHos=[16],runs=[0],comm_prot="rdma"):
     for mb in MICROBENCHES:
         for impl in IMPL:
-            for pinning in pinnings:
+            for numa in pinnings:
                 for opt in opts:
                     for cnNR in cnNRs:
                         for threadNR in threadNRs:
                             for mnNR in mnNRs:
                                     for lockNR in lockNRs:
-                                        DLDIST = (
-                                            DATA.get("ldist", {})
-                                            .get(comm_prot, {})
-                                            .get(mb, {})
-                                            .get(opt, {})
-                                            .get(impl, {})
-                                            .get(pinning, {})
-                                            .get(cnNR, {})
-                                            .get(threadNR, {})
-                                            .get(lockNR)
-                                        )
+                                        for mHo in mHos:
+                                            for run in runs:
+                                                DLDIST = (
+                                                    DATA.get("ldist", {})
+                                                    .get(comm_prot, {})
+                                                    .get(mb, {})
+                                                    .get(opt, {})
+                                                    .get(impl, {})
+                                                    .get(cnNR, {})
+                                                    .get(threadNR, {})
+                                                    .get(mnNR, {})
+                                                    .get(lockNR, {})
+                                                    .get(numa, {})
+                                                    .get(mHo, {})
+                                                    .get(run)
+                                                )
 
-                                        if DLDIST is not None:
-                                            num_locks = mnNR*lockNR if mnNR <= cnNR else cnNR*lockNR
-                                            DLDIST = DLDIST[:num_locks]
-                                            plt.figure(figsize=(12, 6))
-                                            plt.bar(np.arange(len(DLDIST)), DLDIST, color="blue", alpha=0.6)
-                                            plt.xlabel("Lock Index")
-                                            plt.ylabel("Acquisition Count")
-                                            plt.title(f"Lock Acquisition Distribution | {impl}_{opt} | {lockNR} lockNR | {cnNR} CNs | {mnNR} MNs | {threadNR} Ts | {mb} MB | {pinning} NUMA")
-                                            output_path = file_dir+f"/results/plots/ldist/{impl}_{opt}_{mb}_{cnNR}CN_{threadNR}T_{lockNR}L_{mnNR}MN_{pinning}P.png"
-                                            plt.savefig(output_path, dpi=300, bbox_inches="tight")
+                                                if DLDIST is not None:
+                                                    num_locks = mnNR*lockNR if mnNR <= cnNR else cnNR*lockNR
+                                                    DLDIST = DLDIST[:num_locks]
+                                                    plt.figure(figsize=(12, 6))
+                                                    plt.bar(np.arange(len(DLDIST)), DLDIST, color="blue", alpha=0.6)
+                                                    plt.xlabel("Lock Index")
+                                                    plt.ylabel("Acquisition Count")
+                                                    plt.title(f"Lock Acquisition Distribution | {impl}_{opt} | {lockNR} lockNR | {cnNR} CNs | {mnNR} MNs | {threadNR} Ts | {mb} MB | {numa} NUMA | {mHo} maxHo | {run} R")
+                                                    output_path = file_dir+f"/results/plots/ldist/{impl}_{opt}_{mb}_{cnNR}CN_{threadNR}T_{lockNR}L_{mnNR}MN_{numa}NUMA_{mHo}maxHo_{run}R.png"
+                                                    plt.savefig(output_path, dpi=300, bbox_inches="tight")
     
 
 RES_DIRS = {}
 DATA = {}
 
-prep_res_dirs(RES_DIRS)
 read_data(DATA, RES_DIRS)
 
 plot_MC_rlocks(

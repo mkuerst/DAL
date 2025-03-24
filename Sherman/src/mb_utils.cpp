@@ -280,10 +280,10 @@ void write_tp(char* tp_path, char* lock_path, int run, int lockNR, int nodeID, s
 			<< std::setw(16) << measurements.cache_misses[t] << ","
 			<< std::setw(8) << measurements.c_ho[t] << ","
 			<< std::setw(8) << measurements.c_hod[t] << ","
-			<< std::setw(8) << cnNR << ","
-			<< std::setw(8) << mnNR << ","
-			<< std::setw(8) << threadNR << ","
-			<< std::setw(8) << maxHandover << "\n";
+			<< std::setw(3) << cnNR << ","
+			<< std::setw(3) << mnNR << ","
+			<< std::setw(3) << threadNR << ","
+			<< std::setw(3) << maxHandover << "\n";
 	}
 
 	file.flush();
@@ -330,12 +330,12 @@ void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_siz
 			<< std::setw(6) << array_size << ","
 			<< std::setw(3) << nodeID << ","
 			<< std::setw(3) << run << ","
-			<< std::setw(4) << lockNR << ","
+			<< std::setw(8) << lockNR << ","
 			<< std::setw(2) << pinning << ","
-			<< std::setw(8) << cnNR << ","
-			<< std::setw(8) << mnNR << ","
-			<< std::setw(8) << threadNR << ","
-			<< std::setw(8) << maxHandover << "\n";
+			<< std::setw(3) << cnNR << ","
+			<< std::setw(3) << mnNR << ","
+			<< std::setw(3) << threadNR << ","
+			<< std::setw(3) << maxHandover << "\n";
 	}
 	file.close();
 }

@@ -72,6 +72,10 @@ LAT_COLS = [
 "run",
 "lockNR",
 "pinning",
+"cnNR", 
+"mnNR", 
+"threadNR", 
+"maxHandover",
 ]
 
 TP_COLS = [
@@ -91,6 +95,10 @@ TP_COLS = [
 "cache_misses",
 "c_ho",
 "c_hod",
+"cnNR", 
+"mnNR", 
+"threadNR", 
+"maxHandover",
 ]
 
 STAT_TO_COLS = {
@@ -462,115 +470,90 @@ def make_multiplots(inc):
 ##########
 def to_pd(DATA, dirs, COLS, stat):
     for dir in dirs:
-        impl = Path(dir).name.removeprefix("lib")
-        csv_dirs = glob.glob(dir+"/nodeNR*_threadNR*.csv") if stat != "ldist" \
-            else glob.glob(dir+"/lockNR*_nodeNR*_threadNR*_pinning*.csv")
+        basename = os.path.basename(dir).replace('.csv', '')
+        words = re.split(r'_+', basename)
+
+        comm_prot, mb, impl, opt = words[:4]
+        if stat == "ldist":
+            matches = re.findall(r'([a-zA-Z]+NR?|NUMA|mHo|r)(\d+)', basename)
+            nodeNR = int(matches[0][1])
+            threadNR = int(matches[1][1])
+            mnNR = int(matches[2][1])
+            mnNR = nodeNR if mnNR > nodeNR else mnNR
+            lockNR = int(matches[3][1])
+            numa = int(matches[4][1]) 
+            mHo = int(matches[5][1])
+            run = int(matches[6][1])
 
         if impl == "sherman":
             impl = "shermanLock"
 
-        DATA[impl] = {}
-        for csv_dir in csv_dirs:
-            if (stat != "ldist"):
-                match = re.search(r"nodeNR(\d+)_threadNR(\d+).csv", os.path.basename(csv_dir))
-                nodeNR = int(match.group(1))
-                threadNR = int(match.group(2))
-            else:
-                match = re.search(r"lockNR(\d+)_nodeNR(\d+)_threadNR(\d+)_pinning(\d+).csv", os.path.basename(csv_dir))
-                lockNR = int(match.group(1))
-                nodeNR = int(match.group(2))
-                threadNR = int(match.group(3))
-                pinning = int(match.group(4))
-                
-            if stat != "ldist":
-                if not DATA[impl].get(nodeNR):
-                    DATA[impl][nodeNR] = {}
+        if stat  == "tp" or stat == "lat":
+            # DON'T DO THIS AT HOME KIDS
+            DATA = {comm_prot: {mb: {opt:{impl: {}}}}}
+        else:
+            # ESPECIALLY NOT THIS
+            DATA = {comm_prot: {mb: {opt: {impl: {nodeNR: {threadNR:{mnNR:{lockNR:{numa:{mHo:{run:{}}}}}}}}}}}}
 
-            if stat == "ldist":
-                if not DATA[impl].get(pinning):
-                    DATA[impl][pinning] = {}
-                if not DATA[impl][pinning].get(nodeNR):
-                    DATA[impl][pinning][nodeNR] = {}
-                if not DATA[impl][pinning][nodeNR].get(threadNR):
-                    DATA[impl][pinning][nodeNR][threadNR] = {}
-                if not DATA[impl][pinning][nodeNR][threadNR].get(lockNR):
-                    DATA[impl][pinning][nodeNR][threadNR][lockNR] = {}
+        cleaned_lines = []
+        cleaned_lines_median = []
+        cleaned_lines_99 = []
 
-            cleaned_lines = []
-            cleaned_lines_median = []
-            cleaned_lines_99 = []
-
-            with open(csv_dir, 'r') as file:
-                if stat == "lat":
-                    i = 0
-                    for line in file:
-                        if i == 0:
-                            i += 1
-                            continue
-                        
-                        if i % 2 == 1: 
-                            cleaned_lines_median.append(line)
-                        else:
-                            cleaned_lines_99.append(line)
-
+        with open(dir, 'r') as file:
+            if stat == "lat":
+                i = 0
+                for line in file:
+                    if i == 0:
                         i += 1
-                        
-                    cleaned_median = StringIO("".join(cleaned_lines_median))
-                    cleaned_99 = StringIO("".join(cleaned_lines_99))
-                    pd_median = pd.read_csv(cleaned_median, skiprows=0, names=COLS)
-                    pd_99 = pd.read_csv(cleaned_99, skiprows=0, names=COLS)
+                        continue
+                    
+                    if i % 2 == 1: 
+                        cleaned_lines_median.append(line)
+                    else:
+                        cleaned_lines_99.append(line)
 
-                    pd_median.loc[pd_median["lwait_acq"] >= 1000, "lwait_acq"] = (pd_median.loc[pd_median["lwait_acq"] >= 1000, "lwait_acq"] - 1000) * 1000
-                    pd_99.loc[pd_99["lwait_acq"] >= 1000, "lwait_acq"] = (pd_99.loc[pd_99["lwait_acq"] >= 1000, "lwait_acq"] - 1000) * 1000
+                    i += 1
+                    
+                cleaned_median = StringIO("".join(cleaned_lines_median))
+                cleaned_99 = StringIO("".join(cleaned_lines_99))
+                pd_median = pd.read_csv(cleaned_median, skiprows=0, names=COLS)
+                pd_99 = pd.read_csv(cleaned_99, skiprows=0, names=COLS)
 
-                    pd_median.loc[pd_median["gwait_acq"] >= 1000, "gwait_acq"] = (pd_median.loc[pd_median["gwait_acq"] >= 1000, "gwait_acq"] - 1000) * 1000
-                    pd_99.loc[pd_99["gwait_acq"] >= 1000, "gwait_acq"] = (pd_99.loc[pd_99["gwait_acq"] >= 1000, "gwait_acq"] - 1000) * 1000
+                pd_median.loc[pd_median["lwait_acq"] >= 1000, "lwait_acq"] = (pd_median.loc[pd_median["lwait_acq"] >= 1000, "lwait_acq"] - 1000) * 1000
+                pd_99.loc[pd_99["lwait_acq"] >= 1000, "lwait_acq"] = (pd_99.loc[pd_99["lwait_acq"] >= 1000, "lwait_acq"] - 1000) * 1000
 
-                    DATA[impl][nodeNR][threadNR] = [pd_median, pd_99]
+                pd_median.loc[pd_median["gwait_acq"] >= 1000, "gwait_acq"] = (pd_median.loc[pd_median["gwait_acq"] >= 1000, "gwait_acq"] - 1000) * 1000
+                pd_99.loc[pd_99["gwait_acq"] >= 1000, "gwait_acq"] = (pd_99.loc[pd_99["gwait_acq"] >= 1000, "gwait_acq"] - 1000) * 1000
+
+                DATA[comm_prot][mb][opt][impl] = [pd_median, pd_99]
 
 
-                elif stat == "tp":
-                    for line in file:
-                        if line == "":
-                            continue
-                        cleaned_lines.append(line) 
+            elif stat == "tp":
+                for line in file:
+                    if line == "":
+                        continue
+                    cleaned_lines.append(line) 
 
-                    cleaned_data = StringIO("".join(cleaned_lines))
-                    DATA[impl][nodeNR][threadNR] = pd.read_csv(cleaned_data, skiprows=1, names=COLS)
-                
-                # TODO:
-                elif stat == "ldist":
-                    DATA[impl][pinning][nodeNR][threadNR][lockNR] = pd.read_csv(csv_dir, header=None).to_numpy().ravel()
-                    pass
+                cleaned_data = StringIO("".join(cleaned_lines))
+                DATA[comm_prot][mb][opt][impl] = pd.read_csv(cleaned_data, skiprows=1, names=COLS)
+            
+            # TODO:
+            elif stat == "ldist":
+                # NOBODY NEEDS TO KNOW ABOUT THIS, OK?!
+                DATA[comm_prot][mb][opt][impl][nodeNR][threadNR][mnNR][lockNR][numa][mHo][run] = pd.read_csv(dir, header=None).to_numpy().ravel()
+                pass
+
 
 
 def read_data(DATA, RES_DIRS):
     for stat in STATS:
-        COLS = STAT_TO_COLS[stat]
-        DATA[stat] = {}
-        for comm_prot in COMM_PROTOCOLS:
-            DATA[stat][comm_prot] = {}
-            for mb in MICROBENCHES:
-                DATA[stat][comm_prot][mb] = {}
-                for opt in RES_DIRS[stat][comm_prot][mb].keys():
-                    DATA[stat][comm_prot][mb][opt] = {}
-                    to_pd(DATA[stat][comm_prot][mb][opt], RES_DIRS[stat][comm_prot][mb][opt], COLS, stat)
-
-def prep_res_dirs(RES_DIRS):
-    for stat in STATS:
         RES_DIRS[stat] = {}
-        for comm_prot in COMM_PROTOCOLS:
-            RES_DIRS[stat][comm_prot] = {}
-            for mb in MICROBENCHES:
-                RES_DIRS[stat][comm_prot][mb] = {}
-                for opt in OPTS:
-                    res_dir = os.path.dirname(os.path.realpath(__file__)) + f"/results/cn/{'tp' if stat == 'ldist' else stat}/{comm_prot}/{mb}/{opt}/*"
-                    res_dir = glob.glob(res_dir)
-                    opt = OPT_TO_NAME[opt]
-                    if not opt in RES_DIRS[stat][comm_prot][mb].keys():
-                        RES_DIRS[stat][comm_prot][mb][opt] = res_dir
-                    else:
-                        RES_DIRS[stat][comm_prot][mb][opt] += res_dir
+        DATA[stat] = {}
+        COLS = STAT_TO_COLS[stat]
+        res_dir = os.path.dirname(os.path.realpath(__file__)) + f"/results/{stat}/*"
+        res_dir = glob.glob(res_dir)
+        RES_DIRS[stat] = res_dir
+        to_pd(DATA[stat], RES_DIRS[stat], COLS, stat)
                         
 
                     

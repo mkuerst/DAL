@@ -321,143 +321,143 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   return false;
   #endif
 
-  #ifdef CN_AWARE
-  GLockAddress next_holder_addr;
-  GLockAddress next_holder_version;
-  GLockAddress old_holder_addr = GLockAddress::Null();
-  GLockAddress old_version_addr = GLockAddress::Null();
-  next_holder_addr.val = lock_addr.val;
+  // #ifdef CN_AWARE
+  // GLockAddress next_holder_addr;
+  // GLockAddress next_holder_version;
+  // GLockAddress old_holder_addr = GLockAddress::Null();
+  // GLockAddress old_version_addr = GLockAddress::Null();
+  // next_holder_addr.val = lock_addr.val;
   
-  dsm->getNextGLaddr(&next_gaddr, lock_addr);
-  version_addr.nodeID = dsm->getMyNodeID();
-  version_addr.threadID = dsm->getMyThreadID();
-  version_addr.state = 1;
-  version_addr.version = next_gaddr.version;
+  // dsm->getNextGLaddr(&next_gaddr, lock_addr);
+  // version_addr.nodeID = dsm->getMyNodeID();
+  // version_addr.threadID = dsm->getMyThreadID();
+  // version_addr.state = 1;
+  // version_addr.version = next_gaddr.version;
 
-  if (!dsm->cas_peer_sync(next_gaddr, expected_addr.val, version_addr.val, buf, nullptr)) {
-    Debug::notifyError("FAILED TO CAS INITIAL WANT LOCK\n");
-    exit(1);
-  }
+  // if (!dsm->cas_peer_sync(next_gaddr, expected_addr.val, version_addr.val, buf, nullptr)) {
+  //   Debug::notifyError("FAILED TO CAS INITIAL WANT LOCK\n");
+  //   exit(1);
+  // }
 
-  // char* pbuffer = dsm->get_rbuf(coro_id).get_page_buffer();
-  // // *(uint64_t *) pbuffer = next_gaddr.val;
-  // *(uint64_t *) pbuffer = 1;
-  // dsm->write_sync(pbuffer, next_gaddr, sizeof(uint64_t), cxt);
+  // // char* pbuffer = dsm->get_rbuf(coro_id).get_page_buffer();
+  // // // *(uint64_t *) pbuffer = next_gaddr.val;
+  // // *(uint64_t *) pbuffer = 1;
+  // // dsm->write_sync(pbuffer, next_gaddr, sizeof(uint64_t), cxt);
 
-  cerr << "NODE @try_lock_addr " << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << endl <<
-  "*next_loc @ start: " << *(GLockAddress*) dsm->getNextLoc(lock_addr) << "\n\n";
+  // cerr << "NODE @try_lock_addr " << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << endl <<
+  // "*next_loc @ start: " << *(GLockAddress*) dsm->getNextLoc(lock_addr) << "\n\n";
 
-  uint64_t mn_retry = 0;
-  retry_from_mn:
-    if (!dsm->cas_dm_sync(lock_addr, 0, next_gaddr.val, buf, cxt)) {
-      uint64_t peer_retry = 0;
-      GLockAddress ga = *(GLockAddress*) buf;
-      next_holder_addr = ga;
-      next_holder_version.version = next_holder_addr.version;
-      next_holder_version.threadID = next_holder_addr.threadID;
-      cerr << "NODE " << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << endl <<
-      "CAS MN FAILED, lock_addr: " << lock_addr << "\n" <<
-      "next_holder: " << next_holder_addr << "\n\n";
-      assert(next_holder_addr.nodeID != next_gaddr.nodeID);
+  // uint64_t mn_retry = 0;
+  // retry_from_mn:
+  //   if (!dsm->cas_dm_sync(lock_addr, 0, next_gaddr.val, buf, cxt)) {
+  //     uint64_t peer_retry = 0;
+  //     GLockAddress ga = *(GLockAddress*) buf;
+  //     next_holder_addr = ga;
+  //     next_holder_version.version = next_holder_addr.version;
+  //     next_holder_version.threadID = next_holder_addr.threadID;
+  //     cerr << "NODE " << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << endl <<
+  //     "CAS MN FAILED, lock_addr: " << lock_addr << "\n" <<
+  //     "next_holder: " << next_holder_addr << "\n\n";
+  //     assert(next_holder_addr.nodeID != next_gaddr.nodeID);
 
-      // old_version_addr = version_addr;
-      // version_addr.state = 2;
-      // if (!dsm->cas_peer_sync(next_gaddr, old_version_addr.val, version_addr.val, buf, nullptr)) {
-      //   Debug::notifyError("FAILED CAS TO STATE 2: MN CAS FAIL\n");
-      //   exit(1);
-      // }
+  //     // old_version_addr = version_addr;
+  //     // version_addr.state = 2;
+  //     // if (!dsm->cas_peer_sync(next_gaddr, old_version_addr.val, version_addr.val, buf, nullptr)) {
+  //     //   Debug::notifyError("FAILED CAS TO STATE 2: MN CAS FAIL\n");
+  //     //   exit(1);
+  //     // }
 
-      next_holder_version.state = 4;
-      while (!dsm->cas_peer_sync(next_holder_addr, next_holder_version.val, next_gaddr.val, buf, nullptr)) {
-        peer_retry++;
-        old_holder_addr = next_holder_addr;
-        GLockAddress ga = *(GLockAddress*) buf;
+  //     next_holder_version.state = 4;
+  //     while (!dsm->cas_peer_sync(next_holder_addr, next_holder_version.val, next_gaddr.val, buf, nullptr)) {
+  //       peer_retry++;
+  //       old_holder_addr = next_holder_addr;
+  //       GLockAddress ga = *(GLockAddress*) buf;
 
-        cerr << "NODE " << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << endl <<
-        "CAS NEXT PEER FAILED, lock_addr: " << lock_addr << "\n" <<
-        "next_holder: " << ga << "\n" <<
-        "*next_loc: " << *(GLockAddress*) dsm->getNextLoc(lock_addr) << "\n\n";
-        assert(next_holder_addr != next_gaddr);
-
-
-
-        if (ga.val == 0 || ga.state == 1) {
-          mn_retry++;
-          cerr << "NODE " << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << endl <<
-          "RETRY FROM MN, lock_addr: " << lock_addr << "\n" <<
-          "old_holder: " << old_holder_addr << "\n" <<
-          "next_holder: " << next_holder_addr << endl <<
-          "*next_loc: " << *(GLockAddress*) dsm->getNextLoc(lock_addr) << "\n\n";
-
-          next_holder_addr.val = lock_addr.val;
-          old_holder_addr = GLockAddress::Null();
-          if (mn_retry > 10000) {
-            Debug::notifyError("MN RETRY DEADLOCK");
-            assert(false);
-            exit(1);
-          }
-          // old_version_addr = version_addr;
-          // version_addr.state = 1;
-          // if (!dsm->cas_peer_sync(next_gaddr, old_version_addr.val, version_addr.val, buf, nullptr)) {
-          //   Debug::notifyError("FAILED CAS TO STATE 1: WANT LOCK RETRY\n");
-          //   exit(1);
-          // }
-          goto retry_from_mn;
-        } 
-
-        next_holder_addr = ga;
-        next_holder_version.version = next_holder_addr.version;
-        next_holder_version.threadID = next_holder_addr.threadID;
-
-        if (peer_retry > 10) {
-          Debug::notifyError("PEER RETRY DEADLOCK");
-          assert(false);
-          exit(1);
-       }
-        next_holder_version.state = 4;
-      }
-
-      // old_version_addr = version_addr;
-      // version_addr.state = 3;
-      // if (!dsm->cas_peer_sync(next_gaddr, old_version_addr.val, version_addr.val, buf, nullptr)) {
-      //   Debug::notifyError("FAILED CAS TO STATE 2: PEER CAS FAIL\n");
-      //   exit(1);
-      // }
-
-    } else {
-      cerr << "NODE " << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << endl <<
-      "LOCK FROM MN, lock_addr: " << lock_addr << "\n" <<
-      "next_gaddr (written to lock location): " << next_gaddr << "\n" <<
-      "*next_loc: " << *(GLockAddress*) dsm->getNextLoc(lock_addr) << "\n\n";
-
-      old_version_addr = version_addr;
-      version_addr.state = 4;
-      if (!dsm->cas_peer_sync(next_gaddr, old_version_addr.val, version_addr.val, buf, nullptr)) {
-        Debug::notifyError("FAILED CAS TO STATE 4: ACQUIRED LOCK FROM MN\n");
-        exit(1);
-      }
-      return false;
-    }
-
-  cerr << "NODE " << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << endl <<
-  "SPIN FOR, lock_addr: " << lock_addr << "\n" <<
-  "current_next_loc: " << *((GLockAddress*) dsm->getNextLoc(lock_addr)) << "\n" <<
-  "(current)_holder: " << next_holder_addr << "\n\n";
-  assert(next_holder_addr.nodeID != next_gaddr.nodeID);
-  // char* pbuf = dsm->get_rbuf(coro_id).get_page_buffer();
-  // *(uint64_t *) pbuf = 0;
-  // dsm->spin_on(pbuf, next_holder_addr);
-  old_version_addr = version_addr;
-  version_addr.state = 4;
-  if (!dsm->cas_peer_sync(next_gaddr, old_version_addr.val, version_addr.val, buf, nullptr)) {
-    Debug::notifyError("FAILED CAS TO STATE 4: WAITING FOR PEER\n");
-    exit(1);
-  }
-  dsm->wait_for_peer(next_holder_addr, dsm->getMyThreadID());
-  return false;
+  //       cerr << "NODE " << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << endl <<
+  //       "CAS NEXT PEER FAILED, lock_addr: " << lock_addr << "\n" <<
+  //       "next_holder: " << ga << "\n" <<
+  //       "*next_loc: " << *(GLockAddress*) dsm->getNextLoc(lock_addr) << "\n\n";
+  //       assert(next_holder_addr != next_gaddr);
 
 
-  #else
+
+  //       if (ga.val == 0 || ga.state == 1) {
+  //         mn_retry++;
+  //         cerr << "NODE " << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << endl <<
+  //         "RETRY FROM MN, lock_addr: " << lock_addr << "\n" <<
+  //         "old_holder: " << old_holder_addr << "\n" <<
+  //         "next_holder: " << next_holder_addr << endl <<
+  //         "*next_loc: " << *(GLockAddress*) dsm->getNextLoc(lock_addr) << "\n\n";
+
+  //         next_holder_addr.val = lock_addr.val;
+  //         old_holder_addr = GLockAddress::Null();
+  //         if (mn_retry > 10000) {
+  //           Debug::notifyError("MN RETRY DEADLOCK");
+  //           assert(false);
+  //           exit(1);
+  //         }
+  //         // old_version_addr = version_addr;
+  //         // version_addr.state = 1;
+  //         // if (!dsm->cas_peer_sync(next_gaddr, old_version_addr.val, version_addr.val, buf, nullptr)) {
+  //         //   Debug::notifyError("FAILED CAS TO STATE 1: WANT LOCK RETRY\n");
+  //         //   exit(1);
+  //         // }
+  //         goto retry_from_mn;
+  //       } 
+
+  //       next_holder_addr = ga;
+  //       next_holder_version.version = next_holder_addr.version;
+  //       next_holder_version.threadID = next_holder_addr.threadID;
+
+  //       if (peer_retry > 10) {
+  //         Debug::notifyError("PEER RETRY DEADLOCK");
+  //         assert(false);
+  //         exit(1);
+  //      }
+  //       next_holder_version.state = 4;
+  //     }
+
+  //     // old_version_addr = version_addr;
+  //     // version_addr.state = 3;
+  //     // if (!dsm->cas_peer_sync(next_gaddr, old_version_addr.val, version_addr.val, buf, nullptr)) {
+  //     //   Debug::notifyError("FAILED CAS TO STATE 2: PEER CAS FAIL\n");
+  //     //   exit(1);
+  //     // }
+
+  //   } else {
+  //     cerr << "NODE " << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << endl <<
+  //     "LOCK FROM MN, lock_addr: " << lock_addr << "\n" <<
+  //     "next_gaddr (written to lock location): " << next_gaddr << "\n" <<
+  //     "*next_loc: " << *(GLockAddress*) dsm->getNextLoc(lock_addr) << "\n\n";
+
+  //     old_version_addr = version_addr;
+  //     version_addr.state = 4;
+  //     if (!dsm->cas_peer_sync(next_gaddr, old_version_addr.val, version_addr.val, buf, nullptr)) {
+  //       Debug::notifyError("FAILED CAS TO STATE 4: ACQUIRED LOCK FROM MN\n");
+  //       exit(1);
+  //     }
+  //     return false;
+  //   }
+
+  // cerr << "NODE " << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << endl <<
+  // "SPIN FOR, lock_addr: " << lock_addr << "\n" <<
+  // "current_next_loc: " << *((GLockAddress*) dsm->getNextLoc(lock_addr)) << "\n" <<
+  // "(current)_holder: " << next_holder_addr << "\n\n";
+  // assert(next_holder_addr.nodeID != next_gaddr.nodeID);
+  // // char* pbuf = dsm->get_rbuf(coro_id).get_page_buffer();
+  // // *(uint64_t *) pbuf = 0;
+  // // dsm->spin_on(pbuf, next_holder_addr);
+  // old_version_addr = version_addr;
+  // version_addr.state = 4;
+  // if (!dsm->cas_peer_sync(next_gaddr, old_version_addr.val, version_addr.val, buf, nullptr)) {
+  //   Debug::notifyError("FAILED CAS TO STATE 4: WAITING FOR PEER\n");
+  //   exit(1);
+  // }
+  // dsm->wait_for_peer(next_holder_addr, dsm->getMyThreadID());
+  // return false;
+
+
+  // #else
   {
     uint64_t retry_cnt = 0;
     uint64_t pre_tag = 0;
@@ -495,7 +495,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
     }
     measurements.glock_tries[threadID] += retry_cnt;
   }
-  #endif
+  // #endif
   save_measurement(threadID, measurements.gwait_acq, 1, true);
   // DEB("[%d.%d] got the global lock via rdma: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_addr.offset);
   measurements.lock_acqs[lock_addr.nodeID * lockNR + lock_addr.offset / 8]++;
@@ -657,6 +657,11 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     dsm->write_sync(page_buffer, page_addr, page_size, cxt, from_peer);
     save_measurement(threadID, measurements.data_write);
     #endif
+    if (page_size < kLeafPageSize) {
+      dsm->write_sync(page_buffer, page_addr, page_size, cxt, from_peer);
+      save_measurement(threadID, measurements.data_write);
+      curr_lock_node->write_back = false;
+    }
     releases_local_lock(lock_addr);
     // DEB("[%d.%d] unlocked global lock for handover: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), curr_lock_addr.offset);
     return;
@@ -983,11 +988,13 @@ bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
     // cerr << "page_addr: " << page_addr << endl;
     // cerr << "page_buffer: " << (uintptr_t) *page_buffer << " = " << (uint64_t) **page_buffer << endl;
     // cerr << "********************************************" << endl;
-    if (!same_address && curr_lock_node->write_back) {
-      cerr << "[" << nodeID << ", " << threadID << "]" << endl;
 
-      dsm->write_sync(curr_lock_node->page_buffer, curr_lock_node->page_addr, curr_lock_node->size);
-    }
+    // if (!same_address && curr_lock_node->write_back && handover) {
+    //   timer.begin();
+    //   dsm->write_sync(curr_lock_node->page_buffer, curr_lock_node->page_addr, curr_lock_node->size);
+    //   save_measurement(threadID, measurements.data_write);
+    // }
+
     timer.begin();
     // *page_buffer = dsm->get_rbuf(0).get_page_buffer();
     dsm->read_sync(*page_buffer, page_addr, page_size, cxt);
@@ -1617,6 +1624,12 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
     return true;
   }
   assert(page->check_consistent());
+  // if (!page->check_consistent()) {
+  //   Debug::notifyError("page inconsistent");
+  //   this->unlock_addr(lock_addr, tag, cas_buffer, cxt, coro_id, true, page_buffer, page_addr, level);
+  //   insert(k, v, cxt, coro_id);
+  //   return true;
+  // }
 
   if (from_cache &&
       (k < page->hdr.lowest || k >= page->hdr.highest)) { // cache is stale
@@ -2104,7 +2117,7 @@ uint64_t Tree::test_self_cas(GLockAddress gaddr, bool with_read) {
     failed_cases++;
   }
   if (with_read) {
-    GlobalAddress read_addr{0,0,256};
+    GlobalAddress read_addr{0,256};
     dsm->read_sync(pbuf, read_addr, 1024, nullptr);
   }
   while (!dsm->cas_peer_sync(gaddr, 1, 0, buf, nullptr)) {
