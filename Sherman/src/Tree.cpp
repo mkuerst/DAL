@@ -1625,6 +1625,7 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
     insert(k, v, cxt, coro_id);
     return true;
   }
+  //TODO: WHY CONSISTENCY CHECK IF PAGE ALREADY LOCKED?
   assert(page->check_consistent());
   // if (!page->check_consistent()) {
   //   Debug::notifyError("page inconsistent");
@@ -1651,6 +1652,8 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
                           coro_id);
     return true;
   }
+
+  // TODO: SHOULD NOT HAPPEN!
   // assert(k >= page->hdr.lowest);
   if (k < page->hdr.lowest) {
     Debug::notifyError("Tree:1111:leaf_page_store: k < page->hdr.lowest");
@@ -1675,6 +1678,7 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
     if (r.value != kValueNull) {
       cnt++;
       if (r.key == k) {
+        // KEY ALREADY PRESENT --> UPDATE V
         r.value = v;
         r.f_version++;
         r.r_version = r.f_version;
@@ -1682,14 +1686,17 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
         break;
       }
     } else if (empty_index == -1) {
+      // FOUND EMPTY RECORD ENTRY --> INSERT V HERE
       empty_index = i;
     }
   }
 
+  // SHOULD NOT HAPPEN, NODE WILL SPLIT WHEN ITS FULL
   assert(cnt != kLeafCardinality);
 
   if (update_addr == nullptr) { // insert new item
     if (empty_index == -1) {
+      // SHOULD NOT HAPPEN, KEY NOT PRESENT && NO FREE ENTRY
       printf("%d cnt\n", cnt);
       assert(false);
     }
