@@ -35,7 +35,7 @@ pthread_so="$PWD/../litl2/lib/original/libpthreadinterpose_original.so"
 cn_tp_header="tid,\
 loop_in_cs,lock_acquires,duration,\
 glock_tries,handovers,handovers_data,array_size(B),\
-nodeID,run,lockNR,la,pinning,cache_misses,c_ho,c_hod,\
+nodeID,run,lockNR,la,numa,cache_misses,c_ho,c_hod,\
 cnNR,mnNR,threadNR,maxHandover"
 
 cn_lat_header="lock_hold,\
@@ -50,7 +50,7 @@ array_size,\
 nodeID,\
 run,\
 lockNR,\
-pinning,\
+numa,\
 cnNR,mnNR,threadNR,maxHandover"
 
 server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"

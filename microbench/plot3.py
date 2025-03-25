@@ -5,7 +5,8 @@ from plot_common import *
 
 def plot_MC_rlocks(DATA, comm_prot="rdma", opts=["spinlock"],
     lat_ecs_inc=[], lat_ml_inc=[], tp_incs=[],
-    mnNR=1, cnNRs=[1,4], threadNRs=32, lockNRs=[1], log=[1],
+    mnNRs=[1], cnNRs=[1,4], threadNRs=[32], lockNRs=[1], log=[1],
+    pinnings=[], mHos=[16],
     ):
 
     emptyLatPlotsNR = len(lat_ecs_inc)
@@ -33,6 +34,37 @@ def plot_MC_rlocks(DATA, comm_prot="rdma", opts=["spinlock"],
     num_vlines = 0
     max_vlines = len(cnNRs) - 1
     comp_nodes = []
+
+    for impl in IMPL:
+        if not (DATA["ldist"]["impl"] == impl).any():
+            continue
+        for mb in MICROBENCHES:
+            if not (DATA["ldist"]["mb"] == mb).any():
+                continue
+
+            for numa in pinnings:
+                for opt in opts:
+                    for cnNR in cnNRs:
+                        for threadNR in threadNRs:
+                            for mnNR in mnNRs:
+                                    for lockNR in lockNRs:
+                                        for mHo in mHos:
+                                                filter_values = {
+                                                    "comm_prot": comm_prot,
+                                                    "mb": mb,
+                                                    "impl": impl,
+                                                    "numa": numa,
+                                                    "opt": opt,
+                                                    "cnNR": cnNR,
+                                                    "threadNR": threadNR,
+                                                    "mnNR": mnNR,
+                                                    "lockNR": lockNR,
+                                                    "maxHandover": mHo,
+                                                }
+                                                query_str = " and ".join([f"{col} == @filter_values['{col}']" for col in filter_values])
+                                                df_tp = DATA["tp"].query(query_str)
+                                                df_lat = DATA["lat"].query(query_str)
+                                                pass
     for cnNR in cnNRs:
         for opt in opts:
             for impl in IMPL:
@@ -154,7 +186,7 @@ def plot_MC_rlocks(DATA, comm_prot="rdma", opts=["spinlock"],
                 include_hatch_keys=lockNRs, log=0, t=tp_inc, y1=y1, y2=y2)
 
 
-def plot_ldist(DATA, mbs=[], impls=[], opts=[], cnNRs=[], lockNRs=[], threadNRs=[], mnNRs=[1], pinnings=[1],mHos=[16],runs=[0],comm_prot="rdma"):
+def plot_ldist(DATA, opts=[], cnNRs=[], lockNRs=[], threadNRs=[], mnNRs=[1], pinnings=[1],mHos=[16],runs=[0],comm_prot="rdma"):
         for impl in IMPL:
             if not (DATA["ldist"]["impl"] == impl).any():
                 continue
@@ -164,7 +196,6 @@ def plot_ldist(DATA, mbs=[], impls=[], opts=[], cnNRs=[], lockNRs=[], threadNRs=
 
                 for numa in pinnings:
                     for opt in opts:
-                        # opt = OPT_TO_NAME[opt]
                         for cnNR in cnNRs:
                             for threadNR in threadNRs:
                                 for mnNR in mnNRs:
@@ -205,27 +236,27 @@ DATA = {}
 
 read_data(DATA, RES_DIRS)
 
-# plot_MC_rlocks(
-#                 DATA, 
-#                 opts=["", "Hod", "Rfaa", "HodOcm", "HodOcmRfaa"],
-#                 # opts=["Hod"],
-#                 # lat_ecs_inc = [["gwait_acq", "gwait_rel"]],
-#                 # lat_ml_inc = [["lwait_acq"], ["lwait_acq", "gwait_acq", "gwait_rel"], ["data_read", "data_write", "lock_hold"]],
-#                 lat_ml_inc = [["lwait_acq"], ["gwait_acq", "gwait_rel"], ["data_read", "data_write"]],
-#                 tp_incs=["lock_acquires", "glock_tries", "handovers_data", "cache_misses"],
-#                 cnNRs=[1, 4], 
-#                 lockNRs=[16, 128, 512], 
-#                 threadNRs=32,
-#                 log=[1,1,0],
-#                 )
+plot_MC_rlocks(
+                DATA, 
+                opts=['.'],
+                cnNRs=[4],
+                lockNRs=[32],
+                threadNRs=[16],
+                mnNRs=[4],
+                mHos=[16],
+                pinnings=[1],
+                lat_ml_inc = [["lwait_acq"], ["gwait_acq", "gwait_rel"], ["data_read", "data_write"]],
+                tp_incs=["lock_acquires", "glock_tries", "handovers_data", "cache_misses"],
+                log=[1,1,0],
+                )
 
-plot_ldist(DATA,
-            opts=['.'],
-            cnNRs=[4],
-            lockNRs=[32],
-            threadNRs=[16],
-            mnNRs=[4],
-            mHos=[16],
-            pinnings=[1],
-           )
+# plot_ldist(DATA,
+#             opts=['.'],
+#             cnNRs=[4],
+#             lockNRs=[32],
+#             threadNRs=[16],
+#             mnNRs=[4],
+#             mHos=[16],
+#             pinnings=[1],
+#            )
 pass
