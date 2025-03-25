@@ -3,7 +3,7 @@ import matplotlib.lines as mlines
 from plot_common import *
 
 
-def plot_MC_rlocks(DATA, comm_prot="rdma", opts=["spinlock"],
+def plot_tp_lat(DATA, comm_prot="rdma", opts=["spinlock"],
     lat_ecs_inc=[], lat_ml_inc=[], tp_incs=[],
     mnNRs=[1], cnNRs=[1,4], threadNRs=[32], lockNRs=[1], log=[1],
     pinnings=[], mHos=[16],
@@ -236,7 +236,7 @@ DATA = {}
 
 read_data(DATA, RES_DIRS)
 
-plot_MC_rlocks(
+plot_tp_lat(
                 DATA, 
                 opts=['.'],
                 cnNRs=[4],

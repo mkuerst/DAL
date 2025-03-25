@@ -245,7 +245,7 @@ int main(int argc, char *argv[]) {
     dsm = DSM::getInstance(config);
     nodeID = dsm->getMyNodeID();
     if (nodeID == 0) {
-        DE("DSM INIT DONE\n");
+        fprintf(stderr, "DSM INIT DONE\n");
     }
 
     dsm->registerThread();
@@ -257,7 +257,7 @@ int main(int argc, char *argv[]) {
         tree = new Tree(dsm, 0, lockNR, false);
     }
     if (nodeID == 0) {
-        DE("TREE INIT DONE\n");
+        fprintf(stderr, "TREE INIT DONE\n");
     }
     fflush(stderr);
 
@@ -283,7 +283,7 @@ int main(int argc, char *argv[]) {
 
     while (!ready.load());
     if (nodeID == 0) {
-        DE("APPBENCH START\n");
+        fprintf(stderr, "APPBENCH START\n");
     }
     sleep(duration);
     done.store(true);
@@ -312,7 +312,7 @@ int main(int argc, char *argv[]) {
         dsm->barrier(writeResKey);
     }
     if (nodeID == 0) {
-        DE("WRITE RES DONE\n");
+        fprintf(stderr, "WRITE RES DONE\n");
     }
 
     free_measurements();

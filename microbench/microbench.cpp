@@ -274,7 +274,7 @@ argc, argv);
     if (nodeID == 1) {
         if(system("sudo bash /nfs/DAL/restartMemc.sh"))
             _error("Failed to start MEMC server\n");
-        DE("STARTED MEMC SERVER\n");
+        fprintf(stderr, "STARTED MEMC SERVER\n");
     }
     else {
         sleep(1);
@@ -295,7 +295,7 @@ argc, argv);
     
     // register_sighandler(dsm);
     if (nodeID == 0) {
-        DE("DSM INIT DONE\n");
+        fprintf(stderr, "DSM INIT DONE\n");
     }
 
     if (nodeID == 0) {
@@ -358,7 +358,7 @@ argc, argv);
     }
     dsm->barrier("MB_END");
     if (nodeID == 0) {
-        DE("WRITTEN RESULTS\n");
+        fprintf(stderr, "WRITTEN RESULTS\n");
     }
     __asm__ volatile("mfence" ::: "memory");
 

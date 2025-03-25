@@ -40,6 +40,7 @@ struct LocalLockNode {
     GlobalAddress page_addr;
     uint64_t size = 0;
     bool write_back = false;
+    bool unlock_addr = false;
     LitlLock litl_lock;
 
     void debug() const {
