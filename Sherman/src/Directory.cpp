@@ -59,7 +59,7 @@ void Directory::dirThread() {
       assert(false);
     }
   }
-  fprintf(stderr, "memory thread finished\n");
+  // fprintf(stderr, "memory thread finished\n");
 }
 
 void Directory::process_message(const RawMessage *m) {

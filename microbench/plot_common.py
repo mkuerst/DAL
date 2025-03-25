@@ -464,8 +464,12 @@ def to_pd(DATA, dirs, COLS, stat):
     for dir in dirs:
         basename = os.path.basename(dir).replace('.csv', '')
         words = re.split(r'_+', basename)
+        words[2] = words[2].removeprefix('lib').replace(".", "_")
 
         comm_prot, mb, impl, opt = words[:4]
+        opt = opt.removeprefix('.')
+        if opt == '':
+            opt = '.' 
         if stat == "ldist":
             matches = re.findall(r'([a-zA-Z]+NR?|NUMA|mHo|r)(\d+)', basename)
             nodeNR = int(matches[0][1])
@@ -476,9 +480,6 @@ def to_pd(DATA, dirs, COLS, stat):
             numa = int(matches[4][1]) 
             mHo = int(matches[5][1])
             run = int(matches[6][1])
-
-        if impl == "sherman":
-            impl = "shermanLock"
 
         cleaned_lines = []
         cleaned_lines_median = []
@@ -542,7 +543,7 @@ def to_pd(DATA, dirs, COLS, stat):
                 df["mb"] = mb
                 df["opt"] = opt
                 df["impl"] = impl
-                df["nodeNR"] = nodeNR
+                df["cnNR"] = nodeNR
                 df["threadNR"] = threadNR
                 df["mnNR"] = mnNR
                 df["lockNR"] = lockNR

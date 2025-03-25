@@ -59,10 +59,9 @@ class ZipfianGenerator {
     
         int generate() {
             double rand_val = dist(rng) * harmonic_sum;
-            // Find the index corresponding to this random value (inverse transform sampling)
             for (int i = 0; i < range; ++i) {
                 if (rand_val <= harmonic_numbers[i]) {
-                    return i + 1; // Returning the index (1-based)
+                    return i; // Returning the index (1-based)
                 }
             }
             

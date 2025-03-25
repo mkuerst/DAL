@@ -28,10 +28,10 @@ file(GLOB_RECURSE COMMON_FILE ${COMMON_SRC}/*.cpp)
 #################################################################################################################
 
 # SHERMAN_LOCK
-add_library(sherman_shermanLock STATIC ${COMMON_FILE})
-target_compile_definitions(sherman_shermanLock PRIVATE -DSHERMAN_LOCK)
-set_target_properties(sherman_shermanLock PROPERTIES OUTPUT_NAME "sherman_shermanLock")
-target_link_libraries(sherman_shermanLock ${LINKS_FLAGS})
+add_library(sherman_sherman STATIC ${COMMON_FILE})
+target_compile_definitions(sherman_sherman PRIVATE -DSHERMAN_LOCK)
+set_target_properties(sherman_sherman PROPERTIES OUTPUT_NAME "sherman_sherman")
+target_link_libraries(sherman_sherman ${LINKS_FLAGS})
 
 # # SHERMAN_LOCK HO
 # add_library(sherman_shermanHo STATIC ${COMMON_FILE})
@@ -55,7 +55,7 @@ target_link_libraries(sherman_shermanHodOcm ${LINKS_FLAGS})
 # # ORIGINAL SHERMAN W/ OPTS
 # add_library(sherman_shermanHoOcmBw STATIC ${COMMON_FILE})
 # target_compile_definitions(sherman_shermanHoOcmBw PRIVATE -DSHERMAN_LOCK -DHANDOVER -DON_CHIP -DBATCHED_WRITEBACK)
-# set_target_properties(sherman_shermanHoOcmBw PROPERTIES OUTPUT_NAME "sherman_shermaHoOcmBw")
+# set_target_properties(sherman_shermanHoOcmBw PROPERTIES OUTPUT_NAME "sherman_shermanHoOcmBw")
 # target_link_libraries(sherman_shermanHoOcmBw ${LINKS_FLAGS})
 
 # ORIGINAL SHERMAN W/ OPTS + HOD

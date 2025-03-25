@@ -154,43 +154,50 @@ def plot_MC_rlocks(DATA, comm_prot="rdma", opts=["spinlock"],
                 include_hatch_keys=lockNRs, log=0, t=tp_inc, y1=y1, y2=y2)
 
 
-# KEEP THIS A SECRET
-def plot_ldist(DATA, opts=[], cnNRs=[], lockNRs=[], threadNRs=[], mnNRs=[1], pinnings=[1],mHos=[16],runs=[0],comm_prot="rdma"):
-    for mb in MICROBENCHES:
+def plot_ldist(DATA, mbs=[], impls=[], opts=[], cnNRs=[], lockNRs=[], threadNRs=[], mnNRs=[1], pinnings=[1],mHos=[16],runs=[0],comm_prot="rdma"):
         for impl in IMPL:
-            for numa in pinnings:
-                for opt in opts:
-                    for cnNR in cnNRs:
-                        for threadNR in threadNRs:
-                            for mnNR in mnNRs:
-                                    for lockNR in lockNRs:
-                                        for mHo in mHos:
-                                            for run in runs:
-                                                DLDIST = (
-                                                    DATA.get("ldist", {})
-                                                    .get(comm_prot, {})
-                                                    .get(mb, {})
-                                                    .get(opt, {})
-                                                    .get(impl, {})
-                                                    .get(cnNR, {})
-                                                    .get(threadNR, {})
-                                                    .get(mnNR, {})
-                                                    .get(lockNR, {})
-                                                    .get(numa, {})
-                                                    .get(mHo, {})
-                                                    .get(run)
-                                                )
+            if not (DATA["ldist"]["impl"] == impl).any():
+                continue
+            for mb in MICROBENCHES:
+                if not (DATA["ldist"]["mb"] == mb).any():
+                    continue
 
-                                                if DLDIST is not None:
-                                                    num_locks = mnNR*lockNR if mnNR <= cnNR else cnNR*lockNR
-                                                    DLDIST = DLDIST[:num_locks]
-                                                    plt.figure(figsize=(12, 6))
-                                                    plt.bar(np.arange(len(DLDIST)), DLDIST, color="blue", alpha=0.6)
-                                                    plt.xlabel("Lock Index")
-                                                    plt.ylabel("Acquisition Count")
-                                                    plt.title(f"Lock Acquisition Distribution | {impl}_{opt} | {lockNR} lockNR | {cnNR} CNs | {mnNR} MNs | {threadNR} Ts | {mb} MB | {numa} NUMA | {mHo} maxHo | {run} R")
-                                                    output_path = file_dir+f"/results/plots/ldist/{impl}_{opt}_{mb}_{cnNR}CN_{threadNR}T_{lockNR}L_{mnNR}MN_{numa}NUMA_{mHo}maxHo_{run}R.png"
-                                                    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+                for numa in pinnings:
+                    for opt in opts:
+                        # opt = OPT_TO_NAME[opt]
+                        for cnNR in cnNRs:
+                            for threadNR in threadNRs:
+                                for mnNR in mnNRs:
+                                        for lockNR in lockNRs:
+                                            for mHo in mHos:
+                                                for run in runs:
+                                                    filter_values = {
+                                                        "comm_prot": comm_prot,
+                                                        "mb": mb,
+                                                        "impl": impl,
+                                                        "numa": numa,
+                                                        "opt": opt,
+                                                        "cnNR": cnNR,
+                                                        "threadNR": threadNR,
+                                                        "mnNR": mnNR,
+                                                        "lockNR": lockNR,
+                                                        "maxHandover": mHo,
+                                                        "run": run
+                                                    }
+                                                    query_str = " and ".join([f"{col} == @filter_values['{col}']" for col in filter_values])
+                                                    DLDIST = DATA["ldist"].query(query_str)
+                                                    DLDIST = DLDIST["dist"].to_numpy()
+
+                                                    if DLDIST.size > 0:
+                                                        num_locks = mnNR*lockNR if mnNR <= cnNR else cnNR*lockNR
+                                                        DLDIST = DLDIST[:num_locks]
+                                                        plt.figure(figsize=(12, 6))
+                                                        plt.bar(np.arange(len(DLDIST)), DLDIST, color="blue", alpha=0.6)
+                                                        plt.xlabel("Lock Index")
+                                                        plt.ylabel("Acquisition Count")
+                                                        plt.title(f"Lock Acquisition Distribution | {impl}_{opt} | {lockNR} lockNR | {cnNR} CNs | {mnNR} MNs | {threadNR} Ts | {mb} MB | {numa} NUMA | {mHo} maxHo | {run} R")
+                                                        output_path = file_dir+f"/results/plots/ldist/{impl}_{opt}_{mb}_{cnNR}CN_{threadNR}T_{lockNR}L_{mnNR}MN_{numa}NUMA_{mHo}maxHo_{run}R.png"
+                                                        plt.savefig(output_path, dpi=300, bbox_inches="tight")
     
 
 RES_DIRS = {}
@@ -198,26 +205,27 @@ DATA = {}
 
 read_data(DATA, RES_DIRS)
 
-plot_MC_rlocks(
-                DATA, 
-                opts=["", "Hod", "Rfaa", "HodOcm", "HodOcmRfaa"],
-                # opts=["Hod"],
-                # lat_ecs_inc = [["gwait_acq", "gwait_rel"]],
-                # lat_ml_inc = [["lwait_acq"], ["lwait_acq", "gwait_acq", "gwait_rel"], ["data_read", "data_write", "lock_hold"]],
-                lat_ml_inc = [["lwait_acq"], ["gwait_acq", "gwait_rel"], ["data_read", "data_write"]],
-                tp_incs=["lock_acquires", "glock_tries", "handovers_data", "cache_misses"],
-                cnNRs=[1, 4], 
-                lockNRs=[16, 128, 512], 
-                threadNRs=32,
-                log=[1,1,0],
-                )
+# plot_MC_rlocks(
+#                 DATA, 
+#                 opts=["", "Hod", "Rfaa", "HodOcm", "HodOcmRfaa"],
+#                 # opts=["Hod"],
+#                 # lat_ecs_inc = [["gwait_acq", "gwait_rel"]],
+#                 # lat_ml_inc = [["lwait_acq"], ["lwait_acq", "gwait_acq", "gwait_rel"], ["data_read", "data_write", "lock_hold"]],
+#                 lat_ml_inc = [["lwait_acq"], ["gwait_acq", "gwait_rel"], ["data_read", "data_write"]],
+#                 tp_incs=["lock_acquires", "glock_tries", "handovers_data", "cache_misses"],
+#                 cnNRs=[1, 4], 
+#                 lockNRs=[16, 128, 512], 
+#                 threadNRs=32,
+#                 log=[1,1,0],
+#                 )
 
-# plot_ldist(DATA,
-#            opts=["", "Hod"],
-#            cnNRs=[1,4],
-#            lockNRs=[16, 128, 512],
-#            threadNRs=[32],
-#            mnNRs=[2],
-#            pinnings=[1, 2],
-#            )
+plot_ldist(DATA,
+            opts=['.'],
+            cnNRs=[4],
+            lockNRs=[32],
+            threadNRs=[16],
+            mnNRs=[4],
+            mHos=[16],
+            pinnings=[1],
+           )
 pass

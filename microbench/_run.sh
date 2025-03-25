@@ -58,16 +58,16 @@ server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
 comm_prot=rdma
 
 # MICROBENCH INPUTS
-opts=("litl")
+opts=("sherman" "shermanHod" "litl")
 
 microbenches=("empty_cs" "mlocks" "kvs")
-duration=10
+duration=1
 runNR=1
 mnNR=4
 zipfian=1
-nodeNRs=(1 4)
+nodeNRs=(4)
 threadNRs=(16)
-lockNRs=(32 256)
+lockNRs=(32)
 bench_idxs=(1)
 pinnings=(1)
 chipSize=128
@@ -102,7 +102,8 @@ do
             log_dir="$PWD/logs/$comm_prot/$microb/$opt/sherman"
             mkdir -p "$log_dir"
 
-            res_suffix="$comm_prot"_"$microb"_sherman_"$opt"
+            opt="${opt//sherman/.}"
+            res_suffix="$comm_prot"_"$microb"_shermanLock_"$opt"
             cn_tp_file="$cn_tp_dir"/"$res_suffix".csv
             cn_lat_file="$cn_lat_dir"/"$res_suffix".csv
             echo $cn_tp_header > "$cn_tp_file"
@@ -123,8 +124,8 @@ do
                             for ((run = 0; run < runNR; run++)); do
                                 cn_lock_file="$cn_lock_dir"/"$res_suffix"_nodeNR"$nodeNR"_threadNR"$threadNR"_mnNR"$mnNR"_lockNR"$lockNR"_NUMA"$pinning"_mHo"$maxHandover"_r"$run".csv
                                 > "$cn_lock_file"
-                                echo "BENCHMARK $microb | $opt $impl | $nodeNR Ns | $threadNR Ts | $lockNR Ls | $duration s | RUN $run"
-                                echo "pinning $pinning | DSM $dsmSize GB | $mnNR MNs | chipSize $chipSize KB |"
+                                echo "BENCHMARK $microb | sherman$opt $impl | $nodeNR Ns | $threadNR Ts | $lockNR Ls | $duration s | RUN $run"
+                                echo "NUMA $pinning | DSM $dsmSize GB | $mnNR MNs | chipSize $chipSize KB |"
                                 clush --hostfile <(head -n $nodeNR ./nodes.txt) \
                                 "sudo $mb_exe \
                                 -t $threadNR \
@@ -164,12 +165,16 @@ do
                     mb_exe="$PWD/appbench_$opt"
                 fi
 
+                impl="${impl//_/.}"
+                opt="${opt//litl/.}"
                 res_suffix="$comm_prot"_"$microb"_"$impl"_"$opt"
                 cn_tp_file="$cn_tp_dir"/"$res_suffix".csv
                 cn_lat_file="$cn_lat_dir"/"$res_suffix".csv
 
                 echo $cn_tp_header > "$cn_tp_file"
                 echo $cn_lat_header > "$cn_lat_file"
+
+
 
                 log_dir="$PWD/logs/$comm_prot/$microb/$opt/$impl"
                 mkdir -p "$log_dir"
