@@ -48,10 +48,8 @@ std::atomic_bool stop{false};
 
 class ZipfianGenerator {
     public:
-        // Constructor now accepts a seed for the random number generator
         ZipfianGenerator(double alpha, int range, unsigned int seed = std::random_device{}())
             : alpha(alpha), range(range), harmonic_sum(0), rng(seed), dist(0.0, 1.0) {
-            // Precompute the harmonic numbers and their sum
             harmonic_numbers.resize(range);
             for (int i = 1; i <= range; ++i) {
                 harmonic_sum += 1.0 / std::pow(i, alpha);
@@ -60,9 +58,7 @@ class ZipfianGenerator {
         }
     
         int generate() {
-            // Generate a random number between 0 and harmonic_sum
             double rand_val = dist(rng) * harmonic_sum;
-            
             // Find the index corresponding to this random value (inverse transform sampling)
             for (int i = 0; i < range; ++i) {
                 if (rand_val <= harmonic_numbers[i]) {
@@ -70,7 +66,7 @@ class ZipfianGenerator {
                 }
             }
             
-            return range; // If no match, return the last element
+            return range;
         }
     
     private:
@@ -78,7 +74,7 @@ class ZipfianGenerator {
         int range; // Range of integers
         double harmonic_sum; // The sum of the harmonic numbers for normalization
         std::vector<double> harmonic_numbers; // Precomputed harmonic numbers
-        std::mt19937 rng; // Random number generator with custom seed
+        std::mt19937 rng;
         std::uniform_real_distribution<> dist; // Uniform distribution between [0, 1)
 };
 
@@ -387,9 +383,11 @@ argc, argv);
         }
     #endif
 
-    fprintf(stderr, "DSM NODE %d DONE\n", nodeID);
     free_measurements();
     dsm->free_dsm();
     dsm->barrier("fin");
+    if (nodeID == 0) {
+        fprintf(stderr, "FIN\n");
+    }
     return 0;
 }

@@ -440,19 +440,7 @@ def make_ax_fig(x, y, rows=1, cols=1):
         axs2.append(ax.twinx())
     return fig, axs, axs2
     
-def make_ax_fig(x, y, rows=1, cols=1):
-    if rows == 1 and cols == 1:
-        fig, ax = plt.subplots(figsize=(x,y))
-        ax2 = ax.twinx()
-        return fig, ax, ax2
 
-    fig, axs = plt.subplots(rows, cols, figsize=(x,y))
-    axs2 = []
-    for ax in axs:
-        axs2.append(ax.twinx())
-    return fig, axs, axs2
-        
-    
 def make_multiplots(inc):
     figs = []
     axs = []
@@ -465,10 +453,14 @@ def make_multiplots(inc):
         axs2.append(ax2)
     return figs, axs, axs2
 
+
 ##########
 ## READ ##
 ##########
 def to_pd(DATA, dirs, COLS, stat):
+    DATA[stat] = pd.DataFrame()
+    df = pd.DataFrame()
+
     for dir in dirs:
         basename = os.path.basename(dir).replace('.csv', '')
         words = re.split(r'_+', basename)
@@ -488,17 +480,9 @@ def to_pd(DATA, dirs, COLS, stat):
         if impl == "sherman":
             impl = "shermanLock"
 
-        if stat  == "tp" or stat == "lat":
-            # DON'T DO THIS AT HOME KIDS
-            DATA = {comm_prot: {mb: {opt:{impl: {}}}}}
-        else:
-            # ESPECIALLY NOT THIS
-            DATA = {comm_prot: {mb: {opt: {impl: {nodeNR: {threadNR:{mnNR:{lockNR:{numa:{mHo:{run:{}}}}}}}}}}}}
-
         cleaned_lines = []
         cleaned_lines_median = []
         cleaned_lines_99 = []
-
         with open(dir, 'r') as file:
             if stat == "lat":
                 i = 0
@@ -525,8 +509,17 @@ def to_pd(DATA, dirs, COLS, stat):
                 pd_median.loc[pd_median["gwait_acq"] >= 1000, "gwait_acq"] = (pd_median.loc[pd_median["gwait_acq"] >= 1000, "gwait_acq"] - 1000) * 1000
                 pd_99.loc[pd_99["gwait_acq"] >= 1000, "gwait_acq"] = (pd_99.loc[pd_99["gwait_acq"] >= 1000, "gwait_acq"] - 1000) * 1000
 
-                DATA[comm_prot][mb][opt][impl] = [pd_median, pd_99]
-
+                pd_median["comm_prot"] = comm_prot
+                pd_median["mb"] = mb
+                pd_median["opt"] = opt
+                pd_median["impl"] = impl
+                pd_median["perc"] = 0.5
+                pd_99["comm_prot"] = comm_prot
+                pd_99["mb"] = mb
+                pd_99["opt"] = opt
+                pd_99["impl"] = impl
+                pd_99["perc"] = 0.99
+                df = pd.concat([pd_median, pd_99], ignore_index=True)
 
             elif stat == "tp":
                 for line in file:
@@ -535,25 +528,40 @@ def to_pd(DATA, dirs, COLS, stat):
                     cleaned_lines.append(line) 
 
                 cleaned_data = StringIO("".join(cleaned_lines))
-                DATA[comm_prot][mb][opt][impl] = pd.read_csv(cleaned_data, skiprows=1, names=COLS)
+                df = pd.read_csv(cleaned_data, skiprows=1, names=COLS)
+                df["comm_prot"] = comm_prot
+                df["mb"] = mb
+                df["opt"] = opt
+                df["impl"] = impl
             
             # TODO:
             elif stat == "ldist":
-                # NOBODY NEEDS TO KNOW ABOUT THIS, OK?!
-                DATA[comm_prot][mb][opt][impl][nodeNR][threadNR][mnNR][lockNR][numa][mHo][run] = pd.read_csv(dir, header=None).to_numpy().ravel()
-                pass
+                arr = pd.read_csv(dir, header=None).to_numpy().ravel()
+                df = pd.DataFrame({'dist': arr})
+                df["comm_prot"] = comm_prot
+                df["mb"] = mb
+                df["opt"] = opt
+                df["impl"] = impl
+                df["nodeNR"] = nodeNR
+                df["threadNR"] = threadNR
+                df["mnNR"] = mnNR
+                df["lockNR"] = lockNR
+                df["numa"] = numa
+                df["maxHandover"] = mHo
+                df["run"] = run
+        
+        DATA[stat] = pd.concat([DATA[stat], df], ignore_index=True)
 
 
 
 def read_data(DATA, RES_DIRS):
     for stat in STATS:
         RES_DIRS[stat] = {}
-        DATA[stat] = {}
         COLS = STAT_TO_COLS[stat]
         res_dir = os.path.dirname(os.path.realpath(__file__)) + f"/results/{stat}/*"
         res_dir = glob.glob(res_dir)
         RES_DIRS[stat] = res_dir
-        to_pd(DATA[stat], RES_DIRS[stat], COLS, stat)
+        to_pd(DATA, RES_DIRS[stat], COLS, stat)
                         
 
                     
