@@ -96,7 +96,9 @@ def plot_tp_lat(DATA, comm_prot="rdma", opts=["spinlock"], mbs=["kvs"],
 
                                 for i in range(LatPlotsNR):
                                     save_lat_figs(ax_lat[i], ax_lat2[i], fig_lat[i],
-                                            x_positions, x_labels, comm_prot, "OPTS", "MLocks", client_mode=C_str, clients=comp_nodes,
+                                            x_positions, x_labels, comm_prot, 
+                                            cnNR=cnNR, mnNR=mnNR, threadNR=threadNR, numa=numa, maxHo=mHo, mb=mb,
+                                            clients=comp_nodes,
                                             nthreads=threadNRs, include_metrics=lat_incs[i], 
                                             hatches=mlocks_hatches, hatch_categories=mlocks_hatch_categories,
                                             include_hatch_keys=lockNRs, log=log[i], latplot_idx=i)
@@ -106,7 +108,8 @@ def plot_tp_lat(DATA, comm_prot="rdma", opts=["spinlock"], mbs=["kvs"],
                                     y1, y2 = tp_axis_titles[tp_inc]
 
                                     save_tp_figs(ax_tp[i], ax_tp2[i], fig_tp[i],
-                                            x_positions, x_labels, comm_prot, "OPTS", mb, client_mode=C_str, clients=comp_nodes,
+                                            x_positions, x_labels, comm_prot, clients=comp_nodes,
+                                            cnNR=cnNR, mnNR=mnNR, threadNR=threadNR, numa=numa, maxHo=mHo, mb=mb,
                                             nthreads=threadNRs, include_metrics=tp_inc,
                                             hatches=mlocks_hatches, hatch_categories=mlocks_hatch_categories,
                                             include_hatch_keys=lockNRs, log=0, t=tp_inc, y1=y1, y2=y2)

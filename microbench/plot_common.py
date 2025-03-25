@@ -383,8 +383,10 @@ def set_ax(ax1, ax2, x_positions, x_labels,
     
 def save_lat_figs(ax1, ax2, fig,
               x_positions, x_labels, 
-              comm_prot="rdma", opt="spinlock", bench="",
-              client_mode ="MC", nthreads=16, log=1, clients=[1],
+              comm_prot="rdma", 
+              cnNR=1, mnNR=1, threadNR=1, numa=1, maxHo=1, 
+              mb="", 
+              log=1, clients=[1],
               include_metrics=[], hatches=[], hatch_categories={},
               include_hatch_keys=[], latplot_idx=0,
               y1="Median Latencies(ns)", y2="Avg TP (ops/s)",
@@ -392,7 +394,7 @@ def save_lat_figs(ax1, ax2, fig,
               ):
     
     clients_str = "|".join(map(str, clients))
-    title = f"{t} | {bench} | {clients_str} CNs | {comm_prot} | {opt}"
+    title = f"{t} | {mb} | {clients_str} CNs | {comm_prot} | {mnNR} MNs | {threadNR} Ts | {numa} NUMA | {maxHo} maxHo"
 
     set_ax(ax1, ax2, x_positions, x_labels, 
             "Implementation", y1, y2,
@@ -400,14 +402,16 @@ def save_lat_figs(ax1, ax2, fig,
     set_legend(ax1, hatches, hatch_categories,
                 include_metrics, include_hatch_keys)
 
-    output_path = file_dir+f"/results/plots/lat/lat_{comm_prot}_{opt}_{bench}_{client_mode}_{nthreads}T_{latplot_idx}.png"
+    output_path = file_dir+f"/results/plots/lat/lat_{comm_prot}_{mb}_{cnNR}CN_{mnNR}MN_{threadNR}T_{numa}NUMA_{maxHo}maxHo_{latplot_idx}.png"
     fig.suptitle(title)
     fig.savefig(output_path, dpi=300, bbox_inches='tight')
 
 def save_tp_figs(ax1, ax2, fig,
               x_positions, x_labels, 
-              comm_prot="rdma", opt="spinlock", bench="",
-              client_mode ="MC", nthreads=16, log=0, clients=[1],
+              comm_prot="rdma",
+              cnNR=1, mnNR=1, threadNR=1, numa=1, maxHo=1, 
+              mb="", 
+              client_mode ="MC", log=0, clients=[1],
               include_metrics=[], hatches=[], hatch_categories={},
               include_hatch_keys=[],
               y1="TP (ops/s)", y2="Jain's Fairness Index",
@@ -415,7 +419,7 @@ def save_tp_figs(ax1, ax2, fig,
               ):
     
     clients_str = "|".join(map(str, clients))
-    title = f"{t} | {bench} | {clients_str} CNs | {comm_prot} | {opt}"
+    title = f"{t} | {mb} | {clients_str} CNs | {comm_prot} | {mnNR} MNs | {threadNR} Ts | {numa} NUMA | {maxHo} maxHo"
 
     set_ax(ax1, ax2, x_positions, x_labels, 
             "Implementation", y1, y2,
@@ -423,7 +427,7 @@ def save_tp_figs(ax1, ax2, fig,
     set_legend(ax1, hatches, hatch_categories,
                 include_metrics, include_hatch_keys, False)
             
-    output_path = file_dir+f"/results/plots/tp/tp_{comm_prot}_{opt}_{bench}_{client_mode}_{nthreads}T_{t}.png"
+    output_path = file_dir+f"/results/plots/tp/tp_{comm_prot}_{mb}_{cnNR}CN_{mnNR}MN_{threadNR}T_{numa}NUMA_{maxHo}maxHo_{t}.png"
     fig.suptitle(title)
     fig.savefig(output_path, dpi=300, bbox_inches='tight')
 
