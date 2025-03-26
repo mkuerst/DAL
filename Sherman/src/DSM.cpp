@@ -304,10 +304,10 @@ void DSM::wakeup_peer(GLockAddress gaddr, int tid) {
 char* DSM::spin_on(GlobalAddress lock_addr) {
   uint64_t *spin_loc = (uint64_t *)((uint64_t) lockMetaAddr + (lock_addr.nodeID * getLmSize()) + lock_addr.offset);
 
-  GlobalAddress ga;
-  ga.nodeID = lock_addr.nodeID;
-  ga.offset = (lock_addr.nodeID * getLmSize()) + lock_addr.offset;
-  cerr << "SPINNING ON: " << ga << "\n\n";
+  // GlobalAddress ga;
+  // ga.nodeID = lock_addr.nodeID;
+  // ga.offset = (lock_addr.nodeID * getLmSize()) + lock_addr.offset;
+  // cerr << "SPINNING ON: " << ga << "\n\n";
 
   // char* pbuf = (char *)((uint64_t) peerAddr + (lock_addr.nodeID * sizePerPeer) + lock_addr.offset / sizeof(uint64_t) * 1024);
   // memset(pbuf, 0 , kLeafPageSize);
