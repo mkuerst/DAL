@@ -46,36 +46,35 @@ std::atomic_bool stop{false};
 #include <cmath>
 #include <vector>
 
+
 class ZipfianGenerator {
     public:
         ZipfianGenerator(double alpha, int range, unsigned int seed = std::random_device{}())
-            : alpha(alpha), range(range), harmonic_sum(0), rng(seed), dist(0.0, 1.0) {
-            harmonic_numbers.resize(range);
-            for (int i = 1; i <= range; ++i) {
-                harmonic_sum += 1.0 / std::pow(i, alpha);
-                harmonic_numbers[i - 1] = harmonic_sum;
+            : alpha(alpha), range(range), rng(seed), dist(0.0, 1.0) {
+            harmonic_numbers.reserve(range);
+            double harmonic_sum = 0.0;
+            for (int i = 0; i < range; ++i) {
+                harmonic_sum += 1.0 / std::pow(i + 1, alpha);
+                harmonic_numbers.push_back(harmonic_sum);
             }
+            norm_factor = harmonic_sum;
         }
     
         int generate() {
-            double rand_val = dist(rng) * harmonic_sum;
-            for (int i = 0; i < range; ++i) {
-                if (rand_val <= harmonic_numbers[i]) {
-                    return i; // Returning the index (1-based)
-                }
-            }
+            double rand_val = dist(rng) * norm_factor;
             
-            return range;
+            auto it = std::lower_bound(harmonic_numbers.begin(), harmonic_numbers.end(), rand_val);
+            return std::distance(harmonic_numbers.begin(), it);
         }
     
     private:
         double alpha; // Zipfian exponent
-        int range; // Range of integers
-        double harmonic_sum; // The sum of the harmonic numbers for normalization
-        std::vector<double> harmonic_numbers; // Precomputed harmonic numbers
+        int range; // Range of integers [0, range-1]
+        double norm_factor; // Precomputed normalization factor
+        std::vector<double> harmonic_numbers; // Precomputed harmonic sum
         std::mt19937 rng;
         std::uniform_real_distribution<> dist; // Uniform distribution between [0, 1)
-};
+    };
 
 void mn_worker() {
     DE("I AM A MN\n");
@@ -173,7 +172,7 @@ void *mlocks_worker(void *arg) {
     srand(seed);
     ZipfianGenerator zipfian(0.99, range, seed);
     int num = 0;
-    int cnt = 50;
+    int cnt = 100;
     
     int fd = setup_perf_event(cpu);
     start_perf_event(fd);

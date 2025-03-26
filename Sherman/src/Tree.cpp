@@ -271,7 +271,7 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   timer.begin();
   #ifdef RAND_FAA
   from_peer = false;
-  uint64_t add = 1ULL << dsm->getMyNodeID();
+  uint64_t add = 1ULL << nodeID;
 
   // bitset<64> bits(add);
   // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
@@ -284,10 +284,10 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
   bitset<64> lm_bits(lockMeta);
 
   if (lockMeta == 0) {
-  // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
-  //   "LOCK FROM MN" << endl <<
-  //   "lock_addr: " << lock_addr << endl <<
-  //   "lockMeta: " << lm_bits << "\n\n";
+  cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
+    "LOCK FROM MN" << endl <<
+    "lock_addr: " << lock_addr << endl <<
+    "lockMeta: " << lm_bits << "\n\n";
 
     save_measurement(threadID, measurements.gwait_acq, 1, true);
     measurements.lock_acqs[lock_addr.nodeID * lockNR + lock_addr.offset / 8]++;
@@ -699,7 +699,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
 
     // #else
 
-    // bitset<64> bits(add_);
+    bitset<64> bits(add_);
     // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
     // "FAA DM (REL), lock_addr: " << lock_addr << endl <<
     // "add: " << bits << "\n\n";
@@ -725,13 +725,13 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     // #endif
 
   lockMeta = *cas_buf;
-  // bitset<64> lm_bits(lockMeta);
+  bitset<64> lm_bits(lockMeta);
   if (lockMeta == 1ULL << nodeID) {
     save_measurement(threadID, measurements.gwait_rel);
-    // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
-    // "REL LOCK TO MN" << endl <<
-    // "lock_addr: " << lock_addr << endl <<
-    // "lockMeta: " << lm_bits << "\n\n";
+    cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
+    "REL LOCK TO MN" << endl <<
+    "lock_addr: " << lock_addr << endl <<
+    "lockMeta: " << lm_bits << "\n\n";
 
     releases_local_lock(lock_addr);
     return;
@@ -744,11 +744,11 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   peerSpinLoc.nodeID = peerNodeID;
   peerSpinLoc.offset = (lock_addr.nodeID * dsm->getLmSize()) + lock_addr.offset;
 
-  // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
-  // "REL LOCK TO PEER" << endl <<
-  // "lock_addr: " << lock_addr << endl <<
-  // "lockMeta: " << lm_bits << endl <<
-  // "peerSpinLoc: " << peerSpinLoc << "\n\n";
+  cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
+  "REL LOCK TO PEER" << endl <<
+  "lock_addr: " << lock_addr << endl <<
+  "lockMeta: " << lm_bits << endl <<
+  "peerSpinLoc: " << peerSpinLoc << "\n\n";
   assert(peerSpinLoc.nodeID != nodeID);
 
   #ifdef RAND_FAAD
@@ -792,6 +792,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   #endif
 
   // TODO: ?
+  *lmbuf = 1;
   if (async) {
     dsm->write_lm(lmbuf, peerSpinLoc, sizeof(uint64_t), false, nullptr);
   } else {
@@ -806,98 +807,98 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
 
   #endif
 
-  #ifdef CN_AWARE
-  // *curr_cas_buffer = 0;
-  cerr << "NODE " << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << endl <<
-  "*nextloc = " << *(GLockAddress *) dsm->getNextLoc(lock_addr) << "\n" <<
-  "version_addr = " << version_addr << "\n\n";
+  // #ifdef CN_AWARE
+  // // *curr_cas_buffer = 0;
+  // cerr << "NODE " << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << endl <<
+  // "*nextloc = " << *(GLockAddress *) dsm->getNextLoc(lock_addr) << "\n" <<
+  // "version_addr = " << version_addr << "\n\n";
 
-  if (!dsm->cas_peer_sync(next_gaddr, version_addr.val, 0, curr_cas_buffer, cxt)) {
+  // if (!dsm->cas_peer_sync(next_gaddr, version_addr.val, 0, curr_cas_buffer, cxt)) {
     
-    GLockAddress next_addr = *(GLockAddress *) curr_cas_buffer;
+  //   GLockAddress next_addr = *(GLockAddress *) curr_cas_buffer;
 
-    expected_addr = next_addr;
-    cerr << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << ": OTHER THREAD WAITING, lock addr: " << lock_addr << "\n" << 
-    "next_addr: " << next_addr << "\n\n";
-    assert(next_gaddr.nodeID !=  next_addr.nodeID);
+  //   expected_addr = next_addr;
+  //   cerr << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << ": OTHER THREAD WAITING, lock addr: " << lock_addr << "\n" << 
+  //   "next_addr: " << next_addr << "\n\n";
+  //   assert(next_gaddr.nodeID !=  next_addr.nodeID);
 
-    rs[0].source = (uint64_t)page_buffer;
-    rs[0].dest = page_addr;
-    rs[0].size = page_size;
-    rs[0].is_on_chip = false;
-    rs[0].is_peer = from_peer;
+  //   rs[0].source = (uint64_t)page_buffer;
+  //   rs[0].dest = page_addr;
+  //   rs[0].size = page_size;
+  //   rs[0].is_on_chip = false;
+  //   rs[0].is_peer = from_peer;
 
-    rs[1].source = (uint64_t)dsm->get_rbuf(coro_id).get_cas_buffer();
-    rs[1].dest = lock_addr;
-    rs[1].size = sizeof(uint64_t);
-    rs[1].is_on_chip = true;
-    *(uint64_t *)rs[1].source = next_addr.val;
+  //   rs[1].source = (uint64_t)dsm->get_rbuf(coro_id).get_cas_buffer();
+  //   rs[1].dest = lock_addr;
+  //   rs[1].size = sizeof(uint64_t);
+  //   rs[1].is_on_chip = true;
+  //   *(uint64_t *)rs[1].source = next_addr.val;
 
-    // rs[2].source = (uint64_t)dsm->get_rbuf(coro_id).get_page_buffer();
-    // rs[2].dest = next_spinloc;
-    // rs[2].size = sizeof(uint64_t);
-    // rs[2].is_on_chip = false;
-    // *(uint64_t *)rs[2].source = 1;
+  //   // rs[2].source = (uint64_t)dsm->get_rbuf(coro_id).get_page_buffer();
+  //   // rs[2].dest = next_spinloc;
+  //   // rs[2].size = sizeof(uint64_t);
+  //   // rs[2].is_on_chip = false;
+  //   // *(uint64_t *)rs[2].source = 1;
 
-    if (async) {
-      dsm->write_batch(rs, 2, false);
-    } else {
-      dsm->write_batch_sync(rs, 1, cxt);
-    }
+  //   if (async) {
+  //     dsm->write_batch(rs, 2, false);
+  //   } else {
+  //     dsm->write_batch_sync(rs, 1, cxt);
+  //   }
 
-    if (!dsm->cas_dm_sync(lock_addr, next_gaddr.val, next_addr.val, cas_buffer, cxt)) {
-      Debug::notifyError("FAILED TO CAS MN FOR CN HO");
-      cerr << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << " | lock addr: " << lock_addr << "\n" << 
-      "next_addr: " << next_addr << endl <<
-      "next_gaddr: " << next_gaddr << endl <<
-      "*cas_buffer: " << *(GLockAddress*) cas_buffer << "\n\n";
-      exit(1);
-    }
+  //   if (!dsm->cas_dm_sync(lock_addr, next_gaddr.val, next_addr.val, cas_buffer, cxt)) {
+  //     Debug::notifyError("FAILED TO CAS MN FOR CN HO");
+  //     cerr << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << " | lock addr: " << lock_addr << "\n" << 
+  //     "next_addr: " << next_addr << endl <<
+  //     "next_gaddr: " << next_gaddr << endl <<
+  //     "*cas_buffer: " << *(GLockAddress*) cas_buffer << "\n\n";
+  //     exit(1);
+  //   }
 
-    // if (!dsm->cas_peer_sync(next_gaddr, next_addr.val, 0, cas_buffer, cxt)) {
-    //   Debug::notifyError("FAILED TO CAS OWN STATE TO 0\n");
-    //   cerr << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << " | lock addr: " << lock_addr << "\n" << 
-    //   "next_addr: " << next_addr << endl <<
-    //   "next_gaddr: " << next_gaddr << endl <<
-    //   "*cas_buffer: " << *(GLockAddress*) cas_buffer << "\n\n";
-    //   exit(1);
-    // }
+  //   // if (!dsm->cas_peer_sync(next_gaddr, next_addr.val, 0, cas_buffer, cxt)) {
+  //   //   Debug::notifyError("FAILED TO CAS OWN STATE TO 0\n");
+  //   //   cerr << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << " | lock addr: " << lock_addr << "\n" << 
+  //   //   "next_addr: " << next_addr << endl <<
+  //   //   "next_gaddr: " << next_gaddr << endl <<
+  //   //   "*cas_buffer: " << *(GLockAddress*) cas_buffer << "\n\n";
+  //   //   exit(1);
+  //   // }
     
-    // char* pbuffer = dsm->get_rbuf(coro_id).get_page_buffer();
-    // // *(uint64_t *) pbuffer = next_gaddr.val;
-    // *(uint64_t *) pbuffer = 0;
+  //   // char* pbuffer = dsm->get_rbuf(coro_id).get_page_buffer();
+  //   // // *(uint64_t *) pbuffer = next_gaddr.val;
+  //   // *(uint64_t *) pbuffer = 0;
 
-    cerr << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << ": OTHER THREAD ENQ\n" <<
-    // "pbuffer (gaddr) : " << *(GLockAddress *) pbuffer << endl <<
-    "nextloc gaddr = " << *(GLockAddress *) dsm->getNextLoc(lock_addr) << "\n\n";
-    // dsm->set_nextloc(GLockAddress::Null());
-    // dsm->write_sync(pbuffer, next_gaddr, sizeof(uint64_t), cxt);
+  //   cerr << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << ": OTHER THREAD ENQ\n" <<
+  //   // "pbuffer (gaddr) : " << *(GLockAddress *) pbuffer << endl <<
+  //   "nextloc gaddr = " << *(GLockAddress *) dsm->getNextLoc(lock_addr) << "\n\n";
+  //   // dsm->set_nextloc(GLockAddress::Null());
+  //   // dsm->write_sync(pbuffer, next_gaddr, sizeof(uint64_t), cxt);
 
-    dsm->wakeup_peer(next_addr, dsm->getMyThreadID());
+  //   dsm->wakeup_peer(next_addr, dsm->getMyThreadID());
 
-    releases_local_lock(lock_addr);
-    return;
-  }
-  // last_next_gaddr = GLockAddress::Null();
-  // cerr << "page_addr: " << page_addr << "\n\n";
-  // dsm->write_sync(page_buffer, page_addr, page_size, cxt);
+  //   releases_local_lock(lock_addr);
+  //   return;
+  // }
+  // // last_next_gaddr = GLockAddress::Null();
+  // // cerr << "page_addr: " << page_addr << "\n\n";
+  // // dsm->write_sync(page_buffer, page_addr, page_size, cxt);
 
-  // *cas_buf = 0;
-  // dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
-  if (!dsm->cas_dm_sync(lock_addr, next_gaddr.val, 0, cas_buffer, cxt)) {
-    Debug::notifyError("FAILED TO CAS MN SIMPLE RELEASE\n");
-    cerr << dsm->getMyNodeID() << ", lock addr: " << lock_addr << "\n" << 
-    "next_gaddr: " << next_gaddr << endl <<
-    "*cas_buffer: " << *(GLockAddress*) cas_buffer << "\n\n";
-    exit(1);
-  }
-  expected_addr = GLockAddress::Null();
-    cerr << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << ": REL LOCK TO MN\n" <<
-  "lock_addr: " << lock_addr << "\n\n"; 
+  // // *cas_buf = 0;
+  // // dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
+  // if (!dsm->cas_dm_sync(lock_addr, next_gaddr.val, 0, cas_buffer, cxt)) {
+  //   Debug::notifyError("FAILED TO CAS MN SIMPLE RELEASE\n");
+  //   cerr << dsm->getMyNodeID() << ", lock addr: " << lock_addr << "\n" << 
+  //   "next_gaddr: " << next_gaddr << endl <<
+  //   "*cas_buffer: " << *(GLockAddress*) cas_buffer << "\n\n";
+  //   exit(1);
+  // }
+  // expected_addr = GLockAddress::Null();
+  //   cerr << dsm->getMyNodeID() << ", " << dsm->getMyThreadID() << ": REL LOCK TO MN\n" <<
+  // "lock_addr: " << lock_addr << "\n\n"; 
 
-  releases_local_lock(lock_addr);
-  return;
-  #endif
+  // releases_local_lock(lock_addr);
+  // return;
+  // #endif
 
   timer.begin();
   
