@@ -81,6 +81,7 @@ LAT_COLS = [
 TP_COLS = [
 "tid",
 "loop_in_cs",
+"tp",
 "lock_acquires",
 "duration",
 "glock_tries",

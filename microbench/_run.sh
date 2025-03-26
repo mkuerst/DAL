@@ -33,7 +33,7 @@ pthread_so="$PWD/../litl2/lib/original/libpthreadinterpose_original.so"
 
 
 cn_tp_header="tid,\
-loop_in_cs,lock_acquires,duration,\
+loop_in_cs,tp,lock_acquires,duration,\
 glock_tries,handovers,handovers_data,array_size(B),\
 nodeID,run,lockNR,la,numa,cache_misses,c_ho,c_hod,\
 cnNR,mnNR,threadNR,maxHandover"
@@ -58,14 +58,14 @@ server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
 comm_prot=rdma
 
 # MICROBENCH INPUTS
-opts=("sherman" "litl" "shermanRfaa" "litlRfaa")
+opts=("shermanRfaa" "litlRfaa")
 
 microbenches=("empty_cs" "mlocks" "kvs")
 duration=10
 runNR=2
 mnNR=2
 zipfian=1
-nodeNRs=(1 8)
+nodeNRs=(8)
 threadNRs=(16)
 lockNRs=(8 128 1024)
 bench_idxs=(2)

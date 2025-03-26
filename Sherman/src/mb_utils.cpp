@@ -267,6 +267,7 @@ void write_tp(char* tp_path, char* lock_path, int run, int lockNR, int nodeID, s
 		file << std::setfill('0') << std::setw(3) << t << ","
 			<< std::setw(8) << measurements.loop_in_cs[t] << ","
 			<< std::setw(8) << measurements.tp[t] << ","
+			<< std::setw(8) << measurements.lock_acqs[t] << ","
 			<< std::setw(3) << measurements.duration << ","
 			<< std::setw(8) << measurements.glock_tries[t] << ","
 			<< std::setw(8) << measurements.handovers[t] << ","
