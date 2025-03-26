@@ -285,9 +285,9 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
 
   if (lockMeta == 0) {
   // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
-  //   "LOCK FROM MN" << endl <<
-  //   "lock_addr: " << lock_addr << endl <<
-  //   "lockMeta: " << lm_bits << "\n\n";
+  // "LOCK FROM MN" << endl <<
+  // "lock_addr: " << lock_addr << endl <<
+  // "lockMeta: " << lm_bits << "\n\n";
 
     save_measurement(threadID, measurements.gwait_acq, 1, true);
     measurements.lock_acqs[lock_addr.nodeID * lockNR + lock_addr.offset / 8]++;
@@ -538,7 +538,7 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
 
   dsm->faa_dm_sync(lock_addr, add, cas_buf, nullptr);
   lockMeta = *cas_buf;
-  // bitset<64> lm_bits(lockMeta);
+  bitset<64> lm_bits(lockMeta);
   if (lockMeta == 1ULL << nodeID) {
     save_measurement(threadID, measurements.gwait_rel);
     // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
@@ -555,13 +555,14 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
   *(uint64_t *) lmbuf = 1;
   GlobalAddress peerSpinLoc = GlobalAddress::Null();
   peerSpinLoc.nodeID = peerNodeID;
-  peerSpinLoc.offset = (lock_addr.nodeID * dsm->getLmSize()) + lock_addr.offset;
+  // peerSpinLoc.offset = (lock_addr.nodeID * dsm->getLmSize()) + lock_addr.offset;
+  peerSpinLoc.offset = (lock_addr.nodeID * lockNR * 8) + lock_addr.offset;
 
-  // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
-  // "REL LOCK TO PEER" << endl <<
-  // "lock_addr: " << lock_addr << endl <<
-  // "lockMeta: " << lm_bits << endl <<
-  // "peerSpinLoc: " << peerSpinLoc << "\n\n";
+  cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
+  "REL LOCK TO PEER" << endl <<
+  "lock_addr: " << lock_addr << endl <<
+  "lockMeta: " << lm_bits << endl <<
+  "peerSpinLoc: " << peerSpinLoc << "\n\n";
   assert(peerSpinLoc.nodeID != nodeID);
 
   #ifdef RAND_FAAD
@@ -742,13 +743,14 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   *(uint64_t *) lmbuf = 1;
   GlobalAddress peerSpinLoc = GlobalAddress::Null();
   peerSpinLoc.nodeID = peerNodeID;
-  peerSpinLoc.offset = (lock_addr.nodeID * dsm->getLmSize()) + lock_addr.offset;
+  // peerSpinLoc.offset = (lock_addr.nodeID * dsm->getLmSize()) + lock_addr.offset;
+  peerSpinLoc.offset = (lock_addr.nodeID * lockNR * 8) + lock_addr.offset;
 
-  // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
-  // "REL LOCK TO PEER" << endl <<
-  // "lock_addr: " << lock_addr << endl <<
-  // "lockMeta: " << lm_bits << endl <<
-  // "peerSpinLoc: " << peerSpinLoc << "\n\n";
+  cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
+  "REL LOCK TO PEER" << endl <<
+  "lock_addr: " << lock_addr << endl <<
+  "lockMeta: " << lm_bits << endl <<
+  "peerSpinLoc: " << peerSpinLoc << "\n\n";
   assert(peerSpinLoc.nodeID != nodeID);
 
   #ifdef RAND_FAAD
@@ -799,6 +801,11 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     dsm->write_lm_sync(lmbuf, peerSpinLoc, sizeof(uint64_t), nullptr);
     save_measurement(threadID, measurements.gwait_rel);
   }
+  cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
+  "WOKE UP PEER" << endl <<
+  "lock_addr: " << lock_addr << endl <<
+  "peerSpinLoc: " << peerSpinLoc << endl <<
+  "lockMeta: " << lm_bits << "\n\n";
   // dsm->write_lm_sync(lmbuf, peerSpinLoc, sizeof(uint64_t), nullptr);
   measurements.c_ho[threadID]++;
 
