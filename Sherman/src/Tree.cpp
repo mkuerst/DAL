@@ -556,7 +556,7 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
   GlobalAddress peerSpinLoc = GlobalAddress::Null();
   peerSpinLoc.nodeID = peerNodeID;
   // peerSpinLoc.offset = (lock_addr.nodeID * dsm->getLmSize()) + lock_addr.offset;
-  peerSpinLoc.offset = (lock_addr.nodeID * lockNR * 8) + lock_addr.offset;
+  peerSpinLoc.offset = (lock_addr.nodeID * dsm->getLmSize()) + lock_addr.offset;
 
   cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
   "REL LOCK TO PEER" << endl <<
@@ -744,7 +744,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   GlobalAddress peerSpinLoc = GlobalAddress::Null();
   peerSpinLoc.nodeID = peerNodeID;
   // peerSpinLoc.offset = (lock_addr.nodeID * dsm->getLmSize()) + lock_addr.offset;
-  peerSpinLoc.offset = (lock_addr.nodeID * lockNR * 8) + lock_addr.offset;
+  peerSpinLoc.offset = (lock_addr.nodeID * dsm->getLmSize()) + lock_addr.offset;
 
   cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
   "REL LOCK TO PEER" << endl <<
