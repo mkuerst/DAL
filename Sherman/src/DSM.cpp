@@ -66,7 +66,7 @@ DSM::DSM(const DSMConfig &conf)
   memset((char *)rlockAddr, 0, conf.chipSize * 1024);
   #endif
 
-  lockMetaAddr = (uint64_t) malloc(conf.mnNR * conf.lockMetaSize * 1024);
+  lockMetaAddr = (uint64_t) hugePageAlloc(conf.mnNR * conf.lockMetaSize * 1024);
   memset((char *)lockMetaAddr, 0, conf.mnNR * conf.lockMetaSize * 1024);
 
   // peerAddr = (uint64_t) malloc(totalPeerSize);
@@ -101,7 +101,8 @@ DSM::~DSM() {}
 void DSM::free_dsm() {
   munmap((void*)baseAddr, conf.dsmSize * define::GB + totalPeerSize);
   munmap((void*)cache.data, cache.size * define::GB);
-  free((void* )lockMetaAddr);
+  munmap((void*)lockMetaAddr, conf.mnNR * conf.lockMetaSize * 1024);
+  // free((void* )lockMetaAddr);
 
   
   if (myNodeID < conf.mnNR) {
