@@ -644,25 +644,26 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
                                  GlobalAddress lock_addr, uint64_t tag,
                                  CoroContext *cxt, int coro_id, bool async, int level) {
 
-  curr_lock_node->page_buffer = page_buffer;
-  curr_lock_node->page_addr = page_addr;
-  curr_lock_node->level = level;
-  curr_lock_node->size = page_size;
-  curr_lock_node->write_back = true;
 
   #ifdef HANDOVER
   bool hand_over_other = can_hand_over(lock_addr);
   if (hand_over_other) {
     timer.begin();
+    curr_lock_node->page_buffer = page_buffer;
+    curr_lock_node->page_addr = page_addr;
+    curr_lock_node->level = level;
+    curr_lock_node->size = page_size;
+    curr_lock_node->safe = !async;
+    curr_lock_node->write_back = true;
     #ifndef HANDOVER_DATA
     dsm->write_sync(page_buffer, page_addr, page_size, cxt, from_peer);
+    curr_lock_node->write_back = false;
     save_measurement(threadID, measurements.data_write);
     #endif
-    if (page_size < kLeafPageSize) {
-      dsm->write_sync(page_buffer, page_addr, page_size, cxt, from_peer);
-      save_measurement(threadID, measurements.data_write);
-      curr_lock_node->write_back = false;
-    }
+    // if (page_size < kLeafPageSize) {
+    //   dsm->write_sync(page_buffer, page_addr, page_size, cxt, from_peer);
+    //   save_measurement(threadID, measurements.data_write);
+    // }
     releases_local_lock(lock_addr);
     // DEB("[%d.%d] unlocked global lock for handover: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), curr_lock_addr.offset);
     return;
@@ -983,7 +984,6 @@ bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
     curr_lock_node->page_addr.val == page_addr.val && 
     page->hdr.level == level;
   if (!handover || !same_address || curr_lock_node->unlock_addr) {
-    curr_lock_node->unlock_addr = false;
     // cerr << "********************************************" << endl;
     // cerr << "NO DATA HO: " << "[" + to_string(dsm->getMyNodeID()) + "." + to_string(dsm->getMyThreadID()) + "]" << endl;
     // cerr << "lock_addr: " << lock_addr << endl; 
@@ -991,11 +991,13 @@ bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
     // cerr << "page_buffer: " << (uintptr_t) *page_buffer << " = " << (uint64_t) **page_buffer << endl;
     // cerr << "********************************************" << endl;
 
-    if (!same_address && curr_lock_node->write_back && handover) {
+    if (!same_address && curr_lock_node->write_back && handover && !curr_lock_node->unlock_addr) {
       timer.begin();
       dsm->write_sync(curr_lock_node->page_buffer, curr_lock_node->page_addr, curr_lock_node->size);
       save_measurement(threadID, measurements.data_write);
     }
+    curr_lock_node->unlock_addr = false;
+    curr_lock_node->safe = false;
 
     timer.begin();
     // *page_buffer = dsm->get_rbuf(0).get_page_buffer();
@@ -1019,6 +1021,9 @@ bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
       measurements.c_hod[threadID]++;
     }
     #endif
+
+    curr_lock_node->unlock_addr = false;
+    curr_lock_node->safe = false;
     return true;
   }
   #endif

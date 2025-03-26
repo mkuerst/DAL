@@ -41,6 +41,7 @@ struct LocalLockNode {
     uint64_t size = 0;
     bool write_back = false;
     bool unlock_addr = false;
+    bool safe = false;
     LitlLock litl_lock;
 
     void debug() const {

@@ -94,7 +94,7 @@ void Keeper::serverConnect() {
     char *serverNumStr = memcached_get(memc, SERVER_NUM_KEY,
                                        strlen(SERVER_NUM_KEY), &l, &flags, &rc);
     if (rc != MEMCACHED_SUCCESS) {
-      fprintf(stderr, "Server %d Counld't get serverNum: %s, retry\n", myNodeID,
+      fprintf(stderr, "Server %d couldn't get serverNum: %s, retry\n", myNodeID,
               memcached_strerror(memc, rc));
       continue;
     }
