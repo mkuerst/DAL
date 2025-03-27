@@ -22,6 +22,7 @@ all: target
 target:
 	@echo "USING CYCLE_PER_US = $(CYCLE_PER_US) MHz"
 	@echo "USING CACHELINE_SIZE = $(CACHELINE_SIZE) Bytes"
+	echo "" > ../litl2/lib/original/shermanLock
 
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_sherman.a -o microbench_sherman ${FLAGS}
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_shermanHo.a -o microbench_shermanHo ${FLAGS}
@@ -71,7 +72,7 @@ target:
 # g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_litlHod.a -o appbench_litlHod ${FLAGS}
 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHod.a -o appbench_shermanHod ${FLAGS}
 
-# g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_sherman.a -o microbench_sherman ${FLAGS}
+	g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_sherman.a -o microbench_sherman ${FLAGS}
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_shermanHod.a -o microbench_shermanHod ${FLAGS}
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_litl.a -o microbench_litl ${FLAGS}
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_litlHod.a -o microbench_litlHod ${FLAGS}

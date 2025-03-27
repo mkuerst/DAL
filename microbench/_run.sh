@@ -58,17 +58,18 @@ server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
 comm_prot=rdma
 
 # MICROBENCH INPUTS
-opts=("shermanHod")
+opts=("sherman" "shermanHod" "litl" "litlHod")
+opts=(".")
 
 microbenches=("empty_cs" "mlocks" "kvs")
-duration=10
+duration=1
 runNR=1
 mnNR=2
 zipfian=1
-nodeNRs=(4)
+nodeNRs=(1)
 threadNRs=(16)
-lockNRs=(1024)
-bench_idxs=(2)
+lockNRs=(8)
+bench_idxs=(1)
 pinnings=(1)
 chipSize=128
 dsmSize=16
@@ -80,9 +81,6 @@ cn_lat_dir="$PWD/results/lat"
 cn_lock_dir="$PWD/results/ldist"
 
 sudo rm -rf logs/
-mkdir -p results/plots/lat/
-mkdir -p results/plots/tp/
-mkdir -p results/plots/ldist/
 mkdir -p $cn_tp_dir
 mkdir -p $cn_lat_dir
 mkdir -p $cn_lock_dir
@@ -90,24 +88,43 @@ sudo chown -R mkuerst:dal-PG0 /nfs/
 
 for opt in ${opts[@]}
 do
-    if echo "$opt" | grep -q "sherman"; then
+    for impl_dir in "$BASE"/original/*
+    do
+        impl=$(basename $impl_dir)
+        impl=${impl%.so}
+        llock_so=${llock_libs_dir}${impl}.so
         for mode in ${bench_idxs[@]}
         do
+            opt="${opt//./}"
+            litl_opt=litl$opt
+            sherman_opt=sherman$opt
+            opt=$litl_opt
+            if echo "$impl" | grep -q "shermanLock"; then
+                llock_so=""
+                opt=$sherman_opt
+            fi
+
             mb_exe="$PWD/microbench_$opt"
             microb="${microbenches[$mode]}"
             if echo "$microb" | grep -q "kvs"; then
                 mb_exe="$PWD/appbench_$opt"
             fi
 
-            log_dir="$PWD/logs/$comm_prot/$microb/$opt/sherman"
-            mkdir -p "$log_dir"
 
-            opt="${opt//sherman/.}"
-            res_suffix="$comm_prot"_"$microb"_shermanLock_"$opt"
+            impl="${impl//_/.}"
+            opt="${opt//litl/}"
+            opt="${opt//sherman/}"
+            res_suffix="$comm_prot"_"$microb"_"$impl"_"$opt"
             cn_tp_file="$cn_tp_dir"/"$res_suffix".csv
             cn_lat_file="$cn_lat_dir"/"$res_suffix".csv
+
             echo $cn_tp_header > "$cn_tp_file"
             echo $cn_lat_header > "$cn_lat_file"
+
+
+
+            log_dir="$PWD/logs/$comm_prot/$microb/$opt/$impl"
+            mkdir -p "$log_dir"
 
             for nodeNR in ${nodeNRs[@]}
             do
@@ -124,10 +141,10 @@ do
                             for ((run = 0; run < runNR; run++)); do
                                 cn_lock_file="$cn_lock_dir"/"$res_suffix"_nodeNR"$nodeNR"_threadNR"$threadNR"_mnNR"$mnNR"_lockNR"$lockNR"_NUMA"$pinning"_mHo"$maxHandover"_r"$run".csv
                                 > "$cn_lock_file"
-                                echo "BENCHMARK $microb | sherman$opt $impl | $nodeNR Ns | $threadNR Ts | $lockNR Ls | $duration s | RUN $run"
-                                echo "NUMA $pinning | DSM $dsmSize GB | $mnNR MNs | chipSize $chipSize KB |"
+                                echo "BENCHMARK $microb | $opt $impl | $nodeNR Ns | $threadNR Ts | $lockNR Ls | $duration s | RUN $run"
+                                echo "pinning $pinning | DSM $dsmSize GB | $mnNR MNs | chipSize $chipSize KB |"
                                 clush --hostfile <(head -n $nodeNR ./nodes.txt) \
-                                "sudo $mb_exe \
+                                "sudo LD_PRELOAD=$llock_so $mb_exe \
                                 -t $threadNR \
                                 -d $duration \
                                 -m $mode \
@@ -151,78 +168,7 @@ do
                 done
             done
         done
-    else
-        for impl_dir in "$BASE"/original/*
-        do
-            impl=$(basename $impl_dir)
-            impl=${impl%.so}
-            llock_so=${llock_libs_dir}${impl}.so
-            for mode in ${bench_idxs[@]}
-            do
-                mb_exe="$PWD/microbench_$opt"
-                microb="${microbenches[$mode]}"
-                if echo "$microb" | grep -q "kvs"; then
-                    mb_exe="$PWD/appbench_$opt"
-                fi
-
-                impl="${impl//_/.}"
-                opt="${opt//litl/.}"
-                res_suffix="$comm_prot"_"$microb"_"$impl"_"$opt"
-                cn_tp_file="$cn_tp_dir"/"$res_suffix".csv
-                cn_lat_file="$cn_lat_dir"/"$res_suffix".csv
-
-                echo $cn_tp_header > "$cn_tp_file"
-                echo $cn_lat_header > "$cn_lat_file"
-
-
-
-                log_dir="$PWD/logs/$comm_prot/$microb/$opt/$impl"
-                mkdir -p "$log_dir"
-
-                for nodeNR in ${nodeNRs[@]}
-                do
-                    for threadNR in ${threadNRs[@]}
-                    do
-
-                        log_file="$log_dir"/nodeNR$nodeNR"_threadNR"$threadNR.log
-
-                        for lockNR in ${lockNRs[@]}
-                        do
-                            for pinning in ${pinnings[@]}
-                            do
-
-                                for ((run = 0; run < runNR; run++)); do
-                                    cn_lock_file="$cn_lock_dir"/"$res_suffix"_nodeNR"$nodeNR"_threadNR"$threadNR"_mnNR"$mnNR"_lockNR"$lockNR"_NUMA"$pinning"_mHo"$maxHandover"_r"$run".csv
-                                    > "$cn_lock_file"
-                                    echo "BENCHMARK $microb | $opt $impl | $nodeNR Ns | $threadNR Ts | $lockNR Ls | $duration s | RUN $run"
-                                    echo "pinning $pinning | DSM $dsmSize GB | $mnNR MNs | chipSize $chipSize KB |"
-                                    clush --hostfile <(head -n $nodeNR ./nodes.txt) \
-                                    "sudo LD_PRELOAD=$llock_so $mb_exe \
-                                    -t $threadNR \
-                                    -d $duration \
-                                    -m $mode \
-                                    -n $nodeNR \
-                                    -f $cn_tp_file \
-                                    -g $cn_lat_file \
-                                    -h $cn_lock_file \
-                                    -l $lockNR \
-                                    -r $run \
-                                    -s $mnNR \
-                                    -z $zipfian \
-                                    -p $pinning \
-                                    -c $chipSize \
-                                    -y $dsmSize \
-                                    2>&1" 
-                                    # 2>> $log_file"
-                                    cleanup
-                                done
-                            done
-                        done
-                    done
-                done
-            done
-        done
-    fi
+    done
 done
 
 pkill -u $USER ssh-agent 
