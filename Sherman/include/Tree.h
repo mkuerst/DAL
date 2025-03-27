@@ -41,7 +41,7 @@ struct LocalLockNode {
     uint64_t size = 0;
     bool write_back = false;
     bool unlock_addr = false;
-    bool safe = false;
+    bool stale_cache = false;
     LitlLock litl_lock;
 
     void debug() const {
@@ -199,7 +199,7 @@ private:
                         CoroContext *cxt, int coro_id);
     void unlock_addr(GlobalAddress lock_addr, uint64_t tag, uint64_t *buf,
                     CoroContext *cxt, int coro_id, bool async, char *page_buf=nullptr, GlobalAddress page_addr=GlobalAddress::Null(),
-                    int level = 0);
+                    int level = 0, bool stale_cache=false);
     void write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
                                 int page_size, uint64_t *cas_buffer,
                                 GlobalAddress lock_addr, uint64_t tag,
