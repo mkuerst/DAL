@@ -83,6 +83,10 @@ sudo rm -rf logs/
 mkdir -p $cn_tp_dir
 mkdir -p $cn_lat_dir
 mkdir -p $cn_lock_dir
+mkdir -p $PWD/results/plots/lat
+mkdir -p $PWD/results/plots/tp
+mkdir -p $PWD/results/plots/ldist
+
 sudo chown -R mkuerst:dal-PG0 /nfs/
 
 for opt in ${opts[@]}

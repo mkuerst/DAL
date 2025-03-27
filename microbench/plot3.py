@@ -14,11 +14,11 @@ def plot_tp_lat(DATA, comm_prot="rdma", opts=["spinlock"], mbs=["kvs"],
         if not (DATA["ldist"]["mb"] == mb).any():
             continue
 
-        LatPlotsNR = len(lat_inc)
-        tpPlotsNR = len(tp_inc)
+        LatPlotsNR = len(lat_incs)
+        tpPlotsNR = len(tp_incs)
 
-        fig_lat, ax_lat, ax_lat2 = make_multiplots(lat_inc)
-        fig_tp, ax_tp, ax_tp2 = make_multiplots(tp_inc)
+        fig_lat, ax_lat, ax_lat2 = make_multiplots(lat_incs)
+        fig_tp, ax_tp, ax_tp2 = make_multiplots(tp_incs)
 
         bw_cns = 0.9 / len(cnNRs)
         bw_mlocks = 0.9 /len(lockNRs)
@@ -46,6 +46,12 @@ def plot_tp_lat(DATA, comm_prot="rdma", opts=["spinlock"], mbs=["kvs"],
                                             if not (DATA["tp"]["impl"] == impl).any():
                                                 continue
 
+                                            position += 1
+                                            x_positions.append(position)
+                                            x_labels.append(impl+f"_{opt}")
+
+                                            # mnNR = mnNR if mnNR < cnNR else cnNR
+                                            lock_idx = 0
                                             for lockNR in lockNRs:
                                                 filter_values = {
                                                     "comm_prot": comm_prot,
@@ -62,22 +68,20 @@ def plot_tp_lat(DATA, comm_prot="rdma", opts=["spinlock"], mbs=["kvs"],
                                                 query_str = " and ".join([f"{col} == @filter_values['{col}']" for col in filter_values])
                                                 df_tp = DATA["tp"].query(query_str)
                                                 df_lat = DATA["lat"].query(query_str)
-                                                if df_tp.empty() or df_lat.empty():
+                                                if df_tp.empty or df_lat.empty:
                                                     continue
 
-                                                position += 1
-                                                x_positions.append(position)
-                                                x_labels.append(impl+f"_{opt}")
 
                                                 for i,lat_inc in enumerate(lat_incs):
                                                     add_lat(ax_lat[i], ax_lat2[i], df_lat, df_tp, position+mlocks_offsets[lockNR], 
-                                                            comm_prot, bw_mlocks, lat_inc, mlocks_hatches, lockNR, lockNR)
+                                                            comm_prot, bw_mlocks, lat_inc, mlocks_hatches, lockNR)
                                                 for i,tp_inc in enumerate(tp_incs):
                                                     add_box(ax_tp[i], ax_tp2[i], position+mlocks_offsets[lockNR],
-                                                            df_tp, lockNR, bw_mlocks, mlocks_hatches, lockNR,
-                                                            tp_inc=tp_inc, inc_fair=tp_inc == "lock_acquires")
+                                                            df_tp, lock_idx, bw_mlocks, mlocks_hatches,
+                                                            tp_inc=tp_inc, inc_fair=tp_inc == "tp" or tp_inc == "la")
+                                                lock_idx += 1
 
-                                        postion += 0.5
+                                        position += 0.5
                                     position += 0.5
 
                                     if num_vlines < max_vlines:
@@ -98,8 +102,7 @@ def plot_tp_lat(DATA, comm_prot="rdma", opts=["spinlock"], mbs=["kvs"],
                                     save_lat_figs(ax_lat[i], ax_lat2[i], fig_lat[i],
                                             x_positions, x_labels, comm_prot, 
                                             cnNR=cnNR, mnNR=mnNR, threadNR=threadNR, numa=numa, maxHo=mHo, mb=mb,
-                                            clients=comp_nodes,
-                                            nthreads=threadNRs, include_metrics=lat_incs[i], 
+                                            clients=comp_nodes, include_metrics=lat_incs[i], 
                                             hatches=mlocks_hatches, hatch_categories=mlocks_hatch_categories,
                                             include_hatch_keys=lockNRs, log=log[i], latplot_idx=i)
 
@@ -110,7 +113,7 @@ def plot_tp_lat(DATA, comm_prot="rdma", opts=["spinlock"], mbs=["kvs"],
                                     save_tp_figs(ax_tp[i], ax_tp2[i], fig_tp[i],
                                             x_positions, x_labels, comm_prot, clients=comp_nodes,
                                             cnNR=cnNR, mnNR=mnNR, threadNR=threadNR, numa=numa, maxHo=mHo, mb=mb,
-                                            nthreads=threadNRs, include_metrics=tp_inc,
+                                            include_metrics=tp_inc,
                                             hatches=mlocks_hatches, hatch_categories=mlocks_hatch_categories,
                                             include_hatch_keys=lockNRs, log=0, t=tp_inc, y1=y1, y2=y2)
 
@@ -150,8 +153,8 @@ def plot_ldist(DATA, opts=[], cnNRs=[], lockNRs=[], threadNRs=[], mnNRs=[1], pin
                                                     DLDIST = DLDIST["dist"].to_numpy()
 
                                                     if DLDIST.size > 0:
-                                                        num_locks = mnNR*lockNR if mnNR <= cnNR else cnNR*lockNR
-                                                        DLDIST = DLDIST[:num_locks]
+                                                        # num_locks = mnNR*lockNR if mnNR <= cnNR else cnNR*lockNR
+                                                        DLDIST = DLDIST[:lockNR]
                                                         plt.figure(figsize=(12, 6))
                                                         plt.bar(np.arange(len(DLDIST)), DLDIST, color="blue", alpha=0.6)
                                                         plt.xlabel("Lock Index")
@@ -169,24 +172,24 @@ read_data(DATA, RES_DIRS)
 plot_tp_lat(
                 DATA, 
                 mbs=["kvs"],
-                opts=['.'],
-                cnNRs=[4],
-                lockNRs=[32],
+                opts=['.', 'Hod', 'Rfaa'],
+                cnNRs=[1, 4],
+                lockNRs=[128, 1024],
                 threadNRs=[16],
-                mnNRs=[4],
+                mnNRs=[2],
                 mHos=[16],
                 pinnings=[1],
                 lat_incs = [["lwait_acq"], ["gwait_acq", "gwait_rel"], ["data_read", "data_write"]],
-                tp_incs=["lock_acquires", "glock_tries", "handovers_data", "cache_misses"],
+                tp_incs=["la", "tp", "glock_tries", "handovers_data", "cache_misses"],
                 log=[1,1,0],
                 )
 
 # plot_ldist(DATA,
 #             opts=['.'],
 #             cnNRs=[4],
-#             lockNRs=[32],
+#             lockNRs=[128, 1024],
 #             threadNRs=[16],
-#             mnNRs=[4],
+#             mnNRs=[2],
 #             mHos=[16],
 #             pinnings=[1],
 #            )

@@ -199,10 +199,12 @@ MICROBENCHES = [ "empty_cs", "mlocks", "kvs"]
 STATS = ["tp", "lat", "ldist"]
 
 tp_axis_titles = {
-    "lock_acquires" : ("TP (ops/s)", "Jain's Fairness Index"),
+    # "lock_acquires" : ("TP (lock acquistions/s)", "Jain's Fairness Index"),
+    "la" : ("TP (lock acquistions/s)", "Jain's Fairness Index"),
+    "tp" : ("TP (ops/s)", "Jain's Fairness Index"),
     "glock_tries": ("[GLock CASes]/[Lock Acquisition]", ""),
     "handovers": ("Handovers", ""),
-    "handovers_data": ("Handovers w/ data", ""),
+    "handovers_data": ("[Handovers w/ data]/[Lock Acquistions]", ""),
     "cache_misses": ("Cache Misses", "")
 }
 
@@ -232,8 +234,9 @@ lat_bar_colors = {
 # }
 median_colors = {"gwait_acq": "silver", "lwait_acq": "orange", "gwait_rel": "violet", "lwait_rel": "cyan", "lock_hold": "purple"}
 node_colors = {"empty_cs1n": "gray", "empty_cs2n": "black", "mem1n": "gray", "mem2n": "black"}
+lock_colors = ["#1f77b4", "#ff7f0e", "#2ca02c"]
 client_hatches = {1:'/', 2:'\\', 3:'|', 5:'-', 4:'+'}
-mlocks_hatches = {1:'', 4: '',  16: '', 32: '', 128:'', 256:'', 1024:'', 512:'', 16384: ''}
+mlocks_hatches = {1:'', 4: '', 8:'', 16: '', 32: '', 128:'', 256:'', 1024:'', 512:'', 16384: ''}
 
 FIG_X = 10
 FIG_Y = 6
@@ -260,13 +263,14 @@ def make_offset(candidates, bw):
        return {candidates[0]: -0.5*bw, candidates[1]: -1/6*bw, candidates[2]: 1/6*bw, candidates[3]: 0.5*bw} 
 
 def add_lat(ax, ax2, values_lat, values_tp, position, comm_prot, bar_width,
-            inc, hatches={}, hatch_key=0, lockNR=1):
+            inc, hatches={}, hatch_key=0):
     duration = values_tp["duration"].max() * DURATION_FACTOR
-    lock_acquires = values_tp.loc[values_tp["lockNR"] == lockNR, "lock_acquires"]
+    tp = values_tp["tp"]
     sum = 0
 
+    vl = values_lat.reset_index(drop=True)
     for measurement in inc:
-        mean = values_lat[0][measurement].mean() / LAT_FACTOR if (measurement in values_lat[0]) else 0
+        mean = vl.iloc[0][measurement].mean() / LAT_FACTOR if (measurement in vl.iloc[0]) else 0
         bars = ax.bar(position, mean, width=bar_width, bottom=sum,
             color=lat_bar_colors[measurement], label=f"{comm_prot} ({measurement})" if position == 1 else "",
             edgecolor="black"
@@ -275,23 +279,25 @@ def add_lat(ax, ax2, values_lat, values_tp, position, comm_prot, bar_width,
             for bar in bars:
                 bar.set_hatch(hatches[hatch_key])
 
-        ax.scatter([position], [values_lat[1][measurement].mean()],
+        ax.scatter([position], [vl.iloc[1][measurement].mean()],
                     marker="o", color=lat_bar_colors[measurement], edgecolor="black", zorder=3)
         sum += mean
         
-    ax2.scatter([position], [lock_acquires.mean() / duration], marker="x", color="black")
+    ax2.scatter([position], [tp.mean() / duration], marker="x", color="black")
 
 def add_box(ax1, ax2, position, values, hatch_idx, bw=0.3,
-            hatches=client_hatches, lockNR=1, tp_inc="lock_acquires", inc_fair=True):
+            hatches=client_hatches, tp_inc="la", inc_fair=True):
     duration = values["duration"].max() * DURATION_FACTOR
-    data = values.loc[values["lockNR"] == lockNR, tp_inc]
-    la = values.loc[values["lockNR"] == lockNR, "la"]
+    data = values[tp_inc]
+    la = values["la"]
 
-    if tp_inc == "lock_acquires":
+    if tp_inc == "tp" or tp_inc == "la":
         data = data / duration 
     if tp_inc == "glock_tries":
         data = data / la
     if tp_inc == "cache_misses":
+        data = data / la
+    if tp_inc == "handovers_data":
         data = data / la
 
     bps = ax1.boxplot(
@@ -302,9 +308,11 @@ def add_box(ax1, ax2, position, values, hatch_idx, bw=0.3,
         boxprops=dict(facecolor='none'),
         medianprops=dict(color='black'),
     )
-    if hatch_idx:
-        for bp in bps["boxes"]:
-            bp.set_hatch(hatches[hatch_idx])
+
+    for bp in bps["boxes"]:
+        # bp.set_hatch(hatches[hatch_idx])
+        bp.set_facecolor(lock_colors[hatch_idx])
+
     num_runs = values["run"].max() + 1
     if inc_fair:
         fairness = 0
@@ -348,9 +356,11 @@ def set_legend(ax1, hatches, hatch_categories,
                                 markeredgecolor='black',
                                 label="Jain's Fairness")
 
+    lock_idx = 0
     for key, value in hatches.items():
         if key in include_hatch_keys:
-            legend_lat[key] =  plt.Rectangle((0, 0), 10, 10, facecolor="white", hatch=value, edgecolor='black', label=hatch_categories[key])  
+            legend_lat[key] =  plt.Rectangle((0, 0), 10, 10, facecolor=lock_colors[lock_idx], hatch=value, edgecolor='black', label=hatch_categories[key])  
+            lock_idx += 1
 
     # ax1.legend(legend_lat.values(), [entry.get_label() for entry in legend_lat.values()],
     #         title="", loc="upper left", bbox_to_anchor=(1.05, 1))
@@ -475,6 +485,8 @@ def to_pd(DATA, dirs, COLS, stat):
         opt = opt.removeprefix('.')
         if opt == '':
             opt = '.' 
+        if 'node' in opt:
+            opt = '.'
         if stat == "ldist":
             matches = re.findall(r'([a-zA-Z]+NR?|NUMA|mHo|r)(\d+)', basename)
             nodeNR = int(matches[0][1])
