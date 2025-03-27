@@ -58,7 +58,7 @@ server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
 comm_prot=rdma
 
 # MICROBENCH INPUTS
-opts=("shermanRfaa")
+opts=("shermanHod")
 
 microbenches=("empty_cs" "mlocks" "kvs")
 duration=10
@@ -67,7 +67,7 @@ mnNR=2
 zipfian=1
 nodeNRs=(4)
 threadNRs=(16)
-lockNRs=(512)
+lockNRs=(1024)
 bench_idxs=(2)
 pinnings=(1)
 chipSize=128
