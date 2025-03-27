@@ -58,22 +58,23 @@ server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
 comm_prot=rdma
 
 # MICROBENCH INPUTS
-opts=("Rfaa")
+opts=("." "Hod" "Rfaa")
 
 microbenches=("empty_cs" "mlocks" "kvs")
 duration=10
-runNR=1
-mnNR=2
+runNR=3
 zipfian=1
+chipSize=128
+dsmSize=16
+
+mnNRs=(2 4)
 nodeNRs=(1 4)
 threadNRs=(16)
 lockNRs=(8 128 1024)
 bench_idxs=(2)
 pinnings=(1)
-chipSize=128
-dsmSize=16
-maxHandovers=(8)
-maxHandover=16
+mHos=(16)
+
 
 cn_tp_dir="$PWD/results/tp"
 cn_lat_dir="$PWD/results/lat"
@@ -140,31 +141,37 @@ do
                     do
                         for pinning in ${pinnings[@]}
                         do
-
-                            for ((run = 0; run < runNR; run++)); do
-                                cn_lock_file="$cn_lock_dir"/"$res_suffix"_nodeNR"$nodeNR"_threadNR"$threadNR"_mnNR"$mnNR"_lockNR"$lockNR"_NUMA"$pinning"_mHo"$maxHandover"_r"$run".csv
-                                > "$cn_lock_file"
-                                echo "BENCHMARK $microb | $opt $impl | $nodeNR Ns | $threadNR Ts | $lockNR Ls | $duration s | RUN $run"
-                                echo "pinning $pinning | DSM $dsmSize GB | $mnNR MNs | chipSize $chipSize KB |"
-                                clush --hostfile <(head -n $nodeNR ./nodes.txt) \
-                                "sudo LD_PRELOAD=$llock_so $mb_exe \
-                                -t $threadNR \
-                                -d $duration \
-                                -m $mode \
-                                -n $nodeNR \
-                                -f $cn_tp_file \
-                                -g $cn_lat_file \
-                                -h $cn_lock_file \
-                                -l $lockNR \
-                                -r $run \
-                                -s $mnNR \
-                                -z $zipfian \
-                                -p $pinning \
-                                -c $chipSize \
-                                -y $dsmSize \
-                                2>&1" 
-                                # 2>> $log_file"
-                                cleanup
+                            for mnNR in ${mnNRs[@]}
+                            do
+                                for mHo in ${mHos[@]}
+                                do
+                                    for ((run = 0; run < runNR; run++)); do
+                                        cn_lock_file="$cn_lock_dir"/"$res_suffix"_nodeNR"$nodeNR"_threadNR"$threadNR"_mnNR"$mnNR"_lockNR"$lockNR"_NUMA"$pinning"_mHo"$maxHandover"_r"$run".csv
+                                        > "$cn_lock_file"
+                                        echo "BENCHMARK $microb | $opt $impl | $nodeNR Ns | $threadNR Ts | $lockNR Ls | $duration s | RUN $run"
+                                        echo "pinning $pinning | DSM $dsmSize GB | $mnNR MNs | chipSize $chipSize KB |"
+                                        clush --hostfile <(head -n $nodeNR ./nodes.txt) \
+                                        "sudo LD_PRELOAD=$llock_so $mb_exe \
+                                        -t $threadNR \
+                                        -d $duration \
+                                        -m $mode \
+                                        -n $nodeNR \
+                                        -f $cn_tp_file \
+                                        -g $cn_lat_file \
+                                        -h $cn_lock_file \
+                                        -l $lockNR \
+                                        -r $run \
+                                        -s $mnNR \
+                                        -z $zipfian \
+                                        -p $pinning \
+                                        -c $chipSize \
+                                        -y $dsmSize \
+                                        -x $mHo \
+                                        2>&1" 
+                                        # 2>> $log_file"
+                                        cleanup
+                                    done
+                                done
                             done
                         done
                     done

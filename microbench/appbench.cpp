@@ -251,11 +251,11 @@ int main(int argc, char *argv[]) {
 
     dsm->registerThread();
     if (nodeID < mnNR) {
-        tree = new Tree(dsm, 0, lockNR, false);
+        tree = new Tree(dsm, 0, lockNR, false, maxHandover);
         dsm->barrier("mn-tree-init");
     } else {
         dsm->barrier("mn-tree-init");
-        tree = new Tree(dsm, 0, lockNR, false);
+        tree = new Tree(dsm, 0, lockNR, false, maxHandover);
     }
     if (nodeID == 0) {
         fprintf(stderr, "TREE INIT DONE\n");

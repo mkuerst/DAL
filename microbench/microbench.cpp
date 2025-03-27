@@ -319,7 +319,7 @@ argc, argv);
 
     /*LOCK INIT*/
     dsm->registerThread();
-    rlock = new Tree(dsm, 0, lockNR, true);
+    rlock = new Tree(dsm, 0, lockNR, true, maxHandover);
     dsm->resetThread();
     lock_acqs = (uint64_t *) malloc(nodeNR * lockNR * sizeof(uint64_t));
     lock_rels = (uint64_t *) malloc(nodeNR * lockNR * sizeof(uint64_t));

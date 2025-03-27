@@ -103,7 +103,7 @@ class LeafPage;
 class Tree {
 
 public:
-    Tree(DSM *dsm, uint16_t tree_id = 0, uint32_t lockNR = define::kNumOfLock, bool MB = false);
+    Tree(DSM *dsm, uint16_t tree_id = 0, uint32_t lockNR = define::kNumOfLock, bool MB = false, uint16_t mHo = define::kMaxHandOverTime);
 
     void insert(const Key &k, const Value &v, CoroContext *cxt = nullptr,
                 int coro_id = 0);
@@ -150,6 +150,7 @@ private:
     GlobalAddress root_ptr_ptr; // the address which stores root pointer;
     /*ADDED*/
     uint64_t rlockAddr;
+    uint16_t maxHandover = 16;
     /**/
 
     // static thread_local int coro_id;

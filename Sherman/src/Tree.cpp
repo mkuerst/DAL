@@ -39,10 +39,12 @@ thread_local GLockAddress Tree::expected_addr = GLockAddress::Null();
 thread_local uint64_t Tree::lockMeta = 0;
 thread_local bool Tree::from_peer = false;
 
+
 Measurements measurements;
 
 
-Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB) : dsm(dsm), tree_id(tree_id), lockNR(lockNR) {
+Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB, uint16_t mHo) : dsm(dsm), tree_id(tree_id), lockNR(lockNR), maxHandover(mHo)  {
+
   measurements.lock_hold = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
   memset(measurements.lock_hold, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
 
@@ -1984,7 +1986,7 @@ inline bool Tree::can_hand_over(GlobalAddress lock_addr) {
   if (ticket <= current + 1) { // no pending locks
     node.hand_over = false;
   } else {
-    node.hand_over = node.hand_time < define::kMaxHandOverTime;
+    node.hand_over = node.hand_time < maxHandover;
   }
   if (!node.hand_over) {
     node.hand_time = 0;
@@ -1993,7 +1995,7 @@ inline bool Tree::can_hand_over(GlobalAddress lock_addr) {
   return node.hand_over;
   #endif
 
-  node.hand_over = node.ticket_lock.load(std::memory_order_relaxed) > 0 && node.hand_time < define::kMaxHandOverTime;
+  node.hand_over = node.ticket_lock.load(std::memory_order_relaxed) > 0 && node.hand_time < maxHandover;
   if (!node.hand_over) {
     node.hand_time = 0;
   }

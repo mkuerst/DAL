@@ -9,7 +9,6 @@
 #include <arpa/inet.h>
 
 void bindCore(uint16_t core) {
-
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
     CPU_SET(core, &cpuset);
