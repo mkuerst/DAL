@@ -62,7 +62,7 @@ opts=("Hod")
 
 microbenches=("empty_cs" "mlocks" "kvs")
 duration=10
-runNR=1
+runNR=3
 zipfian=1
 chipSize=128
 dsmSize=16
@@ -147,7 +147,7 @@ do
                                 for mHo in ${mHos[@]}
                                 do
                                     for ((run = 0; run < runNR; run++)); do
-                                        cn_lock_file="$cn_lock_dir"/"$res_suffix"_nodeNR"$nodeNR"_threadNR"$threadNR"_mnNR"$mnNR"_lockNR"$lockNR"_NUMA"$pinning"_mHo"$maxHandover"_r"$run".csv
+                                        cn_lock_file="$cn_lock_dir"/"$res_suffix"_nodeNR"$nodeNR"_threadNR"$threadNR"_mnNR"$mnNR"_lockNR"$lockNR"_NUMA"$pinning"_mHo"$mHo"_r"$run".csv
                                         > "$cn_lock_file"
                                         echo "BENCHMARK $microb | $opt $impl | $nodeNR Ns | $threadNR Ts | $lockNR Ls | $duration s | RUN $run"
                                         echo "pinning $pinning | DSM $dsmSize GB | $mnNR MNs | chipSize $chipSize KB |"
