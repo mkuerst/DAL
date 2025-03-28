@@ -39,9 +39,10 @@ struct LocalLockNode {
     char *page_buffer = nullptr;
     GlobalAddress page_addr;
     uint64_t size = 0;
-    bool write_back = false;
+    int write_back = 0;
     bool unlock_addr = false;
     bool stale_cache = false;
+    bool safe = false;
     LitlLock litl_lock;
 
     void debug() const {
@@ -208,7 +209,7 @@ private:
     bool lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
                             int page_size, uint64_t *cas_buffer,
                             GlobalAddress lock_addr, uint64_t tag,
-                            CoroContext *cxt, int coro_id, int level = 0);
+                            CoroContext *cxt, int coro_id, int level = 0, bool internal_page = 0);
 
     bool page_search(GlobalAddress page_addr, const Key &k, SearchResult &result,
                     CoroContext *cxt, int coro_id, bool from_cache = false);
@@ -302,6 +303,8 @@ constexpr int kInternalCardinality = (kInternalPageSize - sizeof(Header) -
 constexpr int kLeafCardinality =
     (kLeafPageSize - sizeof(Header) - sizeof(uint8_t) * 2 - sizeof(uint64_t)) /
     sizeof(LeafEntry);
+// constexpr int kInternalCardinality = 32;
+// constexpr int kLeafCardinality = 32;
 
 class InternalPage {
 private:

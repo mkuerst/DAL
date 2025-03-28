@@ -92,7 +92,8 @@ sudo chown -R mkuerst:dal-PG0 /nfs/
 
 for opt in ${opts[@]}
 do
-    for impl_dir in "$BASE"/original/*
+    # for impl_dir in "$BASE"/original/*
+    for impl_dir in "$BASE"/../debug/*
     do
         impl=$(basename $impl_dir)
         impl=${impl%.so}
