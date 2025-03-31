@@ -547,11 +547,11 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
   // "add: " << bits << "\n\n";
   #ifdef HANDOVER_DATA
   if (curr_lock_node->write_back) {
-    timer.begin();
     dsm->write_sync(page_buf, page_addr, kLeafPageSize, nullptr);
     curr_lock_node->safe = false;
     curr_lock_node->write_back = 0;
     save_measurement(threadID, measurements.data_write);
+    timer.begin();
   }
   #endif
 
@@ -619,8 +619,8 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
     dsm->write_lm(lmbuf, peerSpinLoc, sizeof(uint64_t), false, nullptr);
   } else {
     dsm->write_lm_sync(lmbuf, peerSpinLoc, sizeof(uint64_t), nullptr);
-    save_measurement(threadID, measurements.gwait_rel);
   }
+  save_measurement(threadID, measurements.gwait_rel);
   // dsm->write_lm_sync(lmbuf, peerSpinLoc, sizeof(uint64_t), nullptr);
   measurements.c_ho[threadID]++;
   curr_lock_node->safe = false;
@@ -630,12 +630,6 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
   return;
   #endif
 
-  if (async) {
-    dsm->write_dm((char *)cas_buf, lock_addr, sizeof(uint64_t), false);
-  } else {
-    dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
-    save_measurement(threadID, measurements.gwait_rel);
-  }
 
   #ifdef HANDOVER_DATA
   if (curr_lock_node->write_back) {
@@ -646,6 +640,14 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
     save_measurement(threadID, measurements.data_write);
   }
   #endif
+
+  if (async) {
+    dsm->write_dm((char *)cas_buf, lock_addr, sizeof(uint64_t), false);
+  } else {
+    timer.begin();
+    dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
+    save_measurement(threadID, measurements.gwait_rel);
+  }
 
   releases_local_lock(lock_addr);
   // DEB("[%d.%d] unlocked global lock remotely: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), curr_lock_addr.offset);
@@ -842,9 +844,9 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     dsm->write_lm(lmbuf, peerSpinLoc, sizeof(uint64_t), false, nullptr);
   } else {
     dsm->write_lm_sync(lmbuf, peerSpinLoc, sizeof(uint64_t), nullptr);
+    save_measurement(threadID, measurements.gwait_rel);
   }
   // async release counts as we first faad the mn
-  save_measurement(threadID, measurements.gwait_rel);
   // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
   // "WOKE UP PEER" << endl <<
   // "lock_addr: " << lock_addr << endl <<
