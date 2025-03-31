@@ -1432,6 +1432,7 @@ re_read:
     }
     if (k < page->hdr.lowest) {
       assert(false);
+      page->debug();
       return false;
     }
     leaf_page_search(page, k, result);

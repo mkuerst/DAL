@@ -70,6 +70,7 @@ target:
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_litlRfaa.a -o microbench_litlRfaa ${FLAGS}
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_shermanRfaa.a -o microbench_shermanRfaa ${FLAGS}
 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_litlHod.a -o appbench_litlHod ${FLAGS}
+	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_litlHodRfaa.a -o appbench_litlHodRfaa ${FLAGS}
 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHod.a -o appbench_shermanHod ${FLAGS}
 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHodRfaa.a -o appbench_shermanHodRfaa ${FLAGS}
 

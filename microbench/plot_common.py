@@ -270,8 +270,13 @@ def add_lat(ax, ax2, values_lat, values_tp, position, comm_prot, bar_width,
 
     vl = values_lat.reset_index(drop=True)
     for measurement in inc:
-        mean = vl.iloc[0][measurement].mean() / LAT_FACTOR if (measurement in vl.iloc[0]) else 0
-        bars = ax.bar(position, mean, width=bar_width, bottom=sum,
+        # mean = vl.iloc[0][measurement].mean() / LAT_FACTOR if (measurement in vl.iloc[0]) else 0
+        filtered_rows = vl[vl["perc"] == 0.5]
+        perc50 = filtered_rows[measurement].mean() / LAT_FACTOR if not filtered_rows.empty else 0
+        filtered_rows = vl[vl["perc"] == 0.99]
+        perc99 = filtered_rows[measurement].mean() / LAT_FACTOR if not filtered_rows.empty else 0
+
+        bars = ax.bar(position, perc50, width=bar_width, bottom=sum,
             color=lat_bar_colors[measurement], label=f"{comm_prot} ({measurement})" if position == 1 else "",
             edgecolor="black"
         )
@@ -279,9 +284,9 @@ def add_lat(ax, ax2, values_lat, values_tp, position, comm_prot, bar_width,
             for bar in bars:
                 bar.set_hatch(hatches[hatch_key])
 
-        ax.scatter([position], [vl.iloc[1][measurement].mean()],
+        ax.scatter([position], [perc99],
                     marker="o", color=lat_bar_colors[measurement], edgecolor="black", zorder=3)
-        sum += mean
+        sum += perc50
         
     ax2.scatter([position], [tp.mean() / duration], marker="x", color="black")
 

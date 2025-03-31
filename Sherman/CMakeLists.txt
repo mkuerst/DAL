@@ -182,6 +182,12 @@ target_compile_definitions(sherman_litlRfaa PRIVATE -DLITL -DRAND_FAA)
 set_target_properties(sherman_litlRfaa PROPERTIES OUTPUT_NAME "sherman_litlRfaa")
 target_link_libraries(sherman_litlRfaa ${LINKS_FLAGS})
 
+# LITL RAND_FAA + HOD
+add_library(sherman_litlHodRfaa STATIC ${COMMON_FILE})
+target_compile_definitions(sherman_litlHodRfaa PRIVATE -DLITL -DRAND_FAA -DHANDOVER -DHANDOVER_DATA)
+set_target_properties(sherman_litlHodRfaa PROPERTIES OUTPUT_NAME "sherman_litlHodRfaa")
+target_link_libraries(sherman_litlHodRfaa ${LINKS_FLAGS})
+
 # # LITL HOD OCM BW
 # add_library(sherman_litlHodOcmBw STATIC ${COMMON_FILE})
 # target_compile_definitions(sherman_litlHodOcmBw PRIVATE -DLITL -DHANDOVER -DON_CHIP -DBATCHED_WRITEBACK -DHANDOVER_DATA)
