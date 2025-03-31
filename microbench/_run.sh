@@ -62,7 +62,7 @@ opts=("HodRfaa")
 
 microbenches=("empty_cs" "mlocks" "kvs")
 duration=10
-runNR=3
+runNR=1
 zipfian=1
 chipSize=128
 dsmSize=16
@@ -123,8 +123,10 @@ do
             cn_tp_file="$cn_tp_dir"/"$res_suffix".csv
             cn_lat_file="$cn_lat_dir"/"$res_suffix".csv
 
-            echo $cn_tp_header > "$cn_tp_file"
-            echo $cn_lat_header > "$cn_lat_file"
+            if [ ! -e "$cn_tp_file" ]; then
+                echo $cn_tp_header > "$cn_tp_file"
+                echo $cn_lat_header > "$cn_lat_file"
+            fi
 
 
 
