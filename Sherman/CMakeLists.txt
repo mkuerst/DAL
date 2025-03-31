@@ -94,11 +94,11 @@ target_link_libraries(sherman_shermanRfaa ${LINKS_FLAGS})
 # set_target_properties(sherman_shermanHodOcmBwRfaa PROPERTIES OUTPUT_NAME "sherman_shermanHodOcmBwRfaa")
 # target_link_libraries(sherman_shermanHodOcmBwRfaa ${LINKS_FLAGS})
 
-# # SHERMAN_LOCK RAND_FAA + HOD 
-# add_library(sherman_shermanHodRfaa STATIC ${COMMON_FILE})
-# target_compile_definitions(sherman_shermanHodRfaa PRIVATE -DSHERMAN_LOCK -DRAND_FAA -DHANDOVER_DATA)
-# set_target_properties(sherman_shermanHodRfaa PROPERTIES OUTPUT_NAME "sherman_shermanHodRfaa")
-# target_link_libraries(sherman_shermanHodRfaa ${LINKS_FLAGS})
+# SHERMAN_LOCK RAND_FAA + HOD 
+add_library(sherman_shermanHodRfaa STATIC ${COMMON_FILE})
+target_compile_definitions(sherman_shermanHodRfaa PRIVATE -DSHERMAN_LOCK -DRAND_FAA -DHANDOVER -DHANDOVER_DATA)
+set_target_properties(sherman_shermanHodRfaa PROPERTIES OUTPUT_NAME "sherman_shermanHodRfaa")
+target_link_libraries(sherman_shermanHodRfaa ${LINKS_FLAGS})
 
 # # SHERMAN_LOCK RAND_FAA + BW
 # add_library(sherman_shermanBwRfaa STATIC ${COMMON_FILE})

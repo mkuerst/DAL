@@ -742,27 +742,27 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
 
     // #else
 
-    bitset<64> bits(add_);
-    // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
-    // "FAA DM (REL), lock_addr: " << lock_addr << endl <<
-    // "add: " << bits << "\n\n";
+  bitset<64> bits(add_);
+  // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
+  // "FAA DM (REL), lock_addr: " << lock_addr << endl <<
+  // "add: " << bits << "\n\n";
 
-    if (async) {
-      dsm->write(page_buffer, page_addr, page_size, false, cxt, from_peer);
-    } else {
-      dsm->write_sync(page_buffer, page_addr, page_size, cxt, from_peer);
-      save_measurement(threadID, measurements.data_write);
-    }
-    curr_lock_node->write_back = 0;
+  if (async) {
+    dsm->write(page_buffer, page_addr, page_size, false, cxt, from_peer);
+  } else {
+    dsm->write_sync(page_buffer, page_addr, page_size, cxt, from_peer);
+    save_measurement(threadID, measurements.data_write);
+  }
+  curr_lock_node->write_back = 0;
 
-    // uint64_t *long_data = (uint64_t*) page_buffer;
-    // cerr << "WRITTEN TO: " << page_addr << endl;
-    // for (size_t i = 0; i < page_size / sizeof(uint64_t); i++) {
-    //   cerr << long_data[i] << ", ";
-    // }
-      // dsm->write_sync(page_buffer, page_addr, page_size, cxt);
-    timer.begin();
-    dsm->faa_dm_sync(lock_addr, add_, cas_buf, nullptr);
+  // uint64_t *long_data = (uint64_t*) page_buffer;
+  // cerr << "WRITTEN TO: " << page_addr << endl;
+  // for (size_t i = 0; i < page_size / sizeof(uint64_t); i++) {
+  //   cerr << long_data[i] << ", ";
+  // }
+    // dsm->write_sync(page_buffer, page_addr, page_size, cxt);
+  timer.begin();
+  dsm->faa_dm_sync(lock_addr, add_, cas_buf, nullptr);
 
 
 
