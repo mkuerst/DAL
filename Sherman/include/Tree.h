@@ -38,19 +38,14 @@ struct LocalLockNode {
     uint8_t hand_time;
     char *page_buffer = nullptr;
     GlobalAddress page_addr;
-    uint64_t size = 0;
-    int write_back = 0;
-    bool safe = false;
     LitlLock litl_lock;
+    int wb = 0;
+    bool safe = false;
 
     void debug() const {
         cerr << "curr_lock_node:" << endl;
         cerr << "level: " << level << endl;
         cerr << "page_addr :" << page_addr << endl;
-        cerr << "write_back: " << write_back << endl;
-        cerr << "safe: " << safe << endl;
-        // cerr << "page_buffer :" << (uintptr_t) page_buffer << endl;
-        // cerr << "level: " << (int)level << endl;
     }
 };
 

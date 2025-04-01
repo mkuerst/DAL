@@ -25,6 +25,7 @@
 #include <iostream>
 #include <execinfo.h>
 #include <cstdlib>
+#include <cxxabi.h>
 
 /** Defninitions. **/
 #define MAX_FORMAT_LEN 255
@@ -47,7 +48,6 @@ public:
     static void debugCur(const char *format, ...); /* Print debug item string. */
     static void notifyInfo(const char *format, ...); /* Print normal notification. */
     static void notifyError(const char *format, ...); /* Print error information. */
-    static void debugBacktrace(int n);
 };
 
 /** Redundance check. **/

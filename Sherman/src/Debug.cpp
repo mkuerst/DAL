@@ -83,16 +83,3 @@ void Debug::notifyError(const char *format, ...) {
     fflush(stdout);
     va_end(args);             /* End of variable arguments. */
 }
-
-void Debug::debugBacktrace(int n) {
-    void *callstack[10];
-    int frames = backtrace(callstack, 10);
-    char **symbols = backtrace_symbols(callstack, frames);
-
-    std::cerr << "Last 3 function calls:" << std::endl;
-    for (int i = 1; i <= n && i < frames; ++i) {  // Skip frame 0 (this function itself)
-        std::cerr << symbols[i] << std::endl;
-    }
-
-    free(symbols);
-}
