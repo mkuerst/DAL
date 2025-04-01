@@ -544,6 +544,15 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
   // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
   // "FAA DM (REL), lock_addr: " << lock_addr << endl <<
   // "add: " << bits << "\n\n";
+  #ifdef HANDOVER_DATA
+  if (curr_lock_node->wb) {
+    dsm->write_sync(curr_lock_node->page_buffer, curr_lock_node->page_addr, kLeafPageSize);
+    save_measurement(threadID, measurements.data_write);
+    timer.begin();
+  }
+  curr_lock_node->wb = 0;
+  curr_lock_node->safe = false;
+  #endif
 
   dsm->faa_dm_sync(lock_addr, add, cas_buf, nullptr);
   lockMeta = *cas_buf;
@@ -585,9 +594,11 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
 
   #endif
 
+
   if (async) {
     dsm->write_lm(lmbuf, peerSpinLoc, sizeof(uint64_t), false, nullptr);
   } else {
+    timer.begin();
     dsm->write_lm_sync(lmbuf, peerSpinLoc, sizeof(uint64_t), nullptr);
   }
   save_measurement(threadID, measurements.gwait_rel);
@@ -814,6 +825,8 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   // "lockMeta: " << lm_bits << "\n\n";
   // dsm->write_lm_sync(lmbuf, peerSpinLoc, sizeof(uint64_t), nullptr);
   measurements.c_ho[threadID]++;
+  curr_lock_node->wb = 0;
+  curr_lock_node->safe = false;
 
   releases_local_lock(lock_addr);
   return;
@@ -1037,7 +1050,7 @@ bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
       timer.begin();
       dsm->read_sync(*page_buffer, page_addr, page_size, cxt);
       save_measurement(threadID, measurements.data_read);
-      return handover;
+      return false;
     }
     else {
       if (!lpage->check_consistent() && !ipage->check_consistent()) {
