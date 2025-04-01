@@ -45,11 +45,15 @@ struct LocalLockNode {
 
     void debug() const {
         cerr << "curr_lock_node:" << endl;
+        cerr << "level: " << level << endl;
         cerr << "page_addr :" << page_addr << endl;
-        cerr << "page_buffer :" << (uintptr_t) page_buffer << endl;
-        cerr << "level: " << (int)level << endl;
+        cerr << "write_back: " << write_back << endl;
+        cerr << "safe: " << safe << endl;
+        // cerr << "page_buffer :" << (uintptr_t) page_buffer << endl;
+        // cerr << "level: " << (int)level << endl;
     }
 };
+
 
 
 struct Measurements {
@@ -130,6 +134,7 @@ public:
     void setKPageSize(int page_size); 
     void set_IDs(int nid, int tid);
     uint32_t getLockNR() { return lockNR; }
+    uint64_t getTreeNodeNR() { return treeNodeNR; }
 
     /*TESTING FUNCTIONS*/
     void wait();
@@ -150,6 +155,7 @@ private:
     /*ADDED*/
     uint64_t rlockAddr;
     uint16_t maxHandover = 16;
+    uint64_t treeNodeNR = 0;
     /**/
 
     // static thread_local int coro_id;
@@ -444,5 +450,6 @@ public:
     }
 
 } __attribute__((packed));
+
 
 #endif // _TREE_H_

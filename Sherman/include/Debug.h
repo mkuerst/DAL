@@ -22,6 +22,10 @@
 #include <stdarg.h>                     /* Standard argument operations. E.g. va_list */
 #include <sys/time.h>                   /* Time functions. E.g. gettimeofday() */
 
+#include <iostream>
+#include <execinfo.h>
+#include <cstdlib>
+
 /** Defninitions. **/
 #define MAX_FORMAT_LEN 255
 #define DEBUG false
@@ -43,6 +47,7 @@ public:
     static void debugCur(const char *format, ...); /* Print debug item string. */
     static void notifyInfo(const char *format, ...); /* Print normal notification. */
     static void notifyError(const char *format, ...); /* Print error information. */
+    static void debugBacktrace(int n);
 };
 
 /** Redundance check. **/

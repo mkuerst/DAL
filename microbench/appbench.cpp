@@ -323,5 +323,6 @@ int main(int argc, char *argv[]) {
     if (nodeID == 0) {
         fprintf(stderr, "FIN\n");
     }
+    cerr << "FINAL TREE NODE NUMBER: " << tree->getTreeNodeNR() << endl;
     return 0;
 }
