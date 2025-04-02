@@ -58,7 +58,7 @@ server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
 comm_prot=rdma
 
 # MICROBENCH INPUTS
-opts=("HodRfaa")
+opts=("Hod")
 
 microbenches=("empty_cs" "mlocks" "kvs")
 duration=10

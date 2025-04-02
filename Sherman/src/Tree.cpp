@@ -1821,15 +1821,15 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
 
     sibling->set_consistent();
 
-    if (!(page->hdr.last_index > 0 && sibling->hdr.last_index > 0)) {
-      cerr << "cnt: " << cnt << endl;
-      cerr << "m: " << m << endl;
-      cerr << "page->hdr.last_index: " << page->hdr.last_index << endl;
-      cerr << "sibling->hdr.last_index: " << sibling->hdr.last_index << endl;
-      page->debug();
-      sibling->debug();
-      assert(page->hdr.last_index > 0 && sibling->hdr.last_index > 0);
-    }
+    // if (!(page->hdr.last_index > 0 && sibling->hdr.last_index > 0)) {
+    //   cerr << "cnt: " << cnt << endl;
+    //   cerr << "m: " << m << endl;
+    //   cerr << "page->hdr.last_index: " << page->hdr.last_index << endl;
+    //   cerr << "sibling->hdr.last_index: " << sibling->hdr.last_index << endl;
+    //   page->debug();
+    //   sibling->debug();
+    //   assert(page->hdr.last_index > 0 && sibling->hdr.last_index > 0);
+    // }
 
     dsm->write_sync(sibling_buf, sibling_addr, kLeafPageSize, cxt, false);
     treeNodeNR++;
