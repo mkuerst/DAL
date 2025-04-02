@@ -65,7 +65,7 @@ duration=10
 runNR=3
 zipfian=1
 chipSize=128
-dsmSize=16
+dsmSize=8
 
 mnNRs=(2)
 nodeNRs=(4)

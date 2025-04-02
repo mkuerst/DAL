@@ -167,7 +167,7 @@ private:
     static thread_local uint64_t *curr_cas_buffer;
     static thread_local char *curr_page_buffer;
     static thread_local GlobalAddress curr_lock_addr;
-    static thread_local LocalLockNode *curr_lock_node;
+    static thread_local LocalLockNode *ln;
     static thread_local GLockAddress next_gaddr;
     static thread_local GLockAddress version_addr;
     static thread_local GLockAddress expected_addr;
