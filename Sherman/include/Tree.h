@@ -40,12 +40,14 @@ struct LocalLockNode {
     GlobalAddress page_addr;
     LitlLock litl_lock;
     int wb = 0;
+    bool written = false;
     bool safe = false;
 
     void debug() const {
         cerr << "curr_lock_node:" << endl;
         cerr << "level: " << level << endl;
         cerr << "page_addr :" << page_addr << endl;
+        cerr << "written back: " << written << endl;
     }
 };
 

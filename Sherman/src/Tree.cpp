@@ -523,6 +523,7 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
       save_measurement(threadID, measurements.data_write);
       ln->wb = 0;
       ln->safe = false;
+      ln->written = true;
     }
     #endif
 
@@ -613,6 +614,7 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
     timer.begin();
     dsm->write_sync(ln->page_buffer, ln->page_addr, kLeafPageSize);
     save_measurement(threadID, measurements.data_write);
+    ln->written = true;
   }
   ln->wb = 0;
   ln->safe = false;
@@ -992,6 +994,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   #ifdef HANDOVER_DATA
   ln->safe = false;
   ln->wb = 0;
+  ln->written = true;
   #endif
 
   releases_local_lock(lock_addr);
@@ -1044,6 +1047,7 @@ bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
         dsm->write_sync(*page_buffer, ln->page_addr, kLeafPageSize, nullptr);
         save_measurement(threadID, measurements.data_write);
         ln->wb = 0;
+        ln->written = true;
       }
       ln->safe = false;
 
@@ -1062,6 +1066,7 @@ bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
         assert(false);
       }
       assert(ln->level == level);
+      ln->written = false;
       measurements.handovers_data[threadID]++;
 
       // #ifdef RAND_FAAD
@@ -1805,6 +1810,7 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
     page->hdr.last_index -= (cnt - m);
     sibling->hdr.last_index += (cnt - m);
 
+
     sibling->hdr.lowest = split_key;
     sibling->hdr.highest = page->hdr.highest;
     page->hdr.highest = split_key;
@@ -1814,6 +1820,17 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
     page->hdr.sibling_ptr = sibling_addr;
 
     sibling->set_consistent();
+
+    if (!(page->hdr.last_index > 0 && sibling->hdr.last_index > 0)) {
+      cerr << "cnt: " << cnt << endl;
+      cerr << "m: " << m << endl;
+      cerr << "page->hdr.last_index: " << page->hdr.last_index << endl;
+      cerr << "sibling->hdr.last_index: " << sibling->hdr.last_index << endl;
+      page->debug();
+      sibling->debug();
+      assert(page->hdr.last_index > 0 && sibling->hdr.last_index > 0);
+    }
+
     dsm->write_sync(sibling_buf, sibling_addr, kLeafPageSize, cxt, false);
     treeNodeNR++;
   }

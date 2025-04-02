@@ -151,7 +151,7 @@ do
                                     for ((run = 0; run < runNR; run++)); do
                                         cn_lock_file="$cn_lock_dir"/"$res_suffix"_nodeNR"$nodeNR"_threadNR"$threadNR"_mnNR"$mnNR"_lockNR"$lockNR"_NUMA"$pinning"_mHo"$mHo"_r"$run".csv
                                         > "$cn_lock_file"
-                                        echo "BENCHMARK $microb | $opt $impl | $nodeNR Ns | $threadNR Ts | $lockNR Ls | $duration s | RUN $run"
+                                        echo "BENCHMARK $microb | $impl.$opt | $nodeNR Ns | $threadNR Ts | $lockNR Ls | $duration s | RUN $run"
                                         echo "pinning $pinning | DSM $dsmSize GB | $mnNR MNs | chipSize $chipSize KB |"
                                         clush --hostfile <(head -n $nodeNR ./nodes.txt) \
                                         "sudo LD_PRELOAD=$llock_so $mb_exe \
