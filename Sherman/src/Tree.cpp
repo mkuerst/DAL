@@ -314,7 +314,6 @@ leaf_nodes:
 
   // Ensure nodes on the same level are aligned correctly
   for (const auto& [level, nodes] : levelNodes) {
-      std::cerr << "level: " << level << std::endl;
       file << "  { rank=same; ";
       for (auto node : nodes) {
           file << "Node_" << nodeIDs[node] << "; ";
@@ -657,15 +656,24 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
   if (hand_over_other) {
 
     #ifdef HANDOVER_DATA
-    if (ln->wb) {
+    ln->safe = !stale_cache;
+    if (ln->wb && !stale_cache) {
       timer.begin();
       dsm->write_sync(ln->page_buffer, ln->page_addr, kLeafPageSize);
       save_measurement(threadID, measurements.data_write);
       ln->wb = 0;
       ln->safe = false;
-      ln->written = true;
+    } else if (ln->wb > 0 && stale_cache) {
+      Debug::notifyError("losing %d inserts", ln->wb);
+      ln->wb = 0;
+      ln->safe = false;
     }
+
     #endif
+    ln->page_buffer = page_buf;
+    ln->page_addr = page_addr;
+    ln->level = level;
+    ln->written = false;
 
     releases_local_lock(lock_addr);
     // DEB("[%d.%d] unlocked the global lock for handover: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), curr_lock_addr.offset);
@@ -760,7 +768,7 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
   ln->safe = false;
   #endif
 
-  if (false) {
+  if (async) {
     dsm->write_dm((char *)cas_buf, lock_addr, sizeof(uint64_t), false);
   } else {
     timer.begin();
@@ -814,13 +822,13 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     save_measurement(threadID, measurements.data_write);
     #endif
 
-    #ifdef HANDOVER_DATA
-    if (!ln->safe) {
-      dsm->write_sync(page_buffer, page_addr, page_size, cxt, from_peer);
-      save_measurement(threadID, measurements.data_write);
-      ln->wb = 0;
-    }
-    #endif
+    // #ifdef HANDOVER_DATA
+    // if (!ln->safe) {
+    //   dsm->write_sync(page_buffer, page_addr, page_size, cxt, from_peer);
+    //   save_measurement(threadID, measurements.data_write);
+    //   ln->wb = 0;
+    // }
+    // #endif
     
     releases_local_lock(lock_addr);
     // DEB("[%d.%d] unlocked global lock for handover: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), curr_lock_addr.offset);
@@ -1629,12 +1637,14 @@ void Tree::leaf_page_search(LeafPage *page, const Key &k,
 void Tree::internal_page_store(GlobalAddress page_addr, const Key &k,
                                GlobalAddress v, GlobalAddress root, int level,
                                CoroContext *cxt, int coro_id) {
-  // uint64_t lock_index =
-  //     CityHash64((char *)&page_addr, sizeof(page_addr)) % lockNR;
+  uint64_t lock_index =
+      CityHash64((char *)&page_addr, sizeof(page_addr)) % lockNR;
 
   GlobalAddress lock_addr;
   lock_addr.nodeID = page_addr.nodeID;
-  lock_addr.offset = align_to_64(page_addr.offset / kLeafPageSize * sizeof(uint64_t));
+  // lock_addr.offset = align_to_64((page_addr.offset - 33554432) / kLeafPageSize * sizeof(uint64_t));
+  lock_addr.offset = lock_index * sizeof(uint64_t);
+
 
   auto &rbuf = dsm->get_rbuf(coro_id);
   uint64_t *cas_buffer = rbuf.get_cas_buffer();
@@ -1780,8 +1790,8 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
                            const Value &v, GlobalAddress root, int level,
                            CoroContext *cxt, int coro_id, bool from_cache) {
 
-  // uint64_t lock_index =
-  //     CityHash64((char *)&page_addr, sizeof(page_addr)) % lockNR;
+  uint64_t lock_index =
+      CityHash64((char *)&page_addr, sizeof(page_addr)) % lockNR;
 
   
   GlobalAddress lock_addr;
@@ -1789,8 +1799,8 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
   lock_addr = page_addr;
 #else
   lock_addr.nodeID = page_addr.nodeID;
-  lock_addr.offset = align_to_64(page_addr.offset / kLeafPageSize * sizeof(uint64_t));
-  cerr << "lock_addr.offset: " << lock_addr.offset << endl;
+  // lock_addr.offset = align_to_64((page_addr.offset - 33554432) / kLeafPageSize * sizeof(uint64_t)) ;
+  lock_addr.offset = lock_index * sizeof(uint64_t);
 #endif
 
   auto &rbuf = dsm->get_rbuf(coro_id);
@@ -1840,6 +1850,7 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
 
   if (from_cache &&
       (k < page->hdr.lowest || k >= page->hdr.highest)) { // cache is stale
+    // Debug::notifyInfo("stale cache");
     this->unlock_addr(lock_addr, tag, cas_buffer, cxt, coro_id, true, page_buffer, page_addr, level, true);
     return false;
   }

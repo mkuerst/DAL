@@ -302,15 +302,15 @@ public:
   }
 } __attribute__((packed));
 
-// constexpr int kInternalCardinality = (kInternalPageSize - sizeof(Header) -
-//                                       sizeof(uint8_t) * 2 - sizeof(uint64_t)) /
-//                                      sizeof(InternalEntry);
+constexpr int kInternalCardinality = (kInternalPageSize - sizeof(Header) -
+                                      sizeof(uint8_t) * 2 - sizeof(uint64_t)) /
+                                     sizeof(InternalEntry);
 
-// constexpr int kLeafCardinality =
-//     (kLeafPageSize - sizeof(Header) - sizeof(uint8_t) * 2 - sizeof(uint64_t)) /
-//     sizeof(LeafEntry);
-constexpr int kInternalCardinality = 4;
-constexpr int kLeafCardinality = 4;
+constexpr int kLeafCardinality =
+    (kLeafPageSize - sizeof(Header) - sizeof(uint8_t) * 2 - sizeof(uint64_t)) /
+    sizeof(LeafEntry);
+// constexpr int kInternalCardinality = 4;
+// constexpr int kLeafCardinality = 4;
 
 class InternalPage {
 private:

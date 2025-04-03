@@ -264,20 +264,19 @@ int main(int argc, char *argv[]) {
     fflush(stderr);
 
     if (dsm->getMyNodeID() == 0) {
-        for (uint64_t i = 1; i < 5; ++i) {
-            // tree->insert(to_key(i), i * 2);
-            tree->insert(i, i * 2);
-            // cerr << "inserted k,v: " << to_key(i) << ", " << i * 2 << endl;
+        // for (uint64_t i = 1; i < 1024000; ++i) {
+        for (uint64_t i = 1; i < 2*1024000; ++i) {
+            tree->insert(to_key(i), i * 2);
         }
         fprintf(stderr, "inserted initial keys\n");
     }
-    if(nodeID == 0) {
-        tree->generate_graphviz();
-    }
+    // if(nodeID == 0) {
+    //     tree->generate_graphviz();
+    // }
 
     dsm->barrier("benchmark");
     dsm->resetThread();
-    return 0;
+    // return 0;
     
     /*TASK INIT*/
     Task *tasks = new Task[threadNR];
