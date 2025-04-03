@@ -42,12 +42,15 @@ struct LocalLockNode {
     int wb = 0;
     bool written = false;
     bool safe = false;
+    bool ua_hod = false;
 
     void debug() const {
         cerr << "curr_lock_node:" << endl;
         cerr << "level: " << level << endl;
         cerr << "page_addr :" << page_addr << endl;
         cerr << "written back: " << written << endl;
+        cerr << "wb: " << wb << endl;
+        cerr << "ua_hod: " << ua_hod << endl;
     }
 };
 

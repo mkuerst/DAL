@@ -68,7 +68,7 @@ chipSize=128
 dsmSize=8
 
 mnNRs=(2)
-nodeNRs=(1)
+nodeNRs=(4)
 threadNRs=(16)
 lockNRs=(1000000)
 bench_idxs=(2)

@@ -657,23 +657,24 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
 
     #ifdef HANDOVER_DATA
     ln->safe = !stale_cache;
-    if (ln->wb && !stale_cache) {
-      timer.begin();
-      dsm->write_sync(ln->page_buffer, ln->page_addr, kLeafPageSize);
-      save_measurement(threadID, measurements.data_write);
-      ln->wb = 0;
-      ln->safe = false;
-    } else if (ln->wb > 0 && stale_cache) {
-      Debug::notifyError("losing %d inserts", ln->wb);
-      ln->wb = 0;
-      ln->safe = false;
-    }
+    // if (ln->wb && !stale_cache) {
+    //   timer.begin();
+    //   dsm->write_sync(ln->page_buffer, ln->page_addr, kLeafPageSize);
+    //   save_measurement(threadID, measurements.data_write);
+    //   ln->wb = 0;
+    //   ln->safe = false;
+    // } else if (ln->wb > 0 && stale_cache) {
+    //   Debug::notifyError("losing %d inserts", ln->wb);
+    //   ln->wb = 0;
+    //   ln->safe = false;
+    // }
 
     #endif
     ln->page_buffer = page_buf;
     ln->page_addr = page_addr;
     ln->level = level;
     ln->written = false;
+    ln->ua_hod = true;
 
     releases_local_lock(lock_addr);
     // DEB("[%d.%d] unlocked the global lock for handover: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), curr_lock_addr.offset);
@@ -1188,6 +1189,7 @@ bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
     timer.begin();
     #ifdef HANDOVER_DATA
     memcpy(*page_buffer, ln->page_buffer, kLeafPageSize);
+    ln->ua_hod = false;
     #endif
 
     if (!same_address) {
