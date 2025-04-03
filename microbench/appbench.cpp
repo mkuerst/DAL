@@ -238,7 +238,8 @@ int main(int argc, char *argv[]) {
     config.mnNR = mnNR > nodeNR ? nodeNR : mnNR;
     config.machineNR = nodeNR;
     config.threadNR = threadNR;
-    config.chipSize = chipSize;
+    // config.chipSize = chipSize * 1024;
+    config.chipSize = lockNR * sizeof(uint64_t);
     config.lockMetaSize = chipSize;
     lockNR = lockNR / mnNR;
     config.lockNR = lockNR;
@@ -263,14 +264,20 @@ int main(int argc, char *argv[]) {
     fflush(stderr);
 
     if (dsm->getMyNodeID() == 0) {
-        for (uint64_t i = 1; i < 4*1024000; ++i) {
-            tree->insert(to_key(i), i * 2);
+        for (uint64_t i = 1; i < 5; ++i) {
+            // tree->insert(to_key(i), i * 2);
+            tree->insert(i, i * 2);
+            // cerr << "inserted k,v: " << to_key(i) << ", " << i * 2 << endl;
         }
         fprintf(stderr, "inserted initial keys\n");
+    }
+    if(nodeID == 0) {
+        tree->generate_graphviz();
     }
 
     dsm->barrier("benchmark");
     dsm->resetThread();
+    return 0;
     
     /*TASK INIT*/
     Task *tasks = new Task[threadNR];

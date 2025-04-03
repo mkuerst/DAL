@@ -54,7 +54,7 @@ void DSM::lockThread() {
 DSM::DSM(const DSMConfig &conf)
     : conf(conf), appID(0), cache(conf.cacheConfig) {
       
-  sizePerPeer = conf.chipSize * 1024 / sizeof(uint64_t) * 1024;
+  sizePerPeer = conf.chipSize / sizeof(uint64_t) * 1024;
   // totalPeerSize = MAX_MACHINE * sizePerPeer;
   totalPeerSize = 0;
 
@@ -62,12 +62,12 @@ DSM::DSM(const DSMConfig &conf)
   #ifdef ON_CHIP
   rlockAddr = define::kLockStartAddr;
   #else
-  rlockAddr = (uint64_t) malloc(conf.chipSize * 1024);
-  memset((char *)rlockAddr, 0, conf.chipSize * 1024);
+  rlockAddr = (uint64_t) hugePageAlloc(conf.chipSize);
+  memset((char *)rlockAddr, 0, conf.chipSize);
   #endif
 
-  lockMetaAddr = (uint64_t) hugePageAlloc(conf.mnNR * conf.lockMetaSize * 1024);
-  memset((char *)lockMetaAddr, 0, conf.mnNR * conf.lockMetaSize * 1024);
+  lockMetaAddr = (uint64_t) hugePageAlloc(conf.mnNR * conf.lockMetaSize);
+  memset((char *)lockMetaAddr, 0, conf.mnNR * conf.lockMetaSize);
 
   // peerAddr = (uint64_t) malloc(totalPeerSize);
   peerAddr = cache.data;
@@ -101,7 +101,10 @@ DSM::~DSM() {}
 void DSM::free_dsm() {
   munmap((void*)baseAddr, conf.dsmSize * define::GB + totalPeerSize);
   munmap((void*)cache.data, cache.size * define::GB);
-  munmap((void*)lockMetaAddr, conf.mnNR * conf.lockMetaSize * 1024);
+  munmap((void*)lockMetaAddr, conf.mnNR * conf.lockMetaSize);
+  #ifndef ON_CHIP
+  munmap((void*)rlockAddr, conf.chipSize);
+  #endif
   // free((void* )lockMetaAddr);
 
   
@@ -233,16 +236,16 @@ void DSM::initRDMAConnection() {
   for (int i = 0; i < MAX_APP_THREAD; ++i) {
     thCon[i] =
         new ThreadConnection(i, (void *)cache.data, cache.size * define::GB,
-                             (void *) lockMetaAddr, conf.mnNR * conf.lockMetaSize*1024,
+                             (void *) lockMetaAddr, conf.mnNR * conf.lockMetaSize,
                              conf.machineNR, remoteInfo);
   }
 
   for (int i = 0; i < NR_DIRECTORY; ++i) {
     dirCon[i] =
         new DirectoryConnection(i, (void *)baseAddr, conf.dsmSize * define::GB + totalPeerSize,
-                                (void *) rlockAddr, (void *) lockMetaAddr, conf.mnNR * conf.lockMetaSize*1024,
+                                (void *) rlockAddr, (void *) lockMetaAddr, conf.mnNR * conf.lockMetaSize,
                                 (void *) peerAddr, totalPeerSize,
-                                conf.machineNR, conf.chipSize*1024,
+                                conf.machineNR, conf.chipSize,
                                 *thCon[i],
                                 remoteInfo);
   }

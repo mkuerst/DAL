@@ -11,6 +11,11 @@
 #include <vector>
 #include <bitset>
 
+#include <fstream>
+#include <sstream>
+#include <unordered_map>
+#include <vector>
+
 using namespace std;
 
 bool enter_debug = false;
@@ -110,6 +115,7 @@ Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB, uint16_t mHo) :
             std::cout << "fail\n";
         }
     }
+    print_verbose();
 }
 
 void Tree::print_verbose() {
@@ -165,6 +171,7 @@ GlobalAddress Tree::get_root_ptr(CoroContext *cxt, int coro_id) {
   // std::cout << "root ptr " << root_ptr << std::endl;
 }
 
+
 void Tree::broadcast_new_root(GlobalAddress new_root_addr, int root_level) {
   RawMessage m;
   m.type = RpcType::NEW_ROOT;
@@ -199,6 +206,138 @@ bool Tree::update_new_root(GlobalAddress left, const Key &k,
   treeNodeNR++;
 
   return false;
+}
+
+void Tree::generate_graphviz() {
+  auto root = get_root_ptr(nullptr, 0);
+  GlobalAddress p = root;
+  int level_cnt = 0;
+  auto page_buffer = (dsm->get_rbuf(0)).get_page_buffer();
+
+  ofstream file("/nfs/DAL/microbench/bplustree.dot");
+  file << "digraph BPlusTree {\n";
+  file << "  node [shape=box];\n";
+  file << "  rankdir=TB;\n"; // Vertical layout
+
+  map<uint64_t, vector<uint64_t>> parentEdges; // Parent -> Children
+  map<uint64_t, uint64_t> siblingEdges; // Node -> Sibling
+  map<uint64_t, vector<uint64_t>> nodeKeys; // Node Address -> Keys
+  map<uint64_t, vector<uint64_t>> nodeValues; // Node Address -> Values
+
+  map<uint64_t, uint64_t> nodeIDs; // Node Address -> Node IDs
+  map<int, vector<uint64_t>> levelNodes; // Levels -> Node Addr
+  map<uint64_t, GlobalAddress> leftmostPtrs; // Levels -> leftmost Addr
+
+  dsm->read_sync(page_buffer, p, kLeafPageSize);
+  auto header = (Header *)(page_buffer + (STRUCT_OFFSET(LeafPage, hdr)));
+  uint64_t id = 0;
+
+next_level:
+  dsm->read_sync(page_buffer, p, kLeafPageSize);
+  vector<uint64_t> nodes_on_lvl;
+  GlobalAddress level_root = p;
+  int lvl = header->level;
+  leftmostPtrs[level_root] = header->leftmost_ptr;
+  cerr << "scanning level: " << lvl << endl;
+  
+next_sibling:
+  auto page = (InternalPage *) page_buffer;
+  header = (Header *)(page_buffer + (STRUCT_OFFSET(LeafPage, hdr)));
+  if (header->level > 0) {
+    vector<uint64_t> children;
+    vector<uint64_t> keys;
+    nodeIDs[p] = id;
+    id++;
+    nodes_on_lvl.push_back(p);
+  
+    for (int i = 0; i < kInternalCardinality; i++) {
+      if (page->records[i].key != kValueNull) {
+        children.push_back(page->records[i].ptr);
+        keys.push_back(page->records[i].key);
+      }
+    }
+    parentEdges[p] = children;
+    nodeKeys[p] = keys; 
+  
+    if (header->sibling_ptr != GlobalAddress::Null()) {
+      siblingEdges[p] = header->sibling_ptr;
+      p = header->sibling_ptr;
+      dsm->read_sync(page_buffer, p, kInternalPageSize);
+      goto next_sibling;
+    } else {
+      p = leftmostPtrs[level_root];
+      levelNodes[lvl] = nodes_on_lvl;
+      goto next_level;
+    }
+  }
+
+  vector<uint64_t> nodes_on_leaflvl;
+leaf_nodes:
+  vector<uint64_t> values;
+  vector<uint64_t> keys;
+  nodeIDs[p] = id;
+  id++;
+  nodes_on_leaflvl.push_back(p);
+  auto lpage = (LeafPage *) page_buffer;
+  header = (Header *)(page_buffer + (STRUCT_OFFSET(LeafPage, hdr)));
+
+  for (int i = 0; i < kLeafCardinality; i++) {
+    if (lpage->records[i].key != kValueNull) {
+      values.push_back(lpage->records[i].value);
+      keys.push_back(lpage->records[i].key);
+    }
+  }
+
+  nodeValues[p] = values;
+  nodeKeys[p] = keys;
+  if (header->sibling_ptr != GlobalAddress::Null()) {
+    siblingEdges[p] = header->sibling_ptr;
+    p = header->sibling_ptr;
+    dsm->read_sync(page_buffer, p, kLeafPageSize);
+    goto leaf_nodes;
+  }
+  levelNodes[0] = nodes_on_leaflvl;
+
+
+
+  for (auto &[node, keys] : nodeKeys) {
+    file << "  Node_" << nodeIDs[node] << " [label=<";
+    file << "<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\"><TR>";
+
+    for (size_t i = 0; i < keys.size(); ++i) {
+        file << "<TD>" << keys[i] << "</TD>";
+    }
+
+    file << "</TR></TABLE>";
+    file << ">];\n";
+  }
+
+  // Ensure nodes on the same level are aligned correctly
+  for (const auto& [level, nodes] : levelNodes) {
+      std::cerr << "level: " << level << std::endl;
+      file << "  { rank=same; ";
+      for (auto node : nodes) {
+          file << "Node_" << nodeIDs[node] << "; ";
+      }
+      file << "}\n";
+  }
+
+  // Connect parent nodes to child nodes
+  for (auto &[parent, children] : parentEdges) {
+      for (auto &child : children) {
+          file << "  Node_" << nodeIDs[parent] << " -> Node_" << nodeIDs[child] << ";\n";
+      }
+  }
+
+  // Connect sibling nodes with dashed blue edges
+  for (auto &[node, sibling] : siblingEdges) {
+      file << "  Node_" << nodeIDs[node] << " -> Node_" << nodeIDs[sibling] << " [style=dashed, color=blue];\n";
+  }
+
+  file << "}\n";
+  file.close();
+
+  std::cout << "Graphviz file 'bplustree.dot' generated. Run 'dot -Tpng /nfs/DAL/microbench/bplustree.dot -o bplustree.png' to visualize.\n";
 }
 
 void Tree::print_and_check_tree(CoroContext *cxt, int coro_id) {
@@ -237,24 +376,25 @@ next:
     goto next;
   }
 
-  // for (int i = 0; i < level_cnt; ++i) {
-  //   dsm->read_sync(page_buffer, levels[i], kLeafPageSize);
-  //   auto header = (Header *)(page_buffer + (STRUCT_OFFSET(LeafPage, hdr)));
-  //   // std::cout << "addr: " << levels[i] << " ";
-  //   // header->debug();
-  //   // std::cout << " | ";
-  //   while (header->sibling_ptr != GlobalAddress::Null()) {
-  //     dsm->read_sync(page_buffer, header->sibling_ptr, kLeafPageSize);
-  //     header = (Header *)(page_buffer + (STRUCT_OFFSET(LeafPage, hdr)));
-  //     // std::cout << "addr: " << header->sibling_ptr << " ";
-  //     // header->debug();
-  //     // std::cout << " | ";
-  //   }
-  //   // std::cout << "\n------------------------------------" << std::endl;
-  //   // std::cout << "------------------------------------" << std::endl;
-  // }
+  for (int i = 0; i < level_cnt; ++i) {
+    dsm->read_sync(page_buffer, levels[i], kLeafPageSize);
+    auto header = (Header *)(page_buffer + (STRUCT_OFFSET(LeafPage, hdr)));
+    std::cout << "addr: " << levels[i] << " ";
+    header->debug();
+    std::cout << " | ";
+    while (header->sibling_ptr != GlobalAddress::Null()) {
+      dsm->read_sync(page_buffer, header->sibling_ptr, kLeafPageSize);
+      header = (Header *)(page_buffer + (STRUCT_OFFSET(LeafPage, hdr)));
+      std::cout << "addr: " << header->sibling_ptr << " ";
+      header->debug();
+      std::cout << " | ";
+    }
+    std::cout << "\n------------------------------------" << std::endl;
+    std::cout << "------------------------------------" << std::endl;
+  }
 }
 
+  
 inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
                                 uint64_t *buf, CoroContext *cxt, int coro_id) {
 
@@ -1489,12 +1629,12 @@ void Tree::leaf_page_search(LeafPage *page, const Key &k,
 void Tree::internal_page_store(GlobalAddress page_addr, const Key &k,
                                GlobalAddress v, GlobalAddress root, int level,
                                CoroContext *cxt, int coro_id) {
-  uint64_t lock_index =
-      CityHash64((char *)&page_addr, sizeof(page_addr)) % lockNR;
+  // uint64_t lock_index =
+  //     CityHash64((char *)&page_addr, sizeof(page_addr)) % lockNR;
 
   GlobalAddress lock_addr;
   lock_addr.nodeID = page_addr.nodeID;
-  lock_addr.offset = lock_index * sizeof(uint64_t);
+  lock_addr.offset = align_to_64(page_addr.offset / kLeafPageSize * sizeof(uint64_t));
 
   auto &rbuf = dsm->get_rbuf(coro_id);
   uint64_t *cas_buffer = rbuf.get_cas_buffer();
@@ -1640,16 +1780,17 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
                            const Value &v, GlobalAddress root, int level,
                            CoroContext *cxt, int coro_id, bool from_cache) {
 
-  uint64_t lock_index =
-      CityHash64((char *)&page_addr, sizeof(page_addr)) % lockNR;
+  // uint64_t lock_index =
+  //     CityHash64((char *)&page_addr, sizeof(page_addr)) % lockNR;
 
+  
   GlobalAddress lock_addr;
-
 #ifdef CONFIG_ENABLE_EMBEDDING_LOCK
   lock_addr = page_addr;
 #else
   lock_addr.nodeID = page_addr.nodeID;
-  lock_addr.offset = lock_index * sizeof(uint64_t);
+  lock_addr.offset = align_to_64(page_addr.offset / kLeafPageSize * sizeof(uint64_t));
+  cerr << "lock_addr.offset: " << lock_addr.offset << endl;
 #endif
 
   auto &rbuf = dsm->get_rbuf(coro_id);

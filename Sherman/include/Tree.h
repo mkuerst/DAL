@@ -115,6 +115,7 @@ public:
                         CoroContext *cxt = nullptr, int coro_id = 0);
 
     void print_and_check_tree(CoroContext *cxt = nullptr, int coro_id = 0);
+    void generate_graphviz();
 
     void run_coroutine(CoroFunc func, int id, int coro_cnt);
 
@@ -234,6 +235,10 @@ private:
     /*ADDED*/
     GlobalAddress get_lock_addr(GlobalAddress base_addr);
     void get_bufs();
+
+    uint64_t align_to_64(uint64_t addr) {
+      return addr & ~63;
+    }
     /**/
 };
 
@@ -297,15 +302,15 @@ public:
   }
 } __attribute__((packed));
 
-constexpr int kInternalCardinality = (kInternalPageSize - sizeof(Header) -
-                                      sizeof(uint8_t) * 2 - sizeof(uint64_t)) /
-                                     sizeof(InternalEntry);
+// constexpr int kInternalCardinality = (kInternalPageSize - sizeof(Header) -
+//                                       sizeof(uint8_t) * 2 - sizeof(uint64_t)) /
+//                                      sizeof(InternalEntry);
 
-constexpr int kLeafCardinality =
-    (kLeafPageSize - sizeof(Header) - sizeof(uint8_t) * 2 - sizeof(uint64_t)) /
-    sizeof(LeafEntry);
-// constexpr int kInternalCardinality = 32;
-// constexpr int kLeafCardinality = 32;
+// constexpr int kLeafCardinality =
+//     (kLeafPageSize - sizeof(Header) - sizeof(uint8_t) * 2 - sizeof(uint64_t)) /
+//     sizeof(LeafEntry);
+constexpr int kInternalCardinality = 4;
+constexpr int kLeafCardinality = 4;
 
 class InternalPage {
 private:
