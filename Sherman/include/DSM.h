@@ -37,7 +37,7 @@ public:
   uint16_t getClusterSize() { return conf.machineNR; }
   uint64_t getThreadTag() { return thread_tag; }
   uint64_t getDsmSize() { return conf.dsmSize * define::GB; }
-  uint64_t getLmSize() { return conf.lockMetaSize * 1024; }
+  uint64_t getLmSize() { return conf.lockMetaSize; }
   uint64_t getBaseAddr() { return baseAddr; }
   uint64_t getPeerAddr() { return peerAddr; }
   uint64_t getCacheAddr() { return cache.data; }

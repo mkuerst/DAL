@@ -240,7 +240,7 @@ int main(int argc, char *argv[]) {
     config.threadNR = threadNR;
     // config.chipSize = chipSize * 1024;
     config.chipSize = lockNR * sizeof(uint64_t);
-    config.lockMetaSize = chipSize;
+    config.lockMetaSize = config.chipSize;
     lockNR = lockNR / mnNR;
     config.lockNR = lockNR;
     // lockNR = chipSize * 1024 / sizeof(uint64_t);

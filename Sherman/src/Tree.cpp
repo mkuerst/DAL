@@ -696,9 +696,10 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
   // "add: " << bits << "\n\n";
   #ifdef HANDOVER_DATA
   if (ln->wb) {
+    timer.begin();
     dsm->write_sync(ln->page_buffer, ln->page_addr, kLeafPageSize);
     save_measurement(threadID, measurements.data_write);
-    timer.begin();
+    ln->written = true;
   }
   ln->wb = 0;
   ln->safe = false;
@@ -738,8 +739,9 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
   peerDataLoc.nodeID = peerNodeID;
   peerDataLoc.offset = dsm->getDsmSize() + (lock_addr.nodeID * lockNR * kLeafPageSize) + (lock_addr.offset / 8 )*kLeafPageSize;
 
-  dsm->write_sync(page_buf, peerDataLoc, kLeafPageSize, nullptr, from_peer);
-  save_measurement(threadID, measurements.data_write);
+  // dsm->write_sync(page_buf, peerDataLoc, kLeafPageSize, nullptr, from_peer);
+  // save_measurement(threadID, measurements.data_write);
+  dsm->write_peer(page_buf, peerDataLoc, kLeafPageSize, false, nullptr, from_peer);
   timer.begin();
 
   #endif
@@ -956,15 +958,16 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   // }
   // cerr << endl;
 
-  dsm->write_peer_sync(page_buffer, peerDataLoc, page_size, nullptr, from_peer);
-  save_measurement(threadID, measurements.data_write);
+  // dsm->write_peer_sync(page_buffer, peerDataLoc, page_size, nullptr, from_peer);
+  // save_measurement(threadID, measurements.data_write);
+  dsm->write_peer(page_buffer, peerDataLoc, page_size, false, nullptr, from_peer);
   timer.begin();
 
   #endif
 
   // TODO: ?
   *lmbuf = 1;
-  if (false) {
+  if (async) {
     dsm->write_lm(lmbuf, peerSpinLoc, sizeof(uint64_t), false, nullptr);
   } else {
     dsm->write_lm_sync(lmbuf, peerSpinLoc, sizeof(uint64_t), nullptr);
@@ -1879,7 +1882,10 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
     cerr << "*****************************************************" << endl;
     ipage->debug();
     page->debug();
-    assert(k >= page->hdr.lowest);
+    this->unlock_addr(lock_addr, tag, cas_buffer, cxt, coro_id, true, page_buffer, page_addr, level);
+    insert(k, v);
+    return true;
+    // assert(k >= page->hdr.lowest);
   }
 
   int cnt = 0;
