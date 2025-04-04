@@ -58,7 +58,7 @@ server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
 comm_prot=rdma
 
 # MICROBENCH INPUTS
-opts=("HodOcmBw")
+opts=("." "Hod" "Rfaa" "HodOcmBw")
 
 microbenches=("empty_cs" "mlocks" "kvs")
 duration=10
@@ -67,8 +67,8 @@ zipfian=1
 chipSize=128
 dsmSize=8
 
-mnNRs=(2)
-nodeNRs=(1 4)
+mnNRs=(4)
+nodeNRs=(4)
 threadNRs=(16)
 lockNRs=(8 128 1024)
 bench_idxs=(2)
@@ -92,8 +92,8 @@ sudo chown -R mkuerst:dal-PG0 /nfs/
 
 for opt in ${opts[@]}
 do
-    # for impl_dir in "$BASE"/original/*
-    for impl_dir in "$BASE"/../debug/*
+    for impl_dir in "$BASE"/original/*
+    # for impl_dir in "$BASE"/../debug/*
     do
         impl=$(basename $impl_dir)
         impl=${impl%.so}
