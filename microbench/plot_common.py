@@ -319,12 +319,19 @@ def add_box(ax1, ax2, position, values, hatch_idx, bw=0.3,
         bp.set_facecolor(lock_colors[hatch_idx])
 
     num_runs = values["run"].max() + 1
+    cnNR = values["cnNR"].max()
     if inc_fair:
         fairness = 0
+        cfairness = 0
         for i in range(num_runs):
             fairness += jain_fairness_index(data[values["run"] == i])
+            for j in range(cnNR):
+                cfairness += jain_fairness_index(data[(values["cnNR"] == cnNR) & (values["nodeID"] == j) & (values["run"] == i)])
+            cfairness /= cnNR
         fairness /= num_runs
+        cfairness /= num_runs
         ax2.scatter([position], fairness, marker="^", color="gold", edgecolor="black")
+        ax2.scatter([position], cfairness, marker="^", color="gray", edgecolor="black")
 
 def add_vline(axs, position, bw):
     for ax in axs:

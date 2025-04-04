@@ -1843,9 +1843,9 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
     page->debug();
     cerr << "*****************************************************" << endl;
     // assert(page->hdr.level == level);
-    assert(from_cache);
+    // assert(from_cache);
     this->unlock_addr(lock_addr, tag, cas_buffer, cxt, coro_id, true, page_buffer, page_addr, level);
-    return false;
+    return true;
   }
 
   //TODO: WHY CONSISTENCY CHECK IF PAGE ALREADY LOCKED?

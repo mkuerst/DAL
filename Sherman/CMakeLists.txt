@@ -188,11 +188,11 @@ target_compile_definitions(sherman_litlHodRfaa PRIVATE -DLITL -DRAND_FAA -DHANDO
 set_target_properties(sherman_litlHodRfaa PROPERTIES OUTPUT_NAME "sherman_litlHodRfaa")
 target_link_libraries(sherman_litlHodRfaa ${LINKS_FLAGS})
 
-# # LITL HOD OCM BW
-# add_library(sherman_litlHodOcmBw STATIC ${COMMON_FILE})
-# target_compile_definitions(sherman_litlHodOcmBw PRIVATE -DLITL -DHANDOVER -DON_CHIP -DBATCHED_WRITEBACK -DHANDOVER_DATA)
-# set_target_properties(sherman_litlHodOcmBw PROPERTIES OUTPUT_NAME "sherman_litlHodOcmBw")
-# target_link_libraries(sherman_litlHodOcmBw ${LINKS_FLAGS})
+# LITL HOD OCM BW
+add_library(sherman_litlHodOcmBw STATIC ${COMMON_FILE})
+target_compile_definitions(sherman_litlHodOcmBw PRIVATE -DLITL -DHANDOVER -DON_CHIP -DBATCHED_WRITEBACK -DHANDOVER_DATA)
+set_target_properties(sherman_litlHodOcmBw PROPERTIES OUTPUT_NAME "sherman_litlHodOcmBw")
+target_link_libraries(sherman_litlHodOcmBw ${LINKS_FLAGS})
 
 #################################################################################################################
 #################################################################################################################

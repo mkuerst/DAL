@@ -172,8 +172,9 @@ read_data(DATA, RES_DIRS)
 plot_tp_lat(
                 DATA, 
                 mbs=["kvs"],
-                opts=['.', 'Hod', 'Rfaa', 'HodRfaa'],
-                cnNRs=[1],
+                # opts=['.', 'Hod', 'Rfaa', 'HodOcmBw'],
+                opts=["HodOcmBw"],
+                cnNRs=[1, 4],
                 lockNRs=[128, 1024],
                 threadNRs=[16],
                 mnNRs=[2],
@@ -184,6 +185,7 @@ plot_tp_lat(
                 log=[1,1,0],
                 )
 
+pass
 # plot_ldist(DATA,
 #             opts=['.'],
 #             cnNRs=[4],
