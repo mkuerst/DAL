@@ -119,8 +119,8 @@ do
             impl="${impl//_/.}"
             opt="${opt//litl/}"
             opt="${opt//sherman/}"
-            cn_lat_file="$cn_lat_dir"/"$res_suffix".csv
             res_suffix="$comm_prot"_"$microb"_"$impl"_"$opt"
+            cn_lat_file="$cn_lat_dir"/"$res_suffix".csv
             cn_tp_file="$cn_tp_dir"/"$res_suffix".csv
 
             if [ ! -e "$cn_tp_file" ]; then

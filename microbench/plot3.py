@@ -68,7 +68,7 @@ def plot_tp_lat(DATA, comm_prot="rdma", opts=["spinlock"], mbs=["kvs"],
                                                 query_str = " and ".join([f"{col} == @filter_values['{col}']" for col in filter_values])
                                                 df_tp = DATA["tp"].query(query_str)
                                                 df_lat = DATA["lat"].query(query_str)
-                                                if df_tp.empty or df_lat.empty:
+                                                if df_tp.empty and df_lat.empty:
                                                     continue
 
 
@@ -172,8 +172,8 @@ read_data(DATA, RES_DIRS)
 plot_tp_lat(
                 DATA, 
                 mbs=["kvs"],
-                # opts=['.', 'Hod', 'Rfaa', 'HodOcmBw'],
-                opts=["HodOcmBw"],
+                opts=['.', 'Hod', 'Rfaa', 'HodOcmBw'],
+                # opts=["HodOcmBw"],
                 cnNRs=[1, 4],
                 lockNRs=[128, 1024],
                 threadNRs=[16],
