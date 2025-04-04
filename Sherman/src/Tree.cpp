@@ -705,6 +705,7 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
   ln->safe = false;
   #endif
 
+  timer.begin();
   dsm->faa_dm_sync(lock_addr, add, cas_buf, nullptr);
   lockMeta = *cas_buf;
   bitset<64> lm_bits(lockMeta);
@@ -742,7 +743,7 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
   // dsm->write_sync(page_buf, peerDataLoc, kLeafPageSize, nullptr, from_peer);
   // save_measurement(threadID, measurements.data_write);
   dsm->write_peer(page_buf, peerDataLoc, kLeafPageSize, false, nullptr, from_peer);
-  timer.begin();
+  // timer.begin();
 
   #endif
 
@@ -971,8 +972,8 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     dsm->write_lm(lmbuf, peerSpinLoc, sizeof(uint64_t), false, nullptr);
   } else {
     dsm->write_lm_sync(lmbuf, peerSpinLoc, sizeof(uint64_t), nullptr);
-    save_measurement(threadID, measurements.gwait_rel);
   }
+  save_measurement(threadID, measurements.gwait_rel);
   // async release counts as we first faad the mn
   // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
   // "WOKE UP PEER" << endl <<
@@ -1101,27 +1102,17 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   } else {
     dsm->write_batch_sync(rs, 2, cxt);
     save_measurement(threadID, measurements.data_write);
-    save_measurement(threadID, measurements.gwait_rel);
   }
+  save_measurement(threadID, measurements.gwait_rel);
 
   #else
 
-  // cerr << "page_addr: " << page_addr << "\n\n";
-  if(false) {
-    // TODO: async not allowed for data WB!! --> lock could be release before the write happens
-    dsm->write(page_buffer, page_addr, page_size, false, cxt, from_peer);
-    // dsm->write_sync(page_buffer, page_addr, page_size, cxt, from_peer);
-    // save_measurement(threadID, measurements.data_write);
-    *cas_buf = 0;
-    dsm->write_dm((char *)cas_buf, lock_addr, sizeof(uint64_t), false, cxt);
-  } else {
-    dsm->write_sync(page_buffer, page_addr, page_size, cxt, from_peer);
-    save_measurement(threadID, measurements.data_write);
-    timer.begin();
-    *cas_buf = 0;
-    dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
-    save_measurement(threadID, measurements.gwait_rel);
-  }
+  dsm->write_sync(page_buffer, page_addr, page_size, cxt, from_peer);
+  save_measurement(threadID, measurements.data_write);
+  timer.begin();
+  *cas_buf = 0;
+  dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
+  save_measurement(threadID, measurements.gwait_rel);
   
 
   // if (!dsm->cas_dm_sync(lock_addr, next_gaddr.val, 0, cas_buffer, cxt)) {
@@ -1844,6 +1835,13 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
     ipage->debug();
     page->debug();
     cerr << "*****************************************************" << endl;
+    dsm->read_sync(page_buffer, page_addr, kLeafPageSize, nullptr);
+    auto page = (LeafPage *)page_buffer;
+    auto ipage = (InternalPage *)page_buffer;
+    cerr << "*****************************************************" << endl;
+    ipage->debug();
+    page->debug();
+    cerr << "*****************************************************" << endl;
     // assert(page->hdr.level == level);
     assert(from_cache);
     this->unlock_addr(lock_addr, tag, cas_buffer, cxt, coro_id, true, page_buffer, page_addr, level);
@@ -1883,7 +1881,8 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
     ipage->debug();
     page->debug();
     this->unlock_addr(lock_addr, tag, cas_buffer, cxt, coro_id, true, page_buffer, page_addr, level);
-    insert(k, v);
+    // insert(k, v);
+    measurements.tp[threadID]--;
     return true;
     // assert(k >= page->hdr.lowest);
   }
