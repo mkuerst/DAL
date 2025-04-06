@@ -59,7 +59,7 @@ comm_prot=rdma
 
 # MICROBENCH INPUTS
 # opts=("Hod" "Rfaa" "HodOcmBw" ".")
-opts=("HodOcmBw")
+opts=("Rfaa")
 
 microbenches=("empty_cs" "mlocks" "kvs")
 duration=10
