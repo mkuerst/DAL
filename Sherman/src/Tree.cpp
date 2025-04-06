@@ -1228,7 +1228,8 @@ bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
     // cerr << "page_addr: " << page_addr << endl;
     // cerr << "page_buffer: " << (uintptr_t) *page_buffer << " = " << (uint64_t) **page_buffer << endl;
     // cerr << "********************************************" << endl;
-    *page_buffer = dsm->get_rbuf(0).get_page_buffer();
+
+    // *page_buffer = dsm->get_rbuf(0).get_page_buffer();
     timer.begin();
     dsm->read_sync(*page_buffer, page_addr, page_size, cxt);
     save_measurement(threadID, measurements.data_read);
