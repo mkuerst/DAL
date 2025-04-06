@@ -22,7 +22,7 @@ all: target
 target:
 	@echo "USING CYCLE_PER_US = $(CYCLE_PER_US) MHz"
 	@echo "USING CACHELINE_SIZE = $(CACHELINE_SIZE) Bytes"
-# echo "" > ../litl2/lib/original/shermanLock
+	echo "" > ../litl2/lib/original/shermanLock
 
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_sherman.a -o microbench_sherman ${FLAGS}
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_shermanHo.a -o microbench_shermanHo ${FLAGS}

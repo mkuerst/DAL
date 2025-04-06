@@ -2,7 +2,6 @@
  
 cleanup() {
     sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo bash /nfs/DAL/cleanup_rdma.sh"
-    sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo bash -c 'ulimit -c unlimited'"
     # sudo clush --hostfile ./nodes.txt "sudo bash /nfs/DAL/cleanup_rdma.sh"
     sudo pkill -P $$ 
     for pid in $(sudo lsof | grep infiniband | awk '{print $2}' | sort -u); do
@@ -60,7 +59,7 @@ comm_prot=rdma
 
 # MICROBENCH INPUTS
 # opts=("Hod" "Rfaa" "HodOcmBw" ".")
-opts=(".")
+opts=("HocOcmBw")
 
 microbenches=("empty_cs" "mlocks" "kvs")
 duration=10
@@ -94,8 +93,8 @@ sudo chown -R mkuerst:dal-PG0 /nfs/
 
 for opt in ${opts[@]}
 do
-    # for impl_dir in "$BASE"/original/*
-    for impl_dir in "$BASE"/../debug/*
+    for impl_dir in "$BASE"/original/*
+    # for impl_dir in "$BASE"/../debug/*
     do
         impl=$(basename $impl_dir)
         impl=${impl%.so}
@@ -156,7 +155,8 @@ do
                                         echo "BENCHMARK $microb | $impl.$opt | $nodeNR Ns | $threadNR Ts | $lockNR Ls | $duration s | RUN $run"
                                         echo "pinning $pinning | DSM $dsmSize GB | $mnNR MNs | chipSize $chipSize KB |"
                                         clush --hostfile <(head -n $nodeNR ./nodes.txt) \
-                                        "sudo LD_PRELOAD=$llock_so $mb_exe \
+                                        "sudo bash -c 'ulimit -c unlimited' && \
+                                        sudo LD_PRELOAD=$llock_so $mb_exe \
                                         -t $threadNR \
                                         -d $duration \
                                         -m $mode \
