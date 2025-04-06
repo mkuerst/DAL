@@ -115,39 +115,40 @@ void DSM::free_dsm() {
     this->rpc_call_dir(m, myNodeID, 0);
   }
 
-  if (myNodeID  == 0) {
+  if (myNodeID < conf.mnNR) {
 
-    if (ibv_dereg_mr(dirCon[myNodeID]->dsmMR)) {
+    if (ibv_dereg_mr(dirCon[0]->dsmMR)) {
       perror("ibv_dereg_mr dmsMR failed");
     }
-    if (ibv_dereg_mr(dirCon[myNodeID]->lockMR)) {
+    if (ibv_dereg_mr(dirCon[0]->lockMR)) {
       perror("ibv_dereg_mr failed");
     }
-    if (ibv_dereg_mr(dirCon[myNodeID]->lockMetaMR)) {
+    if (ibv_dereg_mr(dirCon[0]->lockMetaMR)) {
       perror("ibv_dereg_mr failed");
     }
     for (int i = 0; i < MAX_APP_THREAD; ++i) {
       for (size_t k = 0; k < conf.machineNR; ++k) {
-        if (ibv_destroy_qp(dirCon[myNodeID]->data2app[i][k])) {
+        if (ibv_destroy_qp(dirCon[0]->data2app[i][k])) {
           Debug::notifyError("ibv_destroy_qp dirCon[%d]->lock2app failed\n", myNodeID);
         }
-        if (ibv_destroy_qp(dirCon[myNodeID]->lock2app[i][k])) {
+        if (ibv_destroy_qp(dirCon[0]->lock2app[i][k])) {
           Debug::notifyError("ibv_destroy_qp dirCon[%d]->lock2app failed\n", myNodeID);
         }
       }
     }
-    // if (dirCon[myNodeID]->cq) {
-    //   if (ibv_destroy_cq(dirCon[myNodeID]->cq)) {
+
+    // if (dirCon[0]->cq) {
+    //   if (ibv_destroy_cq(dirCon[0]->cq)) {
     //     Debug::notifyError("ibv_destroy_cq dirCon[%d] failed\n", myNodeID);
     //   }
     // }
-    // if (dirCon[myNodeID]->ctx.pd) {
-    //   if (ibv_dealloc_pd(dirCon[myNodeID]->ctx.pd)) {
+    // if (dirCon[0]->ctx.pd) {
+    //   if (ibv_dealloc_pd(dirCon[0]->ctx.pd)) {
     //     Debug::notifyError("Failed to deallocate PD dirCon[%d]", myNodeID);
     //   }
     // }
-    // if (dirCon[myNodeID]->ctx.ctx) {
-    //   if (ibv_close_device(dirCon[myNodeID]->ctx.ctx)) {
+    // if (dirCon[0]->ctx.ctx) {
+    //   if (ibv_close_device(dirCon[0]->ctx.ctx)) {
     //     Debug::notifyError("failed to close device context dirCon[%d]", myNodeID);
     //   }
     // }

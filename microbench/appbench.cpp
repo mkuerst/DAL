@@ -239,9 +239,9 @@ int main(int argc, char *argv[]) {
     config.machineNR = nodeNR;
     config.threadNR = threadNR;
     // config.chipSize = chipSize * 1024;
+    lockNR = lockNR / mnNR;
     config.chipSize = lockNR * sizeof(uint64_t);
     config.lockMetaSize = config.chipSize;
-    lockNR = lockNR / mnNR;
     config.lockNR = lockNR;
     // lockNR = chipSize * 1024 / sizeof(uint64_t);
     dsm = DSM::getInstance(config);

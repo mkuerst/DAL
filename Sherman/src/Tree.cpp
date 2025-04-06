@@ -1842,7 +1842,7 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
     ipage->debug();
     page->debug();
     cerr << "*****************************************************" << endl;
-    // assert(page->hdr.level == level);
+    assert(page->hdr.level == level);
     // assert(from_cache);
     this->unlock_addr(lock_addr, tag, cas_buffer, cxt, coro_id, true, page_buffer, page_addr, level);
     return true;
@@ -1880,11 +1880,11 @@ bool Tree::leaf_page_store(GlobalAddress page_addr, const Key &k,
     cerr << "*****************************************************" << endl;
     ipage->debug();
     page->debug();
+    assert(k >= page->hdr.lowest);
     this->unlock_addr(lock_addr, tag, cas_buffer, cxt, coro_id, true, page_buffer, page_addr, level);
     // insert(k, v);
     measurements.tp[threadID]--;
     return true;
-    // assert(k >= page->hdr.lowest);
   }
 
   int cnt = 0;
