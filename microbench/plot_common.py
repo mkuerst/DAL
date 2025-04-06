@@ -251,16 +251,27 @@ def jain_fairness_index(x):
 #########
 ## FIG ##
 #########
-def make_offset(candidates, bw):
+def make_offset(candidates, bw, cnMn=False):
     num_cand = len(candidates)
     if num_cand == 1:
         return {candidates[0]: 0}
-    if num_cand == 2:
-       return {candidates[0]: -0.5*bw, candidates[1]:.5*bw} 
-    if num_cand == 3:
-       return {candidates[0]: -bw, candidates[1]: 0, candidates[2]: bw} 
-    if num_cand == 4:
-       return {candidates[0]: -0.5*bw, candidates[1]: -1/6*bw, candidates[2]: 1/6*bw, candidates[3]: 0.5*bw} 
+
+    if cnMn:
+        if num_cand == 2:
+            return {candidates[0][0]: -0.5*bw, candidates[1][0]:.5*bw} 
+        if num_cand == 3:
+            return {candidates[0][0]: -bw, candidates[1][0]: 0, candidates[2][0]: bw} 
+        if num_cand == 4:
+            return {candidates[0][0]: -0.5*bw, candidates[1][0]: -1/6*bw, candidates[2][0]: 1/6*bw, candidates[3][0]: 0.5*bw} 
+
+    else:
+        if num_cand == 2:
+            return {candidates[0]: -0.5*bw, candidates[1]:.5*bw} 
+        if num_cand == 3:
+            return {candidates[0]: -bw, candidates[1]: 0, candidates[2]: bw} 
+        if num_cand == 4:
+            return {candidates[0]: -0.5*bw, candidates[1]: -1/6*bw, candidates[2]: 1/6*bw, candidates[3]: 0.5*bw} 
+        
 
 def add_lat(ax, ax2, values_lat, values_tp, position, comm_prot, bar_width,
             inc, hatches={}, hatch_key=0):
@@ -312,6 +323,7 @@ def add_box(ax1, ax2, position, values, hatch_idx, bw=0.3,
         patch_artist=True,
         boxprops=dict(facecolor='none'),
         medianprops=dict(color='black'),
+        flierprops=dict(marker='.', markersize=4)
     )
 
     for bp in bps["boxes"]:
@@ -331,7 +343,7 @@ def add_box(ax1, ax2, position, values, hatch_idx, bw=0.3,
         fairness /= num_runs
         cfairness /= num_runs
         ax2.scatter([position], fairness, marker="^", color="gold", edgecolor="black")
-        ax2.scatter([position], cfairness, marker="^", color="gray", edgecolor="black")
+        # ax2.scatter([position], cfairness, marker="^", color="gray", edgecolor="black")
 
 def add_vline(axs, position, bw):
     for ax in axs:
@@ -566,7 +578,11 @@ def to_pd(DATA, dirs, COLS, stat):
             
             # TODO:
             elif stat == "ldist":
-                arr = pd.read_csv(dir, header=None).to_numpy().ravel()
+                try:
+                    dfa = pd.read_csv(dir, header=None)
+                except:
+                    continue
+                arr = dfa.to_numpy().ravel()
                 df = pd.DataFrame({'dist': arr})
                 df["comm_prot"] = comm_prot
                 df["mb"] = mb
