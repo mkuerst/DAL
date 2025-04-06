@@ -68,7 +68,7 @@ zipfian=1
 chipSize=128
 dsmSize=8
 
-mnNRs=(4)
+mnNRs=(2)
 nodeNRs=(4)
 threadNRs=(16)
 lockNRs=(1024 128 8)
