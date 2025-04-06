@@ -52,11 +52,11 @@ set_target_properties(sherman_shermanHodOcm PROPERTIES OUTPUT_NAME "sherman_sher
 target_link_libraries(sherman_shermanHodOcm ${LINKS_FLAGS})
 
 
-# # ORIGINAL SHERMAN W/ OPTS
-# add_library(sherman_shermanHoOcmBw STATIC ${COMMON_FILE})
-# target_compile_definitions(sherman_shermanHoOcmBw PRIVATE -DSHERMAN_LOCK -DHANDOVER -DON_CHIP -DBATCHED_WRITEBACK)
-# set_target_properties(sherman_shermanHoOcmBw PROPERTIES OUTPUT_NAME "sherman_shermanHoOcmBw")
-# target_link_libraries(sherman_shermanHoOcmBw ${LINKS_FLAGS})
+# ORIGINAL SHERMAN W/ OPTS
+add_library(sherman_shermanHoOcmBw STATIC ${COMMON_FILE})
+target_compile_definitions(sherman_shermanHoOcmBw PRIVATE -DSHERMAN_LOCK -DHANDOVER -DON_CHIP -DBATCHED_WRITEBACK)
+set_target_properties(sherman_shermanHoOcmBw PROPERTIES OUTPUT_NAME "sherman_shermanHoOcmBw")
+target_link_libraries(sherman_shermanHoOcmBw ${LINKS_FLAGS})
 
 # ORIGINAL SHERMAN W/ OPTS + HOD
 add_library(sherman_shermanHodOcmBw STATIC ${COMMON_FILE})
@@ -158,11 +158,11 @@ target_compile_definitions(sherman_litlHod PRIVATE -DLITL -DHANDOVER -DHANDOVER_
 set_target_properties(sherman_litlHod PROPERTIES OUTPUT_NAME "sherman_litlHod")
 target_link_libraries(sherman_litlHod ${LINKS_FLAGS})
 
-# # LITL HO OCM BW
-# add_library(sherman_litlHoOcmBw STATIC ${COMMON_FILE})
-# target_compile_definitions(sherman_litlHoOcmBw PRIVATE -DLITL -DHANDOVER -DON_CHIP -DBATCHED_WRITEBACK)
-# set_target_properties(sherman_litlHoOcmBw PROPERTIES OUTPUT_NAME "sherman_litlHoOcmBw")
-# target_link_libraries(sherman_litlHoOcmBw ${LINKS_FLAGS})
+# LITL HO OCM BW
+add_library(sherman_litlHoOcmBw STATIC ${COMMON_FILE})
+target_compile_definitions(sherman_litlHoOcmBw PRIVATE -DLITL -DHANDOVER -DON_CHIP -DBATCHED_WRITEBACK)
+set_target_properties(sherman_litlHoOcmBw PROPERTIES OUTPUT_NAME "sherman_litlHoOcmBw")
+target_link_libraries(sherman_litlHoOcmBw ${LINKS_FLAGS})
 
 # LITL HOD OCM
 add_library(sherman_litlHodOcm STATIC ${COMMON_FILE})
