@@ -2,6 +2,8 @@
  
 cleanup() {
     sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sudo bash /nfs/DAL/cleanup_rdma.sh"
+    sudo dsh -M -f ./nodes.txt -o "-o StrictHostKeyChecking=no" -c "sync; sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches'"
+
     # sudo clush --hostfile ./nodes.txt "sudo bash /nfs/DAL/cleanup_rdma.sh"
     sudo pkill -P $$ 
     for pid in $(sudo lsof | grep infiniband | awk '{print $2}' | sort -u); do
@@ -59,20 +61,20 @@ comm_prot=rdma
 
 # MICROBENCH INPUTS
 # opts=("Hod" "Rfaa" "HodOcmBw" ".")
-opts=("Ho" "HoOcmBw")
+opts=("." "Ho" "Hod")
 
 microbenches=("empty_cs" "mlocks" "kvs")
 duration=10
-runNR=3
+runNR=1
 zipfian=1
 chipSize=128
 dsmSize=8
 
-mnNRs=(2)
-nodeNRs=(1)
-threadNRs=(16)
+mnNRs=(4)
+nodeNRs=(4)
+threadNRs=(1)
 lockNRs=(1024 128 8)
-bench_idxs=(2)
+bench_idxs=(1)
 pinnings=(1)
 mHos=(16)
 
@@ -93,8 +95,8 @@ sudo chown -R mkuerst:dal-PG0 /nfs/
 
 for opt in ${opts[@]}
 do
-    for impl_dir in "$BASE"/original/*
-    # for impl_dir in "$BASE"/../debug/*
+    # for impl_dir in "$BASE"/original/*
+    for impl_dir in "$BASE"/../debug/*
     do
         impl=$(basename $impl_dir)
         impl=${impl%.so}
@@ -175,6 +177,7 @@ do
                                         2>&1" 
                                         # 2>> $log_file"
                                         cleanup
+                                        sleep 3
                                     done
                                 done
                             done

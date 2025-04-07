@@ -115,7 +115,7 @@ Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB, uint16_t mHo) :
             std::cout << "fail\n";
         }
     }
-    print_verbose();
+    // print_verbose();
 }
 
 void Tree::print_verbose() {
@@ -2271,45 +2271,36 @@ void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_si
 
 	bool handover = try_lock_addr(curr_lock_addr, tag, curr_cas_buffer, NULL, 0);
 	if (data_size > 0) {
-    #ifndef HANDOVER_DATA
-    timer.begin();
-		dsm->read_sync(curr_page_buffer, base_addr, data_size, NULL);
-    save_measurement(threadID, measurements.data_read);
-    return;
-    #endif
-
-    bool same_address = ln->page_addr.val == base_addr.val;
-    // cerr << ln->page_addr << " ?==? " << base_addr << " " << same_address << endl;
-    if ((!handover || !same_address) && !from_peer) {
+      #ifndef HANDOVER_DATA
       timer.begin();
-      curr_page_buffer = dsm->get_rbuf(0).get_page_buffer();
       dsm->read_sync(curr_page_buffer, base_addr, data_size, NULL);
       save_measurement(threadID, measurements.data_read);
-      // cerr << "********************************************" << endl;
-      // cerr << "NO DATA HO: " << "[" + to_string(dsm->getMyNodeID()) + "." + to_string(dsm->getMyThreadID()) + "]" << endl;
-      // cerr << "lock_addr: " << lock_addr << endl; 
-      // cerr << "base_addr: " << base_addr << endl;
-      // cerr << "curr_page_buffer: " << (uintptr_t) curr_page_buffer << " = " << (uint64_t) *curr_page_buffer << endl;
-      // cerr << "********************************************" << endl;
-    } else {
-      curr_page_buffer = ln->page_buffer;
-      measurements.handovers_data[threadID]++;
-      if (from_peer) {
-        measurements.c_hod[threadID]++;
-        // cerr << "RECEIVED DATA: " << endl;
-        // uint64_t * long_data = (uint64_t *) curr_page_buffer;
-        // for (size_t i = 0; i < data_size/sizeof(uint64_t); i++) {
-        //   cerr << long_data[i] << ", ";
-        // }
-        // cerr << endl;
+      return;
+      #endif
 
+    if (handover) {
+      bool same_address = ln->page_addr.val == base_addr.val;
+
+      timer.begin();
+      #ifdef HANDOVER_DATA
+      memcpy(curr_page_buffer, ln->page_buffer, data_size);
+      #endif
+
+      if (!same_address) {
+        timer.begin();
+        dsm->read_sync(curr_page_buffer, base_addr, data_size, nullptr);
+        save_measurement(threadID, measurements.data_read);
+        return;
       }
-      // cerr << "********************************************" << endl;
-      // cerr << "DATA HO: " << "[" + to_string(dsm->getMyNodeID()) + "." + to_string(dsm->getMyThreadID()) + "]" << endl;
-      // cerr << "lock_addr: " << lock_addr << endl; 
-      // cerr << "base_addr: " << base_addr << endl;
-      // cerr << "curr_page_buffer: " << (uintptr_t) curr_page_buffer << " = " << (uint64_t) *curr_page_buffer << endl;
-      // cerr << "********************************************" << endl;
+      else {
+        measurements.handovers_data[threadID]++;
+        return;
+      }
+    } else {
+      timer.begin();
+      dsm->read_sync(curr_page_buffer, base_addr, data_size, nullptr);
+      save_measurement(threadID, measurements.data_read);
+      return;
     }
 	}
 }

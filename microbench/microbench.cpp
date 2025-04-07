@@ -163,7 +163,7 @@ void *mlocks_worker(void *arg) {
     int *private_int_array = task->private_int_array;
     uint64_t *long_data;
     int lock_idx = 0;
-    uint64_t range = rlock->getLockNR()-1;
+    uint64_t range = (rlock->getLockNR() * mnNR) - 1;
     uint64_t chunk_size = GB(dsmSize) / rlock->getLockNR();
     int sum = 1;
     int data_len = page_size / sizeof(uint64_t);
@@ -228,8 +228,9 @@ void *mlocks_worker(void *arg) {
             else {
                 lock_idx = (uint64_t) uniform_rand_int(range+1);
             }
-            baseAddr.nodeID = uniform_rand_int(mnNR);
-            // baseAddr.nodeID = 0;
+
+            baseAddr.nodeID = lock_idx / lockNR;
+            lock_idx /= mnNR;
             baseAddr.offset = chunk_size * lock_idx;
             lockAddr.nodeID = baseAddr.nodeID;
             lockAddr.offset = lock_idx * sizeof(uint64_t);
@@ -285,9 +286,9 @@ argc, argv);
     mnNR = config.mnNR;
     config.machineNR = nodeNR;
     config.threadNR = threadNR;
-    config.chipSize = chipSize;
-    config.lockMetaSize = chipSize;
     lockNR = lockNR / mnNR;
+    config.chipSize = lockNR * sizeof(uint64_t);
+    config.lockMetaSize = config.chipSize;
     config.lockNR = lockNR;
     // lockNR = chipSize * 1024 / sizeof(uint64_t);
     dsm = DSM::getInstance(config);

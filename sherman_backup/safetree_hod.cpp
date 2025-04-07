@@ -2062,7 +2062,7 @@ void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_si
     return;
     #endif
 
-    bool same_address = curr_lock_node->page_addr.val == base_addr.val;
+    bool same_address = ln->page_addr.val == base_addr.val;
     // cerr << curr_lock_node->page_addr << " ?==? " << base_addr << " " << same_address << endl;
     if ((!handover || !same_address) && !from_peer) {
       timer.begin();
@@ -2076,7 +2076,7 @@ void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_si
       // cerr << "curr_page_buffer: " << (uintptr_t) curr_page_buffer << " = " << (uint64_t) *curr_page_buffer << endl;
       // cerr << "********************************************" << endl;
     } else {
-      curr_page_buffer = curr_lock_node->page_buffer;
+      curr_page_buffer = ln->page_buffer;
       measurements.handovers_data[threadID]++;
       if (from_peer) {
         measurements.c_hod[threadID]++;

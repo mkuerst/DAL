@@ -772,7 +772,7 @@ bool DSM::cas_dm_sync(GlobalAddress gaddr, uint64_t equal, uint64_t val,
 
   if (ctx == nullptr) {
     ibv_wc wc;
-    pollWithCQ(iCon->cq, 1, &wc, gaddr.offset, 64);
+    pollWithCQ(iCon->cq, 1, &wc, gaddr.val, 64);
   }
 
   return equal == *rdma_buffer;
