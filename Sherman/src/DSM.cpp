@@ -106,8 +106,6 @@ void DSM::free_dsm() {
   munmap((void*)rlockAddr, conf.chipSize);
   #endif
   // free((void* )lockMetaAddr);
-  cerr << "y" << endl;
-
   
   if (myNodeID < conf.mnNR) {
     stopDirThread();
@@ -115,33 +113,28 @@ void DSM::free_dsm() {
     m.type = RpcType::END;
     this->rpc_call_dir(m, myNodeID, 0);
   }
-  cerr << "y" << endl;
 
   // if (myNodeID < conf.mnNR) {
 
-    if (ibv_dereg_mr(dirCon[0]->dsmMR)) {
-      perror("ibv_dereg_mr dmsMR failed");
-    }
-    cerr << "y" << endl;
-    if (ibv_dereg_mr(dirCon[0]->lockMR)) {
-      perror("ibv_dereg_mr failed");
-    }
-    cerr << "y" << endl;
-    if (ibv_dereg_mr(dirCon[0]->lockMetaMR)) {
-      perror("ibv_dereg_mr failed");
-    }
-    cerr << "y" << endl;
-    for (int i = 0; i < MAX_APP_THREAD; ++i) {
-      for (size_t k = 0; k < conf.machineNR; ++k) {
-        if (ibv_destroy_qp(dirCon[0]->data2app[i][k])) {
-          Debug::notifyError("ibv_destroy_qp dirCon[%d]->lock2app failed\n", myNodeID);
-        }
-        if (ibv_destroy_qp(dirCon[0]->lock2app[i][k])) {
-          Debug::notifyError("ibv_destroy_qp dirCon[%d]->lock2app failed\n", myNodeID);
-        }
+  if (ibv_dereg_mr(dirCon[0]->dsmMR)) {
+    perror("ibv_dereg_mr dmsMR failed");
+  }
+  if (ibv_dereg_mr(dirCon[0]->lockMR)) {
+    perror("ibv_dereg_mr failed");
+  }
+  if (ibv_dereg_mr(dirCon[0]->lockMetaMR)) {
+    perror("ibv_dereg_mr failed");
+  }
+  for (int i = 0; i < MAX_APP_THREAD; ++i) {
+    for (size_t k = 0; k < conf.machineNR; ++k) {
+      if (ibv_destroy_qp(dirCon[0]->data2app[i][k])) {
+        Debug::notifyError("ibv_destroy_qp dirCon[%d]->lock2app failed\n", myNodeID);
+      }
+      if (ibv_destroy_qp(dirCon[0]->lock2app[i][k])) {
+        Debug::notifyError("ibv_destroy_qp dirCon[%d]->lock2app failed\n", myNodeID);
       }
     }
-    cerr << "y" << endl;
+  }
 
     // if (dirCon[0]->cq) {
     //   if (ibv_destroy_cq(dirCon[0]->cq)) {

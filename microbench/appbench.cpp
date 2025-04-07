@@ -213,9 +213,10 @@ void *thread_run(void *arg) {
         }
         measurements.cache_misses[id] = stop_perf_event(fd);
         return 0;
-        #endif
     }
     return 0;
+
+#endif
 }
 
 int main(int argc, char *argv[]) {
