@@ -182,6 +182,7 @@ void *thread_run(void *arg) {
 #else
 
     if (colocate || nodeID >= mnNR) {
+
         unsigned int seed = rdtsc();
         struct zipf_gen_state state;
         mehcached_zipf_init(&state, kKeySpace, zipfan,

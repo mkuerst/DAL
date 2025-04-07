@@ -1,0 +1,1 @@
+tid,loop_in_cs,tp,lock_acquires,duration,glock_tries,handovers,handovers_data,array_size(B),nodeID,run,lockNR,la,numa,cache_misses,c_ho,c_hod,cnNR,mnNR,threadNR,maxHandover

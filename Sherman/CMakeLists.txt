@@ -76,6 +76,12 @@ target_link_libraries(sherman_shermanHodOcmBw ${LINKS_FLAGS})
 # set_target_properties(sherman_shermanCnaBw PROPERTIES OUTPUT_NAME "sherman_shermanCnaBw")
 # target_link_libraries(sherman_shermanCnaBw ${LINKS_FLAGS})
 
+# SHERMAN_LOCK BW
+add_library(sherman_shermanBw STATIC ${COMMON_FILE})
+target_compile_definitions(sherman_shermanBw PRIVATE -DSHERMAN_LOCK -DBATCHED_WRITEBACK)
+set_target_properties(sherman_shermanBw PROPERTIES OUTPUT_NAME "sherman_shermanBw")
+target_link_libraries(sherman_shermanBw ${LINKS_FLAGS})
+
 # SHERMAN_LOCK RAND_FAAD
 add_library(sherman_shermanRfaad STATIC ${COMMON_FILE})
 target_compile_definitions(sherman_shermanRfaad PRIVATE -DSHERMAN_LOCK -DHANDOVER -DHANDOVER_DATA -DRAND_FAA -DRAND_FAAD)
@@ -193,6 +199,12 @@ add_library(sherman_litlHodOcmBw STATIC ${COMMON_FILE})
 target_compile_definitions(sherman_litlHodOcmBw PRIVATE -DLITL -DHANDOVER -DON_CHIP -DBATCHED_WRITEBACK -DHANDOVER_DATA)
 set_target_properties(sherman_litlHodOcmBw PROPERTIES OUTPUT_NAME "sherman_litlHodOcmBw")
 target_link_libraries(sherman_litlHodOcmBw ${LINKS_FLAGS})
+
+# LITL BW
+add_library(sherman_litlBw STATIC ${COMMON_FILE})
+target_compile_definitions(sherman_litlBw PRIVATE -DLITL -DHANDOVER -DBATCHED_WRITEBACK )
+set_target_properties(sherman_litlBw PROPERTIES OUTPUT_NAME "sherman_litlBw")
+target_link_libraries(sherman_litlBw ${LINKS_FLAGS})
 
 #################################################################################################################
 #################################################################################################################

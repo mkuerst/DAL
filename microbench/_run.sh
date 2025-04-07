@@ -61,11 +61,11 @@ comm_prot=rdma
 
 # MICROBENCH INPUTS
 # opts=("Hod" "Rfaa" "HodOcmBw" ".")
-opts=(".")
+opts=("Bw")
 
 microbenches=("empty_cs" "mlocks" "kvs")
-duration=3
-runNR=1
+duration=10
+runNR=3
 zipfian=1
 chipSize=128
 dsmSize=8
@@ -73,11 +73,11 @@ dsmSize=8
 mnNRs=(2)
 nodeNRs=(4)
 threadNRs=(16)
-lockNRs=(1024)
+lockNRs=(1024 128 8)
 bench_idxs=(2)
 pinnings=(1)
 mHos=(16)
-colocate=0
+colocate=1
 
 
 cn_tp_dir="$PWD/results/tp"
@@ -96,8 +96,8 @@ sudo chown -R mkuerst:dal-PG0 /nfs/
 
 for opt in ${opts[@]}
 do
-    # for impl_dir in "$BASE"/original/*
-    for impl_dir in "$BASE"/../debug/*
+    for impl_dir in "$BASE"/original/*
+    # for impl_dir in "$BASE"/../debug/*
     do
         impl=$(basename $impl_dir)
         impl=${impl%.so}
@@ -179,7 +179,7 @@ do
                                         2>&1" 
                                         # 2>> $log_file"
                                         cleanup
-                                        sleep 3
+                                        sleep 5
                                     done
                                 done
                             done

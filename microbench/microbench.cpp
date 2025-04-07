@@ -262,6 +262,84 @@ void *mlocks_worker(void *arg) {
     return 0;
 }
 
+void *single_machine(void *arg) {
+    Task *task = (Task *) arg;
+    Timer timer;
+    int cpu = 0;
+    if (pinning == 1) {
+        cpu = thread_to_cpu_1n[task->id];
+        bindCore(cpu);
+    }
+    else {
+        cpu = thread_to_cpu_2n[task->id];
+        bindCore(cpu);
+    }
+    int *private_int_array = task->private_int_array;
+    uint64_t *long_data;
+    int lock_idx = 0;
+    uint64_t range = lockNR - 1;
+    uint64_t chunk_size = GB(dsmSize) / rlock->getLockNR();
+    int sum = 1;
+    int data_len = page_size / sizeof(uint64_t);
+    uint64_t seed = nodeID*threadNR + task->id + 42;
+    srand(seed);
+    ZipfianGenerator zipfian(0.99, range, seed);
+    int num = 0;
+    int cnt = 100;
+    
+    int fd = setup_perf_event(cpu);
+    start_perf_event(fd);
+
+    pthread_barrier_wait(&global_barrier);
+
+    while (!stop.load()) {
+    // while (num < cnt) {
+        
+        for (int j = 0; j < 400; j++) {
+            int idx = uniform_rand_int(PRIVATE_ARRAY_SZ / sizeof(int));
+            private_int_array[idx] += sum;
+        }
+        for (int j = 0; j < 100; j++) {
+            if (stop.load())
+                break;
+            // if (num >= cnt)
+            //     break;
+            if (use_zipfian) {
+                lock_idx = zipfian.generate();
+            }
+            else {
+                lock_idx = (uint64_t) uniform_rand_int(range+1);
+            }
+
+            lock_idx /= mnNR;
+
+            rlock->mb_lock(baseAddr, lockAddr, page_size);
+
+
+            num++;
+            lock_acqs[lock_idx]++;
+            task->lock_acqs++;
+            measurements.tp[task->id]++;
+            measurements.loop_in_cs[task->id]++;
+
+            timer.begin();
+            long_data = (uint64_t *) rlock->getCurrPB();
+            // for (int x = 0; x < 100; x++) {
+            for (int k = 0; k < data_len; k++) {
+                long_data[k] += 1;
+                task->inc++;
+            }
+            // }
+            save_measurement(task->id, measurements.lock_hold);
+            
+            lock_rels[lockAddr.nodeID * lockNR + lock_idx]++;
+            rlock->mb_unlock(baseAddr, page_size);
+        }
+    }
+    measurements.cache_misses[task->id] = stop_perf_event(fd);
+    return 0;
+}
+
 int main(int argc, char *argv[]) {
     parse_cli_args(
     &threadNR, &nodeNR, &mnNR, &lockNR, &runNR,
