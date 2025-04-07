@@ -38,7 +38,7 @@ cn_tp_header="tid,\
 loop_in_cs,tp,lock_acquires,duration,\
 glock_tries,handovers,handovers_data,array_size(B),\
 nodeID,run,lockNR,la,numa,cache_misses,c_ho,c_hod,\
-cnNR,mnNR,threadNR,maxHandover"
+cnNR,mnNR,threadNR,maxHandover,colocate"
 
 cn_lat_header="lock_hold,\
 lwait_acq,\
@@ -53,7 +53,7 @@ nodeID,\
 run,\
 lockNR,\
 numa,\
-cnNR,mnNR,threadNR,maxHandover"
+cnNR,mnNR,threadNR,maxHandover,colocate"
 
 server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
 
@@ -61,22 +61,23 @@ comm_prot=rdma
 
 # MICROBENCH INPUTS
 # opts=("Hod" "Rfaa" "HodOcmBw" ".")
-opts=("Hod")
+opts=(".")
 
 microbenches=("empty_cs" "mlocks" "kvs")
-duration=10
+duration=3
 runNR=1
 zipfian=1
 chipSize=128
 dsmSize=8
 
-mnNRs=(4)
+mnNRs=(2)
 nodeNRs=(4)
 threadNRs=(16)
-lockNRs=(1024 128 8)
+lockNRs=(1024)
 bench_idxs=(2)
 pinnings=(1)
 mHos=(16)
+colocate=0
 
 
 cn_tp_dir="$PWD/results/tp"
@@ -152,10 +153,10 @@ do
                                 for mHo in ${mHos[@]}
                                 do
                                     for ((run = 0; run < runNR; run++)); do
-                                        cn_lock_file="$cn_lock_dir"/"$res_suffix"_nodeNR"$nodeNR"_threadNR"$threadNR"_mnNR"$mnNR"_lockNR"$lockNR"_NUMA"$pinning"_mHo"$mHo"_r"$run".csv
+                                        cn_lock_file="$cn_lock_dir"/"$res_suffix"_nodeNR"$nodeNR"_threadNR"$threadNR"_mnNR"$mnNR"_lockNR"$lockNR"_NUMA"$pinning"_mHo"$mHo"_colocate"$colocate"_r"$run".csv
                                         > "$cn_lock_file"
                                         echo "BENCHMARK $microb | $impl.$opt | $nodeNR Ns | $threadNR Ts | $lockNR Ls | $duration s | RUN $run"
-                                        echo "pinning $pinning | DSM $dsmSize GB | $mnNR MNs | chipSize $chipSize KB |"
+                                        echo "pinning $pinning | DSM $dsmSize GB | $mnNR MNs | chipSize $chipSize KB | colocate $colocate |"
                                         clush --hostfile <(head -n $nodeNR ./nodes.txt) \
                                         "sudo bash -c 'ulimit -c unlimited' && \
                                         sudo LD_PRELOAD=$llock_so $mb_exe \
@@ -174,6 +175,7 @@ do
                                         -c $chipSize \
                                         -y $dsmSize \
                                         -x $mHo \
+                                        -q $colocate \
                                         2>&1" 
                                         # 2>> $log_file"
                                         cleanup

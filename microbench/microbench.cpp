@@ -22,7 +22,7 @@ using namespace std;
 
 char *res_file_tp, *res_file_lat, *res_file_lock;
 int threadNR, nodeNR, mnNR, lockNR, runNR,
-nodeID, duration, mode, kReadRatio, maxHandover;
+nodeID, duration, mode, kReadRatio, maxHandover, colocate;
 int pinning = 1;
 uint64_t *lock_acqs;
 uint64_t *lock_rels;
@@ -267,14 +267,13 @@ int main(int argc, char *argv[]) {
     &threadNR, &nodeNR, &mnNR, &lockNR, &runNR,
     &nodeID, &duration, &mode, &use_zipfian, 
     &kReadRatio, &pinning, &chipSize, &dsmSize,
-    &maxHandover,
+    &maxHandover, &colocate,
     &res_file_tp, &res_file_lat, &res_file_lock,
-argc, argv);
+    argc, argv);
 
     if (nodeID == 1) {
         if(system("sudo bash /nfs/DAL/restartMemc.sh"))
             _error("Failed to start MEMC server\n");
-        fprintf(stderr, "STARTED MEMC SERVER\n");
     }
     else {
         sleep(1);
@@ -339,28 +338,43 @@ argc, argv);
 
     /*RUN*/
     dsm->barrier("MB_BEGIN");
-    pthread_barrier_wait(&global_barrier);
-
-    sleep(duration);
-    stop.store(true);
-
-    for (int i = 0; i < threadNR; i++) {
-        pthread_join(tasks[i].thread, NULL);
-    }
-    for (int n = 0; n < nodeNR; n++) {
-        if (n == nodeID) {
-            write_tp(res_file_tp, res_file_lock, runNR,  lockNR*mnNR, n, page_size, pinning,
-                    nodeNR, mnNR, threadNR, define::kMaxHandOverTime);
-            write_lat(res_file_lat, runNR, lockNR*mnNR, n, page_size, pinning,
-                    nodeNR, mnNR, threadNR, define::kMaxHandOverTime);
+    if (colocate) {
+    cn_run:
+        pthread_barrier_wait(&global_barrier);
+    
+        sleep(duration);
+        stop.store(true);
+    
+        for (int i = 0; i < threadNR; i++) {
+            pthread_join(tasks[i].thread, NULL);
         }
-        string writeResKey = "WRITE_RES_" + to_string(n);
-        dsm->barrier(writeResKey);
+        for (int n = 0; n < nodeNR; n++) {
+            if (n == nodeID) {
+                write_tp(res_file_tp, res_file_lock, runNR,  lockNR*mnNR, n, page_size, pinning,
+                        nodeNR, mnNR, threadNR, maxHandover, colocate);
+                write_lat(res_file_lat, runNR, lockNR*mnNR, n, page_size, pinning,
+                        nodeNR, mnNR, threadNR, maxHandover, colocate);
+            }
+            string writeResKey = "WRITE_RES_" + to_string(n);
+            dsm->barrier(writeResKey);
+        }
+    } else {
+        if (nodeID >= mnNR) {
+            goto cn_run;
+        }
+        else {
+            for (int n = 0; n < nodeNR; n++) {
+                string writeResKey = "WRITE_RES_" + to_string(n);
+                dsm->barrier(writeResKey);
+            }
+        }
     }
+
     dsm->barrier("MB_END");
     if (nodeID == 0) {
         fprintf(stderr, "WRITTEN RESULTS\n");
     }
+
     __asm__ volatile("mfence" ::: "memory");
 
     #ifdef CORRECTNESS

@@ -76,6 +76,7 @@ LAT_COLS = [
 "mnNR", 
 "threadNR", 
 "maxHandover",
+"colocate",
 ]
 
 TP_COLS = [
@@ -100,6 +101,7 @@ TP_COLS = [
 "mnNR", 
 "threadNR", 
 "maxHandover",
+"colocate",
 ]
 
 STAT_TO_COLS = {

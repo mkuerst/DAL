@@ -25,7 +25,7 @@ using namespace std;
 
 char *res_file_tp, *res_file_lat, *res_file_lock;
 int threadNR, nodeNR, mnNR, lockNR, runNR,
-nodeID, duration, mode, maxHandover;
+nodeID, duration, mode, maxHandover, colocate;
 int pinning = 1;
 uint64_t *lock_acqs;
 uint64_t *lock_rels;
@@ -221,7 +221,7 @@ int main(int argc, char *argv[]) {
     &threadNR, &nodeNR, &mnNR, &lockNR, &runNR,
     &nodeID, &duration, &mode, &use_zipfan, 
     &kReadRatio, &pinning, &chipSize, &dsmSize,
-    &maxHandover,
+    &maxHandover, &colocate,
     &res_file_tp, &res_file_lat, &res_file_lock,
     argc, argv);
     if (nodeID == 1) {
@@ -236,9 +236,9 @@ int main(int argc, char *argv[]) {
     /*CONFIG*/
     config.dsmSize = dsmSize;
     config.mnNR = mnNR > nodeNR ? nodeNR : mnNR;
+    mnNR = config.mnNR;
     config.machineNR = nodeNR;
     config.threadNR = threadNR;
-    // config.chipSize = chipSize * 1024;
     lockNR = lockNR / mnNR;
     config.chipSize = lockNR * sizeof(uint64_t);
     config.lockMetaSize = config.chipSize;
@@ -292,11 +292,34 @@ int main(int argc, char *argv[]) {
     if (nodeID == 0) {
         fprintf(stderr, "APPBENCH START\n");
     }
-    sleep(duration);
-    done.store(true);
-    for (int i = 0; i < threadNR; i++) {
-        pthread_join(tasks[i].thread, NULL);
-        // th[i].join();
+    if (colocate) {
+    cn_run:
+        sleep(duration);
+        done.store(true);
+        for (int i = 0; i < threadNR; i++) {
+            pthread_join(tasks[i].thread, NULL);
+            // th[i].join();
+        }
+    
+        for (int n = 0; n < nodeNR; n++) {
+            if (n == nodeID) {
+                write_tp(res_file_tp, res_file_lock, runNR,  lockNR*mnNR, n, page_size, pinning,
+                        nodeNR, mnNR, threadNR, maxHandover, colocate);
+                write_lat(res_file_lat, runNR, lockNR*mnNR, n, page_size, pinning,
+                        nodeNR, mnNR, threadNR, maxHandover, colocate);
+            }
+            string writeResKey = "WRITE_RES_" + to_string(n);
+            dsm->barrier(writeResKey);
+        }
+    } else {
+        if (nodeID >= mnNR) {
+            goto cn_run;
+        } else {
+            for (int n = 0; n < nodeNR; n++) {
+                string writeResKey = "WRITE_RES_" + to_string(n);
+                dsm->barrier(writeResKey);
+            }
+        }
     }
 
     // TODO: CACHE HIT AND MISSES
@@ -308,16 +331,6 @@ int main(int argc, char *argv[]) {
     //     hit += cache_hit[i][0];
     // }
 
-    for (int n = 0; n < nodeNR; n++) {
-        if (n == nodeID) {
-            write_tp(res_file_tp, res_file_lock, runNR,  lockNR*mnNR, n, page_size, pinning,
-                    nodeNR, mnNR, threadNR, define::kMaxHandOverTime);
-            write_lat(res_file_lat, runNR, lockNR*mnNR, n, page_size, pinning,
-                    nodeNR, mnNR, threadNR, define::kMaxHandOverTime);
-        }
-        string writeResKey = "WRITE_RES_" + to_string(n);
-        dsm->barrier(writeResKey);
-    }
     if (nodeID == 0) {
         fprintf(stderr, "WRITE RES DONE\n");
     }

@@ -43,14 +43,14 @@ void parse_cli_args(
     int *threadNR, int *nodeNR, int* mnNR, int *lockNR, int *runNR,
     int *nodeID, int* duration, int* mode, int* use_zipfan, 
 	int* kReadRatio, int* pinning, int* chipSize, uint64_t* dsmSize,
-	int* maxHandover,
+	int* maxHandover, int* colocate,
     char **res_file_tp, char **res_file_lat, char **res_file_lock,
     int argc, char **argv
 ) {
     int option;
 	*nodeID = getNodeNumber();
 	while ((option = getopt(argc, argv,
-    "d:t:l:i:d:s:m:r:f:g:n:z:w:p:c:y:h:x:")) != -1) 
+    "d:t:l:i:d:s:m:r:f:g:n:z:w:p:c:y:h:x:q:")) != -1) 
     {
 		switch (option) {
 			case 's':
@@ -101,6 +101,8 @@ void parse_cli_args(
 				*dsmSize = atoi(optarg);
 			case 'x':
 				*maxHandover = atoi(optarg);
+			case 'q':
+				*colocate = atoi(optarg);
 			default:
 				break;
 		}
@@ -255,7 +257,7 @@ void writeData(char *path, const std::vector<std::vector<uint32_t>>& data) {
 }
 
 void write_tp(char* tp_path, char* lock_path, int run, int lockNR, int nodeID, size_t array_size, int pinning,
-                uint16_t cnNR, uint16_t mnNR, int threadNR, uint16_t maxHandover) {
+                uint16_t cnNR, uint16_t mnNR, int threadNR, uint16_t maxHandover, int colocate) {
 	std::ofstream file(tp_path, std::ios::app);
 	uint64_t total_handovers = 0;
 	uint64_t total_Hod = 0;
@@ -284,7 +286,8 @@ void write_tp(char* tp_path, char* lock_path, int run, int lockNR, int nodeID, s
 			<< std::setw(3) << cnNR << ","
 			<< std::setw(3) << mnNR << ","
 			<< std::setw(3) << threadNR << ","
-			<< std::setw(3) << maxHandover << "\n";
+			<< std::setw(3) << maxHandover << ","
+			<< std::setw(1) << colocate << "\n";
 	}
 
 	file.flush();
@@ -304,7 +307,7 @@ void write_tp(char* tp_path, char* lock_path, int run, int lockNR, int nodeID, s
 
 // in us
 void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_size, int pinning,
-                uint16_t cnNR, uint16_t mnNR, uint16_t threadNR, uint16_t maxHandover) {
+                uint16_t cnNR, uint16_t mnNR, uint16_t threadNR, uint16_t maxHandover, int colocate) {
 	std::ofstream file(res_file, std::ios::app);
 	if (!file)
 		__error("Failed to open %s\n", res_file);
@@ -336,7 +339,8 @@ void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_siz
 			<< std::setw(3) << cnNR << ","
 			<< std::setw(3) << mnNR << ","
 			<< std::setw(3) << threadNR << ","
-			<< std::setw(3) << maxHandover << "\n";
+			<< std::setw(3) << maxHandover << ","
+			<< std::setw(1) << colocate << "\n";
 	}
 	file.close();
 }
