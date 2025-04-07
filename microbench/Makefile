@@ -37,8 +37,8 @@ target:
 # 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_litlHoOcmBw.a -o appbench_litlHoOcmBw ${FLAGS}
 # #SHERMAN
 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_sherman.a -o appbench_sherman ${FLAGS}
-	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHo.a -o appbench_shermanHo ${FLAGS}
-	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHod.a -o appbench_shermanHod ${FLAGS}
+# g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHo.a -o appbench_shermanHo ${FLAGS}
+# g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHod.a -o appbench_shermanHod ${FLAGS}
 # 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanRfaa.a -o appbench_shermanRfaa ${FLAGS}
 # 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHodRfaa.a -o appbench_shermanHodRfaa ${FLAGS}
 # 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHodOcmBw.a -o appbench_shermanHodOcmBw ${FLAGS}
@@ -53,7 +53,7 @@ target:
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_litlHodOcm.a -o microbench_litlHodOcm ${FLAGS}
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_litlHodOcmRfaa.a -o microbench_litlHodOcmRfaa ${FLAGS}
 #SHERMAN
-# g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_sherman.a -o microbench_sherman ${FLAGS}
+	g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_sherman.a -o microbench_sherman ${FLAGS}
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_shermanHo.a -o microbench_shermanHo ${FLAGS}
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_shermanHod.a -o microbench_shermanHod ${FLAGS}
 # g++ -std=c++17 microbench.cpp ../Sherman/build/libsherman_shermanRfaa.a -o microbench_shermanRfaa ${FLAGS}

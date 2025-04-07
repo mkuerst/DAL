@@ -74,10 +74,10 @@ mnNRs=(2)
 nodeNRs=(4)
 threadNRs=(16)
 lockNRs=(1024)
-bench_idxs=(2)
+bench_idxs=(1)
 pinnings=(1)
 mHos=(16)
-colocate=0
+colocate=1
 
 
 cn_tp_dir="$PWD/results/tp"

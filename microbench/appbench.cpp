@@ -181,38 +181,41 @@ void *thread_run(void *arg) {
   tree->run_coroutine(coro_func, id, kCoroCnt);
 #else
 
-    unsigned int seed = rdtsc();
-    struct zipf_gen_state state;
-    mehcached_zipf_init(&state, kKeySpace, zipfan,
-                        (rdtsc() & (0x0000ffffffffffffull)) ^ id);
-
-    start_perf_event(fd);
-    Timer timer;
-    while (!done.load()) {
-
-        uint64_t dis = mehcached_zipf_next(&state);
-        uint64_t key = to_key(dis);
-
-        Value v;
-        timer.begin();
-
-        if (rand_r(&seed) % 100 < kReadRatio) { // GET
-            tree->search(key, v);
-        } else {
-            v = 12;
-            tree->insert(key, v);
+    if (colocate || nodeID >= mnNR) {
+        unsigned int seed = rdtsc();
+        struct zipf_gen_state state;
+        mehcached_zipf_init(&state, kKeySpace, zipfan,
+                            (rdtsc() & (0x0000ffffffffffffull)) ^ id);
+    
+        start_perf_event(fd);
+        Timer timer;
+        while (!done.load()) {
+    
+            uint64_t dis = mehcached_zipf_next(&state);
+            uint64_t key = to_key(dis);
+    
+            Value v;
+            timer.begin();
+    
+            if (rand_r(&seed) % 100 < kReadRatio) { // GET
+                tree->search(key, v);
+            } else {
+                v = 12;
+                tree->insert(key, v);
+            }
+    
+            auto us_10 = timer.end() / 100;
+            if (us_10 >= LATENCY_WINDOWS) {
+                us_10 = LATENCY_WINDOWS - 1;
+            }
+            measurements.tp[id]++;
+            measurements.end_to_end[id*LATENCY_WINDOWS + us_10]++;
         }
-
-        auto us_10 = timer.end() / 100;
-        if (us_10 >= LATENCY_WINDOWS) {
-            us_10 = LATENCY_WINDOWS - 1;
-        }
-        measurements.tp[id]++;
-        measurements.end_to_end[id*LATENCY_WINDOWS + us_10]++;
+        measurements.cache_misses[id] = stop_perf_event(fd);
+        return 0;
+        #endif
     }
-    measurements.cache_misses[id] = stop_perf_event(fd);
     return 0;
-    #endif
 }
 
 int main(int argc, char *argv[]) {

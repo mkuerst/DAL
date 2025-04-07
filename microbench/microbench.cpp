@@ -329,17 +329,18 @@ int main(int argc, char *argv[]) {
     /*TASK INIT*/
     Task *tasks = new Task[threadNR];
     measurements.duration = duration;
-    for (int i = 0; i < threadNR; i++) {
-        tasks[i].id = i;
-        tasks[i].disa = 'y';
-        pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
+    if (colocate || nodeNR >= mnNR) {
+        for (int i = 0; i < threadNR; i++) {
+            tasks[i].id = i;
+            tasks[i].disa = 'y';
+            pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
+        }
     }
     
 
     /*RUN*/
     dsm->barrier("MB_BEGIN");
-    if (colocate) {
-    cn_run:
+    if (colocate || nodeID >= mnNR) {
         pthread_barrier_wait(&global_barrier);
     
         sleep(duration);
@@ -359,14 +360,9 @@ int main(int argc, char *argv[]) {
             dsm->barrier(writeResKey);
         }
     } else {
-        if (nodeID >= mnNR) {
-            goto cn_run;
-        }
-        else {
-            for (int n = 0; n < nodeNR; n++) {
-                string writeResKey = "WRITE_RES_" + to_string(n);
-                dsm->barrier(writeResKey);
-            }
+        for (int n = 0; n < nodeNR; n++) {
+            string writeResKey = "WRITE_RES_" + to_string(n);
+            dsm->barrier(writeResKey);
         }
     }
 
