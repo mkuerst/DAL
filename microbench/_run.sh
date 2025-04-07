@@ -61,7 +61,7 @@ comm_prot=rdma
 
 # MICROBENCH INPUTS
 # opts=("Hod" "Rfaa" "HodOcmBw" ".")
-opts=("." "Ho" "Hod")
+opts=("Hod")
 
 microbenches=("empty_cs" "mlocks" "kvs")
 duration=10
@@ -72,9 +72,9 @@ dsmSize=8
 
 mnNRs=(4)
 nodeNRs=(4)
-threadNRs=(1)
+threadNRs=(16)
 lockNRs=(1024 128 8)
-bench_idxs=(1)
+bench_idxs=(2)
 pinnings=(1)
 mHos=(16)
 

@@ -173,12 +173,12 @@ read_data(DATA, RES_DIRS)
 
 plot_tp_lat(
                 DATA, 
-                mbs=["kvs"],
+                mbs=["mlocks"],
                 opts=['.', 'Ho', 'Hod', 'Rfaa', 'HoOcmBw', 'HodOcmBw'],
                 # opts=["HodOcmBw"],
-                cnMnNRs=[[4,2], [4,4]],
+                cnMnNRs=[[4,4]],
                 lockNRs=[8, 128, 1024],
-                threadNRs=[16],
+                threadNRs=[1],
                 mHos=[16],
                 pinnings=[1],
                 lat_incs = [["lwait_acq"], ["gwait_acq", "gwait_rel"], ["data_read", "data_write"]],

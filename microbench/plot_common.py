@@ -253,10 +253,10 @@ def jain_fairness_index(x):
 #########
 def make_offset(candidates, bw, cnMn=False):
     num_cand = len(candidates)
-    if num_cand == 1:
-        return {candidates[0]: 0}
 
     if cnMn:
+        if num_cand == 1:
+            return {candidates[0][0]: 0}
         if num_cand == 2:
             return {candidates[0][0]: -0.5*bw, candidates[1][0]:.5*bw} 
         if num_cand == 3:
@@ -265,6 +265,8 @@ def make_offset(candidates, bw, cnMn=False):
             return {candidates[0][0]: -0.5*bw, candidates[1][0]: -1/6*bw, candidates[2][0]: 1/6*bw, candidates[3][0]: 0.5*bw} 
 
     else:
+        if num_cand == 1:
+            return {candidates[0]: 0}
         if num_cand == 2:
             return {candidates[0]: -0.5*bw, candidates[1]:.5*bw} 
         if num_cand == 3:

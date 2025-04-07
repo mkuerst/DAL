@@ -1181,13 +1181,12 @@ bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
 
 
     timer.begin();
-    #ifdef HANDOVER_DATA
-    memcpy(*page_buffer, ln->page_buffer, kLeafPageSize);
-    ln->ua_hod = false;
-    #endif
 
     if (!same_address) {
       if (ln->wb > 0) {
+        memcpy(*page_buffer, ln->page_buffer, kLeafPageSize);
+        ln->ua_hod = false;
+
         dsm->write_sync(*page_buffer, ln->page_addr, kLeafPageSize, nullptr);
         save_measurement(threadID, measurements.data_write);
         ln->wb = 0;
@@ -1211,6 +1210,8 @@ bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
       }
       assert(ln->level == level);
       ln->written = false;
+      memcpy(*page_buffer, ln->page_buffer, kLeafPageSize);
+      ln->ua_hod = false;
       measurements.handovers_data[threadID]++;
 
       // #ifdef RAND_FAAD
@@ -2282,17 +2283,16 @@ void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_si
       bool same_address = ln->page_addr.val == base_addr.val;
 
       timer.begin();
-      #ifdef HANDOVER_DATA
-      memcpy(curr_page_buffer, ln->page_buffer, data_size);
-      #endif
 
       if (!same_address) {
         timer.begin();
+        memcpy(curr_page_buffer, ln->page_buffer, data_size);
         dsm->read_sync(curr_page_buffer, base_addr, data_size, nullptr);
         save_measurement(threadID, measurements.data_read);
         return;
       }
       else {
+        memcpy(curr_page_buffer, ln->page_buffer, data_size);
         measurements.handovers_data[threadID]++;
         return;
       }
