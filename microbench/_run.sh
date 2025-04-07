@@ -70,7 +70,7 @@ zipfian=1
 chipSize=128
 dsmSize=8
 
-mnNRs=(2)
+mnNRs=(4)
 nodeNRs=(4)
 threadNRs=(16)
 lockNRs=(1024 128 8)
@@ -175,8 +175,8 @@ do
                                         -c $chipSize \
                                         -y $dsmSize \
                                         -x $mHo \
-                                        -q $colocate \
-                                        2>&1" 
+                                        -q $colocate"
+                                        # 2>&1" 
                                         # 2>> $log_file"
                                         cleanup
                                         sleep 5
