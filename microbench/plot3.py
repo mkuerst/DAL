@@ -6,7 +6,7 @@ from plot_common import *
 def plot_tp_lat(DATA, comm_prot="rdma", opts=["."], mbs=["kvs"],
     lat_incs=[], tp_incs=[],
     cnMnNRs=[[1, 2], [4, 2]], threadNRs=[32], lockNRs=[1], log=[1],
-    pinnings=[], mHos=[16], colocate=1,
+    pinnings=[], mHos=[16], colocate=1, vs_colocate=False,
     ):
 
 
@@ -95,6 +95,9 @@ def plot_tp_lat(DATA, comm_prot="rdma", opts=["."], mbs=["kvs"],
 
                                 num_vlines += 1
 
+                            if vs_colocate:
+                                colocate -= 1
+
                         C_str = f"{cnNR}CNs"
                         comp_nodes.sort()
                         cn_hatch_categories = {1: "1 CN", 2: "2 CNs", 3: "3 CNs", 4: "4 CNs", 5: "5 CNs", 6: "6 CNs", 7: "7 CNs", 8: "8 CNs"}
@@ -175,9 +178,9 @@ read_data(DATA, RES_DIRS)
 plot_tp_lat(
                 DATA, 
                 mbs=["kvs"],
-                opts=['.', 'Ho', 'Hod', 'Rfaa', 'Bw', 'HoOcmBw', 'HodOcmBw'],
+                opts=['.', 'Ho', 'Hod', 'Ocm', 'Bw', 'HoOcmBw', 'HodOcmBw'],
                 # opts=["HodOcmBw"],
-                cnMnNRs=[[4,2], [4,4]],
+                cnMnNRs=[[4,2], [4,2]],
                 lockNRs=[8, 128, 1024],
                 threadNRs=[16],
                 mHos=[16],
@@ -185,7 +188,8 @@ plot_tp_lat(
                 lat_incs = [["lwait_acq"], ["gwait_acq", "gwait_rel"], ["data_read", "data_write"]],
                 tp_incs=["la", "tp", "glock_tries", "handovers", "handovers_data", "cache_misses"],
                 log=[1,1,0],
-                colocate=1
+                colocate=1,
+                vs_colocate=True,
                 )
 
 pass

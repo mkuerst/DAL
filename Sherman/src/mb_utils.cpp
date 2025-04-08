@@ -263,6 +263,10 @@ void write_tp(char* tp_path, char* lock_path, int run, int lockNR, int nodeID, s
 	uint64_t total_Hod = 0;
 	if (!file)
 		__error("Failed to open %s\n", tp_path);
+	if (!colocate) {
+		cnNR = cnNR - mnNR;
+	}
+
 	for (int t = 0; t < threadNR; t++) {
 		total_handovers += measurements.handovers[t];
 		total_Hod += measurements.handovers_data[t];
@@ -320,6 +324,9 @@ void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_siz
 	uint64_t* data_read = cal_latency(measurements.data_read, "data_read");
 	uint64_t* data_write = cal_latency(measurements.data_write, "data_write");
 	uint64_t* end_to_end = cal_latency(measurements.end_to_end, "end_to_end", LATENCY_WINDOWS, 10);
+	if (!colocate) {
+		cnNR = cnNR - mnNR;
+	}
 
 	for (int i = 0; i < LATNR; i++) {
 		file << std::setfill('0')

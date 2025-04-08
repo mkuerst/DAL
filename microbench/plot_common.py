@@ -210,7 +210,7 @@ tp_axis_titles = {
     "tp" : ("TP (ops/s)", "Jain's Fairness Index"),
     "glock_tries": ("[GLock CASes]/[Lock Acquisition]", ""),
     "handovers": ("Handovers", ""),
-    "handovers_data": ("[Handovers w/ data]/[Lock Acquistions]", ""),
+    "handovers_data": ("[Handovers w/ data]", ""),
     "cache_misses": ("Cache Misses", "")
 }
 
@@ -321,8 +321,8 @@ def add_box(ax1, ax2, position, values, hatch_idx, bw=0.3,
         data = data / la
     if tp_inc == "cache_misses":
         data = data / la
-    if tp_inc == "handovers_data":
-        data = data / la
+    # if tp_inc == "handovers_data":
+    #     data = data / la
 
     bps = ax1.boxplot(
         data,
@@ -606,8 +606,8 @@ def to_pd(DATA, dirs, COLS, stat):
         
         DATA[stat] = pd.concat([DATA[stat], df], ignore_index=True)
 
-    if stat != 'ldist':
-        DATA[stat]["colocate"].fillna(1, inplace=True)
+    # if stat != 'ldist':
+    #     DATA[stat]["colocate"].fillna(1, inplace=True)
 
 
 def read_data(DATA, RES_DIRS):
