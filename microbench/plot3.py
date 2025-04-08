@@ -6,7 +6,7 @@ from plot_common import *
 def plot_tp_lat(DATA, comm_prot="rdma", opts=["."], mbs=["kvs"],
     lat_incs=[], tp_incs=[],
     cnMnNRs=[[1, 2], [4, 2]], threadNRs=[32], lockNRs=[1], log=[1],
-    pinnings=[], mHos=[16], colocate=1, vs_colocate=False,
+    pinnings=[], mHos=[16], colocate=1, vs_colocate=False, impls=[],
     ):
 
 
@@ -34,6 +34,9 @@ def plot_tp_lat(DATA, comm_prot="rdma", opts=["."], mbs=["kvs"],
         max_vlines = len(cnMnNRs) - 1
         comp_nodes = []
 
+        if len(impls) == 0:
+            impl = IMPL
+
         for numa in pinnings:
                 for threadNR in threadNRs:
                     # for mnNR in mnNRs:
@@ -44,7 +47,7 @@ def plot_tp_lat(DATA, comm_prot="rdma", opts=["."], mbs=["kvs"],
                                 comp_nodes.append(cnNR)
                             for opt in opts:
 
-                                for impl in IMPL:
+                                for impl in impls:
                                     if not (DATA["tp"]["impl"] == impl).any():
                                         continue
 
@@ -177,6 +180,7 @@ read_data(DATA, RES_DIRS)
 
 plot_tp_lat(
                 DATA, 
+                impls=[],
                 mbs=["kvs"],
                 opts=['.', 'Ho', 'Hod', 'Bw', 'HodOcmBw'],
                 # opts=["HodOcmBw"],
