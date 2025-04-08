@@ -214,7 +214,7 @@ target_link_libraries(sherman_litlHodOcmBw ${LINKS_FLAGS})
 
 # LITL BW
 add_library(sherman_litlBw STATIC ${COMMON_FILE})
-target_compile_definitions(sherman_litlBw PRIVATE -DLITL -DHANDOVER -DBATCHED_WRITEBACK )
+target_compile_definitions(sherman_litlBw PRIVATE -DLITL -DBATCHED_WRITEBACK )
 set_target_properties(sherman_litlBw PROPERTIES OUTPUT_NAME "sherman_litlBw")
 target_link_libraries(sherman_litlBw ${LINKS_FLAGS})
 
