@@ -70,14 +70,14 @@ zipfian=1
 chipSize=128
 dsmSize=8
 
-mnNRs=(2)
-nodeNRs=(2)
+mnNRs=(1)
+nodeNRs=(3)
 threadNRs=(16)
 lockNRs=(1024 128 8)
 bench_idxs=(2)
 pinnings=(1)
 mHos=(16)
-colocate=0
+colocate=1
 
 
 cn_tp_dir="$PWD/results/tp"
