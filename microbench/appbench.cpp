@@ -297,8 +297,7 @@ int main(int argc, char *argv[]) {
     if (nodeID == 0) {
         fprintf(stderr, "APPBENCH START\n");
     }
-    if (colocate) {
-    cn_run:
+    if (colocate || nodeID >= mnNR) {
         sleep(duration);
         done.store(true);
         for (int i = 0; i < threadNR; i++) {
@@ -317,14 +316,10 @@ int main(int argc, char *argv[]) {
             dsm->barrier(writeResKey);
         }
     } else {
-        if (nodeID >= mnNR) {
-            goto cn_run;
-        } else {
-            for (int n = 0; n < nodeNR; n++) {
+        for (int n = 0; n < nodeNR; n++) {
                 string writeResKey = "WRITE_RES_" + to_string(n);
                 dsm->barrier(writeResKey);
             }
-        }
     }
 
     // TODO: CACHE HIT AND MISSES

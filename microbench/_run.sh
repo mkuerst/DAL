@@ -61,7 +61,6 @@ comm_prot=rdma
 
 # MICROBENCH INPUTS
 opts=("." "Ho" "Hod" "Bw" "HodOcmBw" )
-# opts=("Bw")
 
 microbenches=("empty_cs" "mlocks" "kvs")
 duration=10
@@ -70,14 +69,14 @@ zipfian=1
 chipSize=128
 dsmSize=8
 
-mnNRs=(1)
-nodeNRs=(3)
+mnNRs=(2)
+nodeNRs=(4)
 threadNRs=(16)
 lockNRs=(1024 128 8)
 bench_idxs=(2)
 pinnings=(1)
 mHos=(16)
-colocate=1
+colocate=0
 
 
 cn_tp_dir="$PWD/results/tp"
