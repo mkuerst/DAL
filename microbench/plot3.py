@@ -178,9 +178,9 @@ read_data(DATA, RES_DIRS)
 plot_tp_lat(
                 DATA, 
                 mbs=["kvs"],
-                opts=['.', 'Ho', 'Hod', 'Ocm', 'Bw', 'HoOcmBw', 'HodOcmBw'],
+                opts=['.', 'Ho', 'Hod', 'Bw', 'HodOcmBw'],
                 # opts=["HodOcmBw"],
-                cnMnNRs=[[4,2], [4,2]],
+                cnMnNRs=[[3,1], [4,1]],
                 lockNRs=[8, 128, 1024],
                 threadNRs=[16],
                 mHos=[16],
