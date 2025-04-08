@@ -3,10 +3,10 @@ import matplotlib.lines as mlines
 from plot_common import *
 
 
-def plot_tp_lat(DATA, comm_prot="rdma", opts=["spinlock"], mbs=["kvs"],
+def plot_tp_lat(DATA, comm_prot="rdma", opts=["."], mbs=["kvs"],
     lat_incs=[], tp_incs=[],
     cnMnNRs=[[1, 2], [4, 2]], threadNRs=[32], lockNRs=[1], log=[1],
-    pinnings=[], mHos=[16],
+    pinnings=[], mHos=[16], colocate=1,
     ):
 
 
@@ -66,6 +66,7 @@ def plot_tp_lat(DATA, comm_prot="rdma", opts=["spinlock"], mbs=["kvs"],
                                             "mnNR": mnNR,
                                             "lockNR": lockNR,
                                             "maxHandover": mHo,
+                                            "colocate": colocate,
                                         }
                                         query_str = " and ".join([f"{col} == @filter_values['{col}']" for col in filter_values])
                                         df_tp = DATA["tp"].query(query_str)
@@ -148,7 +149,7 @@ def plot_ldist(DATA, opts=[], cnNRs=[], lockNRs=[], threadNRs=[], mnNRs=[1], pin
                                                         "mnNR": mnNR,
                                                         "lockNR": lockNR,
                                                         "maxHandover": mHo,
-                                                        "run": run
+                                                        "run": run,
                                                     }
                                                     query_str = " and ".join([f"{col} == @filter_values['{col}']" for col in filter_values])
                                                     DLDIST = DATA["ldist"].query(query_str)
@@ -173,17 +174,18 @@ read_data(DATA, RES_DIRS)
 
 plot_tp_lat(
                 DATA, 
-                mbs=["mlocks"],
-                opts=['.', 'Ho', 'Hod', 'Rfaa', 'HoOcmBw', 'HodOcmBw'],
+                mbs=["kvs"],
+                opts=['.', 'Ho', 'Hod', 'Rfaa', 'Bw', 'HoOcmBw', 'HodOcmBw'],
                 # opts=["HodOcmBw"],
-                cnMnNRs=[[4,4]],
+                cnMnNRs=[[4,2], [4,4]],
                 lockNRs=[8, 128, 1024],
-                threadNRs=[1],
+                threadNRs=[16],
                 mHos=[16],
                 pinnings=[1],
                 lat_incs = [["lwait_acq"], ["gwait_acq", "gwait_rel"], ["data_read", "data_write"]],
                 tp_incs=["la", "tp", "glock_tries", "handovers", "handovers_data", "cache_misses"],
                 log=[1,1,0],
+                colocate=1
                 )
 
 pass

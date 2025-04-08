@@ -30,6 +30,7 @@ target:
 # #LITL
 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_litl.a -o appbench_litl ${FLAGS}
 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_litlHod.a -o appbench_litlHod ${FLAGS}
+	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_litlOcm.a -o appbench_litlOcm ${FLAGS}
 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_litlHo.a -o appbench_litlHo ${FLAGS}
 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_litlRfaa.a -o appbench_litlRfaa ${FLAGS}
 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_litlHoOcmBw.a -o appbench_litlHoOcmBw ${FLAGS}
@@ -39,6 +40,7 @@ target:
 # #SHERMAN
 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_sherman.a -o appbench_sherman ${FLAGS}
 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHo.a -o appbench_shermanHo ${FLAGS}
+	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanOcm.a -o appbench_shermanOcm ${FLAGS}
 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHod.a -o appbench_shermanHod ${FLAGS}
 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanRfaa.a -o appbench_shermanRfaa ${FLAGS}
 	g++ -std=c++17 appbench.cpp ../Sherman/build/libsherman_shermanHoOcmBw.a -o appbench_shermanHoOcmBw ${FLAGS}

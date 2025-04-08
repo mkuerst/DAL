@@ -14,6 +14,7 @@ OPTS =  [
 "litl", 
 "litlHo",
 "litlHod",
+"litlBw",
 "litlHodOcm",
 "litlHoOcmBw",
 "litlHodOcmBw",
@@ -24,6 +25,7 @@ OPTS =  [
 "sherman",
 "shermanHo",
 "shermanHod",
+"shermanBw",
 "shermanHodOcm",
 "shermanHoOcmBw",
 "shermanHodOcmBw",
@@ -37,6 +39,7 @@ OPT_TO_NAME = {
 "litl": "", 
 "litlHo": "Ho",
 "litlHod": "Hod",
+"litlBw": "Bw",
 "litlHoOcmBw": "HoOcmBw",
 "litlHodOcmBw": "HodOcmBw",
 "litlHodOcmBwRfaa": "HodOcmBwRfaa",
@@ -47,6 +50,7 @@ OPT_TO_NAME = {
 "shermanLock": "",
 "shermanHo": "Ho",
 "shermanHod": "Hod",
+"shermanBw": "Bw",
 "sherman": "HoOcmBw",
 "shermanHoOcmBw": "HoOcmBw",
 "shermanHodOcmBw": "HodOcmBw",
@@ -602,6 +606,8 @@ def to_pd(DATA, dirs, COLS, stat):
         
         DATA[stat] = pd.concat([DATA[stat], df], ignore_index=True)
 
+    if stat != 'ldist':
+        DATA[stat]["colocate"].fillna(1, inplace=True)
 
 
 def read_data(DATA, RES_DIRS):
