@@ -374,9 +374,12 @@ inline bool Tree::try_lock_addr(GlobalAddress lock_addr, uint64_t tag,
                                 uint64_t *buf, CoroContext *cxt, int coro_id) {
 
 
+  #ifndef GLOBAL_ONLY
   timer.begin();
   bool hand_over = acquire_local_lock(lock_addr, cxt, coro_id);
   save_measurement(threadID, measurements.lwait_acq, 1, true);
+  #endif
+
   #ifdef HANDOVER
   if (hand_over) {
     // DEB("[%d.%d] was handed over the global lock: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_addr.offset);
@@ -756,7 +759,9 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
     save_measurement(threadID, measurements.gwait_rel);
   }
 
+  #ifndef GLOBAL_ONLY
   releases_local_lock(lock_addr);
+  #endif
 }
 
   int Tree::randNodeID(uint64_t value) {
@@ -787,13 +792,14 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
                                  char* orig_pbuf, GlobalAddress orig_paddr) {
 
 
+
+  #ifdef HANDOVER
   ln->page_buffer = orig_pbuf;
   ln->page_addr = orig_paddr;
   ln->level = level;
   ln->safe = !async;
   ln->wb++;
 
-  #ifdef HANDOVER
   bool hand_over_other = can_hand_over(lock_addr);
   if (hand_over_other) {
     timer.begin();
@@ -1090,7 +1096,6 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
   save_measurement(threadID, measurements.gwait_rel);
   
-
   // if (!dsm->cas_dm_sync(lock_addr, next_gaddr.val, 0, cas_buffer, cxt)) {
   //   Debug::notifyError("FAILED TO CAS MN FOR CN HO\n");
   //   cerr << dsm->getMyNodeID() << ", lock addr: " << lock_addr << "\n" << 
@@ -1100,24 +1105,16 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   // }
 
   #endif
-  // cout << "********************************************" << endl;
-  // cout << "WRITTEN BACK (NO HOD): " << "[" + to_string(dsm->getMyNodeID()) + "." + to_string(dsm->getMyThreadID()) + "]" << endl;
-  // cout << "lock_addr: " << lock_addr << endl; 
-  // cout << "page_addr: " << page_addr << endl;
-  // cout << "curr_page_buffer: " << (uintptr_t) curr_page_buffer << " = " << (uint64_t) *curr_page_buffer << endl;
-  // cout << "********************************************" << endl;
 
-
-  // cerr << "REL LOCK TO MN" << endl <<
-  // "lock_addr: " << lock_addr << "\n\n"; 
   #ifdef HANDOVER_DATA
   ln->safe = false;
   ln->wb = 0;
   ln->written = true;
   #endif
 
+  #ifndef GLOBAL_ONLY
   releases_local_lock(lock_addr);
-  // DEB("[%d.%d] unlocked global lock remotely: %lu\n", dsm->getMyNodeID(), dsm->getMyThreadID(), lock_addr.offset);
+  #endif
 }
 
 bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,

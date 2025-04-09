@@ -61,10 +61,10 @@ comm_prot=rdma
 
 # MICROBENCH INPUTS
 opts=("." "Ho" "Hod" "Bw" "HodOcmBw" )
-opts=(".")
+opts=("Go")
 
 microbenches=("emptyCS" "mlocks" "singleMachine" "kvs")
-duration=5
+duration=10
 runNR=1
 zipfian=1
 chipSize=128
@@ -74,7 +74,7 @@ mnNRs=(1)
 nodeNRs=(1)
 threadNRs=(16)
 lockNRs=(1024)
-bench_idxs=(2)
+bench_idxs=(1)
 pinnings=(1)
 mHos=(16)
 colocate=1
@@ -96,8 +96,8 @@ sudo chown -R mkuerst:dal-PG0 /nfs/
 
 for opt in ${opts[@]}
 do
-    for impl_dir in "$BASE"/original/*
-    # for impl_dir in "$BASE"/../debug/*
+    # for impl_dir in "$BASE"/original/*
+    for impl_dir in "$BASE"/../debug/*
     do
         impl=$(basename $impl_dir)
         impl=${impl%.so}

@@ -2101,6 +2101,7 @@ void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_si
 void Tree::mb_unlock(GlobalAddress base_addr, int data_size) {
 	auto tag = dsm->getThreadTag();
 	assert(tag != 0);
+  cerr << "tag passed" << endl;
 	if (data_size > 0) {
 		write_page_and_unlock(curr_page_buffer, base_addr, data_size, curr_cas_buffer,
 			curr_lock_addr, tag, NULL, 0, false, 0, curr_page_buffer, base_addr);

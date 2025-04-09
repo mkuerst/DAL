@@ -326,7 +326,7 @@ int main(int argc, char *argv[]) {
         }
 
         dsm->registerThread();
-        rlock = new Tree(dsm, 0, lockNR, true, maxHandover);
+        rlock = new Tree(dsm, 0, lockNR, true, maxHandover, true);
         dsm->resetThread();
     }
     else {
