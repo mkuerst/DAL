@@ -63,7 +63,7 @@ comm_prot=rdma
 opts=("." "Ho" "Hod" "Bw" "HodOcmBw" )
 opts=(".")
 
-microbenches=("empty_cs" "mlocks" "single_machine" "kvs")
+microbenches=("emptyCS" "mlocks" "singleMachine" "kvs")
 duration=5
 runNR=1
 zipfian=1
