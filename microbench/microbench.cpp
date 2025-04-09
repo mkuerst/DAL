@@ -86,14 +86,19 @@ class ZipfianGenerator {
 
 void *empty_cs_worker(void *arg) {
     Task *task = (Task *) arg;
+    int cpu = 0;
     if (pinning == 1) {
-        bindCore(thread_to_cpu_1n[task->id]);
+        cpu = thread_to_cpu_1n[task->id];
+        bindCore(cpu);
     }
     else {
-        bindCore(thread_to_cpu_2n[task->id]);
+        cpu = thread_to_cpu_2n[task->id];
+        bindCore(cpu);
     }
     dsm->registerThread(page_size);
-    rlock->set_IDs(nodeID, dsm->getMyThreadID());
+    int id = dsm->getMyThreadID();
+    rlock->set_IDs(nodeID, id);
+
     GlobalAddress baseAddr;
     GlobalAddress lockAddr;
     baseAddr.nodeID = 0;
@@ -101,14 +106,41 @@ void *empty_cs_worker(void *arg) {
     lockAddr.nodeID = 0;
     lockAddr.offset = 0;
 
+    int lock_idx = 0;
+    uint64_t range = (rlock->getLockNR() * mnNR) - 1;
+
+    uint64_t seed = nodeID*threadNR + id + 42;
+    srand(seed);
+    ZipfianGenerator zipfian(0.99, range, seed);
+    
+    int fd = setup_perf_event(cpu);
+    start_perf_event(fd);
+
     pthread_barrier_wait(&global_barrier);
     while (!stop.load()) {
-        baseAddr.nodeID = uniform_rand_int(mnNR);
+        if (use_zipfian) {
+            lock_idx = zipfian.generate();
+        }
+        else {
+            lock_idx = (uint64_t) uniform_rand_int(range+1);
+        }
+
+        lockAddr.nodeID = lock_idx / lockNR;
+        lock_idx /= mnNR;
+        lockAddr.offset = lock_idx * sizeof(uint64_t);
+
         rlock->mb_lock(baseAddr, lockAddr, 0);
+
+        lock_acqs[lockAddr.nodeID * lockNR + lock_idx]++;
         task->lock_acqs++;
+        measurements.tp[id]++;
+
         rlock->mb_unlock(baseAddr, 0);
+
+        lock_rels[lockAddr.nodeID * lockNR + lock_idx]++;
     }
-    DE("[%d.%d] %lu ACQUISITIONS\n", dsm->getMyNodeID(), dsm->getMyThreadID(), task->lock_acqs);
+    measurements.cache_misses[id] = stop_perf_event(fd);
+    // DE("[%d.%d] %lu ACQUISITIONS\n", dsm->getMyNodeID(), dsm->getMyThreadID(), task->lock_acqs);
     return 0;
 }
 
