@@ -38,7 +38,7 @@ cn_tp_header="tid,\
 loop_in_cs,tp,lock_acquires,duration,\
 glock_tries,handovers,handovers_data,array_size(B),\
 nodeID,run,lockNR,la,numa,cache_misses,c_ho,c_hod,\
-cnNR,mnNR,threadNR,maxHandover,colocate"
+cnNR,mnNR,threadNR,maxHandover,colocate,zipfian"
 
 cn_lat_header="lock_hold,\
 lwait_acq,\
@@ -53,7 +53,7 @@ nodeID,\
 run,\
 lockNR,\
 numa,\
-cnNR,mnNR,threadNR,maxHandover,colocate"
+cnNR,mnNR,threadNR,maxHandover,colocate,zipfian"
 
 server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
 
@@ -61,20 +61,20 @@ comm_prot=rdma
 
 # MICROBENCH INPUTS
 opts=("." "Ho" "Hod" "Bw" "HodOcmBw" )
-opts=("Hod")
+opts=("Go")
 
 microbenches=("emptyCS" "mlocks" "singleMachine" "kvs")
-duration=10
+duration=5
 runNR=1
-zipfian=1
+zipfian=0.0
 chipSize=128
 dsmSize=8
 
-mnNRs=(4)
+mnNRs=(1)
 nodeNRs=(4)
 threadNRs=(16)
 lockNRs=(1024)
-bench_idxs=(3)
+bench_idxs=(1)
 pinnings=(1)
 mHos=(16)
 colocate=1
@@ -156,7 +156,7 @@ do
                                         cn_lock_file="$cn_lock_dir"/"$res_suffix"_nodeNR"$nodeNR"_threadNR"$threadNR"_mnNR"$mnNR"_lockNR"$lockNR"_NUMA"$pinning"_mHo"$mHo"_colocate"$colocate"_r"$run".csv
                                         > "$cn_lock_file"
                                         echo "BENCHMARK $microb | $impl.$opt | $nodeNR Ns | $threadNR Ts | $lockNR Ls | $duration s | RUN $run"
-                                        echo "pinning $pinning | DSM $dsmSize GB | $mnNR MNs | chipSize $chipSize KB | colocate $colocate |"
+                                        echo "pinning $pinning | DSM $dsmSize GB | $mnNR MNs | chipSize $chipSize KB | colocate $colocate | zipfian $zipfian |"
                                         clush --hostfile <(head -n $nodeNR ./nodes.txt) \
                                         "sudo bash -c 'ulimit -c unlimited' && \
                                         sudo LD_PRELOAD=$llock_so $mb_exe \

@@ -11,7 +11,7 @@ using namespace std;
 #include "Tree.h"
 #include "mb_utils.h"
 #include <DSM.h>
-// #include "zipf.h"
+#include "zipf.h"
 
 
 #define gettid() syscall(SYS_gettid)
@@ -35,8 +35,7 @@ DSMConfig config;
 Tree *rlock;
 pthread_barrier_t global_barrier;
 
-double zipfian = 0;
-int use_zipfian = 0;
+double zipfian = 0.99;
 
 // SINGLE MACHINE
 int *shared_arr;
@@ -107,23 +106,18 @@ void *empty_cs_worker(void *arg) {
     lockAddr.offset = 0;
 
     int lock_idx = 0;
-    uint64_t range = (rlock->getLockNR() * mnNR) - 1;
+    uint64_t range = (lockNR * mnNR);
 
-    uint64_t seed = nodeID*threadNR + id + 42;
-    srand(seed);
-    ZipfianGenerator zipfian(0.99, range, seed);
+    struct zipf_gen_state state;
+    mehcached_zipf_init(&state, range, zipfian,
+                        (rdtsc() & (0x0000ffffffffffffull)) ^ id);
     
     int fd = setup_perf_event(cpu);
     start_perf_event(fd);
 
     pthread_barrier_wait(&global_barrier);
     while (!stop.load()) {
-        if (use_zipfian) {
-            lock_idx = zipfian.generate();
-        }
-        else {
-            lock_idx = (uint64_t) uniform_rand_int(range+1);
-        }
+        lock_idx = mehcached_zipf_next(&state);
 
         lockAddr.nodeID = lock_idx / lockNR;
         lock_idx /= mnNR;
@@ -170,14 +164,16 @@ void *mlocks_worker(void *arg) {
     int *private_int_array = task->private_int_array;
     uint64_t *long_data;
     int lock_idx = 0;
-    uint64_t range = (rlock->getLockNR() * mnNR) - 1;
+    uint64_t range = (lockNR * mnNR);
     uint64_t chunk_size = GB(dsmSize) / rlock->getLockNR();
     int sum = 1;
     int data_len = page_size / sizeof(uint64_t);
     // int data_len = 1;
     uint64_t seed = nodeID*threadNR + id + 42;
     srand(seed);
-    ZipfianGenerator zipfian(0.99, range, seed);
+    struct zipf_gen_state state;
+    mehcached_zipf_init(&state, range, zipfian,
+                        (rdtsc() & (0x0000ffffffffffffull)) ^ id);
     // int num = 0;
     // int cnt = 100;
     
@@ -196,14 +192,8 @@ void *mlocks_worker(void *arg) {
         for (int j = 0; j < 100; j++) {
             if (stop.load())
                 break;
-            // if (num >= cnt)
-            //     break;
-            if (use_zipfian) {
-                lock_idx = zipfian.generate();
-            }
-            else {
-                lock_idx = (uint64_t) uniform_rand_int(range+1);
-            }
+            lock_idx = mehcached_zipf_next(&state);
+            assert(lock_idx < lockNR * mnNR);
 
             baseAddr.nodeID = lock_idx / lockNR;
             lock_idx /= mnNR;
@@ -242,6 +232,7 @@ void *single_machine(void *arg) {
     Task *task = (Task *) arg;
     Timer timer;
     int cpu = 0;
+    int id = task->id;
     if (pinning == 1) {
         cpu = thread_to_cpu_1n[task->id];
         bindCore(cpu);
@@ -258,10 +249,11 @@ void *single_machine(void *arg) {
     int data_len = ints_per_chunk;
     uint64_t range = (shared_arr_sz - data_len) / data_len;
 
-    uint64_t seed = nodeID*threadNR + task->id + 42;
-    srand(seed);
-    ZipfianGenerator zipfian(0.99, range, seed);
     
+    struct zipf_gen_state state;
+    mehcached_zipf_init(&state, range, zipfian,
+                        (rdtsc() & (0x0000ffffffffffffull)) ^ id);
+
     int fd = setup_perf_event(cpu);
     start_perf_event(fd);
 
@@ -276,12 +268,8 @@ void *single_machine(void *arg) {
         for (int j = 0; j < 100; j++) {
             if (stop.load())
                 break;
-            if (use_zipfian) {
-                data_idx = zipfian.generate();
-            }
-            else {
-                data_idx = (uint64_t) uniform_rand_int(range+1);
-            }
+
+            data_idx = mehcached_zipf_next(&state);
             assert(data_idx <= range);
             lock_idx = CityHash64((char *)&data_idx, sizeof(data_idx)) % lockNR;
 
@@ -316,7 +304,7 @@ void *single_machine(void *arg) {
 int main(int argc, char *argv[]) {
     parse_cli_args(
     &threadNR, &nodeNR, &mnNR, &lockNR, &runNR,
-    &nodeID, &duration, &mode, &use_zipfian, 
+    &nodeID, &duration, &mode, &zipfian, 
     &kReadRatio, &pinning, &chipSize, &dsmSize,
     &maxHandover, &colocate,
     &res_file_tp, &res_file_lat, &res_file_lock,
@@ -420,9 +408,9 @@ int main(int argc, char *argv[]) {
         for (int n = 0; n < nodeNR; n++) {
             if (n == nodeID) {
                 write_tp(res_file_tp, res_file_lock, runNR,  lockNR*mnNR, n, page_size, pinning,
-                        nodeNR, mnNR, threadNR, maxHandover, colocate);
+                        nodeNR, mnNR, threadNR, maxHandover, colocate, zipfian);
                 write_lat(res_file_lat, runNR, lockNR*mnNR, n, page_size, pinning,
-                        nodeNR, mnNR, threadNR, maxHandover, colocate);
+                        nodeNR, mnNR, threadNR, maxHandover, colocate, zipfian);
             }
             if (mode < 2) {
                 string writeResKey = "WRITE_RES_" + to_string(n);

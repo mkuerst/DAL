@@ -37,8 +37,7 @@ DSM *dsm;
 DSMConfig config;
 Tree *tree;
 
-double zipfan = 0.99;
-int use_zipfan = 0;
+double zipfian = 0.99;
 
 int kReadRatio = 50;
 uint64_t kKeySpace = 64 * define::MB;
@@ -89,7 +88,7 @@ public:
     RequsetGenBench(int coro_id, DSM *dsm, int id)
         : coro_id(coro_id), dsm(dsm), id(id) {
         seed = rdtsc();
-        mehcached_zipf_init(&state, kKeySpace, zipfan,
+        mehcached_zipf_init(&state, kKeySpace, zipfian,
                             (rdtsc() & (0x0000ffffffffffffull)) ^ id);
     }
 
@@ -185,7 +184,7 @@ void *thread_run(void *arg) {
 
         unsigned int seed = rdtsc();
         struct zipf_gen_state state;
-        mehcached_zipf_init(&state, kKeySpace, zipfan,
+        mehcached_zipf_init(&state, kKeySpace, zipfian,
                             (rdtsc() & (0x0000ffffffffffffull)) ^ id);
     
         start_perf_event(fd);
@@ -224,7 +223,7 @@ int main(int argc, char *argv[]) {
     // register_sighandler();
     parse_cli_args(
     &threadNR, &nodeNR, &mnNR, &lockNR, &runNR,
-    &nodeID, &duration, &mode, &use_zipfan, 
+    &nodeID, &duration, &mode, &zipfian, 
     &kReadRatio, &pinning, &chipSize, &dsmSize,
     &maxHandover, &colocate,
     &res_file_tp, &res_file_lat, &res_file_lock,
@@ -308,9 +307,9 @@ int main(int argc, char *argv[]) {
         for (int n = 0; n < nodeNR; n++) {
             if (n == nodeID) {
                 write_tp(res_file_tp, res_file_lock, runNR,  lockNR*mnNR, n, page_size, pinning,
-                        nodeNR, mnNR, threadNR, maxHandover, colocate);
+                        nodeNR, mnNR, threadNR, maxHandover, colocate, zipfian);
                 write_lat(res_file_lat, runNR, lockNR*mnNR, n, page_size, pinning,
-                        nodeNR, mnNR, threadNR, maxHandover, colocate);
+                        nodeNR, mnNR, threadNR, maxHandover, colocate, zipfian);
             }
             string writeResKey = "WRITE_RES_" + to_string(n);
             dsm->barrier(writeResKey);
