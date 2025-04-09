@@ -200,6 +200,7 @@ void *mlocks_worker(void *arg) {
             baseAddr.offset = chunk_size * lock_idx;
             lockAddr.nodeID = baseAddr.nodeID;
             lockAddr.offset = lock_idx * sizeof(uint64_t);
+            assert(lockAddr.nodeID < mnNR);
 
             rlock->mb_lock(baseAddr, lockAddr, page_size);
 

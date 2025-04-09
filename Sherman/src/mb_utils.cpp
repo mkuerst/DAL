@@ -329,10 +329,10 @@ void write_tp(char* tp_path, char* lock_path, int run, int lockNR, int nodeID, s
 	DE("TOTAL HANDOVERS: %lu\n", total_handovers);
 	DE("TOTAL DATA_HANDOVERS: %lu\n", total_Hod);
 
-	std::vector<std::vector<uint32_t>> data = readExistingData(lock_path, lockNR);
+	std::vector<std::vector<uint32_t>> data = readExistingData(lock_path, lockNR/mnNR);
 	for (int m = 0; m < MAX_MACHINE; m++) {
-		for (int i = 0; i < lockNR; ++i) {
-			data[m][i] += measurements.lock_acqs[m * lockNR + i];
+		for (int i = 0; i < lockNR / mnNR; ++i) {
+			data[m][i] += measurements.lock_acqs[m * (lockNR / mnNR) + i];
 		}
 
 	}
