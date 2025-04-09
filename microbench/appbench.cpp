@@ -323,13 +323,14 @@ int main(int argc, char *argv[]) {
     }
 
     // TODO: CACHE HIT AND MISSES
-    // TODO: END TO END LATENCY
     // uint64_t all = 0;
     // uint64_t hit = 0;
     // for (int i = 0; i < MAX_APP_THREAD; ++i) {
     //     all += (cache_hit[i][0] + cache_miss[i][0]);
     //     hit += cache_hit[i][0];
     // }
+    // cerr << "CACHE HITS: " << hit << endl;
+    // cerr << "CACHE MISSES: " << all - hit << endl;
 
     if (nodeID == 0) {
         fprintf(stderr, "WRITE RES DONE\n");

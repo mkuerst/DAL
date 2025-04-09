@@ -65,7 +65,7 @@ opts=("Hod")
 
 microbenches=("emptyCS" "mlocks" "singleMachine" "kvs")
 duration=10
-runNR=3
+runNR=1
 zipfian=1
 chipSize=128
 dsmSize=8
