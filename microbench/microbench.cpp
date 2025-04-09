@@ -38,6 +38,13 @@ pthread_barrier_t global_barrier;
 double zipfian = 0;
 int use_zipfian = 0;
 
+// SINGLE MACHINE
+int *shared_arr;
+size_t shared_arr_sz = MAX_ARRAY_SIZE;
+pthread_mutex_t* locks;
+int chunk_byte_sz = KB(256);
+int ints_per_chunk = chunk_byte_sz / sizeof(int);
+
 extern Measurements measurements;
 std::atomic_bool stop{false};
 
@@ -76,38 +83,6 @@ class ZipfianGenerator {
         std::uniform_real_distribution<> dist; // Uniform distribution between [0, 1)
     };
 
-void mn_worker() {
-    DE("I AM A MN\n");
-    // dsm->resetThread();
-    char val[sizeof(uint64_t)];
-    uint64_t num = 0;
-    memcpy(val, &num, sizeof(uint64_t));
-    dsm->get_DSMKeeper()->memSet(ck.c_str(), ck.size(), val, sizeof(uint64_t));
-    dsm->barrier("MB_BEGIN");
-
-    for (int n = 0; n < nodeNR; n++) {
-        string writeResKey = "WRITE_RES_" + to_string(n);
-        dsm->barrier(writeResKey);
-        DE("[%d] MN WRITE BARRIER %d PASSED\n", nodeID, n);
-    }
-
-    dsm->barrier("MB_END");
-    #ifdef CORRECTNESS
-        dsm->barrier("CORRECTNESS");
-        DE("MN checking correctness\n");
-        if (check_MN_correctness(dsm, dsmSize, mnNR, nodeNR, nodeID, page_size)) {
-            __error("MN LOCK ACQS INCORRECT");
-        }
-        else {
-            DE("MN CORRECTNESS PASSED!\n");
-        }
-    #endif
-    // dsm->stopDirThread();
-    fprintf(stderr, "MN [%d] finished\n", nodeID);
-    free_measurements();
-    dsm->free_dsm();
-    dsm->barrier("fin");
-}
 
 void *empty_cs_worker(void *arg) {
     Task *task = (Task *) arg;
@@ -171,44 +146,13 @@ void *mlocks_worker(void *arg) {
     uint64_t seed = nodeID*threadNR + id + 42;
     srand(seed);
     ZipfianGenerator zipfian(0.99, range, seed);
-    int num = 0;
-    int cnt = 100;
+    // int num = 0;
+    // int cnt = 100;
     
     int fd = setup_perf_event(cpu);
     start_perf_event(fd);
 
     pthread_barrier_wait(&global_barrier);
-    // if (nodeID == 0) {
-    //     sleep(1);
-    //     rlock->test_write_peer();
-    // } else {
-    //     rlock->test_spin();
-    // }
-
-    // return 0;
-    // if (nodeID == 0) {
-    //     rlock->wait();
-    //     rlock->contact();
-    //     return 0;
-    // } else {
-    //     sleep(1);
-    //     rlock->contact();
-    //     rlock->wait();
-    //     return 0;
-    // }
-    // uint64_t failed_cases = 0;
-    // uint64_t ops = 10000;
-    // if (nodeID == 0) {
-    //     failed_cases += rlock->node0(ops);
-    // } else {
-    //     failed_cases += rlock->node1(ops);
-    // }
-    // while (!stop.load()) {
-    //     GlobalAddress gaddr = GlobalAddress::Null();
-    //     failed_cases += rlock->test_self_cas(gaddr, true);
-    // }
-    // cerr << "FAILED CASES: " << failed_cases << "\n\n";
-    // return 0;
 
     while (!stop.load()) {
     // while (num < cnt) {
@@ -237,7 +181,7 @@ void *mlocks_worker(void *arg) {
 
             rlock->mb_lock(baseAddr, lockAddr, page_size);
 
-            num++;
+            // num++;
             lock_acqs[lockAddr.nodeID * lockNR + lock_idx]++;
             task->lock_acqs++;
             measurements.tp[id]++;
@@ -275,17 +219,16 @@ void *single_machine(void *arg) {
         bindCore(cpu);
     }
     int *private_int_array = task->private_int_array;
-    uint64_t *long_data;
-    int lock_idx = 0;
-    uint64_t range = lockNR - 1;
-    uint64_t chunk_size = GB(dsmSize) / rlock->getLockNR();
+    uint64_t lock_idx = 0;
+    uint64_t data_idx = 0;
     int sum = 1;
-    int data_len = page_size / sizeof(uint64_t);
+    // int lock_chunk_sz = shared_arr_sz / sizeof(int) / lockNR;
+    int data_len = ints_per_chunk;
+    uint64_t range = (shared_arr_sz - data_len) / data_len;
+
     uint64_t seed = nodeID*threadNR + task->id + 42;
     srand(seed);
     ZipfianGenerator zipfian(0.99, range, seed);
-    int num = 0;
-    int cnt = 100;
     
     int fd = setup_perf_event(cpu);
     start_perf_event(fd);
@@ -293,7 +236,6 @@ void *single_machine(void *arg) {
     pthread_barrier_wait(&global_barrier);
 
     while (!stop.load()) {
-    // while (num < cnt) {
         
         for (int j = 0; j < 400; j++) {
             int idx = uniform_rand_int(PRIVATE_ARRAY_SZ / sizeof(int));
@@ -302,38 +244,37 @@ void *single_machine(void *arg) {
         for (int j = 0; j < 100; j++) {
             if (stop.load())
                 break;
-            // if (num >= cnt)
-            //     break;
             if (use_zipfian) {
-                lock_idx = zipfian.generate();
+                data_idx = zipfian.generate();
             }
             else {
-                lock_idx = (uint64_t) uniform_rand_int(range+1);
+                data_idx = (uint64_t) uniform_rand_int(range+1);
             }
+            assert(data_idx <= range);
+            lock_idx = CityHash64((char *)&data_idx, sizeof(data_idx)) % lockNR;
 
-            lock_idx /= mnNR;
+            timer.begin();
+            pthread_mutex_lock(&locks[lock_idx]);
+            save_measurement(task->id, measurements.lwait_acq);
 
-            rlock->mb_lock(baseAddr, lockAddr, page_size);
-
-
-            num++;
             lock_acqs[lock_idx]++;
             task->lock_acqs++;
             measurements.tp[task->id]++;
-            measurements.loop_in_cs[task->id]++;
 
             timer.begin();
-            long_data = (uint64_t *) rlock->getCurrPB();
             // for (int x = 0; x < 100; x++) {
-            for (int k = 0; k < data_len; k++) {
-                long_data[k] += 1;
+            for (size_t k = data_idx; k < data_idx+data_len; k++) {
+                shared_arr[k] += 1;
+                measurements.loop_in_cs[task->id]++;
                 task->inc++;
             }
             // }
             save_measurement(task->id, measurements.lock_hold);
             
-            lock_rels[lockAddr.nodeID * lockNR + lock_idx]++;
-            rlock->mb_unlock(baseAddr, page_size);
+            timer.begin();
+            pthread_mutex_unlock(&locks[lock_idx]);
+            save_measurement(task->id, measurements.lwait_rel);
+            lock_rels[lock_idx]++;
         }
     }
     measurements.cache_misses[task->id] = stop_perf_event(fd);
@@ -349,7 +290,7 @@ int main(int argc, char *argv[]) {
     &res_file_tp, &res_file_lat, &res_file_lock,
     argc, argv);
 
-    if (nodeID == 1) {
+    if (nodeID == 1 && mode < 2) {
         if(system("sudo bash /nfs/DAL/restartMemc.sh"))
             _error("Failed to start MEMC server\n");
     }
@@ -368,19 +309,29 @@ int main(int argc, char *argv[]) {
     config.lockMetaSize = config.chipSize;
     config.lockNR = lockNR;
     // lockNR = chipSize * 1024 / sizeof(uint64_t);
-    dsm = DSM::getInstance(config);
-    nodeID = dsm->getMyNodeID();
     
     // register_sighandler(dsm);
-    if (nodeID == 0) {
-        fprintf(stderr, "DSM INIT DONE\n");
-    }
+    if (mode < 2) {
+        dsm = DSM::getInstance(config);
+        nodeID = dsm->getMyNodeID();
+        if (nodeID == 0) {
+            fprintf(stderr, "DSM INIT DONE\n");
+        }
+    
+        if (nodeID == 0) {
+            char val[sizeof(uint64_t)];
+            uint64_t num = 0;
+            memcpy(val, &num, sizeof(uint64_t));
+            dsm->get_DSMKeeper()->memSet(ck.c_str(), ck.size(), val, sizeof(uint64_t));
+        }
 
-    if (nodeID == 0) {
-        char val[sizeof(uint64_t)];
-        uint64_t num = 0;
-        memcpy(val, &num, sizeof(uint64_t));
-        dsm->get_DSMKeeper()->memSet(ck.c_str(), ck.size(), val, sizeof(uint64_t));
+        dsm->registerThread();
+        rlock = new Tree(dsm, 0, lockNR, true, maxHandover);
+        dsm->resetThread();
+    }
+    else {
+        rlock = new Tree(dsm, 0, lockNR, true, maxHandover, false);
+        nodeID = 0;
     }
 
     /*WORKER*/
@@ -388,23 +339,29 @@ int main(int argc, char *argv[]) {
     switch(mode) {
         case 0: worker = empty_cs_worker; break;
         case 1: worker = mlocks_worker; break;
+        case 2: worker = single_machine; break;
         default: worker = empty_cs_worker; break;
     }
 
-    pthread_attr_t attr;
-    pthread_attr_init(&attr);
-    pthread_barrier_init(&global_barrier, NULL, threadNR+1);
 
     /*LOCK INIT*/
-    dsm->registerThread();
-    rlock = new Tree(dsm, 0, lockNR, true, maxHandover);
-    dsm->resetThread();
     lock_acqs = (uint64_t *) malloc(nodeNR * lockNR * sizeof(uint64_t));
     lock_rels = (uint64_t *) malloc(nodeNR * lockNR * sizeof(uint64_t));
     memset(lock_acqs, 0, nodeNR*lockNR*sizeof(uint64_t));
     memset(lock_rels, 0, nodeNR*lockNR*sizeof(uint64_t));
 
     /*TASK INIT*/
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_barrier_init(&global_barrier, NULL, threadNR+1);
+    if (mode > 1) {
+        shared_arr = (int *) numa_alloc_onnode(shared_arr_sz, 0);
+        locks = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t) * lockNR);
+        for (int i = 0; i < lockNR; i++) {
+            pthread_mutex_init(&locks[i], NULL);
+        }
+    }
+
     Task *tasks = new Task[threadNR];
     measurements.duration = duration;
     if (colocate || nodeNR >= mnNR) {
@@ -414,10 +371,11 @@ int main(int argc, char *argv[]) {
             pthread_create(&tasks[i].thread, NULL, worker, &tasks[i]);
         }
     }
-    
 
     /*RUN*/
-    dsm->barrier("MB_BEGIN");
+    if (mode < 2) {
+        dsm->barrier("MB_BEGIN");
+    }
     if (colocate || nodeID >= mnNR) {
         pthread_barrier_wait(&global_barrier);
     
@@ -434,8 +392,10 @@ int main(int argc, char *argv[]) {
                 write_lat(res_file_lat, runNR, lockNR*mnNR, n, page_size, pinning,
                         nodeNR, mnNR, threadNR, maxHandover, colocate);
             }
-            string writeResKey = "WRITE_RES_" + to_string(n);
-            dsm->barrier(writeResKey);
+            if (mode < 2) {
+                string writeResKey = "WRITE_RES_" + to_string(n);
+                dsm->barrier(writeResKey);
+            }
         }
     } else {
         for (int n = 0; n < nodeNR; n++) {
@@ -444,7 +404,9 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    dsm->barrier("MB_END");
+    if (mode < 2) {
+        dsm->barrier("MB_END");
+    }
     if (nodeID == 0) {
         fprintf(stderr, "WRITTEN RESULTS\n");
     }
@@ -472,8 +434,16 @@ int main(int argc, char *argv[]) {
     #endif
 
     free_measurements();
-    dsm->free_dsm();
-    dsm->barrier("fin");
+    if (mode < 2) {
+        dsm->free_dsm();
+        dsm->barrier("fin");
+    } else {
+        numa_free(shared_arr, shared_arr_sz);
+        for (int i = 0; i < lockNR; i++) {
+            pthread_mutex_destroy(&locks[i]);
+        }
+        free(locks);
+    }
     if (nodeID == 0) {
         fprintf(stderr, "FIN\n");
     }

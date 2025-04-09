@@ -48,37 +48,12 @@ thread_local bool Tree::from_peer = false;
 Measurements measurements;
 
 
-Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB, uint16_t mHo) : dsm(dsm), tree_id(tree_id), lockNR(lockNR), maxHandover(mHo)  {
+Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB, uint16_t mHo, bool alloc_ll) : dsm(dsm), tree_id(tree_id), lockNR(lockNR), maxHandover(mHo)  {
 
-  measurements.lock_hold = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
-  memset(measurements.lock_hold, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
-
-  measurements.end_to_end = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
-  memset(measurements.end_to_end, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
-  
-  measurements.lwait_acq = (uint16_t *) malloc(MAX_APP_THREAD * LWAIT_WINDOWS * sizeof(uint16_t));
-  memset(measurements.lwait_acq, 0, MAX_APP_THREAD * LWAIT_WINDOWS * sizeof(uint16_t));
-  
-  measurements.lwait_rel = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
-  memset(measurements.lwait_rel, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
-  
-  measurements.gwait_acq = (uint16_t *) malloc(MAX_APP_THREAD * LWAIT_WINDOWS * sizeof(uint16_t));
-  memset(measurements.gwait_acq, 0, MAX_APP_THREAD * LWAIT_WINDOWS * sizeof(uint16_t));
-  
-  measurements.gwait_rel = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
-  memset(measurements.gwait_rel, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
-  
-  measurements.data_read = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
-  memset(measurements.data_read, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
-  
-  measurements.data_write = (uint16_t *) malloc(MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
-  memset(measurements.data_write, 0, MAX_APP_THREAD * LATENCY_WINDOWS * sizeof(uint16_t));
-
-  measurements.lock_acqs = (uint32_t *) malloc(MAX_MACHINE * lockNR * sizeof(uint32_t));
-  memset(measurements.lock_acqs, 0, MAX_MACHINE * lockNR * sizeof(uint32_t));
-
+  init_measurements(lockNR);
   // DEB("allocated measurements object: nodeID %d\n", dsm->getMyNodeID());
 
+  if (alloc_ll) {
     for (int i = 0; i < dsm->getClusterSize(); ++i) {
         local_locks[i] = new LocalLockNode[lockNR];
         for (size_t k = 0; k < lockNR; ++k) {
@@ -89,6 +64,7 @@ Tree::Tree(DSM *dsm, uint16_t tree_id, uint32_t lockNR, bool MB, uint16_t mHo) :
         }
     }
     rlockAddr = dsm->get_rlockAddr();
+  }
 
     if (!MB) {
         assert(dsm->is_register());

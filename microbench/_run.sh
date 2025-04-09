@@ -61,18 +61,19 @@ comm_prot=rdma
 
 # MICROBENCH INPUTS
 opts=("." "Ho" "Hod" "Bw" "HodOcmBw" )
+opts=(".")
 
-microbenches=("empty_cs" "mlocks" "kvs")
-duration=10
+microbenches=("empty_cs" "mlocks" "single_machine" "kvs")
+duration=5
 runNR=1
 zipfian=1
 chipSize=128
 dsmSize=8
 
 mnNRs=(1)
-nodeNRs=(4)
+nodeNRs=(1)
 threadNRs=(16)
-lockNRs=(1024 128 8)
+lockNRs=(1024)
 bench_idxs=(2)
 pinnings=(1)
 mHos=(16)
@@ -178,7 +179,7 @@ do
                                         # 2>&1" 
                                         # 2>> $log_file"
                                         cleanup
-                                        sleep 5
+                                        sleep 3
                                     done
                                 done
                             done

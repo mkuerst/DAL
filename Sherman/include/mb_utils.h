@@ -165,6 +165,8 @@ void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_siz
 
 void save_measurement(int threadID, uint16_t *arr, int factor = 1, bool is_lwait = false);
 
+void init_measurements(int lockNR);
+
 int check_MN_correctness(DSM *dsm, size_t dsmSize, int mnNR, int nodeNR, int nodeID, uint64_t page_size = 1);
 
 int check_CN_correctness(
