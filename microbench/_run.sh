@@ -60,24 +60,24 @@ server_file_header="tid,wait_acq(ms),wait_rel(ms),nodeID,run"
 comm_prot=rdma
 
 # MICROBENCH INPUTS
-opts=("." "Ho" "Hod" "Bw" "HodOcmBw" )
-opts=(".")
+opts=("Hod" "Bw" "HodOcmBw" )
+# opts=(".")
 
 microbenches=("emptyCS" "mlocks" "singleMachine" "kvs")
-duration=5
-runNR=1
-zipfian=0.0
+duration=10
+runNR=2
+zipfian=0.99
 chipSize=128
 dsmSize=8
 
-mnNRs=(2)
-nodeNRs=(4)
+mnNRs=(4)
+nodeNRs=(8)
 threadNRs=(16)
-lockNRs=(8)
-bench_idxs=(1)
+lockNRs=(1024 128 8)
+bench_idxs=(3)
 pinnings=(1)
 mHos=(16)
-colocate=1
+colocate=0
 
 
 cn_tp_dir="$PWD/results/tp"

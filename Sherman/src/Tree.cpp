@@ -1140,8 +1140,8 @@ bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
     bool same_address = 
       ln->page_addr.val == page_addr.val && 
       ln->level == level &&
-      lpage->hdr.level == level;
-      // ln->safe;
+      lpage->hdr.level == level &&
+      ln->safe;
 
     // cerr << "********************************************" << endl;
     // cerr << "DATA HO: " << "[" + to_string(dsm->getMyNodeID()) + "." + to_string(dsm->getMyThreadID()) + "]" << endl;
