@@ -355,7 +355,7 @@ void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_siz
 	uint64_t* data_read = cal_latency(measurements.data_read, "data_read");
 	uint64_t* data_write = cal_latency(measurements.data_write, "data_write");
 	uint64_t* end_to_end = cal_latency(measurements.end_to_end, "end_to_end", LATENCY_WINDOWS, 10);
-	//FIXME: REVER FOR REAL RUNS!!!
+	//FIXME: REVERT FOR REAL RUNS!!!
 	// if (!colocate) {
 	// 	cnNR = cnNR - mnNR;
 	// }

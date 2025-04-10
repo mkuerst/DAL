@@ -81,6 +81,7 @@ LAT_COLS = [
 "threadNR", 
 "maxHandover",
 "colocate",
+"zipfian",
 ]
 
 TP_COLS = [
@@ -106,6 +107,7 @@ TP_COLS = [
 "threadNR", 
 "maxHandover",
 "colocate",
+"zipfian",
 ]
 
 STAT_TO_COLS = {
@@ -606,12 +608,14 @@ def to_pd(DATA, dirs, COLS, stat):
         
         DATA[stat] = pd.concat([DATA[stat], df], ignore_index=True)
 
-    # if stat != 'ldist':
-    #     DATA[stat]["colocate"].fillna(1, inplace=True)
+    if stat != 'ldist':
+        DATA[stat]["colocate"].fillna(1, inplace=True)
 
 
-def read_data(DATA, RES_DIRS):
+def read_data(DATA, RES_DIRS, inc_ldist=True):
     for stat in STATS:
+        if not inc_ldist and stat == 'ldist':
+            continue
         RES_DIRS[stat] = {}
         COLS = STAT_TO_COLS[stat]
         res_dir = os.path.dirname(os.path.realpath(__file__)) + f"/results/{stat}/*"

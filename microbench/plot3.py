@@ -11,7 +11,7 @@ def plot_tp_lat(DATA, comm_prot="rdma", opts=["."], mbs=["kvs"],
 
 
     for mb in mbs:
-        if not (DATA["ldist"]["mb"] == mb).any():
+        if not (DATA["tp"]["mb"] == mb).any():
             continue
 
         LatPlotsNR = len(lat_incs)
@@ -35,7 +35,7 @@ def plot_tp_lat(DATA, comm_prot="rdma", opts=["."], mbs=["kvs"],
         comp_nodes = []
 
         if len(impls) == 0:
-            impl = IMPL
+            impls = IMPL
 
         for numa in pinnings:
                 for threadNR in threadNRs:
@@ -176,7 +176,7 @@ def plot_ldist(DATA, opts=[], cnNRs=[], lockNRs=[], threadNRs=[], mnNRs=[1], pin
 RES_DIRS = {}
 DATA = {}
 
-read_data(DATA, RES_DIRS)
+read_data(DATA, RES_DIRS, inc_ldist=False)
 
 plot_tp_lat(
                 DATA, 
@@ -184,7 +184,7 @@ plot_tp_lat(
                 mbs=["kvs"],
                 opts=['.', 'Ho', 'Hod', 'Bw', 'HodOcmBw'],
                 # opts=["HodOcmBw"],
-                cnMnNRs=[[3,1], [4,1]],
+                cnMnNRs=[[4,4], [8,4]],
                 lockNRs=[8, 128, 1024],
                 threadNRs=[16],
                 mHos=[16],
