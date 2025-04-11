@@ -67,7 +67,7 @@ opts=(".")
 microbenches=("emptyCS" "mlocks" "singleMachine" "kvs")
 duration=10
 runNR=1
-zipfian=0.99
+zipfian=0.0
 chipSize=128
 dsmSize=8
 
