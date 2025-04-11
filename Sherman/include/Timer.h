@@ -22,8 +22,14 @@ class Timer {
 public:
   Timer() = default;
 
+  #ifdef CYCLE_TIME
+  void begin() { start = rdtscp(); }
+
+  uint64_t end(uint64_t loop = 1) {
+    return (rdtscp() - start) / CYCLES_PER_US;
+  }
+  #else
   void begin() { clock_gettime(CLOCK_REALTIME, &s); }
-  // void begin() { start = rdtscp(); }
 
   uint64_t end(uint64_t loop = 1) { 
     asm volatile("" ::: "memory");
@@ -35,9 +41,7 @@ public:
 
     return ns;
   }
-  // uint64_t end(uint64_t loop = 1) {
-  //   return (rdtscp() - start) / CYCLES_PER_US;
-  // }
+  #endif
 
   void print() {
 

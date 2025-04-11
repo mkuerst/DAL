@@ -139,23 +139,22 @@ void *thread_run(void *arg) {
     uint64_t all_thread = threadNR * dsm->getClusterSize();
     uint64_t my_id = threadNR * dsm->getMyNodeID() + id;
 
-    if (id == 0) {
+    if (id == mnNR) {
         bench_timer.begin();
     }
 
     uint64_t end_warm_key = kWarmRatio * kKeySpace;
     for (uint64_t i = 1; i < end_warm_key; ++i) {
         if (i % all_thread == my_id) {
-            tree->insert(to_key(i), i * 2);
-            // cerr << "INSERTED WARMUP" << endl;
-            // DE("INSERTED WARMUP KEY %ld -> %ld\n", i, i*2);
+            if (colocate || nodeID >= mnNR)
+                tree->insert(to_key(i), i * 2);
         }
     }
     int fd = setup_perf_event(cpu);
 
     warmup_cnt.fetch_add(1);
 
-    if (id == 0) {
+    if (id == mnNR) {
         while (warmup_cnt.load() != threadNR);
         fprintf(stderr, "node %d finish\n", dsm->getMyNodeID());
         fflush(stderr);
@@ -274,9 +273,6 @@ int main(int argc, char *argv[]) {
         }
         fprintf(stderr, "inserted initial keys\n");
     }
-    // if(nodeID == 0) {
-    //     tree->generate_graphviz();
-    // }
 
     dsm->barrier("benchmark");
     dsm->resetThread();

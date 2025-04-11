@@ -184,7 +184,7 @@ plot_tp_lat(
                 mbs=["kvs"],
                 opts=['.', 'Ho', 'Hod', 'Bw', 'HodOcmBw'],
                 # opts=["HodOcmBw"],
-                cnMnNRs=[[4,4], [8,4]],
+                cnMnNRs=[[1,1], [2,1]],
                 lockNRs=[8, 128, 1024],
                 threadNRs=[16],
                 mHos=[16],

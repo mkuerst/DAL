@@ -82,6 +82,7 @@ LAT_COLS = [
 "maxHandover",
 "colocate",
 "zipfian",
+"readRatio",
 ]
 
 TP_COLS = [
@@ -108,6 +109,7 @@ TP_COLS = [
 "maxHandover",
 "colocate",
 "zipfian",
+"readRatio",
 ]
 
 STAT_TO_COLS = {

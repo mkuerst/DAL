@@ -230,7 +230,7 @@ void *mlocks_worker(void *arg) {
     return 0;
 }
 
-void *single_machine(void *arg) {
+void *single_machine_worker(void *arg) {
     Task *task = (Task *) arg;
     Timer timer;
     int cpu = 0;
@@ -262,7 +262,6 @@ void *single_machine(void *arg) {
     pthread_barrier_wait(&global_barrier);
 
     while (!stop.load()) {
-        
         for (int j = 0; j < 400; j++) {
             int idx = uniform_rand_int(PRIVATE_ARRAY_SZ / sizeof(int));
             private_int_array[idx] += sum;
@@ -362,7 +361,7 @@ int main(int argc, char *argv[]) {
     switch(mode) {
         case 0: worker = empty_cs_worker; break;
         case 1: worker = mlocks_worker; break;
-        case 2: worker = single_machine; break;
+        case 2: worker = single_machine_worker; break;
         default: worker = empty_cs_worker; break;
     }
 

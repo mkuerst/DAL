@@ -704,7 +704,6 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
   *(uint64_t *) lmbuf = 1;
   GlobalAddress peerSpinLoc = GlobalAddress::Null();
   peerSpinLoc.nodeID = peerNodeID;
-  // peerSpinLoc.offset = (lock_addr.nodeID * dsm->getLmSize()) + lock_addr.offset;
   peerSpinLoc.offset = (lock_addr.nodeID * dsm->getLmSize()) + lock_addr.offset;
 
   // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
@@ -897,7 +896,6 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
   *(uint64_t *) lmbuf = 1;
   GlobalAddress peerSpinLoc = GlobalAddress::Null();
   peerSpinLoc.nodeID = peerNodeID;
-  // peerSpinLoc.offset = (lock_addr.nodeID * dsm->getLmSize()) + lock_addr.offset;
   peerSpinLoc.offset = (lock_addr.nodeID * dsm->getLmSize()) + lock_addr.offset;
 
   // cerr << "[" << nodeID << ", " << threadID << "]" << endl <<
@@ -2258,8 +2256,6 @@ void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_si
       timer.begin();
 
       if (!same_address) {
-        timer.begin();
-        memcpy(curr_page_buffer, ln->page_buffer, data_size);
         dsm->read_sync(curr_page_buffer, base_addr, data_size, nullptr);
         save_measurement(threadID, measurements.data_read);
         return;
