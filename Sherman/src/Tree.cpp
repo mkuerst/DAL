@@ -1120,6 +1120,9 @@ bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
                               GlobalAddress lock_addr, uint64_t tag,
                               CoroContext *cxt, int coro_id, int level, bool internal_page) {
 
+  if (lock_addr.nodeID == nodeID) {
+    measurements.colocated_access[threadID]++;
+  }
   bool handover = try_lock_addr(lock_addr, tag, cas_buffer, cxt, coro_id);
 
   timer.begin();

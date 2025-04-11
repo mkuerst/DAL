@@ -110,6 +110,7 @@ TP_COLS = [
 "colocate",
 "zipfian",
 "readRatio",
+"colocated_access",
 ]
 
 STAT_TO_COLS = {

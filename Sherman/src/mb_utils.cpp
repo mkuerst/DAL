@@ -128,6 +128,7 @@ void clear_measurements(int lockNR) {
 		measurements.loop_in_cs[i] = 0;
 		measurements.c_ho[i] = 0;
 		measurements.c_hod[i] = 0;
+		measurements.colocated_access[i] = 0;
 	}
 }
 
@@ -324,7 +325,8 @@ void write_tp(char* tp_path, char* lock_path, int run, int lockNR, int nodeID, s
 			<< std::setw(3) << maxHandover << ","
 			<< std::setw(1) << colocate << ","
 			<< std::setw(4) << zipfian << ","
-			<< std::setw(3) << read_ratio << "\n";
+			<< std::setw(3) << read_ratio << ","
+			<< std::setw(3) << measurements.colocated_access[t] << "\n";
 	}
 
 	file.flush();

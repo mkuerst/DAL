@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <time.h>
+#include <cpuid.h>
 
 #define CYCLES_PER_US 3L
 
@@ -17,16 +18,59 @@ inline uint64_t rdtscp() {
         :: "rcx");
     return (static_cast<uint64_t>(hi) << 32) | lo;
 }
+        
+inline double estimate_tsc_freq_fallback() {
+  struct timespec start_ts, end_ts;
+  unsigned aux;
+  uint64_t start_cycles = __rdtscp(&aux);
+  clock_gettime(CLOCK_MONOTONIC, &start_ts);
+
+  struct timespec sleep_time = {.tv_sec = 0, .tv_nsec = 100000000}; // 100ms
+  nanosleep(&sleep_time, NULL);
+
+  uint64_t end_cycles = __rdtscp(&aux);
+  clock_gettime(CLOCK_MONOTONIC, &end_ts);
+
+  uint64_t elapsed_cycles = end_cycles - start_cycles;
+  uint64_t elapsed_ns = (end_ts.tv_sec - start_ts.tv_sec) * 1e9 +
+                        (end_ts.tv_nsec - start_ts.tv_nsec);
+
+  return (double)elapsed_cycles * 1e9 / elapsed_ns;
+}
+
+inline double get_tsc_freq_hz() {
+  unsigned int eax, ebx, ecx, edx;
+  if (__get_cpuid_count(0x15, 0, &eax, &ebx, &ecx, &edx)) {
+      if (eax != 0 && ebx != 0) {
+          double tsc_freq = (double)ecx * ((double)ebx / (double)eax);
+          if (tsc_freq > 0)
+              return tsc_freq;
+      }
+  }
+
+  return estimate_tsc_freq_fallback();
+}
 
 class Timer {
 public:
-  Timer() = default;
+  Timer() {
+    tsc_freq = get_tsc_freq_hz();
+  };
+  double tsc_freq;
 
   #ifdef CYCLE_TIME
   void begin() { start = rdtscp(); }
 
+  // uint64_t end(uint64_t loop = 1) {
+  //   return (rdtscp() - start) * 1e9 / tsc_freq;
+  // }
   uint64_t end(uint64_t loop = 1) {
-    return (rdtscp() - start) / CYCLES_PER_US;
+    double elapsed_cycles = static_cast<double>(rdtscp() - start);
+    double ns_total = (elapsed_cycles / tsc_freq) * 1e9;
+    // std::cerr << "tsc_freq: " << tsc_freq << endl;
+    // std::cerr << "elapsed_cycles: " << elapsed_cycles << endl;
+    // std::cerr << "ns_total: " << ns_total << endl;
+    return static_cast<uint64_t>(ns_total / loop + 0.5);  // rounding
   }
   #else
   void begin() { clock_gettime(CLOCK_REALTIME, &s); }

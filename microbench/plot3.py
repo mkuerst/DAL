@@ -182,9 +182,10 @@ plot_tp_lat(
                 DATA, 
                 impls=[],
                 mbs=["kvs"],
-                opts=['.', 'Ho', 'Hod', 'Bw', 'HodOcmBw'],
-                # opts=["HodOcmBw"],
-                cnMnNRs=[[1,1], [2,1]],
+                # opts=['.', 'Ho', 'Hod', 'Bw', 'HodOcmBw'],
+                opts=[".", "Hod"],
+                # cnMnNRs=[[1,1], [2,1]],
+                cnMnNRs=[[4,2]],
                 lockNRs=[8, 128, 1024],
                 threadNRs=[16],
                 mHos=[16],
@@ -192,8 +193,8 @@ plot_tp_lat(
                 lat_incs = [["lwait_acq"], ["gwait_acq", "gwait_rel"], ["data_read", "data_write"]],
                 tp_incs=["la", "tp", "glock_tries", "handovers", "handovers_data", "cache_misses"],
                 log=[1,1,0],
-                colocate=1,
-                vs_colocate=True,
+                colocate=0,
+                # vs_colocate=True,
                 )
 
 pass
