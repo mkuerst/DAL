@@ -393,10 +393,11 @@ def set_legend(ax1, hatches, hatch_categories,
                                 label="Jain's Fairness")
 
     lock_idx = 0
-    for key, value in hatches.items():
-        if key in include_hatch_keys:
-            legend_lat[key] =  plt.Rectangle((0, 0), 10, 10, facecolor=lock_colors[lock_idx], hatch=value, edgecolor='black', label=hatch_categories[key])  
-            lock_idx += 1
+    if len(hatches):
+        for key, value in hatches.items():
+            if key in include_hatch_keys:
+                legend_lat[key] =  plt.Rectangle((0, 0), 10, 10, facecolor=lock_colors[lock_idx], hatch=value, edgecolor='black', label=hatch_categories[key])  
+                lock_idx += 1
 
     # ax1.legend(legend_lat.values(), [entry.get_label() for entry in legend_lat.values()],
     #         title="", loc="upper left", bbox_to_anchor=(1.05, 1))

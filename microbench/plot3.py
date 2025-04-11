@@ -112,7 +112,7 @@ def plot_tp_lat(DATA, comm_prot="rdma", opts=["."], mbs=["kvs"],
                                     x_positions, x_labels, comm_prot, 
                                     cnNR=cnNR, mnNR=mnNR, threadNR=threadNR, numa=numa, maxHo=mHo, mb=mb,
                                     clients=comp_nodes, include_metrics=lat_incs[i], 
-                                    hatches=mlocks_hatches, hatch_categories=mlocks_hatch_categories,
+                                    # hatches=mlocks_hatches, hatch_categories=mlocks_hatch_categories,
                                     include_hatch_keys=lockNRs, log=log[i], latplot_idx=i)
 
                         
