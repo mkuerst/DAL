@@ -197,16 +197,40 @@ def plot_cvnc(DATA, comm_prot, mb, impl, numa, opt, cnNR, threadNR, mnNR, lockNR
     sum_non_colocated = grouped_tp["non_colocated_access"].sum()
     grouped_ratio = sum_colocated / sum_non_colocated
 
-    # grouped_lat = df_lat.groupby("nodeID")
+    lat_median = df_lat[df_lat["perc"] == 0.5].set_index("nodeID")["end_to_end"]
+    lat_tail = df_lat[df_lat["perc"] == 0.99].set_index("nodeID")["end_to_end"]
+
+    df_plot = pd.DataFrame({
+        "tp_sum": sum_tp,
+        "access_ratio": grouped_ratio,
+        "median_lat": lat_median * 10,
+        "tail_lat": lat_tail * 10,
+    }).dropna()
+
+    df_plot = df_plot.sort_values("access_ratio")
+
 
     plt.figure(figsize=(8, 5))
-    plt.plot(grouped_ratio, sum_tp, marker='o', linestyle='-', color='steelblue')
-    plt.xlabel("Per Node Colocated / Non-Colocated Access Ratio")
-    plt.ylabel("Total Throughput per Node")
-    plt.title("Throughput vs. Colocated Access Ratio by Nodes")
+    # plt.plot(grouped_ratio, sum_tp, marker='o', linestyle='-', color='steelblue')
+    plt.scatter(df_plot["access_ratio"], df_plot["tp_sum"], color="steelblue")
+    for i, row in df_plot.iterrows():
+        annotation = f"NodeID: {row.name}\nmed: {row['median_lat']:.0f}us\np99: {row['tail_lat']:.0f}us"
+        if i % 2:
+            i = -i
+        plt.annotate(annotation,
+                    (row["access_ratio"], row["tp_sum"]),
+                    textcoords="offset points",
+                    xytext=(10, i*6),
+                    # ha='center',
+                    fontsize=8,
+                    color="black")
+
+    plt.xlabel("Per Node [Colocated / Non-Colocated] Access Ratio")
+    plt.ylabel("Total TP per Node")
+    plt.title("TP vs. Col/Non-Col Access Ratio by Nodes and End To End Latencies")
     plt.grid(True)
     plt.tight_layout()
-    output_path = file_dir+f"/results/plots/tp/{impl}_{opt}_{mb}_{cnNR}CN_{threadNR}T_{lockNR}L_{mnNR}MN_{numa}NUMA_{mHo}maxHo_.png"
+    output_path = file_dir+f"/results/plots/tp/cvncRatios_{impl}_{opt}_{mb}_{cnNR}CN_{threadNR}T_{lockNR}L_{mnNR}MN_{numa}NUMA_{mHo}maxHo_.png"
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
 
 
@@ -214,7 +238,7 @@ RES_DIRS = {}
 DATA = {}
 
 
-read_data(DATA, RES_DIRS, inc_ldist=False)
+read_data(DATA, RES_DIRS, inc_ldist=True)
 
 plot_cvnc(DATA, "rdma", "kvs", "shermanLock", 1, ".", 4, 16, 4, 1024, 16)
 
@@ -238,13 +262,13 @@ plot_cvnc(DATA, "rdma", "kvs", "shermanLock", 1, ".", 4, 16, 4, 1024, 16)
 #                 )
 
 pass
-# plot_ldist(DATA,
-#             opts=['.'],
-#             cnNRs=[4],
-#             lockNRs=[128, 1024],
-#             threadNRs=[16],
-#             mnNRs=[2],
-#             mHos=[16],
-#             pinnings=[1],
-#            )
+plot_ldist(DATA,
+            opts=['.'],
+            cnNRs=[4],
+            lockNRs=[1024],
+            threadNRs=[16],
+            mnNRs=[4],
+            mHos=[16],
+            pinnings=[1],
+           )
 pass
