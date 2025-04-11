@@ -171,31 +171,71 @@ def plot_ldist(DATA, opts=[], cnNRs=[], lockNRs=[], threadNRs=[], mnNRs=[1], pin
                                                         plt.title(f"Lock Acquisition Distribution | {impl}_{opt} | {lockNR} lockNR | {cnNR} CNs | {mnNR} MNs | {threadNR} Ts | {mb} MB | {numa} NUMA | {mHo} maxHo | {run} R")
                                                         output_path = file_dir+f"/results/plots/ldist/{impl}_{opt}_{mb}_{cnNR}CN_{threadNR}T_{lockNR}L_{mnNR}MN_{numa}NUMA_{mHo}maxHo_{run}R.png"
                                                         plt.savefig(output_path, dpi=300, bbox_inches="tight")
+                                                    
     
+def plot_cvnc(DATA, comm_prot, mb, impl, numa, opt, cnNR, threadNR, mnNR, lockNR, mHo):
+    filter_values = {
+        "comm_prot": comm_prot,
+        "mb": mb,
+        "impl": impl,
+        "numa": numa,
+        "opt": opt,
+        "cnNR": cnNR,
+        "threadNR": threadNR,
+        "mnNR": mnNR,
+        "lockNR": lockNR,
+        "maxHandover": mHo,
+        "colocate": 1,
+    }
+    query_str = " and ".join([f"{col} == @filter_values['{col}']" for col in filter_values])
+    df_tp = DATA["tp"].query(query_str)
+    df_lat = DATA["lat"].query(query_str)
+
+    grouped_tp = df_tp.groupby("nodeID")
+    sum_tp = grouped_tp["tp"].sum()
+    sum_colocated = grouped_tp["colocated_access"].sum()
+    sum_non_colocated = grouped_tp["non_colocated_access"].sum()
+    grouped_ratio = sum_colocated / sum_non_colocated
+
+    # grouped_lat = df_lat.groupby("nodeID")
+
+    plt.figure(figsize=(8, 5))
+    plt.plot(grouped_ratio, sum_tp, marker='o', linestyle='-', color='steelblue')
+    plt.xlabel("Per Node Colocated / Non-Colocated Access Ratio")
+    plt.ylabel("Total Throughput per Node")
+    plt.title("Throughput vs. Colocated Access Ratio by Nodes")
+    plt.grid(True)
+    plt.tight_layout()
+    output_path = file_dir+f"/results/plots/tp/{impl}_{opt}_{mb}_{cnNR}CN_{threadNR}T_{lockNR}L_{mnNR}MN_{numa}NUMA_{mHo}maxHo_.png"
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+
 
 RES_DIRS = {}
 DATA = {}
 
+
 read_data(DATA, RES_DIRS, inc_ldist=False)
 
-plot_tp_lat(
-                DATA, 
-                impls=[],
-                mbs=["kvs"],
-                # opts=['.', 'Ho', 'Hod', 'Bw', 'HodOcmBw'],
-                opts=[".", "Hod"],
-                # cnMnNRs=[[1,1], [2,1]],
-                cnMnNRs=[[4,2]],
-                lockNRs=[8, 128, 1024],
-                threadNRs=[16],
-                mHos=[16],
-                pinnings=[1],
-                lat_incs = [["lwait_acq"], ["gwait_acq", "gwait_rel"], ["data_read", "data_write"]],
-                tp_incs=["la", "tp", "glock_tries", "handovers", "handovers_data", "cache_misses"],
-                log=[1,1,0],
-                colocate=0,
-                # vs_colocate=True,
-                )
+plot_cvnc(DATA, "rdma", "kvs", "shermanLock", 1, ".", 4, 16, 4, 1024, 16)
+
+# plot_tp_lat(
+#                 DATA, 
+#                 impls=[],
+#                 mbs=["kvs"],
+#                 # opts=['.', 'Ho', 'Hod', 'Bw', 'HodOcmBw'],
+#                 opts=["."],
+#                 # cnMnNRs=[[1,1], [2,1]],
+#                 cnMnNRs=[[4,4]],
+#                 lockNRs=[1024],
+#                 threadNRs=[16],
+#                 mHos=[16],
+#                 pinnings=[1],
+#                 lat_incs = [["lwait_acq"], ["gwait_acq", "gwait_rel"], ["data_read", "data_write"]],
+#                 tp_incs=["la", "tp", "glock_tries", "handovers", "handovers_data", "cache_misses"],
+#                 log=[1,1,0],
+#                 colocate=1,
+#                 # vs_colocate=True,
+#                 )
 
 pass
 # plot_ldist(DATA,
