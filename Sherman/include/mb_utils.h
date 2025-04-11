@@ -163,7 +163,7 @@ void write_tp(char* tp_path, char* lock_path, int run, int lockNR, int nodeID, s
 void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_size, int pinning,
                 uint16_t cnNR, uint16_t mnNR, uint16_t threadNR, uint16_t maxHandover, int colocate, double zipfian, int read_ratio);
 
-void save_measurement(int threadID, uint16_t *arr, int factor = 1, bool is_lwait = false);
+void save_measurement(int threadID, uint16_t *arr, int factor = 1, bool is_lwait = false, int source = -1, int dest = -1);
 
 void init_measurements(int lockNR);
 

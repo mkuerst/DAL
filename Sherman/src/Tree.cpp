@@ -136,8 +136,10 @@ extern bool enable_cache;
 GlobalAddress Tree::get_root_ptr(CoroContext *cxt, int coro_id) {
 
   if (g_root_ptr == GlobalAddress::Null()) {
+    timer.begin();
     auto page_buffer = (dsm->get_rbuf(coro_id)).get_page_buffer();
     dsm->read_sync(page_buffer, root_ptr_ptr, sizeof(GlobalAddress), cxt);
+    save_measurement(threadID, measurements.data_read, 1, false, nodeID, root_ptr_ptr.nodeID);
     GlobalAddress root_ptr = *(GlobalAddress *)page_buffer;
     return root_ptr;
   } else {
@@ -677,7 +679,7 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
   if (ln->wb) {
     timer.begin();
     dsm->write_sync(ln->page_buffer, ln->page_addr, kLeafPageSize);
-    save_measurement(threadID, measurements.data_write);
+    save_measurement(threadID, measurements.data_write, 1, false, nodeID, ln->page_addr.nodeID);
     ln->written = true;
   }
   ln->wb = 0;
@@ -743,7 +745,7 @@ inline void Tree::unlock_addr(GlobalAddress lock_addr, uint64_t tag,
   if (ln->wb) {
     timer.begin();
     dsm->write_sync(ln->page_buffer, ln->page_addr, kLeafPageSize);
-    save_measurement(threadID, measurements.data_write);
+    save_measurement(threadID, measurements.data_write, 1, false, nodeID, ln->page_addr.nodeID);
     ln->written = true;
   }
   ln->wb = 0;
@@ -804,7 +806,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     timer.begin();
     #ifndef HANDOVER_DATA
     dsm->write_sync(page_buffer, page_addr, page_size, cxt, from_peer);
-    save_measurement(threadID, measurements.data_write);
+    save_measurement(threadID, measurements.data_write, 1, false, nodeID, page_addr.nodeID);
     #endif
 
     // #ifdef HANDOVER_DATA
@@ -860,7 +862,7 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     dsm->write(page_buffer, page_addr, page_size, false, cxt, from_peer);
   } else {
     dsm->write_sync(page_buffer, page_addr, page_size, cxt, from_peer);
-    save_measurement(threadID, measurements.data_write);
+    save_measurement(threadID, measurements.data_write, 1, false, nodeID, page_addr.nodeID);
   }
   ln->wb = 0;
   ln->safe = false;
@@ -1081,14 +1083,14 @@ void Tree::write_page_and_unlock(char *page_buffer, GlobalAddress page_addr,
     dsm->write_batch(rs, 2, false);
   } else {
     dsm->write_batch_sync(rs, 2, cxt);
-    save_measurement(threadID, measurements.data_write);
+    save_measurement(threadID, measurements.data_write, 1, false, nodeID, page_addr.nodeID);
   }
   save_measurement(threadID, measurements.gwait_rel);
 
   #else
 
   dsm->write_sync(page_buffer, page_addr, page_size, cxt, from_peer);
-  save_measurement(threadID, measurements.data_write);
+  save_measurement(threadID, measurements.data_write, 1, false, nodeID, page_addr.nodeID);
   timer.begin();
   *cas_buf = 0;
   dsm->write_dm_sync((char *)cas_buf, lock_addr, sizeof(uint64_t), cxt);
@@ -1120,15 +1122,12 @@ bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
                               GlobalAddress lock_addr, uint64_t tag,
                               CoroContext *cxt, int coro_id, int level, bool internal_page) {
 
-  if (lock_addr.nodeID == nodeID) {
-    measurements.colocated_access[threadID]++;
-  }
   bool handover = try_lock_addr(lock_addr, tag, cas_buffer, cxt, coro_id);
 
   timer.begin();
   #ifndef HANDOVER_DATA
   dsm->read_sync(*page_buffer, page_addr, page_size, cxt);
-  save_measurement(threadID, measurements.data_read);
+  save_measurement(threadID, measurements.data_read, 1, false, nodeID, page_addr.nodeID);
   return false;
   #endif
 
@@ -1162,7 +1161,7 @@ bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
         ln->ua_hod = false;
 
         dsm->write_sync(*page_buffer, ln->page_addr, kLeafPageSize, nullptr);
-        save_measurement(threadID, measurements.data_write);
+        save_measurement(threadID, measurements.data_write, 1, false, nodeID, ln->page_addr.nodeID);
         ln->wb = 0;
         ln->written = true;
       }
@@ -1171,7 +1170,7 @@ bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
       timer.begin();
       *page_buffer = dsm->get_rbuf(0).get_page_buffer();
       dsm->read_sync(*page_buffer, page_addr, page_size, cxt);
-      save_measurement(threadID, measurements.data_read);
+      save_measurement(threadID, measurements.data_read, 1, false, nodeID, page_addr.nodeID);
       return false;
     }
     else {
@@ -1207,7 +1206,7 @@ bool Tree::lock_and_read_page(char **page_buffer, GlobalAddress page_addr,
     // *page_buffer = dsm->get_rbuf(0).get_page_buffer();
     timer.begin();
     dsm->read_sync(*page_buffer, page_addr, page_size, cxt);
-    save_measurement(threadID, measurements.data_read);
+    save_measurement(threadID, measurements.data_read, 1, false, nodeID, page_addr.nodeID);
     return false;
   }
 }
@@ -1507,7 +1506,9 @@ re_read:
     printf("re read too many times\n");
     sleep(1);
   }
+  timer.begin();
   dsm->read_sync(page_buffer, page_addr, kLeafPageSize, cxt);
+  save_measurement(threadID, measurements.data_read, 1, false, nodeID, page_addr.nodeID);
 
   memset(&result, 0, sizeof(result));
   result.is_leaf = header->leftmost_ptr == GlobalAddress::Null();
@@ -2249,7 +2250,7 @@ void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_si
       #ifndef HANDOVER_DATA
       timer.begin();
       dsm->read_sync(curr_page_buffer, base_addr, data_size, NULL);
-      save_measurement(threadID, measurements.data_read);
+      save_measurement(threadID, measurements.data_read, 1, false, nodeID, base_addr.nodeID);
       return;
       #endif
 
@@ -2260,7 +2261,7 @@ void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_si
 
       if (!same_address) {
         dsm->read_sync(curr_page_buffer, base_addr, data_size, nullptr);
-        save_measurement(threadID, measurements.data_read);
+        save_measurement(threadID, measurements.data_read, 1, false, nodeID, base_addr.nodeID);
         return;
       }
       else {
@@ -2271,7 +2272,7 @@ void Tree::mb_lock(GlobalAddress base_addr, GlobalAddress lock_addr, int data_si
     } else {
       timer.begin();
       dsm->read_sync(curr_page_buffer, base_addr, data_size, nullptr);
-      save_measurement(threadID, measurements.data_read);
+      save_measurement(threadID, measurements.data_read, 1, false, nodeID, base_addr.nodeID);
       return;
     }
 	}

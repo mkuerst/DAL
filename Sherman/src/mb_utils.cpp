@@ -129,6 +129,7 @@ void clear_measurements(int lockNR) {
 		measurements.c_ho[i] = 0;
 		measurements.c_hod[i] = 0;
 		measurements.colocated_access[i] = 0;
+		measurements.non_colocated_access[i] = 0;
 	}
 }
 
@@ -225,7 +226,7 @@ void init_measurements(int lockNR) {
   memset(measurements.lock_acqs, 0, MAX_MACHINE * lockNR * sizeof(uint32_t));
 }
 
-void save_measurement(int threadID, uint16_t *arr, int factor, bool is_lwait) {
+void save_measurement(int threadID, uint16_t *arr, int factor, bool is_lwait, int source, int dest) {
 	auto us_10 = timer.end();
 	uint64_t lw = is_lwait ? LWAIT_WINDOWS : LATENCY_WINDOWS;
 	if (us_10 >= 1000 && is_lwait) {
@@ -238,6 +239,13 @@ void save_measurement(int threadID, uint16_t *arr, int factor, bool is_lwait) {
 		us_10 = lw - 1;
 	}
     arr[threadID*lw + us_10]++;
+	if (source != -1) {
+		if (source == dest) {
+			measurements.colocated_access[threadID]++;
+		} else {
+			measurements.non_colocated_access[threadID]++;
+		}
+	}
 }
 
 std::vector<std::vector<uint32_t>> readExistingData(char *path, int lockNR) {
@@ -326,7 +334,8 @@ void write_tp(char* tp_path, char* lock_path, int run, int lockNR, int nodeID, s
 			<< std::setw(1) << colocate << ","
 			<< std::setw(4) << zipfian << ","
 			<< std::setw(3) << read_ratio << ","
-			<< std::setw(3) << measurements.colocated_access[t] << "\n";
+			<< std::setw(3) << measurements.colocated_access[t] << ","
+			<< std::setw(3) << measurements.non_colocated_access[t] << "\n";
 	}
 
 	file.flush();

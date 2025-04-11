@@ -39,7 +39,7 @@ loop_in_cs,tp,lock_acquires,duration,\
 glock_tries,handovers,handovers_data,array_size(B),\
 nodeID,run,lockNR,la,numa,cache_misses,c_ho,c_hod,\
 cnNR,mnNR,threadNR,maxHandover,colocate,zipfian,readRatio,\
-colocated_access"
+colocated_access,non_colocated_access"
 
 cn_lat_header="lock_hold,\
 lwait_acq,\
@@ -62,23 +62,23 @@ comm_prot=rdma
 
 # MICROBENCH INPUTS
 # opts=("." "Ho" "Hod" "Bw" "HodOcmBw")
-opts=("." "Hod")
+opts=(".")
 
 microbenches=("emptyCS" "mlocks" "singleMachine" "kvs")
 duration=10
-runNR=2
+runNR=1
 zipfian=0.99
 chipSize=128
 dsmSize=8
 
-mnNRs=(2)
+mnNRs=(4)
 nodeNRs=(4)
 threadNRs=(16)
 lockNRs=(1024)
 bench_idxs=(3)
 pinnings=(1)
 mHos=(16)
-colocate=0
+colocate=1
 readRatio=50
 
 
