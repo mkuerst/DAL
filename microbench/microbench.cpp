@@ -22,8 +22,9 @@ using namespace std;
 
 char *res_file_tp, *res_file_lat, *res_file_lock;
 int threadNR, nodeNR, mnNR, lockNR, runNR,
-nodeID, duration, mode, kReadRatio, maxHandover, colocate;
+nodeID, duration, mode, maxHandover, colocate, kReadRatio;
 int pinning = 1;
+
 uint64_t *lock_acqs;
 uint64_t *lock_rels;
 
@@ -310,6 +311,7 @@ int main(int argc, char *argv[]) {
     &maxHandover, &colocate,
     &res_file_tp, &res_file_lat, &res_file_lock,
     argc, argv);
+    kReadRatio = 0;
 
     if (nodeID == 1 && mode < 2) {
         if(system("sudo bash /nfs/DAL/restartMemc.sh"))
@@ -409,9 +411,9 @@ int main(int argc, char *argv[]) {
         for (int n = 0; n < nodeNR; n++) {
             if (n == nodeID) {
                 write_tp(res_file_tp, res_file_lock, runNR,  lockNR*mnNR, n, page_size, pinning,
-                        nodeNR, mnNR, threadNR, maxHandover, colocate, zipfian);
+                        nodeNR, mnNR, threadNR, maxHandover, colocate, zipfian, kReadRatio);
                 write_lat(res_file_lat, runNR, lockNR*mnNR, n, page_size, pinning,
-                        nodeNR, mnNR, threadNR, maxHandover, colocate, zipfian);
+                        nodeNR, mnNR, threadNR, maxHandover, colocate, zipfian, kReadRatio);
             }
             if (mode < 2) {
                 string writeResKey = "WRITE_RES_" + to_string(n);

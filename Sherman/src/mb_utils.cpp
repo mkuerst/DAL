@@ -286,7 +286,8 @@ void writeData(char *path, const std::vector<std::vector<uint32_t>>& data) {
 }
 
 void write_tp(char* tp_path, char* lock_path, int run, int lockNR, int nodeID, size_t array_size, int pinning,
-                uint16_t cnNR, uint16_t mnNR, int threadNR, uint16_t maxHandover, int colocate, double zipfian) {
+                uint16_t cnNR, uint16_t mnNR, int threadNR, uint16_t maxHandover, int colocate, double zipfian,
+				int read_ratio) {
 	std::ofstream file(tp_path, std::ios::app);
 	uint64_t total_handovers = 0;
 	uint64_t total_Hod = 0;
@@ -322,7 +323,8 @@ void write_tp(char* tp_path, char* lock_path, int run, int lockNR, int nodeID, s
 			<< std::setw(3) << threadNR << ","
 			<< std::setw(3) << maxHandover << ","
 			<< std::setw(1) << colocate << ","
-			<< std::setw(4) << zipfian << "\n";
+			<< std::setw(4) << zipfian << ","
+			<< std::setw(3) << read_ratio << "\n";
 	}
 
 	file.flush();
@@ -342,7 +344,8 @@ void write_tp(char* tp_path, char* lock_path, int run, int lockNR, int nodeID, s
 
 // in us
 void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_size, int pinning,
-                uint16_t cnNR, uint16_t mnNR, uint16_t threadNR, uint16_t maxHandover, int colocate, double zipfian) {
+                uint16_t cnNR, uint16_t mnNR, uint16_t threadNR, uint16_t maxHandover, int colocate, double zipfian,
+				int read_ratio) {
 	std::ofstream file(res_file, std::ios::app);
 	if (!file)
 		__error("Failed to open %s\n", res_file);
@@ -380,7 +383,8 @@ void write_lat(char* res_file, int run, int lockNR, int nodeID, size_t array_siz
 			<< std::setw(3) << threadNR << ","
 			<< std::setw(3) << maxHandover << ","
 			<< std::setw(1) << colocate << ","
-			<< std::setw(4) << zipfian << "\n";
+			<< std::setw(4) << zipfian << ","
+			<< std::setw(3) << read_ratio << "\n";
 	}
 	file.close();
 }
